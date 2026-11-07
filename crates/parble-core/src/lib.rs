@@ -3,6 +3,7 @@
 //! No Bevy, no Rapier, no floats in transforms. All lengths are integer micrometres (µm)
 //! and every number traces to `docs/kit-contract.md`.
 
+pub mod catalog;
 pub mod contract;
 pub mod grid;
 pub mod piece;
@@ -10,6 +11,7 @@ pub mod port;
 pub mod rng;
 pub mod track;
 
+pub use catalog::{MapCatalog, PieceCatalog};
 pub use contract::KIT_CONTRACT_VERSION;
 pub use grid::{CellCoord, InvalidYaw, Mirror, Orientation, PortFace, Yaw4};
 pub use piece::{InvalidPieceId, PieceDef, PieceDefError, PieceId};
