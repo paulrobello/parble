@@ -52,9 +52,14 @@ checkall:
 	@$(MAKE) --no-print-directory test
 	@$(MAKE) --no-print-directory ui-test
 
-# Push gate: checkall + the CI-parity legs that exist today. P0-T4 adds determinism-wasm,
-# P0-T5 adds web-size (needs index.html), P0-T8 adds actionlint.
-checkall-ci: checkall wasm-build-check secrets-scan
+# Push gate: checkall + the CI-parity legs that exist today. P0-T5 adds web-size (needs
+# index.html), P0-T8 adds actionlint.
+checkall-ci: checkall wasm-build-check determinism-wasm secrets-scan
+
+# P0-T4: the wasm build of the golden ramp run must hash the same as the native golden.
+.PHONY: determinism-wasm
+determinism-wasm:
+	bash scripts/determinism/wasm.sh
 
 wasm-build-check:
 	cargo build --workspace --locked --target $(WASM)
