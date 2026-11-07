@@ -1,1 +1,20 @@
-//! parble-core: placeholder crate (filled in by later Phase 0 tasks).
+//! parble-core: the cell grid, the kit contract types, the track model and seeded RNG.
+//!
+//! No Bevy, no Rapier, no floats in transforms. All lengths are integer micrometres (µm)
+//! and every number traces to `docs/kit-contract.md`.
+
+pub mod contract;
+pub mod grid;
+pub mod piece;
+pub mod port;
+pub mod rng;
+pub mod track;
+
+pub use contract::KIT_CONTRACT_VERSION;
+pub use grid::{CellCoord, InvalidYaw, Mirror, Orientation, PortFace, Yaw4};
+pub use piece::{InvalidPieceId, PieceDef, PieceDefError, PieceId};
+pub use port::{InvalidLevel, Port, PortClass, PortError, PortFlow, PortLevel};
+pub use rng::{SeededRng, SubStream};
+pub use track::{
+    HopperConfig, MarbleSize, PHYSICS_VERSION, Placement, ReleaseMode, SCHEMA_VERSION, Track,
+};
