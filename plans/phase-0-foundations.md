@@ -36,7 +36,7 @@ Ports: 5310 Trunk dev server, 5311 static preview for Playwright (reserved in `~
   - horizontal port floor levels (15 mm steps; list them) and lateral tolerance
   - vertical drop port diameter
   - channel cross-section: 28 mm inner width, round bottom, wall thickness and lip radius for the block family and the rail family
-  - marble radii (mini 10, standard 16, shooter 25 mm)
+  - marble diameters (mini 10, standard 16, shooter 25 mm; radii 5, 8, 12.5 mm)
   - size-gate holes (12 mm, 19 mm)
   - gentle and steep slope gradients
   - yaw-only orientation with a mirror flag
