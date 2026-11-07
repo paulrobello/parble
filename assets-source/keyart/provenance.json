@@ -1,0 +1,1047 @@
+{
+  "schema": "parble-keyart-provenance/1",
+  "task": "P5-T2 key art",
+  "purpose": "Title-screen hero (wide and portrait), loading art and a 1200x630 social card for parble (plans/phase-5-mvp-release.md P5-T2). Text-free: the parble wordmark is a UI overlay.",
+  "date": "2026-11-07",
+  "route": "create-game-key-art via the art skill, Higgsfield backend (higgsfield CLI 1.2.x, nano_banana_pro)",
+  "authoringAgent": {
+    "harness": "claude-code",
+    "model": "claude-opus-5-5"
+  },
+  "generationTotal": 4,
+  "generationCap": 12,
+  "creditsTotal": 12,
+  "creditEvidence": "higgsfield account status: 968 credits before, 956 after (2 x 4k at 4 credits, 2 x 2k at 2 credits, matching 'generate cost' quotes)",
+  "rejectedJobs": [],
+  "referencePolicy": "Only owner-approved look-dev targets 01-04, 06 and 07 were used as image references. Frames 05, 08, 09 and docs/reference/ref-09 (glow inlays) were excluded per the owner rule: no light strips or emissive inlays on track pieces.",
+  "frames": [
+    {
+      "file": "hero-wide-21x9.png",
+      "subject": "Title-screen hero, wide establishing shot (primary). Source for the hero-21x9, hero-16x9 and social-card derivatives.",
+      "role": "primary",
+      "targetsReference": [
+        "assets-source/lookdev/04-tower-track-wide.png",
+        "assets-source/lookdev/03-playroom-rug-lanterns.png",
+        "assets-source/lookdev/02-corkscrew-funnel.png"
+      ],
+      "provider": "Higgsfield",
+      "model": "nano_banana_pro",
+      "jobId": "ed27cef2-92d6-473a-8e35-ddf7bca74222",
+      "jobStatus": "completed",
+      "createdAt": "2026-11-07T21:10:18.5856Z",
+      "receipt": "receipts/hero-wide-21x9.json",
+      "settings": {
+        "aspect_ratio": "21:9",
+        "resolution": "4k",
+        "batch_size": 1
+      },
+      "seed": "not exposed by provider",
+      "prompt": "Wide cinematic key art of a handmade wooden marble run at night on a playroom rug. A sculptural marble run built from carved light birch wood blocks with visible thin seams and fine grain, square block towers with round port holes, smooth round wooden rails curving between towers, one corkscrew spiral rail and a small funnel, with several glass marbles (a cat's eye, a deep blue swirl, an opal) mid-run. The run is compact and sits in the lower-middle of the frame, occupying only the central 60 percent of the image width, with depth: a taller block tower slightly right of center, rails stepping down toward the camera at a three-quarter angle, on a patterned woven rug with a square geometric pattern in muted teal, ochre and rust. The upper-center third of the frame is open, unlit deep-blue darkness of a night room wall with no objects, left clear as empty space for a title. The bottom edge of the frame is a quiet, soft out-of-focus strip of rug. The outer fifth of the frame on the left and on the right holds only dark rug and darkness, with no blocks, rails or lanterns. Low camera angle at rug height, slightly elevated. Lighting: the only light sources are two or three round warm paper lanterns sitting on the rug; everything else falls off into deep blue night shadow. The wooden blocks and rails are plain natural wood with no glowing strips, no LEDs, no emissive inlays and no lights built into any piece. Plain unlettered blocks: no letters, no numbers, no alphabet blocks. No other toys, no plush animals, no dinosaurs, no characters. Use the reference images only for wood tone, lighting mood and piece style; create an original scene. Photoreal tabletop miniature render, cinematic, shallow depth of field. No text, no title, no logos, no watermark, no brand names, no people, no frame or border.",
+      "promptFile": "prompts/hero.txt",
+      "negativePrompt": "none (negative guidance is inline: no text, no logos, no watermark, no brand names, no people, no glowing strips or emissive inlays, no lettered blocks, no other toys)",
+      "referenceImages": [
+        {
+          "file": "assets-source/lookdev/04-tower-track-wide.png",
+          "uploadId": "092b0494-5efe-4682-8b44-fd749a797b16",
+          "sha256": "e88f86d1fa1a79582da08aa54a470fb847aa3d451fa9689d3c3a749e725da7ec"
+        },
+        {
+          "file": "assets-source/lookdev/03-playroom-rug-lanterns.png",
+          "uploadId": "257a2895-0a7e-4763-b84d-46502b6f7afa",
+          "sha256": "19980bb4062fb6542c0d5fdc957ea7ac2e794557233d8077737d4d09a2f7574d"
+        },
+        {
+          "file": "assets-source/lookdev/02-corkscrew-funnel.png",
+          "uploadId": "b9426c18-fad5-4f9f-b7b2-24b50cc08168",
+          "sha256": "cc0a74a0afa01f799cf49d09249069709e29d97d63f2bfa4c7c57191c68cb3c3"
+        }
+      ],
+      "generations": 1,
+      "credits": 4,
+      "format": "png",
+      "width": 6336,
+      "height": 2688,
+      "bytes": 22128564,
+      "sha256": "14a2bd1d74e37e5a519c97b98b5bf69a58519b1c897a167f600580108ce189d8",
+      "transformations": "none; stored exactly as delivered by the provider CDN",
+      "ownerReview": {
+        "status": "pending"
+      }
+    },
+    {
+      "file": "hero-wide-21x9-alt.png",
+      "subject": "Title-screen hero, alternate frontal composition. No derivatives built; kept for the owner's choice.",
+      "role": "alternate",
+      "targetsReference": [
+        "assets-source/lookdev/04-tower-track-wide.png",
+        "assets-source/lookdev/03-playroom-rug-lanterns.png",
+        "assets-source/lookdev/02-corkscrew-funnel.png"
+      ],
+      "provider": "Higgsfield",
+      "model": "nano_banana_pro",
+      "jobId": "6a8f5690-05c8-4ab1-8b42-c44124ea6acf",
+      "jobStatus": "completed",
+      "createdAt": "2026-11-07T21:09:06.504775Z",
+      "receipt": "receipts/hero-wide-21x9-alt.json",
+      "settings": {
+        "aspect_ratio": "21:9",
+        "resolution": "4k",
+        "batch_size": 1
+      },
+      "seed": "not exposed by provider",
+      "prompt": "Wide cinematic key art of a handmade wooden marble run at night on a playroom rug. A sculptural marble run built from carved light birch wood blocks with visible thin seams and fine grain, square block towers with round port holes, smooth round wooden rails curving between towers, one corkscrew spiral rail and a small funnel, with several glass marbles (a cat's eye, a deep blue swirl, an opal) mid-run. The run sits low in the lower-middle of the frame, spread horizontally across the central part of the image, on a patterned woven rug with a square geometric pattern in muted teal, ochre and rust. The upper-center third of the frame is open, unlit deep-blue darkness of a night room wall with no objects, left clear as empty space for a title. The bottom edge of the frame is a quiet, soft out-of-focus strip of rug. Keep the left and right edges of the frame calm and dark with no important detail. Low camera angle at rug height, slightly elevated. Lighting: the only light sources are two or three round warm paper lanterns sitting on the rug; everything else falls off into deep blue night shadow. The wooden blocks and rails are plain natural wood with no glowing strips, no LEDs, no emissive inlays and no lights built into any piece. Plain unlettered blocks: no letters, no numbers, no alphabet blocks. No other toys, no plush animals, no dinosaurs, no characters. Use the reference images only for wood tone, lighting mood and piece style; create an original scene. Photoreal tabletop miniature render, cinematic, shallow depth of field. No text, no title, no logos, no watermark, no brand names, no people, no frame or border.",
+      "promptFile": "prompts/hero-alt.txt",
+      "negativePrompt": "none (negative guidance is inline: no text, no logos, no watermark, no brand names, no people, no glowing strips or emissive inlays, no lettered blocks, no other toys)",
+      "referenceImages": [
+        {
+          "file": "assets-source/lookdev/04-tower-track-wide.png",
+          "uploadId": "092b0494-5efe-4682-8b44-fd749a797b16",
+          "sha256": "e88f86d1fa1a79582da08aa54a470fb847aa3d451fa9689d3c3a749e725da7ec"
+        },
+        {
+          "file": "assets-source/lookdev/03-playroom-rug-lanterns.png",
+          "uploadId": "257a2895-0a7e-4763-b84d-46502b6f7afa",
+          "sha256": "19980bb4062fb6542c0d5fdc957ea7ac2e794557233d8077737d4d09a2f7574d"
+        },
+        {
+          "file": "assets-source/lookdev/02-corkscrew-funnel.png",
+          "uploadId": "b9426c18-fad5-4f9f-b7b2-24b50cc08168",
+          "sha256": "cc0a74a0afa01f799cf49d09249069709e29d97d63f2bfa4c7c57191c68cb3c3"
+        }
+      ],
+      "generations": 1,
+      "credits": 4,
+      "format": "png",
+      "width": 6336,
+      "height": 2688,
+      "bytes": 23365028,
+      "sha256": "670930daf55ef0f11e8221144b6fb6651a541dc03d5efa0e89ac2ea70063f9fa",
+      "transformations": "none; stored exactly as delivered by the provider CDN",
+      "ownerReview": {
+        "status": "pending"
+      }
+    },
+    {
+      "file": "hero-portrait-9x16.png",
+      "subject": "Portrait title-screen hero for narrow and mobile viewports. Source for the hero-portrait-9x16 derivatives.",
+      "role": "primary",
+      "targetsReference": [
+        "assets-source/lookdev/04-tower-track-wide.png",
+        "assets-source/lookdev/06-rail-into-block-tower.png",
+        "assets-source/lookdev/03-playroom-rug-lanterns.png"
+      ],
+      "provider": "Higgsfield",
+      "model": "nano_banana_pro",
+      "jobId": "25948c53-5b40-4b0c-b4a1-bee1a3b875d5",
+      "jobStatus": "completed",
+      "createdAt": "2026-11-07T21:11:24.362999Z",
+      "receipt": "receipts/hero-portrait-9x16.json",
+      "settings": {
+        "aspect_ratio": "9:16",
+        "resolution": "2k",
+        "batch_size": 1
+      },
+      "seed": "not exposed by provider",
+      "prompt": "Tall vertical cinematic key art of a handmade wooden marble run at night on a playroom rug, seen from a low angle. A tall tower of carved light birch wood blocks with visible seams, fine grain and round port holes, with smooth round wooden rails spiralling and zig-zagging down around it, a corkscrew rail near the middle, and a glass cat's eye marble rolling on a rail in the lower half. The tower and rails occupy the middle and lower two thirds of the frame. The top third of the frame is open, unlit deep-blue darkness of a night room with no objects, left clear as empty space for a title. The bottom of the frame is a patterned woven rug with a square geometric pattern in muted teal, ochre and rust, softly out of focus. Lighting: the only light sources are two or three round warm paper lanterns sitting on the rug; everything else falls off into deep blue night shadow. The wooden blocks and rails are plain natural wood with no glowing strips, no LEDs, no emissive inlays and no lights built into any piece. Plain unlettered blocks: no letters, no numbers, no alphabet blocks. No other toys, no plush animals, no dinosaurs, no characters. Use the reference images only for wood tone, lighting mood and piece style; create an original scene. Photoreal tabletop miniature render, cinematic, shallow depth of field. No text, no title, no logos, no watermark, no brand names, no people, no frame or border.",
+      "promptFile": "prompts/portrait.txt",
+      "negativePrompt": "none (negative guidance is inline: no text, no logos, no watermark, no brand names, no people, no glowing strips or emissive inlays, no lettered blocks, no other toys)",
+      "referenceImages": [
+        {
+          "file": "assets-source/lookdev/04-tower-track-wide.png",
+          "uploadId": "092b0494-5efe-4682-8b44-fd749a797b16",
+          "sha256": "e88f86d1fa1a79582da08aa54a470fb847aa3d451fa9689d3c3a749e725da7ec"
+        },
+        {
+          "file": "assets-source/lookdev/06-rail-into-block-tower.png",
+          "uploadId": "be9ff7cf-44d6-4dc2-8645-12577f3d4909",
+          "sha256": "ab9fd0d861eaff2803ce15b6fd9828402b3244c0db5013c61f875347fcb3c993"
+        },
+        {
+          "file": "assets-source/lookdev/03-playroom-rug-lanterns.png",
+          "uploadId": "257a2895-0a7e-4763-b84d-46502b6f7afa",
+          "sha256": "19980bb4062fb6542c0d5fdc957ea7ac2e794557233d8077737d4d09a2f7574d"
+        }
+      ],
+      "generations": 1,
+      "credits": 2,
+      "format": "png",
+      "width": 1536,
+      "height": 2752,
+      "bytes": 6525010,
+      "sha256": "87db13060912b1cd4e7e32e6fcf142ba4a52dcab95f27f8380191fd0a9fa321e",
+      "transformations": "none; stored exactly as delivered by the provider CDN",
+      "ownerReview": {
+        "status": "pending"
+      }
+    },
+    {
+      "file": "loading-16x9.png",
+      "subject": "Loading-screen art: macro marble on a rail entering a block port. Source for the loading-16x9 derivatives.",
+      "role": "primary",
+      "targetsReference": [
+        "assets-source/lookdev/01-macro-channel-cats-eye.png",
+        "assets-source/lookdev/06-rail-into-block-tower.png",
+        "assets-source/lookdev/07-wave-channel-opal-marble.png"
+      ],
+      "provider": "Higgsfield",
+      "model": "nano_banana_pro",
+      "jobId": "d20dad9a-309d-489b-9ff2-cc1967d1cfaf",
+      "jobStatus": "completed",
+      "createdAt": "2026-11-07T21:11:56.381529Z",
+      "receipt": "receipts/loading-16x9.json",
+      "settings": {
+        "aspect_ratio": "16:9",
+        "resolution": "2k",
+        "batch_size": 1
+      },
+      "seed": "not exposed by provider",
+      "prompt": "Calm cinematic loading-screen art: macro close-up of a single glass marble with a deep blue and gold swirl rolling along a smooth round wooden rail that curves gently through the right half of the frame and enters a port hole in a carved light birch wood block. Fine wood grain, thin seams between blocks, crisp glass refraction and a small specular highlight on the marble. The left half of the frame is soft out-of-focus deep-blue darkness with only faint warm bokeh from a distant paper lantern, no objects, left clear for overlay text. The bottom strip of the frame is quiet and dark. Lighting: the only light sources are two or three round warm paper lanterns sitting on the rug; everything else falls off into deep blue night shadow. The wooden blocks and rails are plain natural wood with no glowing strips, no LEDs, no emissive inlays and no lights built into any piece. Plain unlettered blocks: no letters, no numbers, no alphabet blocks. No other toys, no plush animals, no dinosaurs, no characters. Use the reference images only for wood tone, lighting mood and piece style; create an original scene. Photoreal tabletop miniature render, cinematic, shallow depth of field. No text, no title, no logos, no watermark, no brand names, no people, no frame or border.",
+      "promptFile": "prompts/loading.txt",
+      "negativePrompt": "none (negative guidance is inline: no text, no logos, no watermark, no brand names, no people, no glowing strips or emissive inlays, no lettered blocks, no other toys)",
+      "referenceImages": [
+        {
+          "file": "assets-source/lookdev/01-macro-channel-cats-eye.png",
+          "uploadId": "1da38341-b73c-4325-9684-902702ba2413",
+          "sha256": "5f16de4fab365ceae3598ad1b11cdbdc0515e27177f490c8fc3943b6db9ba62d"
+        },
+        {
+          "file": "assets-source/lookdev/06-rail-into-block-tower.png",
+          "uploadId": "be9ff7cf-44d6-4dc2-8645-12577f3d4909",
+          "sha256": "ab9fd0d861eaff2803ce15b6fd9828402b3244c0db5013c61f875347fcb3c993"
+        },
+        {
+          "file": "assets-source/lookdev/07-wave-channel-opal-marble.png",
+          "uploadId": "f6b0bcbe-331a-40c1-9110-1ecbb3021ba8",
+          "sha256": "314ae1885e6a3c05ed365c27579ce0233306c195ca28c7f32ecb17900ef25942"
+        }
+      ],
+      "generations": 1,
+      "credits": 2,
+      "format": "png",
+      "width": 2752,
+      "height": 1536,
+      "bytes": 6188330,
+      "sha256": "7d72b36a26dae5426335b2e74b25ef0a9cd9425fdf3bf9db36c52ead7a69e8c7",
+      "transformations": "none; stored exactly as delivered by the provider CDN",
+      "ownerReview": {
+        "status": "pending"
+      }
+    }
+  ],
+  "rights": {
+    "generatedOn": "Paul Robello's Higgsfield plus plan",
+    "terms": "Output use governed by the Higgsfield terms of service for the plan; commercial terms not verified in this task.",
+    "references": "References are the approved P0-T9 look-dev frames (themselves Higgsfield outputs on the same plan), used only as style, wood-tone and lighting direction.",
+    "trademarks": "Prompts name no toy brands; no text, logos or watermarks observed in any kept frame on visual review.",
+    "status": "pending"
+  },
+  "gates": {
+    "technical": "pass at file level (node assets-source/keyart/check-provenance.mjs, full decode, byte-identical derive.py rebuild, 2026-11-07); consumer and live-use checks pending P5-T3",
+    "creative": "pending Paul",
+    "rights": "pending",
+    "owner": "pending Paul"
+  },
+  "derivatives": [
+    {
+      "file": "assets/keyart/hero-21x9-2560x1086.avif",
+      "surface": "hero-21x9",
+      "source": "assets-source/keyart/hero-wide-21x9.png",
+      "sourceSha256": "14a2bd1d74e37e5a519c97b98b5bf69a58519b1c897a167f600580108ce189d8",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 6336,
+        "height": 2688
+      },
+      "format": "avif",
+      "width": 2560,
+      "height": 1086,
+      "bytes": 50416,
+      "sha256": "5567877165a002d64fc873ab047c947ef9497024889f3f8683e96aea60baba60",
+      "tool": "magick crop 6336x2688+0+0, Lanczos resize to 2560x1086, sRGB, metadata stripped; then avifenc 1.4.2 (aom 3.15.3) -q 60 -s 6 -y 420",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.3,
+          0.04,
+          0.7,
+          0.22
+        ],
+        "ui": [
+          0.3,
+          0.86,
+          0.7,
+          0.97
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.0822,
+        "ui": 0.2139
+      }
+    },
+    {
+      "file": "assets/keyart/hero-21x9-2560x1086.webp",
+      "surface": "hero-21x9",
+      "source": "assets-source/keyart/hero-wide-21x9.png",
+      "sourceSha256": "14a2bd1d74e37e5a519c97b98b5bf69a58519b1c897a167f600580108ce189d8",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 6336,
+        "height": 2688
+      },
+      "format": "webp",
+      "width": 2560,
+      "height": 1086,
+      "bytes": 63484,
+      "sha256": "63bced2be6cd015ded9cbc7f54463b6faf20815b62d5eec6eff0d2d3de63b5a1",
+      "tool": "magick crop 6336x2688+0+0, Lanczos resize to 2560x1086, sRGB, metadata stripped; then cwebp 1.6.0 -q 82 -m 6",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.3,
+          0.04,
+          0.7,
+          0.22
+        ],
+        "ui": [
+          0.3,
+          0.86,
+          0.7,
+          0.97
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.0822,
+        "ui": 0.2139
+      }
+    },
+    {
+      "file": "assets/keyart/hero-21x9-1280x543.avif",
+      "surface": "hero-21x9",
+      "source": "assets-source/keyart/hero-wide-21x9.png",
+      "sourceSha256": "14a2bd1d74e37e5a519c97b98b5bf69a58519b1c897a167f600580108ce189d8",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 6336,
+        "height": 2688
+      },
+      "format": "avif",
+      "width": 1280,
+      "height": 543,
+      "bytes": 20638,
+      "sha256": "594f883d2d61dbf1582d245198e93da26b6d85320f24ab9d22a3072489a2869b",
+      "tool": "magick crop 6336x2688+0+0, Lanczos resize to 1280x543, sRGB, metadata stripped; then avifenc 1.4.2 (aom 3.15.3) -q 60 -s 6 -y 420",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.3,
+          0.04,
+          0.7,
+          0.22
+        ],
+        "ui": [
+          0.3,
+          0.86,
+          0.7,
+          0.97
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.0822,
+        "ui": 0.2131
+      }
+    },
+    {
+      "file": "assets/keyart/hero-21x9-1280x543.webp",
+      "surface": "hero-21x9",
+      "source": "assets-source/keyart/hero-wide-21x9.png",
+      "sourceSha256": "14a2bd1d74e37e5a519c97b98b5bf69a58519b1c897a167f600580108ce189d8",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 6336,
+        "height": 2688
+      },
+      "format": "webp",
+      "width": 1280,
+      "height": 543,
+      "bytes": 26404,
+      "sha256": "b2abf9b5a5e6e90c3459385519624c1efa023e846365a265b5477a2d96f9de49",
+      "tool": "magick crop 6336x2688+0+0, Lanczos resize to 1280x543, sRGB, metadata stripped; then cwebp 1.6.0 -q 82 -m 6",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.3,
+          0.04,
+          0.7,
+          0.22
+        ],
+        "ui": [
+          0.3,
+          0.86,
+          0.7,
+          0.97
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.0822,
+        "ui": 0.2131
+      }
+    },
+    {
+      "file": "assets/keyart/hero-21x9-1280x543.png",
+      "surface": "hero-21x9",
+      "source": "assets-source/keyart/hero-wide-21x9.png",
+      "sourceSha256": "14a2bd1d74e37e5a519c97b98b5bf69a58519b1c897a167f600580108ce189d8",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 6336,
+        "height": 2688
+      },
+      "format": "png",
+      "width": 1280,
+      "height": 543,
+      "bytes": 654022,
+      "sha256": "de6828bdfe3008f3fa193a16d45cecbfd1aaa7dd7479cb39035ee3d35da098cd",
+      "tool": "magick crop 6336x2688+0+0, Lanczos resize to 1280x543, sRGB, metadata stripped; then magick (Lanczos resize, PNG24, compression-level 9)",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.3,
+          0.04,
+          0.7,
+          0.22
+        ],
+        "ui": [
+          0.3,
+          0.86,
+          0.7,
+          0.97
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.0822,
+        "ui": 0.2131
+      }
+    },
+    {
+      "file": "assets/keyart/hero-16x9-2560x1440.avif",
+      "surface": "hero-16x9",
+      "source": "assets-source/keyart/hero-wide-21x9.png",
+      "sourceSha256": "14a2bd1d74e37e5a519c97b98b5bf69a58519b1c897a167f600580108ce189d8",
+      "crop": {
+        "x": 1127,
+        "y": 0,
+        "width": 4779,
+        "height": 2688
+      },
+      "format": "avif",
+      "width": 2560,
+      "height": 1440,
+      "bytes": 63264,
+      "sha256": "015ecf83c9bfed1262561c78b2a74de46f0a64bbe8bb5c5be2a36e7597c74f50",
+      "tool": "magick crop 4779x2688+1127+0, Lanczos resize to 2560x1440, sRGB, metadata stripped; then avifenc 1.4.2 (aom 3.15.3) -q 60 -s 6 -y 420",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.25,
+          0.04,
+          0.75,
+          0.22
+        ],
+        "ui": [
+          0.25,
+          0.86,
+          0.75,
+          0.97
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.0759,
+        "ui": 0.2161
+      }
+    },
+    {
+      "file": "assets/keyart/hero-16x9-2560x1440.webp",
+      "surface": "hero-16x9",
+      "source": "assets-source/keyart/hero-wide-21x9.png",
+      "sourceSha256": "14a2bd1d74e37e5a519c97b98b5bf69a58519b1c897a167f600580108ce189d8",
+      "crop": {
+        "x": 1127,
+        "y": 0,
+        "width": 4779,
+        "height": 2688
+      },
+      "format": "webp",
+      "width": 2560,
+      "height": 1440,
+      "bytes": 81600,
+      "sha256": "27d2fc9cddc4e9d359e56fec48d78adbd2a1eca7dbfd97030bb847dbf00e502f",
+      "tool": "magick crop 4779x2688+1127+0, Lanczos resize to 2560x1440, sRGB, metadata stripped; then cwebp 1.6.0 -q 82 -m 6",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.25,
+          0.04,
+          0.75,
+          0.22
+        ],
+        "ui": [
+          0.25,
+          0.86,
+          0.75,
+          0.97
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.0759,
+        "ui": 0.2161
+      }
+    },
+    {
+      "file": "assets/keyart/hero-16x9-1280x720.avif",
+      "surface": "hero-16x9",
+      "source": "assets-source/keyart/hero-wide-21x9.png",
+      "sourceSha256": "14a2bd1d74e37e5a519c97b98b5bf69a58519b1c897a167f600580108ce189d8",
+      "crop": {
+        "x": 1127,
+        "y": 0,
+        "width": 4779,
+        "height": 2688
+      },
+      "format": "avif",
+      "width": 1280,
+      "height": 720,
+      "bytes": 26069,
+      "sha256": "31af0d421a40d2c7200b60b9e675315572ae809459aafc6e23eb010adcb31b91",
+      "tool": "magick crop 4779x2688+1127+0, Lanczos resize to 1280x720, sRGB, metadata stripped; then avifenc 1.4.2 (aom 3.15.3) -q 60 -s 6 -y 420",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.25,
+          0.04,
+          0.75,
+          0.22
+        ],
+        "ui": [
+          0.25,
+          0.86,
+          0.75,
+          0.97
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.0759,
+        "ui": 0.2167
+      }
+    },
+    {
+      "file": "assets/keyart/hero-16x9-1280x720.webp",
+      "surface": "hero-16x9",
+      "source": "assets-source/keyart/hero-wide-21x9.png",
+      "sourceSha256": "14a2bd1d74e37e5a519c97b98b5bf69a58519b1c897a167f600580108ce189d8",
+      "crop": {
+        "x": 1127,
+        "y": 0,
+        "width": 4779,
+        "height": 2688
+      },
+      "format": "webp",
+      "width": 1280,
+      "height": 720,
+      "bytes": 32624,
+      "sha256": "ed57b45eab4439a97244c4c0cc6c3608447db48aba1e83a388cf26d715ff7543",
+      "tool": "magick crop 4779x2688+1127+0, Lanczos resize to 1280x720, sRGB, metadata stripped; then cwebp 1.6.0 -q 82 -m 6",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.25,
+          0.04,
+          0.75,
+          0.22
+        ],
+        "ui": [
+          0.25,
+          0.86,
+          0.75,
+          0.97
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.0759,
+        "ui": 0.2167
+      }
+    },
+    {
+      "file": "assets/keyart/hero-16x9-1280x720.png",
+      "surface": "hero-16x9",
+      "source": "assets-source/keyart/hero-wide-21x9.png",
+      "sourceSha256": "14a2bd1d74e37e5a519c97b98b5bf69a58519b1c897a167f600580108ce189d8",
+      "crop": {
+        "x": 1127,
+        "y": 0,
+        "width": 4779,
+        "height": 2688
+      },
+      "format": "png",
+      "width": 1280,
+      "height": 720,
+      "bytes": 903075,
+      "sha256": "200274fbbaccb1f8afaa391029a79e54c613a2ed8e7936cce8752fe90deda972",
+      "tool": "magick crop 4779x2688+1127+0, Lanczos resize to 1280x720, sRGB, metadata stripped; then magick (Lanczos resize, PNG24, compression-level 9)",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.25,
+          0.04,
+          0.75,
+          0.22
+        ],
+        "ui": [
+          0.25,
+          0.86,
+          0.75,
+          0.97
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.0759,
+        "ui": 0.2167
+      }
+    },
+    {
+      "file": "assets/keyart/hero-portrait-9x16-1080x1920.avif",
+      "surface": "hero-portrait-9x16",
+      "source": "assets-source/keyart/hero-portrait-9x16.png",
+      "sourceSha256": "87db13060912b1cd4e7e32e6fcf142ba4a52dcab95f27f8380191fd0a9fa321e",
+      "crop": {
+        "x": 0,
+        "y": 10,
+        "width": 1536,
+        "height": 2731
+      },
+      "format": "avif",
+      "width": 1080,
+      "height": 1920,
+      "bytes": 78418,
+      "sha256": "f637a37938f3f90641946f55d9c9f25c980df579ef032b15388f27cb971451ce",
+      "tool": "magick crop 1536x2731+0+10, Lanczos resize to 1080x1920, sRGB, metadata stripped; then avifenc 1.4.2 (aom 3.15.3) -q 60 -s 6 -y 420",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.1,
+          0.04,
+          0.9,
+          0.2
+        ],
+        "ui": [
+          0.1,
+          0.88,
+          0.9,
+          0.97
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.0641,
+        "ui": 0.3647
+      }
+    },
+    {
+      "file": "assets/keyart/hero-portrait-9x16-1080x1920.webp",
+      "surface": "hero-portrait-9x16",
+      "source": "assets-source/keyart/hero-portrait-9x16.png",
+      "sourceSha256": "87db13060912b1cd4e7e32e6fcf142ba4a52dcab95f27f8380191fd0a9fa321e",
+      "crop": {
+        "x": 0,
+        "y": 10,
+        "width": 1536,
+        "height": 2731
+      },
+      "format": "webp",
+      "width": 1080,
+      "height": 1920,
+      "bytes": 100566,
+      "sha256": "95114b34aa7e09394e771df30ae2989c5af0dbf7faccd7a4540ce37cf0f562bc",
+      "tool": "magick crop 1536x2731+0+10, Lanczos resize to 1080x1920, sRGB, metadata stripped; then cwebp 1.6.0 -q 82 -m 6",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.1,
+          0.04,
+          0.9,
+          0.2
+        ],
+        "ui": [
+          0.1,
+          0.88,
+          0.9,
+          0.97
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.0641,
+        "ui": 0.3647
+      }
+    },
+    {
+      "file": "assets/keyart/hero-portrait-9x16-720x1280.avif",
+      "surface": "hero-portrait-9x16",
+      "source": "assets-source/keyart/hero-portrait-9x16.png",
+      "sourceSha256": "87db13060912b1cd4e7e32e6fcf142ba4a52dcab95f27f8380191fd0a9fa321e",
+      "crop": {
+        "x": 0,
+        "y": 10,
+        "width": 1536,
+        "height": 2731
+      },
+      "format": "avif",
+      "width": 720,
+      "height": 1280,
+      "bytes": 43075,
+      "sha256": "2c0b4842707963851260ca61a7307ce315193dbcd661efb05f5ca7f33edd9a13",
+      "tool": "magick crop 1536x2731+0+10, Lanczos resize to 720x1280, sRGB, metadata stripped; then avifenc 1.4.2 (aom 3.15.3) -q 60 -s 6 -y 420",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.1,
+          0.04,
+          0.9,
+          0.2
+        ],
+        "ui": [
+          0.1,
+          0.88,
+          0.9,
+          0.97
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.064,
+        "ui": 0.3646
+      }
+    },
+    {
+      "file": "assets/keyart/hero-portrait-9x16-720x1280.webp",
+      "surface": "hero-portrait-9x16",
+      "source": "assets-source/keyart/hero-portrait-9x16.png",
+      "sourceSha256": "87db13060912b1cd4e7e32e6fcf142ba4a52dcab95f27f8380191fd0a9fa321e",
+      "crop": {
+        "x": 0,
+        "y": 10,
+        "width": 1536,
+        "height": 2731
+      },
+      "format": "webp",
+      "width": 720,
+      "height": 1280,
+      "bytes": 55222,
+      "sha256": "72256b073fcbbaac9eba455983bc11b66eb1d746001948c3325ddb46007a6c63",
+      "tool": "magick crop 1536x2731+0+10, Lanczos resize to 720x1280, sRGB, metadata stripped; then cwebp 1.6.0 -q 82 -m 6",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.1,
+          0.04,
+          0.9,
+          0.2
+        ],
+        "ui": [
+          0.1,
+          0.88,
+          0.9,
+          0.97
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.064,
+        "ui": 0.3646
+      }
+    },
+    {
+      "file": "assets/keyart/hero-portrait-9x16-648x1152.png",
+      "surface": "hero-portrait-9x16",
+      "source": "assets-source/keyart/hero-portrait-9x16.png",
+      "sourceSha256": "87db13060912b1cd4e7e32e6fcf142ba4a52dcab95f27f8380191fd0a9fa321e",
+      "crop": {
+        "x": 0,
+        "y": 10,
+        "width": 1536,
+        "height": 2731
+      },
+      "format": "png",
+      "width": 648,
+      "height": 1152,
+      "bytes": 886090,
+      "sha256": "84899d51db46ed2c48a052f8cc6bd33accf79060b8e5f293e45f101bd6f72b37",
+      "tool": "magick crop 1536x2731+0+10, Lanczos resize to 648x1152, sRGB, metadata stripped; then magick (Lanczos resize, PNG24, compression-level 9)",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.1,
+          0.04,
+          0.9,
+          0.2
+        ],
+        "ui": [
+          0.1,
+          0.88,
+          0.9,
+          0.97
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.0639,
+        "ui": 0.3646
+      }
+    },
+    {
+      "file": "assets/keyart/loading-16x9-1920x1080.avif",
+      "surface": "loading-16x9",
+      "source": "assets-source/keyart/loading-16x9.png",
+      "sourceSha256": "7d72b36a26dae5426335b2e74b25ef0a9cd9425fdf3bf9db36c52ead7a69e8c7",
+      "crop": {
+        "x": 363,
+        "y": 0,
+        "width": 2389,
+        "height": 1344
+      },
+      "format": "avif",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 48758,
+      "sha256": "6d47f36097c58af697ed3a58fa568882deaa7dab7688e26e69ec8fc9c8276342",
+      "tool": "magick crop 2389x1344+363+0, Lanczos resize to 1920x1080, sRGB, metadata stripped; then avifenc 1.4.2 (aom 3.15.3) -q 60 -s 6 -y 420",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.04,
+          0.55,
+          0.34,
+          0.78
+        ],
+        "ui": [
+          0.04,
+          0.86,
+          0.34,
+          0.94
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.1046,
+        "ui": 0.0946
+      }
+    },
+    {
+      "file": "assets/keyart/loading-16x9-1920x1080.webp",
+      "surface": "loading-16x9",
+      "source": "assets-source/keyart/loading-16x9.png",
+      "sourceSha256": "7d72b36a26dae5426335b2e74b25ef0a9cd9425fdf3bf9db36c52ead7a69e8c7",
+      "crop": {
+        "x": 363,
+        "y": 0,
+        "width": 2389,
+        "height": 1344
+      },
+      "format": "webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 62280,
+      "sha256": "9316d85c55de14fce8049eb135d08dfcd59e8a763edc1acb4a01f6477cffa018",
+      "tool": "magick crop 2389x1344+363+0, Lanczos resize to 1920x1080, sRGB, metadata stripped; then cwebp 1.6.0 -q 82 -m 6",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.04,
+          0.55,
+          0.34,
+          0.78
+        ],
+        "ui": [
+          0.04,
+          0.86,
+          0.34,
+          0.94
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.1046,
+        "ui": 0.0946
+      }
+    },
+    {
+      "file": "assets/keyart/loading-16x9-1280x720.avif",
+      "surface": "loading-16x9",
+      "source": "assets-source/keyart/loading-16x9.png",
+      "sourceSha256": "7d72b36a26dae5426335b2e74b25ef0a9cd9425fdf3bf9db36c52ead7a69e8c7",
+      "crop": {
+        "x": 363,
+        "y": 0,
+        "width": 2389,
+        "height": 1344
+      },
+      "format": "avif",
+      "width": 1280,
+      "height": 720,
+      "bytes": 24817,
+      "sha256": "96bda9c989cb92349a9506a85452fd17cf656d8b9c592bd5822db3dc34dac138",
+      "tool": "magick crop 2389x1344+363+0, Lanczos resize to 1280x720, sRGB, metadata stripped; then avifenc 1.4.2 (aom 3.15.3) -q 60 -s 6 -y 420",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.04,
+          0.55,
+          0.34,
+          0.78
+        ],
+        "ui": [
+          0.04,
+          0.86,
+          0.34,
+          0.94
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.1046,
+        "ui": 0.0946
+      }
+    },
+    {
+      "file": "assets/keyart/loading-16x9-1280x720.webp",
+      "surface": "loading-16x9",
+      "source": "assets-source/keyart/loading-16x9.png",
+      "sourceSha256": "7d72b36a26dae5426335b2e74b25ef0a9cd9425fdf3bf9db36c52ead7a69e8c7",
+      "crop": {
+        "x": 363,
+        "y": 0,
+        "width": 2389,
+        "height": 1344
+      },
+      "format": "webp",
+      "width": 1280,
+      "height": 720,
+      "bytes": 31982,
+      "sha256": "3297ac358785da34f82e55049be42db9e1cc9ee075d6212f527f56b1c9f4a0d9",
+      "tool": "magick crop 2389x1344+363+0, Lanczos resize to 1280x720, sRGB, metadata stripped; then cwebp 1.6.0 -q 82 -m 6",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.04,
+          0.55,
+          0.34,
+          0.78
+        ],
+        "ui": [
+          0.04,
+          0.86,
+          0.34,
+          0.94
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.1046,
+        "ui": 0.0946
+      }
+    },
+    {
+      "file": "assets/keyart/loading-16x9-1152x648.png",
+      "surface": "loading-16x9",
+      "source": "assets-source/keyart/loading-16x9.png",
+      "sourceSha256": "7d72b36a26dae5426335b2e74b25ef0a9cd9425fdf3bf9db36c52ead7a69e8c7",
+      "crop": {
+        "x": 363,
+        "y": 0,
+        "width": 2389,
+        "height": 1344
+      },
+      "format": "png",
+      "width": 1152,
+      "height": 648,
+      "bytes": 826759,
+      "sha256": "553b05322901ee792917c8d7470bae613c985e9a6aa945054a921928fef5b20d",
+      "tool": "magick crop 2389x1344+363+0, Lanczos resize to 1152x648, sRGB, metadata stripped; then magick (Lanczos resize, PNG24, compression-level 9)",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.04,
+          0.55,
+          0.34,
+          0.78
+        ],
+        "ui": [
+          0.04,
+          0.86,
+          0.34,
+          0.94
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.1047,
+        "ui": 0.0946
+      }
+    },
+    {
+      "file": "assets/keyart/social-card-1200x630.png",
+      "surface": "social-card",
+      "source": "assets-source/keyart/hero-wide-21x9.png",
+      "sourceSha256": "14a2bd1d74e37e5a519c97b98b5bf69a58519b1c897a167f600580108ce189d8",
+      "crop": {
+        "x": 957,
+        "y": 0,
+        "width": 5120,
+        "height": 2688
+      },
+      "format": "png",
+      "width": 1200,
+      "height": 630,
+      "bytes": 732492,
+      "sha256": "17382d28ceb7bc7e9946f3be2b29c00fe695ea2538f45328379493c159f9bac3",
+      "tool": "magick crop 5120x2688+957+0, Lanczos resize to 1200x630, sRGB, metadata stripped; then magick (Lanczos resize, PNG24, compression-level 9)",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.25,
+          0.04,
+          0.75,
+          0.22
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.0761
+      }
+    },
+    {
+      "file": "assets/keyart/social-card-1200x630.jpg",
+      "surface": "social-card",
+      "source": "assets-source/keyart/hero-wide-21x9.png",
+      "sourceSha256": "14a2bd1d74e37e5a519c97b98b5bf69a58519b1c897a167f600580108ce189d8",
+      "crop": {
+        "x": 957,
+        "y": 0,
+        "width": 5120,
+        "height": 2688
+      },
+      "format": "jpg",
+      "width": 1200,
+      "height": 630,
+      "bytes": 73597,
+      "sha256": "0344e7757147541ffef168f8f99258f593d915d82a74a5af81358f87860a7b6a",
+      "tool": "magick crop 5120x2688+957+0, Lanczos resize to 1200x630, sRGB, metadata stripped; then magick (JPEG q88, 4:2:0)",
+      "decodeCheck": "magick identify decoded the file at the recorded size",
+      "safeZones": {
+        "title": [
+          0.25,
+          0.04,
+          0.75,
+          0.22
+        ]
+      },
+      "zoneMeanLuma": {
+        "title": 0.0761
+      }
+    }
+  ],
+  "railProfileNote": "Primary hero and portrait show trough rails, matching docs/kit-contract.md section 5.3 (rail family: round trough, R14 half-round). The alternate hero shows solid dowel rails, which do not match the contract."
+}

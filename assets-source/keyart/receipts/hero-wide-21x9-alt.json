@@ -1,0 +1,39 @@
+[
+  {
+    "created_at": "2026-11-07T21:09:06.504775Z",
+    "display_name": "Nano Banana Pro",
+    "id": "6a8f5690-05c8-4ab1-8b42-c44124ea6acf",
+    "job_type": "nano_banana_pro",
+    "min_result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3Gv9RgU5roVxfEeNP9AFPAziDdM/hf_20261107_210906_6a8f5690-05c8-4ab1-8b42-c44124ea6acf_min.webp",
+    "params": {
+      "application": null,
+      "aspect_ratio": "21:9",
+      "batch_size": 1,
+      "height": 2688,
+      "input_image": null,
+      "input_images": [
+        {
+          "id": "092b0494-5efe-4682-8b44-fd749a797b16",
+          "type": "media_input",
+          "url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3Gv9RgU5roVxfEeNP9AFPAziDdM/092b0494-5efe-4682-8b44-fd749a797b16_resize.jpg"
+        },
+        {
+          "id": "257a2895-0a7e-4763-b84d-46502b6f7afa",
+          "type": "media_input",
+          "url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3Gv9RgU5roVxfEeNP9AFPAziDdM/257a2895-0a7e-4763-b84d-46502b6f7afa_resize.jpg"
+        },
+        {
+          "id": "b9426c18-fad5-4f9f-b7b2-24b50cc08168",
+          "type": "media_input",
+          "url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3Gv9RgU5roVxfEeNP9AFPAziDdM/b9426c18-fad5-4f9f-b7b2-24b50cc08168_resize.jpg"
+        }
+      ],
+      "prompt": "Wide cinematic key art of a handmade wooden marble run at night on a playroom rug. A sculptural marble run built from carved light birch wood blocks with visible thin seams and fine grain, square block towers with round port holes, smooth round wooden rails curving between towers, one corkscrew spiral rail and a small funnel, with several glass marbles (a cat's eye, a deep blue swirl, an opal) mid-run. The run sits low in the lower-middle of the frame, spread horizontally across the central part of the image, on a patterned woven rug with a square geometric pattern in muted teal, ochre and rust. The upper-center third of the frame is open, unlit deep-blue darkness of a night room wall with no objects, left clear as empty space for a title. The bottom edge of the frame is a quiet, soft out-of-focus strip of rug. Keep the left and right edges of the frame calm and dark with no important detail. Low camera angle at rug height, slightly elevated. Lighting: the only light sources are two or three round warm paper lanterns sitting on the rug; everything else falls off into deep blue night shadow. The wooden blocks and rails are plain natural wood with no glowing strips, no LEDs, no emissive inlays and no lights built into any piece. Plain unlettered blocks: no letters, no numbers, no alphabet blocks. No other toys, no plush animals, no dinosaurs, no characters. Use the reference images only for wood tone, lighting mood and piece style; create an original scene. Photoreal tabletop miniature render, cinematic, shallow depth of field. No text, no title, no logos, no watermark, no brand names, no people, no frame or border.",
+      "resolution": "4k",
+      "surface": null,
+      "width": 6336
+    },
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3Gv9RgU5roVxfEeNP9AFPAziDdM/hf_20261107_210906_6a8f5690-05c8-4ab1-8b42-c44124ea6acf.png",
+    "status": "completed"
+  }
+]
