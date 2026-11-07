@@ -7,7 +7,7 @@ Inputs from Phase 0: `docs/kit-contract.md` (P0-T2a), sim (P0-T3), web shell (P0
 ## Tasks
 
 ### P1-T1 — Procedural wood material set
-- `create-tileable-pbr-materials` with Blender 5.2 procedural nodes. Rich warm wood calibrated to the approved look-dev frames (walnut-leaning; owner ruling 2026-11-07) with swirling figured grain as in `ref-02`/`ref-03`. Two or three variants so neighbouring pieces differ.
+- `create-tileable-pbr-materials` with Blender 5.2 procedural nodes. Rich warm wood, a step darker than the look-dev frames' tone (owner ruling 2026-11-07) with swirling figured grain as in `ref-02`/`ref-03`. Two or three variants so neighbouring pieces differ.
 - Bake to tileable base color / normal / ORM.
 - Export BC7 + ASTC KTX2 (zstd) with a PNG fallback via KTX-Software 4.4.2 (`make fetch-tools` as in hex-world).
 - Generator and `.blend` live in `blender/materials/`.

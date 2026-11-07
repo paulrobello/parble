@@ -26,9 +26,10 @@ BAKE_PX = 2048  # Ultra: 8,192 texels/m
 RUNTIME_PX = 1024  # High: 4,096 texels/m. Low (2,048 texels/m) is mip 1 of the High file.
 SAMPLES = 16
 
-# Linear-light colours. Rich warm wood calibrated to the approved look-dev frames (walnut-leaning), owner
-# ruling 2026-11-07: hue from assets-source/lookdev 01/04/06/07 wood crops (light-compensated against the
-# review render), darker than the old birch set. a = look-dev tone, b = darker walnut heartwood, c = lighter warm.
+# Linear-light colours. Rich warm wood, a step darker than the look-dev frames' tone (owner ruling 2026-11-07:
+# "just a bit darker than" the previous wood_warm_a, which was calibrated to assets-source/lookdev 01/04/06/07).
+# One wood with subtle per-piece variation: a = the chosen tone (mean L* ~56), b = slightly deeper with a
+# walnut-leaning red (L* ~53), c = slightly lighter (L* ~59).
 VARIANTS: dict[str, dict] = {
     "wood_warm_a": {
         "seed": 11,
@@ -37,23 +38,23 @@ VARIANTS: dict[str, dict] = {
         "warpScale": 0.85,
         "warp2": 0.55,
         "warp2Scale": 2.4,
-        "light": [0.48, 0.295, 0.115],
-        "dark": [0.22, 0.118, 0.042],
+        "light": [0.39, 0.2397, 0.0934],
+        "dark": [0.1788, 0.0959, 0.0341],
         "lineSharpness": 2.5,
         "lineContrast": 0.70,
         "toneVariation": 0.12,
         "pores": 0.30,  # albedo darkening inside pores
         "roughness": [0.38, 0.48],
     },
-    "wood_walnut_b": {
+    "wood_warm_b": {
         "seed": 23,
         "rings": 14,
         "warp": 9.0,
         "warpScale": 0.8,
         "warp2": 0.8,
         "warp2Scale": 2.0,
-        "light": [0.21, 0.106, 0.052],
-        "dark": [0.066, 0.031, 0.015],
+        "light": [0.3833, 0.2147, 0.092],
+        "dark": [0.1533, 0.0767, 0.0322],
         "lineSharpness": 2.0,
         "lineContrast": 0.78,
         "toneVariation": 0.14,
@@ -67,8 +68,8 @@ VARIANTS: dict[str, dict] = {
         "warpScale": 0.95,
         "warp2": 0.45,
         "warp2Scale": 2.8,
-        "light": [0.62, 0.40, 0.165],
-        "dark": [0.33, 0.19, 0.07],
+        "light": [0.4135, 0.2668, 0.11],
+        "dark": [0.2201, 0.1267, 0.0467],
         "lineSharpness": 3.0,
         "lineContrast": 0.62,
         "toneVariation": 0.10,

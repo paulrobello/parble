@@ -18,7 +18,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
-VARIANTS = ["wood_warm_a", "wood_walnut_b", "wood_warm_c"]
+VARIANTS = ["wood_warm_a", "wood_warm_b", "wood_warm_c"]
 TILE_M = 0.25
 CELL = 0.060
 BODY = 0.059

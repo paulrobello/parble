@@ -6,8 +6,8 @@
   "route": "scripted",
   "generator": {
     "path": "blender/materials/generate.py",
-    "sha256": "38f3167df2a7a2393e478f486a0027e1a0ea271bc5e806202d468fccd0f9b441",
-    "bytes": 17713
+    "sha256": "0a2d32b74be20bb7b3a90a6e5d2a3a0ff3b8e1a447b35f83de30328ffdb8dd8c",
+    "bytes": 17797
   },
   "generatorDeps": [
     {
@@ -27,8 +27,8 @@
     },
     {
       "path": "blender/materials/review.py",
-      "sha256": "13f0c296f2615fa7a302dbc8cc411ed39301bcf0745328672cde402b763dd94f",
-      "bytes": 8772
+      "sha256": "bb323a1a6e8644dab50abfff8bdaaeb6d53463513555c637cbd289ab749fb93d",
+      "bytes": 8770
     },
     {
       "path": "scripts/fetch-ktx.sh",
@@ -38,8 +38,8 @@
   ],
   "blend": {
     "path": "blender/materials/wood_materials.blend",
-    "sha256": "e83a12ed14169357450386870050fb537ac83cae4ea7d7eba6ec576edba54b50",
-    "bytes": 151785,
+    "sha256": "bf5da8e2cf28ee1c5cf03cda4559b559e4dd1fedfa983738749a85128a1c9f64",
+    "bytes": 152384,
     "note": "node source saved by generate.py; rebuilt by every run"
   },
   "authoringAgent": {
@@ -92,14 +92,14 @@
         "warp2": 0.55,
         "warp2Scale": 2.4,
         "light": [
-          0.48,
-          0.295,
-          0.115
+          0.39,
+          0.2397,
+          0.0934
         ],
         "dark": [
-          0.22,
-          0.118,
-          0.042
+          0.1788,
+          0.0959,
+          0.0341
         ],
         "lineSharpness": 2.5,
         "lineContrast": 0.7,
@@ -112,9 +112,9 @@
       },
       "stats": {
         "albedoLinearMean": [
-          0.4429,
-          0.2698,
-          0.1046
+          0.3599,
+          0.2193,
+          0.085
         ],
         "roughness": [
           0.3874,
@@ -130,31 +130,31 @@
       "ultraSource": {
         "base_color": {
           "sizePx": 2048,
-          "sha256": "405056d44d79e83775d15974c779fa93906c6c3ad94e4b6dba12c6847ff4ef57",
-          "bytes": 3333491,
+          "sha256": "b6b366c39cd6f7c6594709b4bf660d3e8f4835a78750e4eb0ab0b8c0b0c4da41",
+          "bytes": 3222404,
           "storage": "target/materials-stage (rebuilt, not committed)"
         },
         "normal": {
           "sizePx": 2048,
-          "sha256": "51c71ce8ac88ba7689f8bfa4982fd94208039e019adb5e18f9638ec7f506c3a4",
-          "bytes": 2135732,
+          "sha256": "59b030b4265d8c2064cad48d163971fe041aa87fd3b388d4069c03686f08d616",
+          "bytes": 2135730,
           "storage": "target/materials-stage (rebuilt, not committed)"
         },
         "orm": {
           "sizePx": 2048,
-          "sha256": "4aa341ecd115bea5f17d5ed76348f5399d753e62d9aebd2674d2287f806b20f1",
-          "bytes": 2538657,
+          "sha256": "4494e52981685a5b90686e0583272f2a4c325c194ded18cf7fd6a447b097b00c",
+          "bytes": 2538651,
           "storage": "target/materials-stage (rebuilt, not committed)"
         },
         "height": {
           "sizePx": 2048,
-          "sha256": "0266c9814650109048f9a7054f368b0e2f2cc15a4f9d7a0b2aabd47aafd18865",
+          "sha256": "9ce23ec3706ef6e091e5d6f347994e1692e6606ed29f16c13bf90cfde13e5f7a",
           "bytes": 2793142,
           "storage": "target/materials-stage (rebuilt, not committed)"
         }
       }
     },
-    "wood_walnut_b": {
+    "wood_warm_b": {
       "params": {
         "seed": 23,
         "rings": 14,
@@ -163,14 +163,14 @@
         "warp2": 0.8,
         "warp2Scale": 2.0,
         "light": [
-          0.21,
-          0.106,
-          0.052
+          0.3833,
+          0.2147,
+          0.092
         ],
         "dark": [
-          0.066,
-          0.031,
-          0.015
+          0.1533,
+          0.0767,
+          0.0322
         ],
         "lineSharpness": 2.0,
         "lineContrast": 0.78,
@@ -183,9 +183,9 @@
       },
       "stats": {
         "albedoLinearMean": [
-          0.1816,
-          0.0912,
-          0.0447
+          0.3379,
+          0.1875,
+          0.0802
         ],
         "roughness": [
           0.3678,
@@ -201,26 +201,26 @@
       "ultraSource": {
         "base_color": {
           "sizePx": 2048,
-          "sha256": "42d6ac75e607c3aedeb44dab2167acb64e80fa3982236ee200ffda2cc428a76f",
-          "bytes": 3632413,
+          "sha256": "536ecc03039ba44831be896eefb63063b0678fa85411768294eb1f43e6762d24",
+          "bytes": 3776242,
           "storage": "target/materials-stage (rebuilt, not committed)"
         },
         "normal": {
           "sizePx": 2048,
-          "sha256": "d05f0f8644bcff79c7b5532fe26623f90d18c09badd6c8524e0f9664292e5cba",
-          "bytes": 2197810,
+          "sha256": "37eeb7091ccaa7f29f11522e590a0fa3821c417d299ef881b4f4d9550b9d6605",
+          "bytes": 2197820,
           "storage": "target/materials-stage (rebuilt, not committed)"
         },
         "orm": {
           "sizePx": 2048,
-          "sha256": "553fc64b21676e423d8d0f2822c6bac8e56ef55026f9004d461aabe89b0f4fd9",
-          "bytes": 2781017,
+          "sha256": "788c7c6adbb888c5bd9fe76a2482be6e2df079adc99194efa5f98a024003d137",
+          "bytes": 2781024,
           "storage": "target/materials-stage (rebuilt, not committed)"
         },
         "height": {
           "sizePx": 2048,
-          "sha256": "2fa983d50369ef4c95ccea58c0982aa1b244742e11cecf0c198dfe6a3d386840",
-          "bytes": 2912458,
+          "sha256": "334b0eaf320599188ed1d46eb64bbc40337b94fdca736bd2a1702504a5976c8c",
+          "bytes": 2912451,
           "storage": "target/materials-stage (rebuilt, not committed)"
         }
       }
@@ -234,14 +234,14 @@
         "warp2": 0.45,
         "warp2Scale": 2.8,
         "light": [
-          0.62,
-          0.4,
-          0.165
+          0.4135,
+          0.2668,
+          0.11
         ],
         "dark": [
-          0.33,
-          0.19,
-          0.07
+          0.2201,
+          0.1267,
+          0.0467
         ],
         "lineSharpness": 3.0,
         "lineContrast": 0.62,
@@ -254,9 +254,9 @@
       },
       "stats": {
         "albedoLinearMean": [
-          0.5885,
-          0.3769,
-          0.1544
+          0.3925,
+          0.2514,
+          0.103
         ],
         "roughness": [
           0.4075,
@@ -272,25 +272,25 @@
       "ultraSource": {
         "base_color": {
           "sizePx": 2048,
-          "sha256": "a54f878cee84bc996bb5179913b2e7c9a2c8509dee8d6dca221dd40b9c79c3b5",
-          "bytes": 3091938,
+          "sha256": "34e0fac6d483897b8d6a1fd0b2d53007d6b55f7ffa9c4d7c069afd5bb67285f3",
+          "bytes": 2900624,
           "storage": "target/materials-stage (rebuilt, not committed)"
         },
         "normal": {
           "sizePx": 2048,
-          "sha256": "9dad98e35aadffd8cd2b67a39e663b3bfae632d7e4345f133d4d824d462cd033",
-          "bytes": 2146481,
+          "sha256": "34e069deb7761cb28b108a42d9c8bf13be44fab4bb65b405678469d9219c9125",
+          "bytes": 2146474,
           "storage": "target/materials-stage (rebuilt, not committed)"
         },
         "orm": {
           "sizePx": 2048,
-          "sha256": "e29530aec67f8f2f4111edfdb4aa41c726ac0d11d7db1dab64050086d97d7451",
+          "sha256": "c6e6a0f60b2ed8dc17d5d0b903193e4f62603f7c2c6ec173f54540d777557f44",
           "bytes": 2477581,
           "storage": "target/materials-stage (rebuilt, not committed)"
         },
         "height": {
           "sizePx": 2048,
-          "sha256": "a25722f80a6168ed00b8e9741b1742a0f15e8ed880d8146a18a26860eb701e66",
+          "sha256": "2158561478aa6c60cb7fcc7680d23c9b4b85c5194c4bb34b7f51aae0134f56ae",
           "bytes": 2759427,
           "storage": "target/materials-stage (rebuilt, not committed)"
         }
@@ -312,90 +312,9 @@
   },
   "derivedFiles": [
     {
-      "path": "assets/materials/wood_walnut_b/wood_walnut_b.base_color.png",
-      "sha256": "f97afc14a5c83e964a8100b74284cca4150dae656fdc3bdf2787c18654aa34ff",
-      "bytes": 1153236,
-      "channel": "base_color",
-      "family": "png",
-      "format": "PNG RGBA8",
-      "transfer": "srgb"
-    },
-    {
-      "path": "assets/materials/wood_walnut_b/wood_walnut_b.base_color.bc7.ktx2",
-      "sha256": "cb77d3b1a8d6e1611e8b39a678872fbeea6afaf46389e9fd18ab5ed07b58e557",
-      "bytes": 783280,
-      "channel": "base_color",
-      "family": "bc7",
-      "format": "BC7_SRGB_BLOCK",
-      "transfer": "srgb"
-    },
-    {
-      "path": "assets/materials/wood_walnut_b/wood_walnut_b.base_color.astc.ktx2",
-      "sha256": "4f07f13ab572626f8489924a81c5997a19325abc775710c310262db06c5c11be",
-      "bytes": 774204,
-      "channel": "base_color",
-      "family": "astc",
-      "format": "ASTC_4x4_SRGB_BLOCK",
-      "transfer": "srgb"
-    },
-    {
-      "path": "assets/materials/wood_walnut_b/wood_walnut_b.normal.png",
-      "sha256": "d9412c7da719e61da04ce29be5db68b37c85235399200e98eac48175eaa46b31",
-      "bytes": 735882,
-      "channel": "normal",
-      "family": "png",
-      "format": "PNG RGBA8",
-      "transfer": "linear"
-    },
-    {
-      "path": "assets/materials/wood_walnut_b/wood_walnut_b.normal.bc7.ktx2",
-      "sha256": "53c2f81732be2c22459edb3dcd151cadc8f1b93b7f9e174b978a33a716cba974",
-      "bytes": 522724,
-      "channel": "normal",
-      "family": "bc7",
-      "format": "BC7_UNORM_BLOCK",
-      "transfer": "linear"
-    },
-    {
-      "path": "assets/materials/wood_walnut_b/wood_walnut_b.normal.astc.ktx2",
-      "sha256": "33039f4ed0b3dd5fd2657625f86ca94951e61238c9cb92c93ce0a4a549aedb29",
-      "bytes": 497404,
-      "channel": "normal",
-      "family": "astc",
-      "format": "ASTC_4x4_UNORM_BLOCK",
-      "transfer": "linear"
-    },
-    {
-      "path": "assets/materials/wood_walnut_b/wood_walnut_b.orm.png",
-      "sha256": "6fd58d9e233e20a86b839fe203cdf3dc3806f9f5d6ee8287dec23c28ae4de49c",
-      "bytes": 944431,
-      "channel": "orm",
-      "family": "png",
-      "format": "PNG RGBA8",
-      "transfer": "linear"
-    },
-    {
-      "path": "assets/materials/wood_walnut_b/wood_walnut_b.orm.bc7.ktx2",
-      "sha256": "794508b15b6c2a819b8858326a55c6fd76be8c9f5584c610fbbfaeb0ee53630b",
-      "bytes": 756449,
-      "channel": "orm",
-      "family": "bc7",
-      "format": "BC7_UNORM_BLOCK",
-      "transfer": "linear"
-    },
-    {
-      "path": "assets/materials/wood_walnut_b/wood_walnut_b.orm.astc.ktx2",
-      "sha256": "a8d8d2dbd0482f441b16516f35b1bb60a1daf354c30b56546632c5f4ab02baed",
-      "bytes": 776036,
-      "channel": "orm",
-      "family": "astc",
-      "format": "ASTC_4x4_UNORM_BLOCK",
-      "transfer": "linear"
-    },
-    {
       "path": "assets/materials/wood_warm_a/wood_warm_a.base_color.png",
-      "sha256": "ceff6340ec9ce6cd3aa1e2c6e9a33fd207d40e0d5ed1aa5b2f2f4d814377f237",
-      "bytes": 1072668,
+      "sha256": "cde046ae84b729e1324675123be4991ef2282dccd2350af59e2b012ec10b02be",
+      "bytes": 1040288,
       "channel": "base_color",
       "family": "png",
       "format": "PNG RGBA8",
@@ -403,8 +322,8 @@
     },
     {
       "path": "assets/materials/wood_warm_a/wood_warm_a.base_color.bc7.ktx2",
-      "sha256": "314a93f1868c9c8e6aab320101d38742253dcf7e31c15805cef364ffd6a23a59",
-      "bytes": 749832,
+      "sha256": "dcb37708664d78f2d846ed0ffd042440cbb5680695338e819ef4a79dacdddd73",
+      "bytes": 738646,
       "channel": "base_color",
       "family": "bc7",
       "format": "BC7_SRGB_BLOCK",
@@ -412,8 +331,8 @@
     },
     {
       "path": "assets/materials/wood_warm_a/wood_warm_a.base_color.astc.ktx2",
-      "sha256": "09781bad5321d97973ac1a87dfeda73e76ed6fa4b3b942c9af235255b2a01710",
-      "bytes": 740876,
+      "sha256": "708fa2a1af6f0683ccde4ca16f5d5ef60c54a161838cca7c1fcbda990934c488",
+      "bytes": 723825,
       "channel": "base_color",
       "family": "astc",
       "format": "ASTC_4x4_SRGB_BLOCK",
@@ -474,9 +393,90 @@
       "transfer": "linear"
     },
     {
+      "path": "assets/materials/wood_warm_b/wood_warm_b.base_color.png",
+      "sha256": "1056a773509fd3012ff47f9b068c45f519c6310fd4cacefac7321ceb6d4205ee",
+      "bytes": 1190461,
+      "channel": "base_color",
+      "family": "png",
+      "format": "PNG RGBA8",
+      "transfer": "srgb"
+    },
+    {
+      "path": "assets/materials/wood_warm_b/wood_warm_b.base_color.bc7.ktx2",
+      "sha256": "adf42e2dcf6612aa42870e9b37163893fd748027c5826641f16f7a1b146abd40",
+      "bytes": 803630,
+      "channel": "base_color",
+      "family": "bc7",
+      "format": "BC7_SRGB_BLOCK",
+      "transfer": "srgb"
+    },
+    {
+      "path": "assets/materials/wood_warm_b/wood_warm_b.base_color.astc.ktx2",
+      "sha256": "c92da884ec7e5d0894b1782296663958491e1f9452e503846fc01ed49a8f1612",
+      "bytes": 796454,
+      "channel": "base_color",
+      "family": "astc",
+      "format": "ASTC_4x4_SRGB_BLOCK",
+      "transfer": "srgb"
+    },
+    {
+      "path": "assets/materials/wood_warm_b/wood_warm_b.normal.png",
+      "sha256": "d9412c7da719e61da04ce29be5db68b37c85235399200e98eac48175eaa46b31",
+      "bytes": 735882,
+      "channel": "normal",
+      "family": "png",
+      "format": "PNG RGBA8",
+      "transfer": "linear"
+    },
+    {
+      "path": "assets/materials/wood_warm_b/wood_warm_b.normal.bc7.ktx2",
+      "sha256": "53c2f81732be2c22459edb3dcd151cadc8f1b93b7f9e174b978a33a716cba974",
+      "bytes": 522724,
+      "channel": "normal",
+      "family": "bc7",
+      "format": "BC7_UNORM_BLOCK",
+      "transfer": "linear"
+    },
+    {
+      "path": "assets/materials/wood_warm_b/wood_warm_b.normal.astc.ktx2",
+      "sha256": "33039f4ed0b3dd5fd2657625f86ca94951e61238c9cb92c93ce0a4a549aedb29",
+      "bytes": 497404,
+      "channel": "normal",
+      "family": "astc",
+      "format": "ASTC_4x4_UNORM_BLOCK",
+      "transfer": "linear"
+    },
+    {
+      "path": "assets/materials/wood_warm_b/wood_warm_b.orm.png",
+      "sha256": "8b1ac8adbadb0103252d61b76b9b8c5f218db07e8f617d1c4987e7e7c17d7fdd",
+      "bytes": 944429,
+      "channel": "orm",
+      "family": "png",
+      "format": "PNG RGBA8",
+      "transfer": "linear"
+    },
+    {
+      "path": "assets/materials/wood_warm_b/wood_warm_b.orm.bc7.ktx2",
+      "sha256": "83f6249af0d1b35f0f29294aff9d96825027f5a4c610622798afe18a75e971cf",
+      "bytes": 756450,
+      "channel": "orm",
+      "family": "bc7",
+      "format": "BC7_UNORM_BLOCK",
+      "transfer": "linear"
+    },
+    {
+      "path": "assets/materials/wood_warm_b/wood_warm_b.orm.astc.ktx2",
+      "sha256": "3a3c8afb1764f775e86461a1fe4064fc93c26f92929d821f4a78a33b2372d616",
+      "bytes": 776043,
+      "channel": "orm",
+      "family": "astc",
+      "format": "ASTC_4x4_UNORM_BLOCK",
+      "transfer": "linear"
+    },
+    {
       "path": "assets/materials/wood_warm_c/wood_warm_c.base_color.png",
-      "sha256": "d274ce73c8abf4d2f45555ab7e13582b259ff870c1c442b268916ade211599d0",
-      "bytes": 1004516,
+      "sha256": "3c424ad5150da68abe98ab1cabeec7e8aecf83c76fe2de34ed14c84696477072",
+      "bytes": 949560,
       "channel": "base_color",
       "family": "png",
       "format": "PNG RGBA8",
@@ -484,8 +484,8 @@
     },
     {
       "path": "assets/materials/wood_warm_c/wood_warm_c.base_color.bc7.ktx2",
-      "sha256": "7b18043eaa395a3e16db27ca4faaf7c715e01b8899596e19d9a42fef80de1fe3",
-      "bytes": 727806,
+      "sha256": "0c7318bdb1e52e75b3cf7d9532950876302f44f850d222bb81ff896d7e10806e",
+      "bytes": 704770,
       "channel": "base_color",
       "family": "bc7",
       "format": "BC7_SRGB_BLOCK",
@@ -493,8 +493,8 @@
     },
     {
       "path": "assets/materials/wood_warm_c/wood_warm_c.base_color.astc.ktx2",
-      "sha256": "2c61157b40169e3291bde27f54fc94d8fcec8b675ef94ee8ab28c918742a8b3e",
-      "bytes": 717064,
+      "sha256": "7f170ccd2423e0c27c6e5691538061c1d1c2c58fbe60bd10b0d87921d63c9db7",
+      "bytes": 684392,
       "channel": "base_color",
       "family": "astc",
       "format": "ASTC_4x4_SRGB_BLOCK",
@@ -529,8 +529,8 @@
     },
     {
       "path": "assets/materials/wood_warm_c/wood_warm_c.orm.png",
-      "sha256": "7bc29b684f61fb1aa254d88cf01a8a2baee4218ee70b3c3aff071a4a8a1f28b0",
-      "bytes": 868924,
+      "sha256": "5d38bfc9369916671ad0c31655272d7b19a4edcd9384419f7f7b393b30946168",
+      "bytes": 868925,
       "channel": "orm",
       "family": "png",
       "format": "PNG RGBA8",
@@ -538,8 +538,8 @@
     },
     {
       "path": "assets/materials/wood_warm_c/wood_warm_c.orm.bc7.ktx2",
-      "sha256": "d666ecfc8a375510faa777cefb6fab1309473250d89a317482fdb7ed7c308eb9",
-      "bytes": 701099,
+      "sha256": "99e1118a57ad0f4e3899b67103a4a53db8a31086b322a672171477e69765a637",
+      "bytes": 701088,
       "channel": "orm",
       "family": "bc7",
       "format": "BC7_UNORM_BLOCK",
@@ -547,7 +547,7 @@
     },
     {
       "path": "assets/materials/wood_warm_c/wood_warm_c.orm.astc.ktx2",
-      "sha256": "cfe126b2a8d0227777bbe98168ba87a49aa973e860afae87735802b8bcff8bbd",
+      "sha256": "36bc883de6bdd8764281b295a4478891f1ac708f0dda86bf6c345333e4934129",
       "bytes": 719855,
       "channel": "orm",
       "family": "astc",
@@ -558,13 +558,13 @@
   "reviewFiles": [
     {
       "path": "blender/materials/review/side-by-side.png",
-      "sha256": "e27cb2ac4928357f5d17dac086ed090463e5e13e6de022abcdefb8b112b621cb",
-      "bytes": 2727467
+      "sha256": "8db59e6d0e3dc6723f3d4b5df95599326fd05ef68e935c0df0961155974203b2",
+      "bytes": 2725954
     },
     {
       "path": "blender/materials/review/tiling-3x3.png",
-      "sha256": "08dc87ceaac1df1b0accfface056eb11516a3d655acaf37241b4e04b75c7b2b0",
-      "bytes": 1022391
+      "sha256": "620c8d0455525ecab149572979b2ea1b10ae0e06f3ecdfbb9f7da526a579ecbd",
+      "bytes": 1017262
     }
   ],
   "references": [
@@ -599,46 +599,16 @@
     "pass": true,
     "checks": [
       "seam + mirror check: 9 runtime PNGs and 9 UASTC mip-1 extracts, 0 failures",
-      "negative control (non-periodic crop) fails as expected: seam x=10.782 y=4.673",
+      "negative control (non-periodic crop) fails as expected: seam x=9.22 y=5.69",
       "ktx validate + vkFormat/ZSTD/full-mip assertions on every KTX2 (compress.py)"
     ],
     "seam": [
       {
-        "file": "assets/materials/wood_walnut_b/wood_walnut_b.base_color.png",
-        "seamX": 1.051,
-        "seamY": 1.274,
-        "interiorMaxX": 1.285,
-        "interiorMaxY": 1.263,
-        "mirrorX": 0.005,
-        "mirrorY": 0.037,
-        "pass": true
-      },
-      {
-        "file": "assets/materials/wood_walnut_b/wood_walnut_b.normal.png",
-        "seamX": 1.016,
-        "seamY": 1.082,
-        "interiorMaxX": 1.248,
-        "interiorMaxY": 1.252,
-        "mirrorX": 0.008,
-        "mirrorY": 0.001,
-        "pass": true
-      },
-      {
-        "file": "assets/materials/wood_walnut_b/wood_walnut_b.orm.png",
-        "seamX": 1.051,
-        "seamY": 1.238,
-        "interiorMaxX": 1.275,
-        "interiorMaxY": 1.211,
-        "mirrorX": 0.009,
-        "mirrorY": 0.015,
-        "pass": true
-      },
-      {
         "file": "assets/materials/wood_warm_a/wood_warm_a.base_color.png",
-        "seamX": 1.002,
-        "seamY": 0.924,
+        "seamX": 0.995,
+        "seamY": 0.93,
         "interiorMaxX": 1.253,
-        "interiorMaxY": 1.237,
+        "interiorMaxY": 1.27,
         "mirrorX": 0.041,
         "mirrorY": 0.015,
         "pass": true
@@ -664,11 +634,41 @@
         "pass": true
       },
       {
+        "file": "assets/materials/wood_warm_b/wood_warm_b.base_color.png",
+        "seamX": 1.042,
+        "seamY": 1.265,
+        "interiorMaxX": 1.273,
+        "interiorMaxY": 1.24,
+        "mirrorX": 0.006,
+        "mirrorY": 0.041,
+        "pass": true
+      },
+      {
+        "file": "assets/materials/wood_warm_b/wood_warm_b.normal.png",
+        "seamX": 1.016,
+        "seamY": 1.082,
+        "interiorMaxX": 1.248,
+        "interiorMaxY": 1.252,
+        "mirrorX": 0.008,
+        "mirrorY": 0.001,
+        "pass": true
+      },
+      {
+        "file": "assets/materials/wood_warm_b/wood_warm_b.orm.png",
+        "seamX": 1.051,
+        "seamY": 1.238,
+        "interiorMaxX": 1.275,
+        "interiorMaxY": 1.211,
+        "mirrorX": 0.009,
+        "mirrorY": 0.015,
+        "pass": true
+      },
+      {
         "file": "assets/materials/wood_warm_c/wood_warm_c.base_color.png",
-        "seamX": 1.086,
-        "seamY": 1.08,
-        "interiorMaxX": 1.193,
-        "interiorMaxY": 1.291,
+        "seamX": 1.071,
+        "seamY": 1.06,
+        "interiorMaxX": 1.196,
+        "interiorMaxY": 1.283,
         "mirrorX": 0.063,
         "mirrorY": 0.046,
         "pass": true
@@ -694,43 +694,13 @@
         "pass": true
       },
       {
-        "file": "target/materials-stage/mips/wood_walnut_b.base_color.mip1.png",
-        "seamX": 1.081,
-        "seamY": 1.327,
-        "interiorMaxX": 1.472,
-        "interiorMaxY": 1.337,
-        "mirrorX": 0.005,
-        "mirrorY": 0.038,
-        "pass": true
-      },
-      {
-        "file": "target/materials-stage/mips/wood_walnut_b.normal.mip1.png",
-        "seamX": 0.962,
-        "seamY": 1.079,
-        "interiorMaxX": 1.331,
-        "interiorMaxY": 1.229,
-        "mirrorX": 0.01,
-        "mirrorY": 0.001,
-        "pass": true
-      },
-      {
-        "file": "target/materials-stage/mips/wood_walnut_b.orm.mip1.png",
-        "seamX": 1.124,
-        "seamY": 1.304,
-        "interiorMaxX": 1.521,
-        "interiorMaxY": 1.333,
-        "mirrorX": 0.008,
-        "mirrorY": 0.019,
-        "pass": true
-      },
-      {
         "file": "target/materials-stage/mips/wood_warm_a.base_color.mip1.png",
-        "seamX": 1.052,
-        "seamY": 0.99,
+        "seamX": 1.063,
+        "seamY": 0.97,
         "interiorMaxX": 1.463,
-        "interiorMaxY": 1.397,
+        "interiorMaxY": 1.393,
         "mirrorX": 0.041,
-        "mirrorY": 0.016,
+        "mirrorY": 0.015,
         "pass": true
       },
       {
@@ -754,11 +724,41 @@
         "pass": true
       },
       {
+        "file": "target/materials-stage/mips/wood_warm_b.base_color.mip1.png",
+        "seamX": 1.071,
+        "seamY": 1.329,
+        "interiorMaxX": 1.495,
+        "interiorMaxY": 1.365,
+        "mirrorX": 0.006,
+        "mirrorY": 0.042,
+        "pass": true
+      },
+      {
+        "file": "target/materials-stage/mips/wood_warm_b.normal.mip1.png",
+        "seamX": 0.962,
+        "seamY": 1.079,
+        "interiorMaxX": 1.331,
+        "interiorMaxY": 1.229,
+        "mirrorX": 0.01,
+        "mirrorY": 0.001,
+        "pass": true
+      },
+      {
+        "file": "target/materials-stage/mips/wood_warm_b.orm.mip1.png",
+        "seamX": 1.124,
+        "seamY": 1.304,
+        "interiorMaxX": 1.521,
+        "interiorMaxY": 1.333,
+        "mirrorX": 0.008,
+        "mirrorY": 0.019,
+        "pass": true
+      },
+      {
         "file": "target/materials-stage/mips/wood_warm_c.base_color.mip1.png",
-        "seamX": 1.192,
-        "seamY": 1.159,
-        "interiorMaxX": 1.398,
-        "interiorMaxY": 1.399,
+        "seamX": 1.209,
+        "seamY": 1.13,
+        "interiorMaxX": 1.4,
+        "interiorMaxY": 1.468,
         "mirrorX": 0.063,
         "mirrorY": 0.047,
         "pass": true
