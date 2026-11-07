@@ -37,8 +37,9 @@ make web-size       # build-web + wasm ≤ 15 MB gzip budget
 
 - 5310 — Trunk dev server (`make dev`).
 - 5311 — static preview of `dist/` for Playwright smoke, shots and the perf gate.
+- 5312 — standalone audio audition page (`make audition`).
 
-Both are reserved in `~/.claude/used_ports.md`.
+All three are reserved in `~/.claude/used_ports.md`.
 
 ## Architecture
 

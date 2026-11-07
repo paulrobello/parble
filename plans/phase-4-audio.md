@@ -20,7 +20,7 @@ PRD: `PRD.md` §5.7, §6 P4. Phase goal: physics-reactive SFX and ambient music 
 - Process: trim, loudness-normalize, find loop points for roll loops, export OGG/Opus + AAC fallback.
 - Keep originals unchanged under `assets-source/audio/`.
 - `provenance.json` with prompts, model, date and generation count.
-- Audition page served on 5310 at `/audition.html`, following the the-cube sfx audition page pattern.
+- Audition page served by `make audition` on 5312 (5310 belongs to `make dev`), following the the-cube sfx audition page pattern.
 - Verify: `validate-generated-assets` passes and Paul's audition picks are recorded.
 - Depends on: P4-T1.
 

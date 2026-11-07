@@ -3,6 +3,7 @@
 	audio-process audition
 
 DEV_PORT := 5310
+AUDITION_PORT := 5312
 WASM := wasm32-unknown-unknown
 UI := web/ui
 
@@ -138,8 +139,8 @@ audio-process:
 # Audition page on the reserved parble port (Trunk dev server is not built yet).
 audition:
 	@test -f audition/sfx/manifest.json || { echo "ERROR: run make audio-process first"; exit 1; }
-	@echo "audition page: http://127.0.0.1:$(DEV_PORT)/"
-	python3 -m http.server $(DEV_PORT) --bind 127.0.0.1 --directory audition
+	@echo "audition page: http://127.0.0.1:$(AUDITION_PORT)/"
+	python3 -m http.server $(AUDITION_PORT) --bind 127.0.0.1 --directory audition
 
 # P1-T1 wood material set. Local only (macOS arm64): needs Blender 5.2 and the pinned KTX-Software 4.4.2
 # in target/tools (make fetch-tools). Not part of checkall/checkall-ci, which run on CI's Linux host.
