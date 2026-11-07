@@ -1,5 +1,6 @@
 .PHONY: build test lint lint-native lint-wasm fmt fmt-check typecheck ui-static ui-test checkall checkall-ci \
-	wasm-build-check secrets-scan pre-commit pre-commit-update dev dev-start dev-restart dev-stop build-web web-size
+	wasm-build-check secrets-scan pre-commit pre-commit-update dev dev-start dev-restart dev-stop build-web web-size \
+	audio-process audition
 
 DEV_PORT := 5310
 WASM := wasm32-unknown-unknown
@@ -104,3 +105,13 @@ web-size:
 	@wasm=$$(ls dist/*.wasm); raw=$$(wc -c < $$wasm | tr -d ' '); gz=$$(gzip -9 -c $$wasm | wc -c | tr -d ' '); \
 	echo "wasm raw=$$raw gzip=$$gz"; \
 	test $$gz -le 15000000 || { echo "FAIL: wasm gzip $$gz > 15 MB budget"; exit 1; }
+
+# P4-T2: process assets-source/audio originals into audition/ (originals are never modified).
+audio-process:
+	python3 scripts/audio/process.py
+
+# Audition page on the reserved parble port (Trunk dev server is not built yet).
+audition:
+	@test -f audition/sfx/manifest.json || { echo "ERROR: run make audio-process first"; exit 1; }
+	@echo "audition page: http://127.0.0.1:$(DEV_PORT)/"
+	python3 -m http.server $(DEV_PORT) --bind 127.0.0.1 --directory audition

@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>parble audio audition</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { color-scheme: dark; --bg: #16181b; --panel: #1f2226; --line: #2e3238; --text: #e4e6e9;
+          --dim: #9aa1aa; --ok: #6fbf73; --warn: #e0b04a; --bad: #e0675a; --accent: #6aa8e8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+  header { position: sticky; top: 0; z-index: 2; background: var(--panel); border-bottom: 1px solid var(--line);
+           padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  header h1 { font-size: 16px; margin: 0 12px 0 0; }
+  main { padding: 8px 16px 48px; max-width: 1100px; }
+  h2 { font-size: 15px; margin: 28px 0 6px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+  .cue { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; margin: 8px 0; }
+  .cue-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+  .cue-id { font-weight: 600; }
+  .target { color: var(--dim); font-size: 12px; }
+  .var { display: grid; grid-template-columns: 64px 70px 60px 1fr 210px; gap: 8px; align-items: center;
+         padding: 4px 0; border-top: 1px solid var(--line); }
+  .var:first-of-type { border-top: 0; }
+  .stem { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .meas { color: var(--dim); font-variant-numeric: tabular-nums; font-size: 12px; text-align: right; }
+  .flags { grid-column: 4 / 6; font-size: 12px; }
+  .flags .bad { color: var(--bad); } .flags .warn { color: var(--warn); }
+  .time { color: var(--accent); font-variant-numeric: tabular-nums; font-size: 12px; margin-left: 6px; }
+  button { background: #2a2f36; color: var(--text); border: 1px solid #3a4048; border-radius: 4px;
+           padding: 3px 8px; cursor: pointer; font: inherit; }
+  button:hover { border-color: var(--accent); }
+  button.playing { background: #234466; border-color: var(--accent); }
+  label { cursor: pointer; user-select: none; }
+  textarea { width: 100%; background: #15171a; color: var(--text); border: 1px solid var(--line);
+             border-radius: 4px; font: 12px/1.4 ui-monospace, monospace; padding: 6px; }
+  .notes { margin-top: 6px; min-height: 30px; }
+  #export-box { display: none; margin-top: 16px; }
+  #export-box textarea { min-height: 180px; }
+  #status { color: var(--dim); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>parble audio audition</h1>
+  <label>Master <input id="volume" type="range" min="0" max="1.5" step="0.01" value="0.8"></label>
+  <button id="stop-all">Stop all</button>
+  <button id="export">Export picks JSON</button>
+  <span id="status">loading manifest…</span>
+</header>
+<main>
+  <div id="export-box"><textarea id="export-text" readonly aria-label="exported picks"></textarea></div>
+  <div id="groups"></div>
+</main>
+<script>
+"use strict";
+const MANIFEST = "sfx/manifest.json";
+const FAMILY_ORDER = ["roll", "impact", "drop_tunnel", "mechanism", "ui", "music"];
+const STORE_KEY = "parble-audition-v1";
+const SR = 48000;
+
+const state = JSON.parse(localStorage.getItem(STORE_KEY) || '{"picks":{},"notes":{}}');
+const save = () => localStorage.setItem(STORE_KEY, JSON.stringify(state));
+
+let ctx = null, master = null;
+const buffers = new Map();       // url -> Promise<AudioBuffer>
+const voices = new Map();        // stem -> {src, button, started, duration, loop, timeEl}
+
+const probe = document.createElement("audio");
+const ext = probe.canPlayType('audio/ogg; codecs="opus"') ? "ogg" : "m4a";
+
+function audio() {
+  if (!ctx) {
+    ctx = new AudioContext();
+    master = ctx.createGain();
+    master.gain.value = Number(document.getElementById("volume").value);
+    master.connect(ctx.destination);
+  }
+  if (ctx.state === "suspended") ctx.resume();
+  return ctx;
+}
+
+function load(url) {
+  if (!buffers.has(url)) {
+    buffers.set(url, fetch(url).then((r) => {
+      if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
+      return r.arrayBuffer();
+    }).then((b) => audio().decodeAudioData(b)));
+  }
+  return buffers.get(url);
+}
+
+function stop(stem) {
+  const v = voices.get(stem);
+  if (!v) return;
+  voices.delete(stem);
+  try { v.src.stop(); } catch (_) { /* already ended */ }
+  v.button.classList.remove("playing");
+  v.button.textContent = "Play";
+  v.timeEl.textContent = "";
+}
+
+function stopAll() { [...voices.keys()].forEach(stop); }
+
+async function play(item, button, loopBox, timeEl, base) {
+  if (voices.has(item.stem)) { stop(item.stem); return; }
+  const url = new URL(item.files[ext].path, base).href;
+  let buf;
+  try { buf = await load(url); } catch (err) { setStatus(String(err)); console.warn(err); return; }
+  const c = audio();
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  src.loop = loopBox.checked;
+  // AAC decodes can carry priming/padding samples; loop only the true sample count.
+  const exact = item.samples ? item.samples / SR : buf.duration;
+  const duration = Math.min(exact, buf.duration);
+  if (buf.duration > duration + 1e-4) { src.loopStart = 0; src.loopEnd = duration; }
+  src.connect(master);
+  src.start();
+  const v = { src, button, started: c.currentTime, duration, timeEl, loopBox };
+  voices.set(item.stem, v);
+  button.classList.add("playing");
+  button.textContent = "Stop";
+  src.onended = () => { if (voices.get(item.stem) === v) stop(item.stem); };
+}
+
+function fmt(s) { const m = Math.floor(s / 60); return `${m}:${(s - m * 60).toFixed(1).padStart(4, "0")}`; }
+
+function tick() {
+  if (ctx) {
+    for (const v of voices.values()) {
+      const t = ctx.currentTime - v.started;
+      const pos = v.src.loop ? t % v.duration : Math.min(t, v.duration);
+      v.timeEl.textContent = `${fmt(pos)} / ${fmt(v.duration)}`;
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
+function setStatus(text) { document.getElementById("status").textContent = text; }
+
+function el(tag, attrs = {}, ...children) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v; else if (k === "text") e.textContent = v; else e.setAttribute(k, v);
+  }
+  children.forEach((c) => e.append(c));
+  return e;
+}
+
+function render(manifest, base) {
+  const groups = document.getElementById("groups");
+  const byFamily = new Map();
+  for (const item of manifest.items) {
+    if (!item.files) continue;
+    const fam = item.family || "other";
+    if (!byFamily.has(fam)) byFamily.set(fam, new Map());
+    const cues = byFamily.get(fam);
+    if (!cues.has(item.cue_id)) cues.set(item.cue_id, []);
+    cues.get(item.cue_id).push(item);
+  }
+  const families = [...byFamily.keys()].sort((a, b) =>
+    (FAMILY_ORDER.indexOf(a) + 99) % 99 - (FAMILY_ORDER.indexOf(b) + 99) % 99 || a.localeCompare(b));
+  let count = 0;
+  for (const fam of families) {
+    groups.append(el("h2", { text: fam === "music" ? "Music" : fam }));
+    for (const [cue, items] of byFamily.get(fam)) {
+      const t = items[0].target || {};
+      const range = t.duration_s ? `, ${t.duration_s[0]}–${t.duration_s[1]} s` : "";
+      const box = el("section", { class: "cue", "data-cue": cue },
+        el("div", { class: "cue-head" }, el("span", { class: "cue-id", text: cue }),
+          el("span", { class: "target",
+            text: `target ${t.lufs} LUFS ±${t.tolerance_lu}, ≤ ${t.true_peak_ceiling_db} dBTP${range}` })));
+      for (const item of items) {
+        count++;
+        const playBtn = el("button", { class: "play", text: "Play", "data-stem": item.stem });
+        const loopBox = el("input", { type: "checkbox" });
+        loopBox.checked = !!item.loop;
+        loopBox.addEventListener("change", () => {
+          const v = voices.get(item.stem); if (v) v.src.loop = loopBox.checked;
+        });
+        const pick = el("input", { type: "checkbox", class: "pick", "data-stem": item.stem });
+        pick.checked = (state.picks[cue] || []).includes(item.stem);
+        pick.addEventListener("change", () => {
+          const set = new Set(state.picks[cue] || []);
+          pick.checked ? set.add(item.stem) : set.delete(item.stem);
+          state.picks[cue] = [...set].sort();
+          if (!state.picks[cue].length) delete state.picks[cue];
+          save();
+        });
+        const timeEl = el("span", { class: "time" });
+        playBtn.addEventListener("click", () => play(item, playBtn, loopBox, timeEl, base));
+        const flags = el("div", { class: "flags" });
+        (item.issues || []).forEach((s) => flags.append(el("div", { class: "bad", text: `✗ ${s}` })));
+        (item.warnings || []).forEach((s) => flags.append(el("div", { class: "warn", text: `! ${s}` })));
+        const lc = item.loop_check ? (item.loop_check.pass ? " · loop ok" : " · loop FAIL") : "";
+        box.append(el("div", { class: "var" },
+          playBtn,
+          el("label", {}, loopBox, " loop"),
+          el("label", {}, pick, " pick"),
+          el("span", { class: "stem", title: item.prompt || "" }, item.stem, timeEl),
+          el("span", { class: "meas",
+            text: `${item.lufs} LUFS · ${item.true_peak_db} dBTP · ${item.duration_s} s${lc}` }),
+          flags));
+      }
+      const notes = el("textarea", { class: "notes", placeholder: `notes for ${cue}`, "aria-label": `notes ${cue}` });
+      notes.value = state.notes[cue] || "";
+      notes.addEventListener("input", () => {
+        if (notes.value) state.notes[cue] = notes.value; else delete state.notes[cue];
+        save();
+      });
+      box.append(notes);
+      groups.append(box);
+    }
+  }
+  setStatus(`${count} variation(s) · playing ${ext.toUpperCase()} · picks saved in this browser`);
+}
+
+function exportPicks() {
+  const out = {};
+  Object.keys(state.picks).sort().forEach((cue) => { out[cue] = state.picks[cue]; });
+  out.notes = state.notes;
+  const text = JSON.stringify(out, null, 2);
+  document.getElementById("export-box").style.display = "block";
+  document.getElementById("export-text").value = text;
+  const a = el("a", { href: URL.createObjectURL(new Blob([text], { type: "application/json" })),
+                      download: "parble-audition-picks.json" });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+document.getElementById("volume").addEventListener("input", (e) => {
+  if (master) master.gain.value = Number(e.target.value);
+});
+document.getElementById("stop-all").addEventListener("click", stopAll);
+document.getElementById("export").addEventListener("click", exportPicks);
+
+const base = new URL(MANIFEST, location.href);
+fetch(base).then((r) => {
+  if (!r.ok) throw new Error(`${MANIFEST}: HTTP ${r.status} (run make audio-process)`);
+  return r.json();
+}).then((m) => render(m, base)).catch((err) => { setStatus(String(err)); console.warn(err); });
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

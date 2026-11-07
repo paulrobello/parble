@@ -19,7 +19,7 @@ repos:
       - id: check-added-large-files
         args: ['--maxkb=1000']
         # Look-dev concept frames (P0-T9) are committed source images.
-        exclude: ^assets-source/
+        exclude: ^(assets-source|audition)/
 
   - repo: local
     hooks:
