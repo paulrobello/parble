@@ -2,7 +2,7 @@
 
 Headless: Blender -b --factory-startup --python-exit-code 1 -P blender/materials/review.py
 Writes blender/materials/review/side-by-side.png (left: EEVEE render of the shipped 1024 PNG maps,
-right: docs/reference/ref-02.webp). The blocks are approximate kit-contract §5.2 bodies (59 mm
+middle: docs/reference/ref-02.webp, right: a crop of the approved look-dev frame 07 the colours are calibrated to). The blocks are approximate kit-contract §5.2 bodies (59 mm
 rendered cube, 28 mm slot, R14 half-round centred at 59 mm, 1.5 mm bevel); P1-T2 owns the real kit.
 `build_showcase(scene)` is also run inside Paul's live Blender session (scene PB_materials).
 """
@@ -18,11 +18,13 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
-VARIANTS = ["wood_birch_a", "wood_birch_b", "wood_maple_c"]
+VARIANTS = ["wood_warm_a", "wood_walnut_b", "wood_warm_c"]
 TILE_M = 0.25
 CELL = 0.060
 BODY = 0.059
 PFX = "PBM_"
+LOOKDEV = "assets-source/lookdev/07-wave-channel-opal-marble.png"
+LOOKDEV_CROP = (0, 0, 1400, 1050)  # x0, y0, x1, y1 in image px, top-left origin
 
 
 def wood_material(name: str) -> bpy.types.Material:
@@ -190,7 +192,11 @@ def main() -> None:
     if left.mean() < 0.01:
         sys.exit("review.py: render is black")
     right = resize_h(load_rgb(os.path.join(ROOT, "docs/reference/ref-02.webp")), left.shape[0])
-    sheet = np.concatenate([left, np.zeros((left.shape[0], 12, 3), np.float32), right], axis=1)
+    lookdev = load_rgb(os.path.join(ROOT, LOOKDEV))[::-1]  # top-down rows for the crop box
+    x0, y0, x1, y1 = LOOKDEV_CROP
+    lookdev = resize_h(lookdev[y0:y1, x0:x1][::-1], left.shape[0])
+    gap = np.zeros((left.shape[0], 12, 3), np.float32)
+    sheet = np.concatenate([left, gap, right, gap, lookdev], axis=1)
     h, w = sheet.shape[:2]
     rgba = np.concatenate([np.round(np.clip(sheet, 0, 1) * 255) / 255, np.ones((h, w, 1))], axis=-1).astype(np.float32)
     img = bpy.data.images.new(f"{PFX}sheet", w, h, alpha=True, float_buffer=False)

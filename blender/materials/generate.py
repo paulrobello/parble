@@ -26,52 +26,57 @@ BAKE_PX = 2048  # Ultra: 8,192 texels/m
 RUNTIME_PX = 1024  # High: 4,096 texels/m. Low (2,048 texels/m) is mip 1 of the High file.
 SAMPLES = 16
 
-# Linear-light colours. Light birch/maple plywood, not the warm lamp-lit look of the references.
+# Linear-light colours. Rich warm wood calibrated to the approved look-dev frames (walnut-leaning), owner
+# ruling 2026-11-07: hue from assets-source/lookdev 01/04/06/07 wood crops (light-compensated against the
+# review render), darker than the old birch set. a = look-dev tone, b = darker walnut heartwood, c = lighter warm.
 VARIANTS: dict[str, dict] = {
-    "wood_birch_a": {
+    "wood_warm_a": {
         "seed": 11,
-        "rings": 24,  # latewood lines per 250 mm tile (integer -> periodic)
-        "warp": 5.5,  # large-scale swirl amplitude, in ring periods
+        "rings": 18,  # latewood lines per 250 mm tile (integer -> periodic)
+        "warp": 6.5,  # large-scale swirl amplitude, in ring periods
         "warpScale": 0.85,
-        "warp2": 0.45,
+        "warp2": 0.55,
         "warp2Scale": 2.4,
-        "light": [0.70, 0.50, 0.29],
-        "dark": [0.47, 0.29, 0.13],
+        "light": [0.48, 0.295, 0.115],
+        "dark": [0.22, 0.118, 0.042],
+        "lineSharpness": 2.5,
+        "lineContrast": 0.70,
+        "toneVariation": 0.12,
+        "pores": 0.30,  # albedo darkening inside pores
+        "roughness": [0.38, 0.48],
+    },
+    "wood_walnut_b": {
+        "seed": 23,
+        "rings": 14,
+        "warp": 9.0,
+        "warpScale": 0.8,
+        "warp2": 0.8,
+        "warp2Scale": 2.0,
+        "light": [0.21, 0.106, 0.052],
+        "dark": [0.066, 0.031, 0.015],
+        "lineSharpness": 2.0,
+        "lineContrast": 0.78,
+        "toneVariation": 0.14,
+        "pores": 0.40,
+        "roughness": [0.36, 0.46],
+    },
+    "wood_warm_c": {
+        "seed": 37,
+        "rings": 22,
+        "warp": 5.0,
+        "warpScale": 0.95,
+        "warp2": 0.45,
+        "warp2Scale": 2.8,
+        "light": [0.62, 0.40, 0.165],
+        "dark": [0.33, 0.19, 0.07],
         "lineSharpness": 3.0,
         "lineContrast": 0.62,
         "toneVariation": 0.10,
-        "roughness": [0.48, 0.58],
-    },
-    "wood_birch_b": {
-        "seed": 23,
-        "rings": 20,
-        "warp": 7.0,
-        "warpScale": 0.8,
-        "warp2": 0.5,
-        "warp2Scale": 2.0,
-        "light": [0.66, 0.46, 0.26],
-        "dark": [0.44, 0.27, 0.12],
-        "lineSharpness": 2.5,
-        "lineContrast": 0.66,
-        "toneVariation": 0.12,
-        "roughness": [0.50, 0.60],
-    },
-    "wood_maple_c": {
-        "seed": 37,
-        "rings": 30,
-        "warp": 4.0,
-        "warpScale": 0.95,
-        "warp2": 0.35,
-        "warp2Scale": 2.8,
-        "light": [0.76, 0.58, 0.38],
-        "dark": [0.55, 0.37, 0.20],
-        "lineSharpness": 3.5,
-        "lineContrast": 0.55,
-        "toneVariation": 0.08,
-        "roughness": [0.45, 0.55],
+        "pores": 0.25,
+        "roughness": [0.40, 0.50],
     },
 }
-HEIGHT_AMPLITUDE_M = 0.00004  # 40 um peak-to-peak grain relief on a lacquered face
+HEIGHT_AMPLITUDE_M = 0.00005  # 50 um peak-to-peak grain and pore relief under a satin finish
 AO_STRENGTH = 0.10  # faint latewood cavity term; per-piece AO is baked separately (P1-T2, §12)
 
 
@@ -167,7 +172,7 @@ def build_material(name: str, p: dict) -> tuple[bpy.types.Material, dict]:
     tau = 2.0 * math.pi
     u2 = g.math("MULTIPLY", sep.outputs[0], tau)
     v2 = g.math("MULTIPLY", sep.outputs[1], tau)
-    off = seed_offsets(p["seed"], 20)
+    off = seed_offsets(p["seed"], 24)
 
     # Grain runs along U. Warp fields: broad swirl plus a finer wobble.
     pa, wa = g.torus(u2, v2, 1.0, 1.0, off[0:4])
@@ -197,8 +202,14 @@ def build_material(name: str, p: dict) -> tuple[bpy.types.Material, dict]:
     pd, wd = g.torus(u2, v2, 1.0, 1.0, off[12:16])
     tone = g.noise4d(pd, wd, 0.9, 1.0, 0.4)
 
+    # Open pores: short dashes along U, about 3 bake px across V (slightly exaggerated so mip 1 keeps them).
+    pp, wp = g.torus(u2, v2, 6.0, 40.0, off[20:24])
+    pore = g.noise4d(pp, wp, 3.0, 1.0, 0.5)
+    pore = g.math("MAXIMUM", g.math("MINIMUM", g.math("MULTIPLY", g.math("SUBTRACT", pore, 0.60), 6.0), 1.0), 0.0)
+
     t = g.math("MULTIPLY", late, p["lineContrast"])
     t = g.math("ADD", t, g.math("MULTIPLY", g.math("SUBTRACT", streak, 0.5), 0.22))
+    t = g.math("ADD", t, g.math("MULTIPLY", pore, p["pores"]))
     t = g.math("MAXIMUM", g.math("MINIMUM", t, 1.0), 0.0)
     shade = g.math("ADD", 1.0, g.math("MULTIPLY", g.math("SUBTRACT", tone, 0.5), p["toneVariation"] * 2.0))
 
@@ -214,8 +225,10 @@ def build_material(name: str, p: dict) -> tuple[bpy.types.Material, dict]:
     # Data: R height (0..1, latewood recessed, fibres raised), G roughness, B latewood mask.
     h = g.math("SUBTRACT", 1.0, g.math("MULTIPLY", late, 0.7))
     h = g.math("ADD", g.math("MULTIPLY", h, 0.8), g.math("MULTIPLY", streak, 0.2))
+    h = g.math("SUBTRACT", h, g.math("MULTIPLY", pore, 0.25))
     r0, r1 = p["roughness"]
     rough = g.math("ADD", r0, g.math("MULTIPLY", g.math("ADD", g.math("MULTIPLY", late, 0.7), g.math("MULTIPLY", streak, 0.3)), r1 - r0))
+    rough = g.math("ADD", rough, g.math("MULTIPLY", pore, 0.08))
     data = g.combine(h, rough, late)
 
     emit = g.node("ShaderNodeEmission")
