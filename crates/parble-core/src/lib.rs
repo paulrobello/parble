@@ -10,6 +10,7 @@ pub mod piece;
 pub mod port;
 pub mod rng;
 pub mod track;
+pub mod validate;
 
 pub use catalog::{MapCatalog, PieceCatalog};
 pub use contract::KIT_CONTRACT_VERSION;
@@ -20,3 +21,4 @@ pub use rng::{SeededRng, SubStream};
 pub use track::{
     HopperConfig, MarbleSize, PHYSICS_VERSION, Placement, ReleaseMode, SCHEMA_VERSION, Track,
 };
+pub use validate::{Issue, IssueKind, LinkFault, is_finish, is_hopper, validate_track};
