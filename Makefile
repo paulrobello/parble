@@ -115,3 +115,25 @@ audition:
 	@test -f audition/sfx/manifest.json || { echo "ERROR: run make audio-process first"; exit 1; }
 	@echo "audition page: http://127.0.0.1:$(DEV_PORT)/"
 	python3 -m http.server $(DEV_PORT) --bind 127.0.0.1 --directory audition
+
+# P1-T1 wood material set. Local only (macOS arm64): needs Blender 5.2 and the pinned KTX-Software 4.4.2
+# in target/tools (make fetch-tools). Not part of checkall/checkall-ci, which run on CI's Linux host.
+.PHONY: fetch-tools materials-build materials-check
+BLENDER ?= /Applications/Blender.app/Contents/MacOS/Blender
+BLENDER_RUN = "$(BLENDER)" -b --factory-startup --python-exit-code 1
+
+fetch-tools:
+	bash scripts/fetch-ktx.sh
+
+materials-build: fetch-tools
+	rm -rf target/materials-stage
+	$(BLENDER_RUN) -P blender/materials/generate.py -- target/materials-stage assets/materials
+	python3 blender/materials/compress.py
+	$(BLENDER_RUN) -P blender/materials/check.py
+	$(BLENDER_RUN) -P blender/materials/review.py
+	python3 blender/materials/provenance.py assemble
+
+# Seam/mirror gate (needs the mip extracts from materials-build) + provenance hashes + ktx validate.
+materials-check: fetch-tools
+	$(BLENDER_RUN) -P blender/materials/check.py
+	python3 blender/materials/provenance.py check
