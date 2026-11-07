@@ -1,0 +1,385 @@
+{
+  "schema": "parble-lookdev-provenance/1",
+  "task": "P0-T9 look-dev targets",
+  "purpose": "Concept look-dev targets for the parble night-playroom look (PRD §1, §2 goal 1, §5.8). Not runtime assets.",
+  "date": "2026-11-07",
+  "route": "create-game-key-art via the art skill, Higgsfield backend (higgsfield CLI 1.2.x)",
+  "authoringAgent": {
+    "harness": "claude-code",
+    "model": "claude-opus-5-5"
+  },
+  "generationTotal": 9,
+  "generationCap": 15,
+  "creditsTotal": 18,
+  "creditEvidence": "account balance 986 before, 968 after; 9 'Nano Banana Pro -2 spend' transactions on 2026-11-07",
+  "rejectedJobs": [],
+  "frames": [
+    {
+      "file": "01-macro-channel-cats-eye.png",
+      "subject": "macro block channel with a cat's eye marble",
+      "targetsReference": [
+        "docs/reference/ref-02.webp",
+        "docs/reference/ref-01.webp"
+      ],
+      "provider": "Higgsfield",
+      "model": "nano_banana_pro",
+      "jobId": "9f9f1363-ab7e-4d85-ba21-1aef9c802ae5",
+      "jobStatus": "completed",
+      "createdAt": "2026-11-07T20:47:07.010699Z",
+      "settings": {
+        "aspect_ratio": "16:9",
+        "resolution": "2k",
+        "batch_size": 1
+      },
+      "seed": "not exposed by provider",
+      "prompt": "Macro close-up photograph of a single glass cat's eye marble resting in a smooth carved channel cut into a light birch wood building block, part of a wall of square wooden blocks with visible thin seams between pieces and fine natural wood grain. Night playroom: one warm low key light raking across the wood, shallow depth of field with soft bokeh, deep blue shadows falling off to black in the background. The marble is clear glass with a twisted red and green inner vane, crisp refraction and a small specular highlight. Use the reference images only for lighting mood, wood tone and composition feel; create an original scene. Photoreal tabletop miniature render, cinematic. No text, no logos, no watermark, no brand names, no people.",
+      "promptFile": "prompts/01.txt",
+      "negativePrompt": "none (negative guidance is inline: no text, no logos, no watermark, no brand names, no people)",
+      "referenceImages": [
+        {
+          "file": "docs/reference/ref-02.webp",
+          "uploadId": "c3f214e2-86e2-4aaf-9e24-68c8cdfdd953",
+          "sha256": "4c4ed7650fef0b588fbbc58c293f948a3120733b62329af051e4c6d2c0ff3d27"
+        },
+        {
+          "file": "docs/reference/ref-01.webp",
+          "uploadId": "adfd353d-a0ee-45cf-94c7-d3a0c106b961",
+          "sha256": "bce26129ad47abea4cb7d1b9915801c52fc79ef80f2d34daa189030f00498115"
+        }
+      ],
+      "generations": 1,
+      "credits": 2,
+      "format": "png",
+      "width": 2752,
+      "height": 1536,
+      "bytes": 5903021,
+      "sha256": "5f16de4fab365ceae3598ad1b11cdbdc0515e27177f490c8fc3943b6db9ba62d",
+      "transformations": "none; stored exactly as delivered by the provider CDN"
+    },
+    {
+      "file": "02-corkscrew-funnel.png",
+      "subject": "corkscrew rail around a funnel",
+      "targetsReference": [
+        "docs/reference/ref-05-corkscrew-funnel.webp"
+      ],
+      "provider": "Higgsfield",
+      "model": "nano_banana_pro",
+      "jobId": "ccc6799b-fae6-464b-a0ae-0d5c1983a80e",
+      "jobStatus": "completed",
+      "createdAt": "2026-11-07T20:47:42.653502Z",
+      "settings": {
+        "aspect_ratio": "16:9",
+        "resolution": "2k",
+        "batch_size": 1
+      },
+      "seed": "not exposed by provider",
+      "prompt": "A smooth round light-wood marble rail track spirals as a corkscrew helix down around a carved wooden funnel bowl, mounted on a stacked tower of square light wooden blocks. A small dark blue glass marble rides the spiral. Rail spans curve away in gentle S-bends. Night playroom setting: warm practical light from a paper lantern off to one side, deep blue ambient falloff to black, soft depth of field. Fine wood grain visible on the rail and blocks, thin seams between modular pieces. Use the reference image only for lighting mood and wood tone; create an original composition. Photoreal tabletop miniature, cinematic. No text, no logos, no watermark, no brand names, no people.",
+      "promptFile": "prompts/02.txt",
+      "negativePrompt": "none (negative guidance is inline: no text, no logos, no watermark, no brand names, no people)",
+      "referenceImages": [
+        {
+          "file": "docs/reference/ref-05-corkscrew-funnel.webp",
+          "uploadId": "9afab9f5-8114-460f-999b-f3f995017327",
+          "sha256": "e93b3821f5e49000f13631c2f770e6ac307f17e5573f9e423302b73758707c99"
+        }
+      ],
+      "generations": 1,
+      "credits": 2,
+      "format": "png",
+      "width": 2752,
+      "height": 1536,
+      "bytes": 6405914,
+      "sha256": "cc0a74a0afa01f799cf49d09249069709e29d97d63f2bfa4c7c57191c68cb3c3",
+      "transformations": "none; stored exactly as delivered by the provider CDN"
+    },
+    {
+      "file": "03-playroom-rug-lanterns.png",
+      "subject": "night playroom rug with lanterns",
+      "targetsReference": [
+        "docs/reference/ref-07-playroom-rug-lantern.webp",
+        "docs/reference/ref-08-playroom-blocks.webp"
+      ],
+      "provider": "Higgsfield",
+      "model": "nano_banana_pro",
+      "jobId": "5e5c53e1-3bfc-4ae4-9ef0-d4793906cb33",
+      "jobStatus": "completed",
+      "createdAt": "2026-11-07T20:48:24.498697Z",
+      "settings": {
+        "aspect_ratio": "16:9",
+        "resolution": "2k",
+        "batch_size": 1
+      },
+      "seed": "not exposed by provider",
+      "prompt": "Low camera angle across a patterned woven rug floor at night in a child's playroom, two glowing round white paper lanterns sitting on the rug casting warm pools of light. Scattered plain light-wood building blocks and a few small glass marbles on the rug in the foreground. In the dim background, silhouettes of stacked wooden block towers and a marble run, falling off into deep blue then black. Rug pattern of small teal, ochre and green squares. Shallow depth of field, foreground blocks slightly soft. Use the reference images only for lighting mood and colour; create an original scene. Photoreal miniature, cinematic. No text, no logos, no watermark, no brand names, no people.",
+      "promptFile": "prompts/03.txt",
+      "negativePrompt": "none (negative guidance is inline: no text, no logos, no watermark, no brand names, no people)",
+      "referenceImages": [
+        {
+          "file": "docs/reference/ref-07-playroom-rug-lantern.webp",
+          "uploadId": "f24eab31-a143-4023-a2ed-631cf29d3c04",
+          "sha256": "defaa06674bf3e4ddcd944bcea004792e8b71cdc4e7feff1f01175b5293bc328"
+        },
+        {
+          "file": "docs/reference/ref-08-playroom-blocks.webp",
+          "uploadId": "a36eee2b-b7a4-4a33-bf09-616696b2db49",
+          "sha256": "59a7277908c3a00d5d500aaa5d2954f62505c7bfeaf019848c500523762a81ac"
+        }
+      ],
+      "generations": 1,
+      "credits": 2,
+      "format": "png",
+      "width": 2752,
+      "height": 1536,
+      "bytes": 6856929,
+      "sha256": "19980bb4062fb6542c0d5fdc957ea7ac2e794557233d8077737d4d09a2f7574d",
+      "transformations": "none; stored exactly as delivered by the provider CDN"
+    },
+    {
+      "file": "04-tower-track-wide.png",
+      "subject": "wide shot of a tall tower track",
+      "targetsReference": [
+        "docs/reference/ref-06-rail-into-block-tower.png",
+        "docs/reference/ref-08-playroom-blocks.webp",
+        "docs/reference/ref-05-corkscrew-funnel.webp"
+      ],
+      "provider": "Higgsfield",
+      "model": "nano_banana_pro",
+      "jobId": "e8c65258-9322-4f09-adc7-145db0018e04",
+      "jobStatus": "completed",
+      "createdAt": "2026-11-07T20:48:56.023731Z",
+      "settings": {
+        "aspect_ratio": "16:9",
+        "resolution": "2k",
+        "batch_size": 1
+      },
+      "seed": "not exposed by provider",
+      "prompt": "Wide establishing shot of a very tall wooden marble run tower track standing on a patterned rug in a dark playroom at night. The tower is built from stacked square light-wood blocks with round holes, and smooth round wooden rails zigzag and spiral down its sides from top to bottom, connecting into the block holes. Several glass marbles mid-run. A warm paper lantern glows on the rug at the base, lighting the lower tower; the upper tower fades into deep blue darkness and black. Fine wood grain, thin seams between modular pieces. Use the reference images only for lighting mood and material look; create an original structure. Photoreal miniature, cinematic depth of field. No text, no logos, no watermark, no brand names, no people.",
+      "promptFile": "prompts/04.txt",
+      "negativePrompt": "none (negative guidance is inline: no text, no logos, no watermark, no brand names, no people)",
+      "referenceImages": [
+        {
+          "file": "docs/reference/ref-06-rail-into-block-tower.png",
+          "uploadId": "142d04ba-9a0c-433b-9ce5-f8ace9cbde5b",
+          "sha256": "8d0bf3fb25233bceae74705473dd867a8a24358500ef1fa58219791bcb7360c0"
+        },
+        {
+          "file": "docs/reference/ref-08-playroom-blocks.webp",
+          "uploadId": "a36eee2b-b7a4-4a33-bf09-616696b2db49",
+          "sha256": "59a7277908c3a00d5d500aaa5d2954f62505c7bfeaf019848c500523762a81ac"
+        },
+        {
+          "file": "docs/reference/ref-05-corkscrew-funnel.webp",
+          "uploadId": "9afab9f5-8114-460f-999b-f3f995017327",
+          "sha256": "e93b3821f5e49000f13631c2f770e6ac307f17e5573f9e423302b73758707c99"
+        }
+      ],
+      "generations": 1,
+      "credits": 2,
+      "format": "png",
+      "width": 2752,
+      "height": 1536,
+      "bytes": 6218252,
+      "sha256": "e88f86d1fa1a79582da08aa54a470fb847aa3d451fa9689d3c3a749e725da7ec",
+      "transformations": "none; stored exactly as delivered by the provider CDN"
+    },
+    {
+      "file": "05-glow-inlay-panels.png",
+      "subject": "glow-inlay panel (close variant)",
+      "targetsReference": [
+        "docs/reference/ref-09-glow-inlay-panels.webp"
+      ],
+      "provider": "Higgsfield",
+      "model": "nano_banana_pro",
+      "jobId": "928b279e-189d-491d-bc00-ee5a42e24934",
+      "jobStatus": "completed",
+      "createdAt": "2026-11-07T20:49:36.245466Z",
+      "settings": {
+        "aspect_ratio": "16:9",
+        "resolution": "2k",
+        "batch_size": 1
+      },
+      "seed": "not exposed by provider",
+      "prompt": "Close-up of decorative light birch wood panels in a marble run, each panel inlaid with thin straight glowing warm-white emissive strips running vertically, like light leaking through narrow grooves. Panels stand at staggered heights in front of a wide wood-grain backdrop, a smooth wooden channel runs along the bottom with a small glass marble in it. Night setting, the inlay strips are the main light source with a soft bloom, deep blue falloff into black at the edges. Fine wood grain, thin seams. Use the reference image only for the inlay concept, lighting mood and wood tone; create an original design. Photoreal, cinematic. No text, no logos, no watermark, no brand names, no people.",
+      "promptFile": "prompts/05.txt",
+      "negativePrompt": "none (negative guidance is inline: no text, no logos, no watermark, no brand names, no people)",
+      "referenceImages": [
+        {
+          "file": "docs/reference/ref-09-glow-inlay-panels.webp",
+          "uploadId": "9f00f3dd-f711-4570-b564-8459e6949c09",
+          "sha256": "6d66b4b45327862e1a4201d74842fd5f61865d148f899ae33771e70da2a79be2"
+        }
+      ],
+      "generations": 1,
+      "credits": 2,
+      "format": "png",
+      "width": 2752,
+      "height": 1536,
+      "bytes": 9007241,
+      "sha256": "0e28220c685e99555c4c49eaae43284859185b48355fa7ceec1ea1e88cf53b75",
+      "transformations": "none; stored exactly as delivered by the provider CDN"
+    },
+    {
+      "file": "06-rail-into-block-tower.png",
+      "subject": "rail entering a block tower port (tower track variant)",
+      "targetsReference": [
+        "docs/reference/ref-06-rail-into-block-tower.png"
+      ],
+      "provider": "Higgsfield",
+      "model": "nano_banana_pro",
+      "jobId": "e64f50be-fa8a-4d80-9144-3e7476d8d362",
+      "jobStatus": "completed",
+      "createdAt": "2026-11-07T20:50:07.27976Z",
+      "settings": {
+        "aspect_ratio": "16:9",
+        "resolution": "2k",
+        "batch_size": 1
+      },
+      "seed": "not exposed by provider",
+      "prompt": "Three-quarter close shot of a smooth round light-wood marble rail curving in and entering a round hole in the side of a tall column of stacked square light-wood blocks; a lower block has another round exit hole. A glass marble with a blue swirl is about to enter the hole. Night playroom, single warm key light from the left catching the rail's top edge and the block faces, deep blue darkness behind falling off to black, shallow depth of field. Visible wood grain and thin seams between stacked blocks. Use the reference image only for lighting mood and material look; create an original composition. Photoreal miniature, cinematic. No text, no logos, no watermark, no brand names, no people.",
+      "promptFile": "prompts/06.txt",
+      "negativePrompt": "none (negative guidance is inline: no text, no logos, no watermark, no brand names, no people)",
+      "referenceImages": [
+        {
+          "file": "docs/reference/ref-06-rail-into-block-tower.png",
+          "uploadId": "142d04ba-9a0c-433b-9ce5-f8ace9cbde5b",
+          "sha256": "8d0bf3fb25233bceae74705473dd867a8a24358500ef1fa58219791bcb7360c0"
+        }
+      ],
+      "generations": 1,
+      "credits": 2,
+      "format": "png",
+      "width": 2752,
+      "height": 1536,
+      "bytes": 4897802,
+      "sha256": "ab9fd0d861eaff2803ce15b6fd9828402b3244c0db5013c61f875347fcb3c993",
+      "transformations": "none; stored exactly as delivered by the provider CDN"
+    },
+    {
+      "file": "07-wave-channel-opal-marble.png",
+      "subject": "macro wave channel with an opal marble (block channel variant)",
+      "targetsReference": [
+        "docs/reference/ref-03.webp",
+        "docs/reference/ref-01.webp"
+      ],
+      "provider": "Higgsfield",
+      "model": "nano_banana_pro",
+      "jobId": "abe647fb-3c60-47ba-b2db-a6b7c4e83b54",
+      "jobStatus": "completed",
+      "createdAt": "2026-11-07T20:50:50.321648Z",
+      "settings": {
+        "aspect_ratio": "16:9",
+        "resolution": "2k",
+        "batch_size": 1
+      },
+      "seed": "not exposed by provider",
+      "prompt": "Macro shot of a carved light-wood block track with a gentle wave-shaped channel rolling up and down across several modular blocks joined seam to seam, an iridescent blue opal glass marble cresting one bump. Low warm light grazing across the waves to show their shape, deep blue shadow falloff to black, very shallow depth of field with bokeh. Fine birch wood grain continuous across the thin seams. Use the reference images only for lighting mood and wood tone; create an original track shape. Photoreal tabletop miniature, cinematic. No text, no logos, no watermark, no brand names, no people.",
+      "promptFile": "prompts/07.txt",
+      "negativePrompt": "none (negative guidance is inline: no text, no logos, no watermark, no brand names, no people)",
+      "referenceImages": [
+        {
+          "file": "docs/reference/ref-03.webp",
+          "uploadId": "0ed1f8d7-5069-4b2a-90db-dd293d29637b",
+          "sha256": "68cf5f73816546ba676c31b26c0cab1e608786cee33fb9f0320ee8bd5abe7d7b"
+        },
+        {
+          "file": "docs/reference/ref-01.webp",
+          "uploadId": "adfd353d-a0ee-45cf-94c7-d3a0c106b961",
+          "sha256": "bce26129ad47abea4cb7d1b9915801c52fc79ef80f2d34daa189030f00498115"
+        }
+      ],
+      "generations": 1,
+      "credits": 2,
+      "format": "png",
+      "width": 2752,
+      "height": 1536,
+      "bytes": 7123709,
+      "sha256": "314ae1885e6a3c05ed365c27579ce0233306c195ca28c7f32ecb17900ef25942",
+      "transformations": "none; stored exactly as delivered by the provider CDN"
+    },
+    {
+      "file": "08-glow-inlay-track-wide.png",
+      "subject": "glow-inlay blocks in a track on the rug (glow-inlay variant)",
+      "targetsReference": [
+        "docs/reference/ref-09-glow-inlay-panels.webp",
+        "docs/reference/ref-07-playroom-rug-lantern.webp"
+      ],
+      "provider": "Higgsfield",
+      "model": "nano_banana_pro",
+      "jobId": "33c0326a-353f-4666-8fb4-0b542930bd55",
+      "jobStatus": "completed",
+      "createdAt": "2026-11-07T20:51:30.997758Z",
+      "settings": {
+        "aspect_ratio": "16:9",
+        "resolution": "2k",
+        "batch_size": 1
+      },
+      "seed": "not exposed by provider",
+      "prompt": "Medium-wide shot of a wooden marble run on a patterned rug at night, where a section of light-wood blocks carries thin glowing warm-white inlay strips that light the surrounding track; a smooth round rail descends past the glowing blocks, a paper lantern glows softly out of focus in the background. Glass marbles on the track. Deep blue ambient falloff to black, warm practical light, bloom on the inlays, cinematic shallow depth of field. Fine wood grain and thin seams between modular pieces. Use the reference images only for lighting mood, inlay concept and materials; create an original scene. Photoreal miniature. No text, no logos, no watermark, no brand names, no people.",
+      "promptFile": "prompts/08.txt",
+      "negativePrompt": "none (negative guidance is inline: no text, no logos, no watermark, no brand names, no people)",
+      "referenceImages": [
+        {
+          "file": "docs/reference/ref-09-glow-inlay-panels.webp",
+          "uploadId": "9f00f3dd-f711-4570-b564-8459e6949c09",
+          "sha256": "6d66b4b45327862e1a4201d74842fd5f61865d148f899ae33771e70da2a79be2"
+        },
+        {
+          "file": "docs/reference/ref-07-playroom-rug-lantern.webp",
+          "uploadId": "f24eab31-a143-4023-a2ed-631cf29d3c04",
+          "sha256": "defaa06674bf3e4ddcd944bcea004792e8b71cdc4e7feff1f01175b5293bc328"
+        }
+      ],
+      "generations": 1,
+      "credits": 2,
+      "format": "png",
+      "width": 2752,
+      "height": 1536,
+      "bytes": 4826783,
+      "sha256": "a0f818f71875c33f930514534a0da6e8e01f729ed71147d6ce447d15cbc9fa56",
+      "transformations": "none; stored exactly as delivered by the provider CDN"
+    },
+    {
+      "file": "09-glow-inlay-block.png",
+      "subject": "single glow-inlay block on the rug (glow-inlay variant, text-only prompt)",
+      "targetsReference": [
+        "none (text-only prompt)"
+      ],
+      "provider": "Higgsfield",
+      "model": "nano_banana_pro",
+      "jobId": "85229929-f324-4d1c-9209-7630d3a41a12",
+      "jobStatus": "completed",
+      "createdAt": "2026-11-07T20:52:43.485602Z",
+      "settings": {
+        "aspect_ratio": "16:9",
+        "resolution": "2k",
+        "batch_size": 1
+      },
+      "seed": "not exposed by provider",
+      "prompt": "Three-quarter view of a single modular light birch wood marble-run block, a cube with a smooth carved channel across its top, decorated with a geometric pattern of thin inlaid glowing warm-amber light lines on its side faces: a row of short vertical strips and one long horizontal strip. A clear glass marble with a gold vane sits in the channel catching the glow. The block stands on a patterned rug of small teal and ochre squares, neighbouring plain wooden blocks soft in the background. Night playroom: the inlay glow is the key light with gentle bloom, deep blue ambient falloff to black, shallow depth of field. Fine wood grain, thin seams. Photoreal tabletop miniature, cinematic, original design. No text, no logos, no watermark, no brand names, no people.",
+      "promptFile": "prompts/09.txt",
+      "negativePrompt": "none (negative guidance is inline: no text, no logos, no watermark, no brand names, no people)",
+      "referenceImages": [],
+      "generations": 1,
+      "credits": 2,
+      "format": "png",
+      "width": 2752,
+      "height": 1536,
+      "bytes": 5432734,
+      "sha256": "5c00f199937a70637db4f373a751c3a9bd198c48f4698f90091eaa2ac9e42ba4",
+      "transformations": "none; stored exactly as delivered by the provider CDN"
+    }
+  ],
+  "rights": {
+    "generatedOn": "Paul Robello's Higgsfield plus plan",
+    "terms": "Output use governed by the Higgsfield terms of service for the plan; commercial terms not verified in this task.",
+    "references": "docs/reference/* images were uploaded to Higgsfield as style and lighting direction. Their origin and ownership are unknown; they are not copied into any frame as assets. Frame 05 follows ref-09's composition closely and should be treated as derivative.",
+    "trademarks": "Prompts name no toy brands; no text, logos or watermarks observed in any kept frame on visual review.",
+    "status": "pending"
+  },
+  "gates": {
+    "technical": "pass (node assets-source/lookdev/check-provenance.mjs, 2026-11-07)",
+    "creative": "pending",
+    "rights": "pending",
+    "owner": "pending (Paul picks the target set)"
+  }
+}
