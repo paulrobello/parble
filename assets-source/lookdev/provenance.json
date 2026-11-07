@@ -1,7 +1,7 @@
 {
   "schema": "parble-lookdev-provenance/1",
   "task": "P0-T9 look-dev targets",
-  "purpose": "Concept look-dev targets for the parble night-playroom look (PRD §1, §2 goal 1, §5.8). Not runtime assets.",
+  "purpose": "Concept look-dev targets for the parble night-playroom look (PRD \u00a71, \u00a72 goal 1, \u00a75.8). Not runtime assets.",
   "date": "2026-11-07",
   "route": "create-game-key-art via the art skill, Higgsfield backend (higgsfield CLI 1.2.x)",
   "authoringAgent": {
@@ -216,7 +216,13 @@
       "height": 1536,
       "bytes": 9007241,
       "sha256": "0e28220c685e99555c4c49eaae43284859185b48355fa7ceec1ea1e88cf53b75",
-      "transformations": "none; stored exactly as delivered by the provider CDN"
+      "transformations": "none; stored exactly as delivered by the provider CDN",
+      "ownerReview": {
+        "status": "scope-limited",
+        "date": "2026-11-07",
+        "by": "Paul",
+        "note": "reference for optional inlays on mechanical pieces only; not a track-look target"
+      }
     },
     {
       "file": "06-rail-into-block-tower.png",
@@ -336,7 +342,13 @@
       "height": 1536,
       "bytes": 4826783,
       "sha256": "a0f818f71875c33f930514534a0da6e8e01f729ed71147d6ce447d15cbc9fa56",
-      "transformations": "none; stored exactly as delivered by the provider CDN"
+      "transformations": "none; stored exactly as delivered by the provider CDN",
+      "ownerReview": {
+        "status": "rejected",
+        "date": "2026-11-07",
+        "by": "Paul",
+        "reason": "light rails should be reserved for mechanical things, even then they are not required"
+      }
     },
     {
       "file": "09-glow-inlay-block.png",
@@ -366,7 +378,13 @@
       "height": 1536,
       "bytes": 5432734,
       "sha256": "5c00f199937a70637db4f373a751c3a9bd198c48f4698f90091eaa2ac9e42ba4",
-      "transformations": "none; stored exactly as delivered by the provider CDN"
+      "transformations": "none; stored exactly as delivered by the provider CDN",
+      "ownerReview": {
+        "status": "scope-limited",
+        "date": "2026-11-07",
+        "by": "Paul",
+        "note": "reference for optional inlays on mechanical pieces only; not a track-look target"
+      }
     }
   ],
   "rights": {

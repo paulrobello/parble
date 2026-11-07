@@ -231,6 +231,10 @@ Rail-to-block joint, side elevation through the channel centreline (rail at `L1`
                                          collision port plane = 10 mm inside the block face
 ```
 
+### 5.6 Emissive inlays (owner ruling 2026-11-07)
+
+Track channels and plain track pieces (straights, curves, slopes, rails, joints, pillars, supports) carry no emissive inlays or light strips. A light-strip inlay is allowed only as an optional, off-by-default toggle on a mechanical piece (toggle, splitter, one-way gate, one-way hole, checkpoint, hopper, finish). It is never required. Look-dev frame `08-glow-inlay-track-wide.png` is rejected for this reason, and frames 05 and 09 are references for mechanical pieces only.
+
 ## 6. Marbles, channel clearance and size gates
 
 The PRD fixes the marble sizes as diameters (see §16, Q1).
@@ -485,6 +489,7 @@ The dimensioned sections are inline above so every number is searchable:
 7. Animated parts named in the sidecar exist as GLB nodes, with pivot and axis present.
 8. Overhead clearance of at least 34 mm above every channel floor for static geometry and for animated parts in their open pose (§5.1).
 9. Provenance file present.
+10. No emissive material or inlay slot on any non-mechanical piece, and every mechanical piece's inlay defaults to off (§5.6).
 
 ## 15. Numbers used by later plans (cross-reference)
 

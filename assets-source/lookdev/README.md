@@ -12,11 +12,11 @@ Concept frames for the parble night-playroom look, generated with Higgsfield `na
 | 02 | ![](02-corkscrew-funnel.png) `02-corkscrew-funnel.png` | Corkscrew rail around a funnel | ref-05 | Strong match for the rail family and funnel. The background includes generic toys (dinosaur, plush). |
 | 03 | ![](03-playroom-rug-lanterns.png) `03-playroom-rug-lanterns.png` | Night playroom rug with lanterns | ref-07, ref-08 | Two lanterns and scattered blocks. The rug reads as a woven weave, not ref-07's square pattern. |
 | 04 | ![](04-tower-track-wide.png) `04-tower-track-wide.png` | Wide shot of a tall tower track | ref-06, ref-08, ref-05 | Tower with rails, a corkscrew, a lantern and a patterned rug. A good establishing target. |
-| 05 | ![](05-glow-inlay-panels.png) `05-glow-inlay-panels.png` | Glow-inlay panels (close) | ref-09 | Follows ref-09's composition closely, so treat it as derivative of the reference. |
+| 05 | ![](05-glow-inlay-panels.png) `05-glow-inlay-panels.png` | Glow-inlay panels (close) | ref-09 | Follows ref-09's composition closely, so treat it as derivative of the reference. **Owner ruling 2026-11-07: reference for optional inlays on mechanical pieces only, not a track-look target.** |
 | 06 | ![](06-rail-into-block-tower.png) `06-rail-into-block-tower.png` | Rail entering a block-tower port | ref-06 | The rail is drawn as an open U-channel, not ref-06's round rail. Useful for the port and hole standard. |
 | 07 | ![](07-wave-channel-opal-marble.png) `07-wave-channel-opal-marble.png` | Wave channel with an opal marble | ref-03, ref-01 | Opal marble and wave pieces (P7). Lighting is brighter than the references. |
-| 08 | ![](08-glow-inlay-track-wide.png) `08-glow-inlay-track-wide.png` | Glow-inlay blocks in a track on the rug | ref-09, ref-07 | Inlay strips in track use, with a lantern and rug. Busy, with many marbles. |
-| 09 | ![](09-glow-inlay-block.png) `09-glow-inlay-block.png` | Single glow-inlay block on the rug | none (text only) | An original inlay pattern on one kit block. |
+| 08 | ![](08-glow-inlay-track-wide.png) `08-glow-inlay-track-wide.png` | Glow-inlay blocks in a track on the rug | ref-09, ref-07 | Inlay strips in track use, with a lantern and rug. Busy, with many marbles. **REJECTED by Paul 2026-11-07: light rails are reserved for mechanical pieces and are optional even there. Kept on disk for provenance only.** |
+| 09 | ![](09-glow-inlay-block.png) `09-glow-inlay-block.png` | Single glow-inlay block on the rug | none (text only) | An original inlay pattern on one kit block. **Owner ruling 2026-11-07: reference for optional inlays on mechanical pieces only, not a track-look target.** |
 
 ## Generation
 
