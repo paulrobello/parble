@@ -5,7 +5,7 @@
 | Card | P0-T2a (`plans/phase-0-foundations.md`) |
 | Binds | Every piece generator, `parble-core`, `parble-kit`, `parble-sim`, `parble-render`, the editor and procgen |
 | Source | `PRD.md` §5.3, §5.4, §5.5 and the reference images in `docs/reference/` |
-| Status | Draft for owner review. Every judgment call is listed in §16. |
+| Status | Approved by Paul 2026-11-07. All §16 defaults accepted. |
 | Contract version | `KIT_CONTRACT_VERSION = 1` |
 
 This document fixes every dimension, tolerance and file format that the kit pieces, the sim and the renderer agree on. A number that a later plan uses must be defined here (see the cross-reference in §15). Changing any number in §2 to §12 is a contract change: bump `KIT_CONTRACT_VERSION`, rebuild the catalog and bump `PHYSICS_VERSION`.
@@ -522,7 +522,7 @@ Every number in `plans/phase-1-look-dev.md` and `plans/phase-2-core-kit.md`, fou
 
 ## 16. Open questions for owner review
 
-Each item is a judgment call made while writing this contract. Defaults apply until Paul answers.
+Each item is a judgment call made while writing this contract. **Resolved 2026-11-07: Paul approved every default below as written.** Q18 (rail supports) remains deliberately open for P2-T4 to decide.
 
 | ID | Question | Default in this contract |
 |---|---|---|

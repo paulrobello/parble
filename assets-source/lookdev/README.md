@@ -2,7 +2,7 @@
 
 Concept frames for the parble night-playroom look, generated with Higgsfield `nano_banana_pro` (2k, 16:9, 2752x1536 PNG) on 2026-11-07. They are look-dev targets to compare renders against, not runtime assets. Each file is stored exactly as the provider delivered it. Full records (prompt, job id, reference hashes, file hashes) are in [`provenance.json`](provenance.json), and the prompts are in [`prompts/`](prompts/).
 
-**Paul must pick the target set.** Mark the chosen frames (and any to drop or regenerate) before P1 look-dev uses them.
+**Target set approved by Paul 2026-11-07:** frames 01, 02, 03, 04, 06 and 07 are track-look targets. Frames 05 and 09 are approved as references for optional inlays on mechanical pieces only. Frame 08 is rejected.
 
 ## Contact sheet
 
@@ -29,6 +29,6 @@ Concept frames for the parble night-playroom look, generated with Higgsfield `na
 | Gate | Status |
 |---|---|
 | Technical (provenance reconciliation: `node assets-source/lookdev/check-provenance.mjs`) | pass |
-| Creative | pending (owner review against `docs/reference/`) |
+| Creative | approved by Paul 2026-11-07 (all frames except 08) |
 | Rights | pending. Frames were generated on Paul's Higgsfield plus plan, and commercial terms were not verified. The reference images have unknown ownership and were used only as style and lighting direction. Frame 05 is close to ref-09. |
-| Owner | pending (Paul picks the target set) |
+| Owner | approved by Paul 2026-11-07: targets 01-04, 06, 07; mechanical-only 05, 09; rejected 08 |

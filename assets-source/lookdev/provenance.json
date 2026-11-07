@@ -54,7 +54,12 @@
       "height": 1536,
       "bytes": 5903021,
       "sha256": "5f16de4fab365ceae3598ad1b11cdbdc0515e27177f490c8fc3943b6db9ba62d",
-      "transformations": "none; stored exactly as delivered by the provider CDN"
+      "transformations": "none; stored exactly as delivered by the provider CDN",
+      "ownerReview": {
+        "status": "approved-target",
+        "date": "2026-11-07",
+        "by": "Paul"
+      }
     },
     {
       "file": "02-corkscrew-funnel.png",
@@ -90,7 +95,12 @@
       "height": 1536,
       "bytes": 6405914,
       "sha256": "cc0a74a0afa01f799cf49d09249069709e29d97d63f2bfa4c7c57191c68cb3c3",
-      "transformations": "none; stored exactly as delivered by the provider CDN"
+      "transformations": "none; stored exactly as delivered by the provider CDN",
+      "ownerReview": {
+        "status": "approved-target",
+        "date": "2026-11-07",
+        "by": "Paul"
+      }
     },
     {
       "file": "03-playroom-rug-lanterns.png",
@@ -132,7 +142,12 @@
       "height": 1536,
       "bytes": 6856929,
       "sha256": "19980bb4062fb6542c0d5fdc957ea7ac2e794557233d8077737d4d09a2f7574d",
-      "transformations": "none; stored exactly as delivered by the provider CDN"
+      "transformations": "none; stored exactly as delivered by the provider CDN",
+      "ownerReview": {
+        "status": "approved-target",
+        "date": "2026-11-07",
+        "by": "Paul"
+      }
     },
     {
       "file": "04-tower-track-wide.png",
@@ -180,7 +195,12 @@
       "height": 1536,
       "bytes": 6218252,
       "sha256": "e88f86d1fa1a79582da08aa54a470fb847aa3d451fa9689d3c3a749e725da7ec",
-      "transformations": "none; stored exactly as delivered by the provider CDN"
+      "transformations": "none; stored exactly as delivered by the provider CDN",
+      "ownerReview": {
+        "status": "approved-target",
+        "date": "2026-11-07",
+        "by": "Paul"
+      }
     },
     {
       "file": "05-glow-inlay-panels.png",
@@ -218,7 +238,7 @@
       "sha256": "0e28220c685e99555c4c49eaae43284859185b48355fa7ceec1ea1e88cf53b75",
       "transformations": "none; stored exactly as delivered by the provider CDN",
       "ownerReview": {
-        "status": "scope-limited",
+        "status": "approved-mechanical-only",
         "date": "2026-11-07",
         "by": "Paul",
         "note": "reference for optional inlays on mechanical pieces only; not a track-look target"
@@ -258,7 +278,12 @@
       "height": 1536,
       "bytes": 4897802,
       "sha256": "ab9fd0d861eaff2803ce15b6fd9828402b3244c0db5013c61f875347fcb3c993",
-      "transformations": "none; stored exactly as delivered by the provider CDN"
+      "transformations": "none; stored exactly as delivered by the provider CDN",
+      "ownerReview": {
+        "status": "approved-target",
+        "date": "2026-11-07",
+        "by": "Paul"
+      }
     },
     {
       "file": "07-wave-channel-opal-marble.png",
@@ -300,7 +325,12 @@
       "height": 1536,
       "bytes": 7123709,
       "sha256": "314ae1885e6a3c05ed365c27579ce0233306c195ca28c7f32ecb17900ef25942",
-      "transformations": "none; stored exactly as delivered by the provider CDN"
+      "transformations": "none; stored exactly as delivered by the provider CDN",
+      "ownerReview": {
+        "status": "approved-target",
+        "date": "2026-11-07",
+        "by": "Paul"
+      }
     },
     {
       "file": "08-glow-inlay-track-wide.png",
@@ -380,7 +410,7 @@
       "sha256": "5c00f199937a70637db4f373a751c3a9bd198c48f4698f90091eaa2ac9e42ba4",
       "transformations": "none; stored exactly as delivered by the provider CDN",
       "ownerReview": {
-        "status": "scope-limited",
+        "status": "approved-mechanical-only",
         "date": "2026-11-07",
         "by": "Paul",
         "note": "reference for optional inlays on mechanical pieces only; not a track-look target"
@@ -396,8 +426,8 @@
   },
   "gates": {
     "technical": "pass (node assets-source/lookdev/check-provenance.mjs, 2026-11-07)",
-    "creative": "pending",
+    "creative": "approved by Paul 2026-11-07 (all frames except 08)",
     "rights": "pending",
-    "owner": "pending (Paul picks the target set)"
+    "owner": "approved by Paul 2026-11-07: targets 01-04, 06, 07; mechanical-only 05, 09; rejected 08"
   }
 }
