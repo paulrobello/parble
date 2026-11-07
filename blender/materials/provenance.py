@@ -99,7 +99,7 @@ def assemble() -> None:
             ],
             "seam": seam["rows"],
         },
-        "approvals": [{"who": "Paul", "gate": "owner look approval vs ref-02 (side-by-side.png)", "status": "pending"}],
+        "approvals": [{"who": "Paul", "gate": "owner look approval vs ref-02 (side-by-side.png)", "status": "approved", "date": "2026-11-07", "note": "wood_warm_b approved (retuned a step darker than the look-dev tone)"}],
     }
     with open(OUT, "w") as f:
         json.dump(prov, f, indent=2)

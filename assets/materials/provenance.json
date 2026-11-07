@@ -22,8 +22,8 @@
     },
     {
       "path": "blender/materials/provenance.py",
-      "sha256": "caf22dadd45e41d9ecb1b8e239470d0ea3841fb653abedca2f8095f248a311f0",
-      "bytes": 8176
+      "sha256": "7153a3cbffc76ae4deb5ceb3e628d6c6c600b17c639000113d7551d059a4999f",
+      "bytes": 8278
     },
     {
       "path": "blender/materials/review.py",
@@ -789,7 +789,9 @@
     {
       "who": "Paul",
       "gate": "owner look approval vs ref-02 (side-by-side.png)",
-      "status": "pending"
+      "status": "approved",
+      "date": "2026-11-07",
+      "note": "wood_warm_b approved (retuned a step darker than the look-dev tone)"
     }
   ]
 }
