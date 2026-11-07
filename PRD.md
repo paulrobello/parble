@@ -79,15 +79,15 @@ The MVP is a sandbox ("build, release, watch"). The roadmap adds procedural gene
 
 ```
 parble-app ──► parble-render ──► parble-kit ──► parble-core
-    │               │                              ▲
-    ├──► parble-sim ┴──────────────────────────────┤
-    └──► parble-procgen ──► parble-sim ─────────────┘
-parble-sim-wasm (wasm-bindgen worker build of sim + procgen, no Bevy)
+parble-app ──► parble-sim ──► parble-kit, parble-core   (rapier3d lives here only)
+parble-app ──► parble-procgen ──► parble-sim
+parble-render ──► parble-sim (read-only state for interpolation)
+parble-sim-wasm ──► parble-procgen, parble-sim   (wasm-bindgen worker build, no Bevy)
 ```
 
 - **parble-core** (no Bevy, no Rapier): grid math, the kit contract (cell size, port standard, channel classes), the track model and `.parble` serde schema with versioning, validation (open ports, broken links, reachability), seeded RNG (`rand_chacha`).
-- **parble-kit** (no Bevy): piece catalog, the per-piece collision mesh and port sidecar exported by the Blender pipeline, and the chunk collider merge in a stable sorted order.
-- **parble-sim** (no Bevy): the Rapier world at a fixed 240 Hz with CCD, marble types (radius, mass, friction, restitution, rolling resistance), kinematic mechanism state machines advanced by tick count, sensors, the hopper and finish collector, a trajectory hash, and the audio event stream. This crate is the determinism boundary.
+- **parble-kit** (no Bevy, no Rapier): piece catalog and loading of the per-piece collision mesh and port sidecar exported by the Blender pipeline.
+- **parble-sim** (no Bevy): the Rapier world at a fixed 240 Hz with CCD, the chunk collider merge (one trimesh per chunk with `FIX_INTERNAL_EDGES`, built from kit meshes in a stable sorted order), marble types (radius, mass, friction, restitution, rolling resistance), kinematic mechanism state machines advanced by tick count, sensors, the hopper and finish collector, a trajectory hash, and the audio event stream. This crate is the determinism boundary.
 - **parble-procgen**: seed + slider generation, fill-between routing, infinite-descent segments, and validation by headless sim runs.
 - **parble-sim-wasm**: a small wasm-bindgen build of sim + procgen for a Web Worker, so procgen validation never blocks the render thread.
 - **parble-render** (Bevy): instanced piece rendering per piece type with chunking, wood/marble/inlay materials, lighting rig, post stack and quality tiers, environment.
@@ -328,7 +328,7 @@ Acceptance:
 | R1 | Glass marble refraction is too expensive or broken on WebGPU (especially Safari) | P1 gate tests transmission in both browsers. A fallback shader fakes the inner vanes. |
 | R2 | Seam bumps between pieces ruin the rolling feel | Merged chunk trimesh with `FIX_INTERNAL_EDGES`, seam bump metric in the P1 gate |
 | R3 | Small, fast marbles tunnel through walls | 240 Hz fixed step and CCD, Rapier length unit tuned to the cell |
-| R4 | Native and wasm diverge, breaking replays and procgen validation | `enhanced-determinism`, `libm`, tick-based mechanisms, sorted collider merge, no `parallel`, wasm golden test in `checkall-ci`. Ubuntu CI may diverge from macOS, so the golden test compares native and wasm on the same machine. |
+| R4 | Native and wasm, or macOS arm64 and Ubuntu x86_64 CI, diverge and break replays and procgen validation | `enhanced-determinism` (cross-platform IEEE determinism), `libm`, tick-based mechanisms, sorted collider merge, no `parallel` or SIMD features. One committed golden hash is checked natively and in wasm by `checkall-ci`. It is also run on the Parallels Ubuntu VM before the first push, since `git-ci.md` records four red CI pushes from cross-arch Rapier divergence. |
 | R5 | 1000+ pieces blow the frame budget (hex-world per-entity lesson) | Instanced chunked rendering from P1, 2,000-piece stress scene in the perf gate |
 | R6 | Safari breaks on Bevy shader features | `wgsl-compat.js` shim, Safari smoke on every Bevy upgrade |
 | R7 | Chrome uncapped stall tail | `frame_latency=3` default |

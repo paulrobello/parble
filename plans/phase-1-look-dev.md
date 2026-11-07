@@ -32,8 +32,8 @@ Inputs from Phase 0: `docs/kit-contract.md` (P0-T2a), sim (P0-T3), web shell (P0
 - Depends on: P0-T2a. Final material hookup depends on P1-T1; a placeholder material is fine until then.
 
 ### P1-T3 — Kit loader and chunk collider merge
-- `parble-kit` loads the sidecars without Bevy.
-- Builds one trimesh per 8×8×8 chunk from all piece collision meshes in sorted (cell, piece) order, with `TriMeshFlags::FIX_INTERNAL_EDGES`.
+- `parble-kit` loads the sidecars without Bevy or Rapier.
+- `parble-sim` builds one trimesh per 8×8×8 chunk from all piece collision meshes in sorted (cell, piece) order, with `TriMeshFlags::FIX_INTERNAL_EDGES`.
 - Exposes an incremental chunk rebuild API.
 - Seam test: a marble rolls 20 straights in a row and across the curve and slope joins. Assert the peak vertical velocity spike stays under a threshold. Proposed starting threshold is 2 mm/s above the smooth-ramp baseline; tune it and record the final value in the test.
 - Verify: `cargo test -p parble-kit -p parble-sim` passes and the golden hashes stay deterministic native and wasm (`make checkall-ci`).

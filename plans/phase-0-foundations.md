@@ -9,7 +9,8 @@ PRD: `PRD.md` §6 P0. Phase goal: the workspace, both gates, a kit contract ever
 | Rust toolchain | stable channel, targets `wasm32-unknown-unknown`, components `rustfmt`, `clippy` | hex-world `rust-toolchain.toml` |
 | `bevy` | `=0.20.1`, `default-features = false` | hex-world; crates.io latest 2026-10-28 |
 | `rapier3d` | `0.36.1`, features `dim3`, `f32`, `enhanced-determinism`. No `parallel`, no `simd-*`. | crates.io 2026-10-10 |
-| `libm`, `rand_chacha`, `serde`, `serde_json`, `wasm-bindgen` | latest stable at task start | n/a |
+| `libm` 0.2.16, `rand_chacha` 0.10.0, `serde` 1.0.229, `serde_json` 1.0.154, `wasm-bindgen` 0.2.130, `proptest` 1.12.0 (dev) | as listed | crates.io 2026-11-07 |
+| `meshoptimizer-rs` | `=0.2.1` (proven in hex-world; 0.2.19 is latest, upgrade only with a decode test) | hex-world `hex-assets` |
 | Trunk | 0.21.14 | hex-world CI |
 | Node | ≥ 22.18 (CI: 24) | hex-world |
 | `@biomejs/biome` 2.5.15, `typescript` 7.0.2, `vite` 8.3.5, `vitest` 5.1.0, `@playwright/test` 1.64.1 | as listed | the-cube `package.json` |
@@ -71,7 +72,11 @@ Ports: 5310 Trunk dev server, 5311 static preview for Playwright (reserved in `~
 - `parble-sim-wasm`: a wasm-bindgen build exposing `run_golden()`.
 - `scripts/determinism/` runs it under Node and compares against the native golden hash.
 - Make target `determinism-wasm` added to `checkall-ci`.
-- Verify: `make checkall-ci` passes. Deliberately perturbing the step in a scratch branch makes the target fail (record the evidence in the commit message).
+- Run the native golden test on the Parallels Ubuntu 24.04 VM (`~/.claude/guides/infrastructure.md`, Local Parallels VMs) and confirm the same hash before any push, so CI on Ubuntu x86_64 cannot go red on cross-arch divergence. If it differs, fix the source of nondeterminism. Never keep per-platform goldens.
+- Verify:
+  - `make checkall-ci` passes.
+  - The Ubuntu VM run matches the committed golden.
+  - Deliberately perturbing the step in a scratch branch makes the target fail (record the evidence in the commit message).
 - Depends on: P0-T3.
 
 ### P0-T5 — Bevy web shell
