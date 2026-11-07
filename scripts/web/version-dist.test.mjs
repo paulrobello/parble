@@ -67,6 +67,22 @@ test("CSP hashes cover final inline bytes including Trunk's loader and the gener
   }
 });
 
+test("policy text outside the CSP meta tag (an HTML comment) is never rewritten", () => {
+  const dir = site();
+  try {
+    const policy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'";
+    const comment = "<!-- The CSP below: script-src 'self' plus hashes; keep it before every script. -->";
+    writeFileSync(join(dir, "index.html"), read(dir, "index.html").replace("<head>",
+      `<head>${comment}<meta http-equiv="Content-Security-Policy" content="${policy}" />`));
+    versionDist(dir);
+    const page = read(dir, "index.html");
+    assert.ok(page.includes(comment), "comment survives byte for byte");
+    assert.match(page, /content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("every site file but the page, CNAME and Trunk's hashed outputs gets its content hash", () => {
   const dir = site();
   try {
