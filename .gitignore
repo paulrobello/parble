@@ -1,0 +1,51 @@
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.local
+*.local.*
+*-mcp.json
+
+# Logs and runtime output
+*.log
+*.pid
+*.seed
+*.tmp
+tmp/
+temp/
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Agent/tool local state
+.claude/worktrees/
+.superpowers/
+.gemini/
+.gemini-clipboard/
+claude_scratch/
+.claude/.cc2cc-session-id
+.claude/scheduled_tasks.lock
+.claude/statusline-*
+.pi/extensions/discord-relay/state.json
+.pi/status-footer.json
+
+# Grind loop (~/Repos/par-grind) — per-machine config and run output, never committed
+.grind.local.json
+.grind-logs/
+.exit-grind
+docs/superpowers/
+docs/playgrounds/
+
+# Language/build artifacts
+build/
+dist/
+coverage/
+.cache/
+node_modules/
+target/
+e2e/test-results/

@@ -1,0 +1,15 @@
+[package]
+name = "parble-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "parble"
+path = "src/main.rs"
+
+[dependencies]
+
+[lints]
+workspace = true

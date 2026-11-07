@@ -1,0 +1,57 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+# Pins from plans/phase-0-foundations.md (verified on crates.io 2026-11-07). Crates opt in with
+# `{ workspace = true }`; nothing is resolved until a crate does.
+[workspace.dependencies]
+bevy = { version = "=0.20.1", default-features = false }
+rapier3d = { version = "=0.36.1", default-features = false, features = ["dim3", "f32", "enhanced-determinism"] }
+libm = "=0.2.16"
+rand_chacha = "=0.10.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
+wasm-bindgen = "=0.2.130"
+meshoptimizer-rs = "=0.2.1"
+proptest = "=1.12.0"
+
+[workspace.lints.clippy]
+type_complexity = "warn"
+too_many_arguments = "warn"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+debug = false
+
+[profile.release]
+panic = "abort"
+lto = "thin"
+codegen-units = 1
+opt-level = 3
+
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+lto = "fat"
+strip = "debuginfo"
+
+[profile.wasm-release.package.parble-core]
+opt-level = 3
+
+[profile.wasm-release.package.parble-sim]
+opt-level = 3
+
+[profile.wasm-release.package.parble-render]
+opt-level = 3
+
+[profile.wasm-release.package.parble-app]
+opt-level = 3
