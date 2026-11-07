@@ -1,0 +1,202 @@
+{
+  "schema": "parble-kit-provenance/1",
+  "pieceId": "blk_slope_gentle_l3",
+  "pieceVersion": 1,
+  "route": "scripted",
+  "card": "P1-T2",
+  "contract": {
+    "path": "docs/kit-contract.md",
+    "version": 1,
+    "sha256": "b95a038f2ee114d69bf190f2e0543a7494787e0e0a35a8463b439e1357d8bb99",
+    "approved": "Paul, 2026-11-07 (contract status line)"
+  },
+  "generator": {
+    "path": "blender/kit/generate.py",
+    "sha256": "d1ff95443f40abd5ee4cdd8f704911e193088db5007810ec7586ce7c1542b8c3"
+  },
+  "generatorDeps": [
+    {
+      "path": "blender/kit/kitgeom.py",
+      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+    }
+  ],
+  "authoringAgent": {
+    "harness": "claude-code",
+    "model": "claude-opus-5-5"
+  },
+  "blender": "5.2.2 LTS",
+  "toolVersions": {
+    "gltfTransform": "4.3.0",
+    "meshoptimizer": "0.25.0",
+    "gltfValidator": "2.0.0-dev.3.10",
+    "node": "v24.18.0"
+  },
+  "material": "placeholder (wood_placeholder, no maps, no emission); final tileable wood comes from P1-T1",
+  "bake": {
+    "device": "GPU",
+    "samples": 16,
+    "cageExtrusionM": 0.0005,
+    "maxRayDistanceM": 0.002,
+    "marginPx": 8,
+    "aoDistanceM": 0.02,
+    "channels": {
+      "blk_slope_gentle_l3_lod0_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "27f11e566e264332476868c76482c28707d66bc8bbc2f7f2dce5d7919bb0480b",
+        "size": 512
+      },
+      "blk_slope_gentle_l3_lod0_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "9bd111d77bb38df4b228e2a7adc93bc462a8195c939f622d8331b907b0154071",
+        "size": 512
+      },
+      "blk_slope_gentle_l3_lod1_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "58bdf451b3bb560cb22050e73c6cc347c2cb4f773378619626653d287414979c",
+        "size": 256
+      },
+      "blk_slope_gentle_l3_lod1_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "c9d528c15877eb157a3b2101786c477732d21043e89cc4c13bf10ed03bf1e935",
+        "size": 256
+      },
+      "blk_slope_gentle_l3_lod2_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "81473641e9a72d19c9a714b49183a4afa23c82a09c04323c1557ceacfdd3a665",
+        "size": 128
+      },
+      "blk_slope_gentle_l3_lod2_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "d85d24ea750c1b2d0d67581a2b284caeb2da48fbc67e02b5ed62dc573e6da9ba",
+        "size": 128
+      }
+    }
+  },
+  "lods": [
+    {
+      "lod": "blk_slope_gentle_l3_lod0",
+      "tris": 1806
+    },
+    {
+      "lod": "blk_slope_gentle_l3_lod1",
+      "tris": 326
+    },
+    {
+      "lod": "blk_slope_gentle_l3_lod2",
+      "tris": 100
+    }
+  ],
+  "collider": {
+    "node": "blk_slope_gentle_l3_collider",
+    "tris": 312
+  },
+  "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
+  "texelDensityPxPerM": {
+    "lod0": {
+      "max": 2821.4,
+      "median": 2752.9,
+      "min": 2186.1
+    },
+    "lod1": {
+      "max": 1409,
+      "median": 1386.6,
+      "min": 1070.6
+    },
+    "lod2": {
+      "max": 702.9,
+      "median": 698.4,
+      "min": 613.4
+    }
+  },
+  "compression": {
+    "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
+    "glbBytes": 64772,
+    "ktx2": "not produced in P1-T2 (maps ship as PNG)"
+  },
+  "derivedFiles": [
+    {
+      "path": "assets/kit/blk_slope_gentle_l3/blk_slope_gentle_l3.glb",
+      "sha256": "400c0260b92b91559664e7fc6d454f58ea09761f9f130bee6d35bde01bde9d57",
+      "bytes": 64772
+    },
+    {
+      "path": "assets/kit/blk_slope_gentle_l3/blk_slope_gentle_l3.kit.json",
+      "sha256": "70332648a991e7af0c0f68b930486fca96a3ad275e5b1f4c1d78e71e3d7caee6",
+      "bytes": 20366
+    },
+    {
+      "path": "assets/kit/blk_slope_gentle_l3/blk_slope_gentle_l3_lod0_ao.png",
+      "sha256": "27f11e566e264332476868c76482c28707d66bc8bbc2f7f2dce5d7919bb0480b",
+      "bytes": 38302
+    },
+    {
+      "path": "assets/kit/blk_slope_gentle_l3/blk_slope_gentle_l3_lod0_normal.png",
+      "sha256": "9bd111d77bb38df4b228e2a7adc93bc462a8195c939f622d8331b907b0154071",
+      "bytes": 53282
+    },
+    {
+      "path": "assets/kit/blk_slope_gentle_l3/blk_slope_gentle_l3_lod1_ao.png",
+      "sha256": "58bdf451b3bb560cb22050e73c6cc347c2cb4f773378619626653d287414979c",
+      "bytes": 11720
+    },
+    {
+      "path": "assets/kit/blk_slope_gentle_l3/blk_slope_gentle_l3_lod1_normal.png",
+      "sha256": "c9d528c15877eb157a3b2101786c477732d21043e89cc4c13bf10ed03bf1e935",
+      "bytes": 19864
+    },
+    {
+      "path": "assets/kit/blk_slope_gentle_l3/blk_slope_gentle_l3_lod2_ao.png",
+      "sha256": "81473641e9a72d19c9a714b49183a4afa23c82a09c04323c1557ceacfdd3a665",
+      "bytes": 4659
+    },
+    {
+      "path": "assets/kit/blk_slope_gentle_l3/blk_slope_gentle_l3_lod2_normal.png",
+      "sha256": "d85d24ea750c1b2d0d67581a2b284caeb2da48fbc67e02b5ed62dc573e6da9ba",
+      "bytes": 9314
+    },
+    {
+      "path": "assets-source/kit/blk_slope_gentle_l3/blk_slope_gentle_l3_high.blend",
+      "sha256": "c77e9e5eee8b5cdf44e7dcd5317740f470389ef67b38d201af4bb55dc202a935",
+      "bytes": 273438
+    },
+    {
+      "path": "assets-source/kit/blk_slope_gentle_l3/blk_slope_gentle_l3_low.blend",
+      "sha256": "bded2c33bbafc6d5c2027947d07ee5676bb1619e375e0d69a619b2f05a240e9c",
+      "bytes": 151557
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/reference/ref-02.webp",
+      "sha256": "4c4ed7650fef0b588fbbc58c293f948a3120733b62329af051e4c6d2c0ff3d27",
+      "role": "look reference (owner-supplied)"
+    },
+    {
+      "path": "docs/reference/ref-01.webp",
+      "sha256": "bce26129ad47abea4cb7d1b9915801c52fc79ef80f2d34daa189030f00498115",
+      "role": "look reference (owner-supplied)"
+    },
+    {
+      "path": "docs/reference/ref-06-rail-into-block-tower.png",
+      "sha256": "8d0bf3fb25233bceae74705473dd867a8a24358500ef1fa58219791bcb7360c0",
+      "role": "look reference (owner-supplied)"
+    }
+  ],
+  "license": "MIT (repository licence); geometry is generated by the repository's own generator",
+  "validation": {
+    "pass": true,
+    "checks": [
+      "kit-check contract 14.1-14.10",
+      "gltf-validator reimport (meshopt GLB)",
+      "blender reimport (meshopt GLB)"
+    ]
+  },
+  "approvals": [
+    {
+      "who": "Paul",
+      "gate": "piece look",
+      "status": "pending",
+      "notes": "awaiting owner review of blender/kit/review/pieces.png and the PB_kit live scene"
+    }
+  ]
+}

@@ -1,0 +1,202 @@
+{
+  "schema": "parble-kit-provenance/1",
+  "pieceId": "blk_end_l3",
+  "pieceVersion": 1,
+  "route": "scripted",
+  "card": "P1-T2",
+  "contract": {
+    "path": "docs/kit-contract.md",
+    "version": 1,
+    "sha256": "b95a038f2ee114d69bf190f2e0543a7494787e0e0a35a8463b439e1357d8bb99",
+    "approved": "Paul, 2026-11-07 (contract status line)"
+  },
+  "generator": {
+    "path": "blender/kit/generate.py",
+    "sha256": "d1ff95443f40abd5ee4cdd8f704911e193088db5007810ec7586ce7c1542b8c3"
+  },
+  "generatorDeps": [
+    {
+      "path": "blender/kit/kitgeom.py",
+      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+    }
+  ],
+  "authoringAgent": {
+    "harness": "claude-code",
+    "model": "claude-opus-5-5"
+  },
+  "blender": "5.2.2 LTS",
+  "toolVersions": {
+    "gltfTransform": "4.3.0",
+    "meshoptimizer": "0.25.0",
+    "gltfValidator": "2.0.0-dev.3.10",
+    "node": "v24.18.0"
+  },
+  "material": "placeholder (wood_placeholder, no maps, no emission); final tileable wood comes from P1-T1",
+  "bake": {
+    "device": "GPU",
+    "samples": 16,
+    "cageExtrusionM": 0.0005,
+    "maxRayDistanceM": 0.002,
+    "marginPx": 8,
+    "aoDistanceM": 0.02,
+    "channels": {
+      "blk_end_l3_lod0_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "761283f0d093b0d88a870008ebd72500f2fa9f395962889ab51fd21f93f3b8c6",
+        "size": 512
+      },
+      "blk_end_l3_lod0_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "484e2d6274b744c32cefcd539948f054342c85b122f4a93e799c53b164993441",
+        "size": 512
+      },
+      "blk_end_l3_lod1_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "9ab69a080bb409850dda657fe0877d84ae62447a580562bee1503f4a3f1d9c2f",
+        "size": 256
+      },
+      "blk_end_l3_lod1_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "5a5314fee05c4f0b536c7563226bc4707da4d66303e09f6f148b56be04b9922b",
+        "size": 256
+      },
+      "blk_end_l3_lod2_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "b83b3763aa3eac4c01c067fe9a103964072ae51c3ddcdcd1c114381a1b2e7ce7",
+        "size": 128
+      },
+      "blk_end_l3_lod2_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "83d9825d84cdc45a51613e1a5e602ea398be8776be011187016c86e8b28fe8ee",
+        "size": 128
+      }
+    }
+  },
+  "lods": [
+    {
+      "lod": "blk_end_l3_lod0",
+      "tris": 1078
+    },
+    {
+      "lod": "blk_end_l3_lod1",
+      "tris": 250
+    },
+    {
+      "lod": "blk_end_l3_lod2",
+      "tris": 86
+    }
+  ],
+  "collider": {
+    "node": "blk_end_l3_collider",
+    "tris": 197
+  },
+  "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
+  "texelDensityPxPerM": {
+    "lod0": {
+      "max": 2906.8,
+      "median": 2800.3,
+      "min": 2208.7
+    },
+    "lod1": {
+      "max": 1549.1,
+      "median": 1411.2,
+      "min": 1021.9
+    },
+    "lod2": {
+      "max": 706.7,
+      "median": 692.6,
+      "min": 626.8
+    }
+  },
+  "compression": {
+    "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
+    "glbBytes": 50652,
+    "ktx2": "not produced in P1-T2 (maps ship as PNG)"
+  },
+  "derivedFiles": [
+    {
+      "path": "assets/kit/blk_end_l3/blk_end_l3.glb",
+      "sha256": "c9b9b8ecf74865836fd41f803d8269324937b8d4b6e5bdf49a34c49b16b9d217",
+      "bytes": 50652
+    },
+    {
+      "path": "assets/kit/blk_end_l3/blk_end_l3.kit.json",
+      "sha256": "707ac7b4a42219a2a2a1c45130f90e99f63731aaed0a37bf258467a8e4e536c2",
+      "bytes": 12582
+    },
+    {
+      "path": "assets/kit/blk_end_l3/blk_end_l3_lod0_ao.png",
+      "sha256": "761283f0d093b0d88a870008ebd72500f2fa9f395962889ab51fd21f93f3b8c6",
+      "bytes": 30937
+    },
+    {
+      "path": "assets/kit/blk_end_l3/blk_end_l3_lod0_normal.png",
+      "sha256": "484e2d6274b744c32cefcd539948f054342c85b122f4a93e799c53b164993441",
+      "bytes": 46639
+    },
+    {
+      "path": "assets/kit/blk_end_l3/blk_end_l3_lod1_ao.png",
+      "sha256": "9ab69a080bb409850dda657fe0877d84ae62447a580562bee1503f4a3f1d9c2f",
+      "bytes": 10701
+    },
+    {
+      "path": "assets/kit/blk_end_l3/blk_end_l3_lod1_normal.png",
+      "sha256": "5a5314fee05c4f0b536c7563226bc4707da4d66303e09f6f148b56be04b9922b",
+      "bytes": 18123
+    },
+    {
+      "path": "assets/kit/blk_end_l3/blk_end_l3_lod2_ao.png",
+      "sha256": "b83b3763aa3eac4c01c067fe9a103964072ae51c3ddcdcd1c114381a1b2e7ce7",
+      "bytes": 3354
+    },
+    {
+      "path": "assets/kit/blk_end_l3/blk_end_l3_lod2_normal.png",
+      "sha256": "83d9825d84cdc45a51613e1a5e602ea398be8776be011187016c86e8b28fe8ee",
+      "bytes": 8460
+    },
+    {
+      "path": "assets-source/kit/blk_end_l3/blk_end_l3_high.blend",
+      "sha256": "da76420b4b910ea4c8542ee74a847ce22bb5673f0385e7cc8df9167b956d09d1",
+      "bytes": 203682
+    },
+    {
+      "path": "assets-source/kit/blk_end_l3/blk_end_l3_low.blend",
+      "sha256": "4b6469f04bd5fbec8e5fd29ed435a383c7ffef14299c740c7c8744d7c652c70a",
+      "bytes": 130591
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/reference/ref-02.webp",
+      "sha256": "4c4ed7650fef0b588fbbc58c293f948a3120733b62329af051e4c6d2c0ff3d27",
+      "role": "look reference (owner-supplied)"
+    },
+    {
+      "path": "docs/reference/ref-01.webp",
+      "sha256": "bce26129ad47abea4cb7d1b9915801c52fc79ef80f2d34daa189030f00498115",
+      "role": "look reference (owner-supplied)"
+    },
+    {
+      "path": "docs/reference/ref-06-rail-into-block-tower.png",
+      "sha256": "8d0bf3fb25233bceae74705473dd867a8a24358500ef1fa58219791bcb7360c0",
+      "role": "look reference (owner-supplied)"
+    }
+  ],
+  "license": "MIT (repository licence); geometry is generated by the repository's own generator",
+  "validation": {
+    "pass": true,
+    "checks": [
+      "kit-check contract 14.1-14.10",
+      "gltf-validator reimport (meshopt GLB)",
+      "blender reimport (meshopt GLB)"
+    ]
+  },
+  "approvals": [
+    {
+      "who": "Paul",
+      "gate": "piece look",
+      "status": "pending",
+      "notes": "awaiting owner review of blender/kit/review/pieces.png and the PB_kit live scene"
+    }
+  ]
+}

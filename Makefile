@@ -137,3 +137,46 @@ materials-build: fetch-tools
 materials-check: fetch-tools
 	$(BLENDER_RUN) -P blender/materials/check.py
 	python3 blender/materials/provenance.py check
+
+# --- P1-T2 kit pipeline (blender/kit). Local only: needs Blender 5.2 and Node; not part of checkall.
+# kit-build: headless generator + Cycles bakes -> meshopt GLB + sidecar + maps in assets/kit/<id>/,
+# .blend + build reports in assets-source/kit/<id>/, then the Blender reimport gate and provenance.
+.PHONY: kit-build kit-check kit-determinism kit-tools
+KIT_BLENDER ?= /Applications/Blender.app/Contents/MacOS/Blender
+KIT_RUN = "$(KIT_BLENDER)" -b --factory-startup --python-exit-code 1
+KIT_TOOLS = blender/kit/tools
+KIT_STAMP = $(KIT_TOOLS)/node_modules/.npm-ci.stamp
+
+$(KIT_STAMP): $(KIT_TOOLS)/package.json $(KIT_TOOLS)/package-lock.json
+	npm ci --prefix $(KIT_TOOLS) --no-audit --no-fund
+	touch $@
+
+kit-tools: $(KIT_STAMP)
+
+kit-build: $(KIT_STAMP)
+	rm -rf target/kit-stage
+	mkdir -p target/kit-stage
+	$(KIT_RUN) -P blender/kit/generate.py -- target/kit-stage
+	node $(KIT_TOOLS)/kit.mjs compress target/kit-stage assets/kit assets-source/kit
+	$(KIT_RUN) -P blender/kit/reimport.py -- assets/kit
+	node $(KIT_TOOLS)/kit.mjs provenance assets/kit assets-source/kit \
+	  --checks "kit-check contract 14.1-14.10,gltf-validator reimport (meshopt GLB),blender reimport (meshopt GLB)"
+
+kit-check: $(KIT_STAMP)
+	node $(KIT_TOOLS)/kit.mjs check assets/kit assets-source/kit
+
+# Two fresh generator runs, one at a time, into separate dirs (bakes skipped: the GLB is image-free,
+# so the maps are not in it). Stage GLBs, sidecars and meshopt GLBs must be byte-identical.
+kit-determinism: $(KIT_STAMP)
+	rm -rf target/kit-det
+	mkdir -p target/kit-det/a target/kit-det/b
+	PARBLE_SKIP_BAKE=1 $(KIT_RUN) -P blender/kit/generate.py -- target/kit-det/a
+	PARBLE_SKIP_BAKE=1 $(KIT_RUN) -P blender/kit/generate.py -- target/kit-det/b
+	node $(KIT_TOOLS)/kit.mjs compress target/kit-det/a target/kit-det/a-rt target/kit-det/a-src
+	node $(KIT_TOOLS)/kit.mjs compress target/kit-det/b target/kit-det/b-rt target/kit-det/b-src
+	@fail=0; for d in target/kit-det/a/*/; do id=$$(basename $$d); \
+	  for f in $$id/$$id.glb $$id/$$id.kit.json; do \
+	    cmp -s target/kit-det/a/$$f target/kit-det/b/$$f || { echo "FAIL: stage $$f differs"; fail=1; }; done; \
+	  cmp -s target/kit-det/a-rt/$$id/$$id.glb target/kit-det/b-rt/$$id/$$id.glb || { echo "FAIL: meshopt $$id.glb differs"; fail=1; }; \
+	  echo "$$id glb $$(shasum -a 256 target/kit-det/a-rt/$$id/$$id.glb | cut -c1-16) sidecar $$(shasum -a 256 target/kit-det/a/$$id/$$id.kit.json | cut -c1-16)"; \
+	done; test $$fail = 0 && echo "kit-determinism: byte-identical"

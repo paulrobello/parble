@@ -1,0 +1,85 @@
+{
+  "blender": "5.2.2 LTS",
+  "colliderTris": 197,
+  "generator": {
+    "path": "blender/kit/generate.py",
+    "sha256": "d1ff95443f40abd5ee4cdd8f704911e193088db5007810ec7586ce7c1542b8c3"
+  },
+  "generatorDeps": [
+    {
+      "path": "blender/kit/kitgeom.py",
+      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+    }
+  ],
+  "lodParams": {
+    "lod0": {
+      "bevel_segs": 3,
+      "n_fillet": 6,
+      "n_round": 32,
+      "path": {
+        "curve90": 20,
+        "end": 16,
+        "slope_gentle": 16,
+        "straight": 1
+      }
+    },
+    "lod1": {
+      "bevel_segs": 1,
+      "n_fillet": 2,
+      "n_round": 12,
+      "path": {
+        "curve90": 8,
+        "end": 8,
+        "slope_gentle": 6,
+        "straight": 1
+      }
+    },
+    "lod2": {
+      "bevel_segs": 0,
+      "n_fillet": 1,
+      "n_round": 6,
+      "path": {
+        "curve90": 4,
+        "end": 4,
+        "slope_gentle": 3,
+        "straight": 1
+      }
+    }
+  },
+  "lodTris": {
+    "blk_end_l3_lod0": 1078,
+    "blk_end_l3_lod1": 250,
+    "blk_end_l3_lod2": 86
+  },
+  "mapSize": {
+    "lod0": 512,
+    "lod1": 256,
+    "lod2": 128
+  },
+  "nodes": [
+    "blk_end_l3",
+    "blk_end_l3_collider",
+    "blk_end_l3_lod0",
+    "blk_end_l3_lod1",
+    "blk_end_l3_lod2",
+    "port_0"
+  ],
+  "pieceId": "blk_end_l3",
+  "texelDensityPxPerM": {
+    "lod0": {
+      "max": 2906.8,
+      "median": 2800.3,
+      "min": 2208.7
+    },
+    "lod1": {
+      "max": 1549.1,
+      "median": 1411.2,
+      "min": 1021.9
+    },
+    "lod2": {
+      "max": 706.7,
+      "median": 692.6,
+      "min": 626.8
+    }
+  }
+}
