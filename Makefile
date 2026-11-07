@@ -52,9 +52,9 @@ checkall:
 	@$(MAKE) --no-print-directory test
 	@$(MAKE) --no-print-directory ui-test
 
-# Push gate: checkall + the CI-parity legs that exist today. P0-T5 adds web-size (needs
-# index.html), P0-T8 adds actionlint.
-checkall-ci: checkall wasm-build-check determinism-wasm secrets-scan
+# Push gate: checkall + the CI-parity legs that exist today. P0-T8 adds actionlint.
+# web-size is a full Trunk release build: ~3.5 min cold, ~15 s warm.
+checkall-ci: checkall wasm-build-check secrets-scan web-test determinism-wasm web-size
 
 # P0-T4: the wasm build of the golden ramp run must hash the same as the native golden.
 .PHONY: determinism-wasm
@@ -73,10 +73,31 @@ pre-commit:
 pre-commit-update:
 	pre-commit autoupdate
 
-# Trunk dev server on 127.0.0.1:$(DEV_PORT). index.html and Trunk.toml land in P0-T5.
-dev:
-	@test -f index.html || { echo "ERROR: index.html missing (added by P0-T5); cannot run trunk serve"; exit 1; }
-	trunk serve --address 127.0.0.1 --port $(DEV_PORT)
+# Web shell (P0-T5). Trunk is pinned to 0.21.14 in target/tools (scripts/web/fetch-trunk.sh); a trunk
+# on PATH is never used. Override the port for a second server: make dev DEV_PORT=5313.
+.PHONY: fetch-trunk web-test web-smoke
+TRUNK_VERSION := 0.21.14
+TRUNK := target/tools/trunk-$(TRUNK_VERSION)/trunk
+
+$(TRUNK):
+	bash scripts/web/fetch-trunk.sh
+
+fetch-trunk: $(TRUNK)
+
+# node:test suites for the cache-busting and CSP scripts.
+web-test:
+	node --test scripts/web/*.test.mjs
+
+# GPU Chromium smoke of the release build (local only, never CI). Playwright is borrowed from another
+# checkout until e2e/ gets its own package (P0-T6): PLAYWRIGHT_NODE_PATH=<node_modules dir>.
+PLAYWRIGHT_NODE_PATH ?= $(HOME)/Repos/the-cube/node_modules
+web-smoke: build-web
+	NODE_PATH=$(PLAYWRIGHT_NODE_PATH) node e2e/web-smoke.cjs "" docs/shots/p0-t5-chromium.png
+
+# Trunk dev server on 127.0.0.1:$(DEV_PORT). No autoreload: Trunk injects its reload script after the
+# post_build hook hashed the inline scripts, so the page's CSP would block it (a console error).
+dev: $(TRUNK)
+	$(TRUNK) serve --address 127.0.0.1 --port $(DEV_PORT) --no-autoreload
 
 dev-start: dev
 
@@ -99,9 +120,8 @@ dev-stop:
 	if lsof -ti tcp:$(DEV_PORT) -sTCP:LISTEN >/dev/null; then echo "ERROR: port $(DEV_PORT) still busy"; exit 1; fi; \
 	echo "port $(DEV_PORT) free"
 
-build-web:
-	@test -f index.html || { echo "ERROR: index.html missing (added by P0-T5); cannot run trunk build"; exit 1; }
-	trunk build --release
+build-web: $(TRUNK)
+	$(TRUNK) build --release
 
 # PRD §6 P0 budget: wasm <= 15 MB gzip.
 web-size:

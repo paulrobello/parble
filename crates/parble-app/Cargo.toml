@@ -10,6 +10,9 @@ name = "parble"
 path = "src/main.rs"
 
 [dependencies]
+parble-render = { path = "../parble-render" }
+parble-sim = { path = "../parble-sim" }
+bevy = { workspace = true }
 
 [lints]
 workspace = true

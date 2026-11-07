@@ -1,0 +1,19 @@
+# Trunk 0.21.14 (plans/phase-0-foundations.md), installed by scripts/web/fetch-trunk.sh into
+# target/tools; the Makefile's web targets call that binary, not whatever trunk is on PATH.
+[build]
+target = "index.html"
+dist = "dist"
+
+# `make dev` passes --port $(DEV_PORT) (5310 by default); this is the fallback for a bare trunk serve.
+[serve]
+addresses = ["127.0.0.1"]
+port = 5310
+open = false
+
+# Cache busting (scripts/web/version-dist.mjs): every staged file gets a content hash, inlined into
+# index.html as window.__PARBLE_HASHES, and every URL the page fetches carries it as ?v=<hash>. Runs on
+# the staging dir ($TRUNK_STAGING_DIR) before Trunk moves it to dist, then checks the page's CSP.
+[[hooks]]
+stage = "post_build"
+command = "node"
+command_arguments = ["scripts/web/version-dist.mjs"]

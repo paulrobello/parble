@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- The inline-script hashes in the CSP below are regenerated on every build by
+         scripts/web/version-dist.mjs (post_build). Do not write the CSP directive name in a comment:
+         that script rewrites every occurrence. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; base-uri 'none'; form-action 'none'; object-src 'none'"
+    />
+    <title>Parble</title>
+    <meta name="description" content="Build marble runs from wooden blocks and rails, then watch the marbles race." />
+    <link rel="icon" href="data:," />
+    <style>
+      html, body { margin: 0; height: 100%; background: #1c1a17; overflow: hidden; }
+      canvas#parble { display: block; width: 100%; height: 100%; outline: none; }
+    </style>
+    <script>
+      // Page-side error log for drivers that cannot read the console (Safari WebDriver):
+      // console.error, Bevy's "%cERROR%c" console.log lines, uncaught errors, rejections and CSP blocks.
+      (function () {
+        var log = (window.__parbleErrors = []);
+        function keep(args) { log.push(Array.prototype.map.call(args, String).join(" ").slice(0, 500)); }
+        var err = console.error, info = console.log;
+        console.error = function () { keep(arguments); return err.apply(console, arguments); };
+        console.log = function () { if (/%cERROR%c/.test(String(arguments[0]))) keep(arguments); return info.apply(console, arguments); };
+        addEventListener("error", function (e) { keep([e.message || "error event"]); });
+        addEventListener("unhandledrejection", function (e) { keep(["unhandledrejection: " + e.reason]); });
+        // Browser extensions injecting inline scripts are blocked too; that is theirs, not the page's.
+        addEventListener("securitypolicyviolation", function (e) {
+          if (/^[a-z-]+-extension:/.test(e.sourceFile || "")) return;
+          keep(["CSP blocked " + e.blockedURI + " (" + e.violatedDirective + ") at " + e.sourceFile + ":" + e.lineNumber + " " + (e.sample || "")]); });
+      })();
+    </script>
+    <script src="web/wgsl-compat.js"></script>
+    <script src="web/frame-latency.js"></script>
+    <script>
+      // WebGPU gate before the wasm loads: no WebGL fallback.
+      (function () {
+        function bail() { window.location.replace("web/unsupported.html"); }
+        if (!("gpu" in navigator) || !navigator.gpu) return bail();
+        navigator.gpu.requestAdapter().then(function (a) { if (!a) bail(); }).catch(bail);
+      })();
+    </script>
+    <link data-trunk rel="rust" href="crates/parble-app/Cargo.toml" data-bin="parble" data-cargo-profile="wasm-release" data-wasm-opt="z" />
+    <link data-trunk rel="copy-file" href="web/unsupported.html" data-target-path="web" />
+    <link data-trunk rel="copy-file" href="web/wgsl-compat.js" data-target-path="web" />
+    <link data-trunk rel="copy-file" href="web/frame-latency.js" data-target-path="web" />
+  </head>
+  <body>
+    <canvas id="parble"></canvas>
+  </body>
+</html>
