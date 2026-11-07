@@ -4,12 +4,17 @@ use crate::contract::KIT_CONTRACT_VERSION;
 use crate::grid::{CellCoord, Mirror, Orientation, Yaw4};
 use crate::piece::{PieceDef, PieceId};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 /// Version of the serialized track schema (`.parble` files).
 pub const SCHEMA_VERSION: u32 = 1;
 
 /// Version of the simulation behaviour. Bump whenever a golden trajectory hash changes.
 pub const PHYSICS_VERSION: u32 = 1;
+
+/// Per-placement mechanism settings, keyed by setting name. Integer values only, so a
+/// config never introduces a float into the deterministic track model.
+pub type MechConfig = BTreeMap<String, i64>;
 
 /// One piece placed on the grid: its anchor cell and orientation (contract §9 rule 1).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -18,6 +23,10 @@ pub struct Placement {
     pub anchor: CellCoord,
     pub yaw: Yaw4,
     pub mirror: Mirror,
+    /// Mechanism settings. Omitted from the file when empty, so tracks without
+    /// mechanism config serialize exactly as they did before this field existed.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub config: MechConfig,
 }
 
 impl Placement {
@@ -27,6 +36,7 @@ impl Placement {
             anchor,
             yaw,
             mirror,
+            config: BTreeMap::new(),
         }
     }
 
