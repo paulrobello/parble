@@ -6,6 +6,10 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+parble-core = { path = "../parble-core" }
+# The workspace pin disables default features; `std` brings back the allocating world types.
+rapier3d = { workspace = true, features = ["std"] }
+libm = { workspace = true }
 
 [lints]
 workspace = true
