@@ -12,7 +12,7 @@
 
 ## 1. Overview
 
-parble is a desktop-browser marble-run game. Players build tracks from modular wooden pieces on a 3D snap grid, or generate them procedurally, then drop marbles and watch a cinematic follow camera track the run with shallow depth of field. The look is a night playroom: carved light-wood blocks and smooth round rails standing on a patterned rug, lit by warm paper lanterns and a lamp, with deep blue falloff to black. The reference photos in `docs/reference/` set the visual bar.
+parble is a desktop-browser marble-run game. Players build tracks from modular wooden pieces on a 3D snap grid, or generate them procedurally, then drop marbles and watch a cinematic follow camera track the run with shallow depth of field. The look is a night playroom: carved rich walnut blocks and smooth round rails standing on a patterned rug, lit by warm paper lanterns and a lamp, with deep blue falloff to black. The reference photos in `docs/reference/` set the visual bar.
 
 The MVP is a sandbox ("build, release, watch"). The roadmap adds procedural generation, extended piece families, and a playable mode where the player steers a marble to the end of a track, collects other marbles and swaps between them to pass size gates.
 
