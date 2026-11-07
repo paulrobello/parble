@@ -32,9 +32,9 @@ Every task below goes through the `blender-kit-pieces` generator, the kit-check 
 - Depends on: P2-T7.
 
 ### P7-T5 — Decor and placeable lights
-- Glow-inlay panels (`ref-09`) as decorative wall pieces with emissive strips.
+- Optional light-strip inlays (`ref-09`) only on mechanical pieces from P7-T4, as a per-piece toggle. Never on track channels or plain track pieces (owner ruling 2026-11-07).
 - Placeable paper lanterns and lamps as pieces, counted against the shadow-light budget: only the nearest 3 cast shadows on High.
-- Verify: `perf-gate` passes with 20 placed lanterns, and Paul approves against `ref-09`.
+- Verify: `perf-gate` passes with 20 placed lanterns, and no track channel or plain track piece carries an inlay (kit-check rule).
 - Depends on: P2-T7, P1-T5.
 
 ### P7-T6 — Procgen integration
@@ -43,7 +43,7 @@ Every task below goes through the `blender-kit-pieces` generator, the kit-check 
 - Depends on: P7-T1, P7-T2, P7-T3, P7-T4, P6-T6.
 
 ### P7-T7 — Look approval
-- Paul reviews shots against `ref-03`, `ref-05`, `ref-06`, `ref-09`.
+- Paul reviews shots against `ref-03`, `ref-05`, `ref-06`.
 - Verify: approval recorded in card notes.
 - Depends on: P7-T1, P7-T2, P7-T5.
 

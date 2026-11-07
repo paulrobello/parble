@@ -28,7 +28,7 @@ The MVP is a sandbox ("build, release, watch"). The roadmap adds procedural gene
 | `ref-06-rail-into-block-tower.png` | Round rail entering a hole in a stacked block tower | Rail to block port standard, tower drop pieces |
 | `ref-07-playroom-rug-lantern.webp` | Patterned rug floor, glowing paper lantern, scattered blocks | Environment, practical lights, floor material |
 | `ref-08-playroom-blocks.webp` | Block towers and arches on the rug around a lantern | Set dressing, environment composition |
-| `ref-09-glow-inlay-panels.webp` | Wood panels with thin emissive inlay strips | Decorative glow-inlay pieces |
+| `ref-09-glow-inlay-panels.webp` | Wood panels with thin emissive inlay strips | Optional light-strip accent on mechanical pieces only. Never on track channels or plain track pieces (owner ruling 2026-11-07, look-dev frame 08 rejected). |
 | `ref-10-one-way-gate.png`, `ref-11-one-way-gate-side.png` | Hinged wooden arch flap over a channel | One-way gate piece |
 
 ## 2. Goals
@@ -114,7 +114,7 @@ parble-sim-wasm ──► parble-procgen, parble-sim   (wasm-bindgen worker buil
 ### 5.5 Rendering
 
 - Instanced rendering per piece type in 8×8×8-cell chunks from the first scene (hex-world lesson).
-- Lighting: Blender-baked AO per piece, a baked room environment probe, clustered lights for lanterns and the lamp, at most 3 shadow-casting lights on High, emissive inlays, SSAO, TAA, bloom, bokeh DoF focused on the followed marble.
+- Lighting: Blender-baked AO per piece, a baked room environment probe, clustered lights for lanterns and the lamp, at most 3 shadow-casting lights on High, SSAO, TAA, bloom, bokeh DoF focused on the followed marble.
 - Glass marbles use Bevy specular transmission with inner vane geometry. Low and Medium tiers use a fallback shader that fakes the inner volume.
 - Quality tiers Low / Medium / High / Ultra, auto-selected at first launch and changeable in settings.
 - Safari runs through the hex-world `wgsl-compat.js` shim. Every Bevy upgrade needs a Safari smoke test.
@@ -290,14 +290,14 @@ Scope:
 - **Terrain:** wave/bump channels, S-bends, funnel bowl spinner, half-pipe.
 - **Musical:** xylophone/chime bars, bell, wood-block knockers, each tuned to a scale.
 - **Mechanisms:** lift/elevator, seesaw/catapult, turnstile, trapdoor, size sieve, counterweight switch.
-- **Decor:** glow-inlay panels (`ref-09`), placeable lanterns.
+- **Decor:** placeable lanterns. Light-strip inlays (`ref-09`) are optional and only allowed on mechanical pieces (lift, seesaw, turnstile and similar). Track channels and plain track pieces never carry them.
 
 All of these are fixed Blender catalog variants.
 
 Acceptance:
 - [ ] Each family passes kit-check and has scripted sim tests.
 - [ ] Procgen can use the new pieces.
-- [ ] Owner look approval against `ref-03`, `ref-05`, `ref-06`, `ref-09`.
+- [ ] Owner look approval against `ref-03`, `ref-05`, `ref-06`.
 
 ### P8 — Steer-play mode
 
