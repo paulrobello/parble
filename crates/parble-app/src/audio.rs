@@ -308,13 +308,25 @@ pub fn cell_of(p: [f32; 3]) -> parble_core::CellCoord {
     )
 }
 
-/// Whether `p` is in the lower cell of a redirect placement, the cell its tunnel runs through.
-/// The footprint's lower cell is the anchor's (0, −1, 0) at every yaw and mirror.
+/// How far below a marble's centre [`in_redirect_tunnel`] probes. A marble rolling out of the
+/// tunnel at L3 has its centre on the top face of the lower cell (allpieces' second redirect sits
+/// at y = 0.3001 m), so the centre alone flips between cells; the probe point is inside the bore
+/// for every marble size.
+pub const TUNNEL_PROBE_DROP_M: f32 = 0.004;
+
+/// Whether the marble centred at `p` is in the lower cell of a redirect placement, the cell its
+/// tunnel runs through. The footprint's lower cell is the anchor's (0, −1, 0) at every yaw and
+/// mirror.
 pub fn in_redirect_tunnel(sim: &Sim, p: [f32; 3]) -> bool {
-    let cell = cell_of(p);
+    let cell = tunnel_probe_cell(p);
     sim.chunk_colliders()
         .placement_at(cell)
         .is_some_and(|pl| REDIRECT_PIECES.contains(&pl.piece.as_str()) && cell.y == pl.anchor.y - 1)
+}
+
+/// The cell [`in_redirect_tunnel`] tests: the one holding the point [`TUNNEL_PROBE_DROP_M`] below `p`.
+pub fn tunnel_probe_cell(p: [f32; 3]) -> parble_core::CellCoord {
+    cell_of([p[0], p[1] - TUNNEL_PROBE_DROP_M, p[2]])
 }
 
 fn index(i: usize) -> u32 {
@@ -1143,7 +1155,7 @@ mod tests {
             let marbles = marbles_at(&run, &[]);
             let f = coalesce(&run.drain_events(), &marbles, no_piece, run.tick_count());
             for r in &f.rolls {
-                let cell = cell_of(r.position);
+                let cell = tunnel_probe_cell(r.position);
                 assert_eq!(r.tunnel, redirects.contains(&cell), "{r:?}");
                 if r.tunnel {
                     seen.insert(cell);
