@@ -46,11 +46,15 @@ test("P pauses, N steps, comma and period change the scale, fly works while paus
   await page.keyboard.press("f");
   await expect.poll(() => page.evaluate(() => window.__parble.camera.mode), { timeout: 5_000 }).toBe("fly");
   const before = (await state(page)).eye;
+  // Held until the eye has moved: at host load a 500 ms hold can span no rendered frame.
+  const moved = async () => {
+    const eye = (await state(page)).eye;
+    return Math.hypot(...eye.map((v, i) => v - before[i]));
+  };
   await page.keyboard.down("w");
-  await page.waitForTimeout(500);
+  await expect.poll(moved, { timeout: 10_000 }).toBeGreaterThan(0.05);
   await page.keyboard.up("w");
   const after = await state(page);
-  expect(Math.hypot(...after.eye.map((v, i) => v - before[i]))).toBeGreaterThan(0.05);
   expect(after.tick).toBe(held.tick + 4);
   await page.keyboard.press("Escape");
 
