@@ -36,7 +36,7 @@ test("mechanism parts interpolate between physics ticks and sweep smoothly", asy
         const t0 = performance.now();
         const step = () => {
           const s = window.__parble;
-          out.push({ tick: s.tick, run: s.run, parts: s.kit.parts });
+          out.push({ tick: s.tick, run: s.run, frame: s.frame, parts: s.kit.parts });
           if (performance.now() - t0 < 11_000) requestAnimationFrame(step);
           else resolve(out);
         };
@@ -60,7 +60,7 @@ test("mechanism parts interpolate between physics ticks and sweep smoothly", asy
   }
 
   // 2. The gate flap's close: consecutive frames while it moves from open to shut.
-  const gate = samples.map((s) => ({ tick: s.tick, run: s.run, ...s.parts.find((p) => p.piece === "mech_gate_oneway_l1") }));
+  const gate = samples.map((s) => ({ tick: s.tick, run: s.run, frame: s.frame, ...s.parts.find((p) => p.piece === "mech_gate_oneway_l1") }));
   const closing = gate.filter((g) => g.prevMdeg !== null && g.prevMdeg > g.tickMdeg && g.prevMdeg <= GATE_OPEN_MDEG);
   console.log(
     `gate close frames: ${JSON.stringify(closing.map((g) => [g.tick, g.prevMdeg, g.tickMdeg, +g.alpha.toFixed(3), +g.angleMdeg.toFixed(0)]))}`,
@@ -76,8 +76,10 @@ test("mechanism parts interpolate between physics ticks and sweep smoothly", asy
     expect(a.angleMdeg - b.angleMdeg).toBeLessThan(GATE_OPEN_MDEG / 3);
   }
   // The drawn rotation changes frame to frame while the flap moves.
-  const rotations = new Set(closing.map((g) => g.rotation.map((v) => v.toFixed(5)).join(",")));
-  expect(rotations.size).toBe(closing.length);
+  // Under host load a requestAnimationFrame can fire twice for one app frame, so count app frames.
+  const drawn = [...new Map(closing.map((g) => [g.frame, g])).values()];
+  const rotations = new Set(drawn.map((g) => g.rotation.map((v) => v.toFixed(5)).join(",")));
+  expect(rotations.size).toBe(drawn.length);
   // Frames drawn between two ticks (0 < alpha < 1) show an angle neither tick has.
   expect(between).toBeGreaterThan(0);
 
