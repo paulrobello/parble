@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // P0-T5 web shell smoke (local only, never CI): loads the page in GPU Chromium, waits for the canvas
-// to show a lit scene, fails on any console error, and prints the WebGPU adapter.
+// to show a lit scene and the HUD (web/ui) a moving tick, fails on any console error, and prints the
+// WebGPU adapter.
 // Usage: node e2e/web-smoke.cjs [url] [screenshot.png]   (after npm ci --prefix e2e)
 //   url defaults to serving ./dist (make build-web) on a random loopback port.
 // PW_GPU=swiftshader opts into the CPU renderer; the default is the platform GPU (Metal on macOS).
@@ -72,6 +73,15 @@ const BAD_TEXT = (t) => /%cERROR%c|\bERROR\b/.test(t) || /uncaptured|invalid|pan
       }
     }
     console.log("canvas:", JSON.stringify(stats));
+    // P0-T7 HUD overlay (web/ui): fps and tick from the wasm bridge, and the tick moving. The ramp
+    // restarts every 10 s, so the check is "changed", not "increased".
+    const hudText = () => page.evaluate(() => document.getElementById("parble-hud")?.textContent ?? null);
+    const hudA = await hudText();
+    await page.waitForTimeout(600);
+    const hudB = await hudText();
+    const HUD = /^fps \d+  tick \d+$/;
+    const hud = { a: hudA, b: hudB, ok: HUD.test(hudA ?? "") && HUD.test(hudB ?? "") && hudA !== hudB };
+    console.log("hud:", JSON.stringify(hud));
     const adapter = await page.evaluate(async () => {
       const a = await navigator.gpu.requestAdapter();
       const i = a && a.info;
@@ -91,6 +101,7 @@ const BAD_TEXT = (t) => /%cERROR%c|\bERROR\b/.test(t) || /uncaptured|invalid|pan
     const fails = [];
     if (!stats || stats.nonBlack <= 0.5 || stats.lit <= 0.02 || stats.colors <= 16) fails.push("canvas never showed a lit scene");
     if (!adapter.webgpu) fails.push("no WebGPU adapter");
+    if (!hud.ok) fails.push("HUD missing, malformed or not ticking");
     if (!Array.isArray(adapter.pageErrors)) fails.push("window.__parbleErrors missing (index.html error log)");
     else if (adapter.pageErrors.length) fails.push(`${adapter.pageErrors.length} page-logged error(s)`);
     if (/swiftshader/i.test(JSON.stringify(adapter)) && process.env.PW_GPU !== "swiftshader") fails.push("SwiftShader adapter in a GPU run");

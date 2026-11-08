@@ -4303,6 +4303,7 @@ dependencies = [
  "parble-sim",
  "serde",
  "serde_json",
+ "wasm-bindgen",
 ]
 
 [[package]]

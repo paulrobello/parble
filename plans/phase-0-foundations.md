@@ -13,7 +13,7 @@ PRD: `PRD.md` §6 P0. Phase goal: the workspace, both gates, a kit contract ever
 | `meshoptimizer-rs` | `=0.2.1` (proven in hex-world; 0.2.19 is latest, upgrade only with a decode test) | hex-world `hex-assets` |
 | Trunk | 0.21.14 | hex-world CI |
 | Node | ≥ 22.18 (CI: 24) | hex-world |
-| `@biomejs/biome` 2.5.15, `typescript` 7.0.2, `vite` 8.3.5, `vitest` 5.1.0, `@playwright/test` 1.64.1 | as listed | the-cube `package.json` |
+| `@biomejs/biome` 2.6.6, `typescript` 7.0.2, `vite` 8.3.6, `vitest` 5.1.0 (web/ui, P0-T7), `@playwright/test` 1.64.1 | as listed; biome and vite bumped from the-cube's 2.5.15 / 8.3.5 to npm latest 2026-11-07 | the-cube `package.json`, npm |
 | gitleaks / pre-commit-hooks | exact `rev` pins | `~/.claude/guides/git-ci.md` |
 
 Ports: 5310 Trunk dev server, 5311 static preview for Playwright (reserved in `~/.claude/used_ports.md`).

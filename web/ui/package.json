@@ -1,0 +1,21 @@
+{
+  "name": "parble-ui",
+  "private": true,
+  "type": "module",
+  "description": "The HUD overlay over the Bevy canvas and its typed wasm bridge, bundled by Vite into web/ui/dist.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc --noEmit -p .",
+    "lint": "biome check .",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.6",
+    "typescript": "7.0.2",
+    "vite": "8.3.6",
+    "vitest": "5.1.0"
+  }
+}

@@ -66,6 +66,8 @@ jobs:
           node-version: 24
       - run: make test
       - run: make web-test
+      - run: make ui-static
+      - run: make ui-test
 
   determinism-wasm:
     runs-on: ubuntu-latest

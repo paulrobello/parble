@@ -44,10 +44,13 @@
         navigator.gpu.requestAdapter().then(function (a) { if (!a) bail(); }).catch(bail);
       })();
     </script>
+    <!-- The HUD overlay and its wasm bridge client. Source: web/ui (built by Trunk's pre_build hook). -->
+    <script defer src="web/ui/hud.js"></script>
     <link data-trunk rel="rust" href="crates/parble-app/Cargo.toml" data-bin="parble" data-cargo-profile="wasm-release" data-wasm-opt="z" />
     <link data-trunk rel="copy-file" href="web/unsupported.html" data-target-path="web" />
     <link data-trunk rel="copy-file" href="web/wgsl-compat.js" data-target-path="web" />
     <link data-trunk rel="copy-file" href="web/frame-latency.js" data-target-path="web" />
+    <link data-trunk rel="copy-dir" href="web/ui/dist" data-target-path="web/ui" />
   </head>
   <body>
     <canvas id="parble"></canvas>

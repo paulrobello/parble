@@ -1,0 +1,17 @@
+{
+  "about": "One example of every bridge command and event, in declaration order. Checked by crates/parble-app/src/bridge.rs (cargo test) and web/ui/test/bridge.test.ts (Vitest); a variant added on one side only fails both.",
+  "protocol": 1,
+  "commands": [{ "type": "ping", "id": 42 }],
+  "events": [
+    { "type": "ready", "protocol": 1 },
+    { "type": "frame", "tick": 2400, "fps": 59.5 },
+    { "type": "pong", "id": 42 }
+  ],
+  "rejectedCommands": [
+    { "type": "pong", "id": 1 },
+    { "type": "ping" },
+    { "type": "ping", "id": -1 },
+    { "type": "ping", "id": 1, "extra": true },
+    { "id": 1 }
+  ]
+}

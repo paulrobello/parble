@@ -17,9 +17,10 @@ bevy = { workspace = true, features = ["png"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
-# window.__parble and the URL query switches (P0-T6).
+# window.__parble and the URL query switches (P0-T6); the wasm Bridge (P0-T7).
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 js-sys = { workspace = true }
+wasm-bindgen = { workspace = true }
 
 [lints]
 workspace = true

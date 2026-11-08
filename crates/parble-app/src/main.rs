@@ -5,9 +5,11 @@
 //! Agent switches (screenshot, auto-exit, state dump, `window.__parble`) live in [`agent`].
 
 mod agent;
+mod bridge;
 
 use agent::{AgentOpts, AgentPlugin, Scenario};
 use bevy::prelude::*;
+use bridge::{Command, Event};
 use parble_render::{MarbleFrame, ParbleRenderPlugin};
 use parble_sim::{DT, Sim, golden::RAMP_10S_TICKS, scene};
 
@@ -49,8 +51,8 @@ fn main() {
             runs: 0,
             last_run_hash: None,
         })
-        .add_systems(Startup, (spawn_camera, publish_initial))
-        .add_systems(Update, advance_sim)
+        .add_systems(Startup, (spawn_camera, publish_initial, announce_bridge))
+        .add_systems(Update, (advance_sim, pump_bridge).chain())
         .run();
 }
 
@@ -119,6 +121,34 @@ fn advance_sim(time: Res<Time>, mut clock: ResMut<SimClock>, mut frame: ResMut<M
         frame.curr = clock.sim.marbles();
     }
     frame.alpha = (clock.acc / f64::from(DT)) as f32;
+}
+
+fn announce_bridge() {
+    bridge::push_event(Event::Ready {
+        protocol: bridge::PROTOCOL,
+    });
+}
+
+/// Answers the commands the overlay posted and publishes this frame's tick and smoothed fps.
+fn pump_bridge(time: Res<Time>, clock: Res<SimClock>, mut fps: Local<f32>) {
+    for cmd in bridge::take_commands() {
+        match cmd {
+            Command::Ping { id } => bridge::push_event(Event::Pong { id }),
+        }
+    }
+    let dt = time.delta_secs();
+    if dt > 0.0 {
+        let now = 1.0 / dt;
+        *fps = if *fps == 0.0 {
+            now
+        } else {
+            *fps + (now - *fps) * 0.1
+        };
+    }
+    bridge::push_event(Event::Frame {
+        tick: clock.sim.tick_count(),
+        fps: *fps,
+    });
 }
 
 #[cfg(test)]

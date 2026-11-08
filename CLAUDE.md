@@ -17,7 +17,7 @@ make build          # cargo build, native and wasm32-unknown-unknown
 make test           # cargo test --workspace
 make fmt            # cargo fmt --all
 make lint           # clippy -D warnings, native (--all-targets) and wasm32
-make typecheck      # cargo check native + wasm32, plus web/ui Biome/tsc once it exists
+make typecheck      # cargo check native + wasm32, plus web/ui Biome/tsc
 
 make checkall       # fast gate: fmt-check → clippy (native + wasm32) → Biome/tsc → cargo test → Vitest
 make checkall-ci    # push gate: actionlint (pinned, target/tools) + checkall + wasm32 --locked build + gitleaks history scan + web-test + determinism-wasm + web-size
@@ -35,7 +35,8 @@ make web-e2e        # build-web + Playwright smoke in GPU Chromium on the 5311 p
 
 - Agent switches (native flags, URL query on web, `window.__parble`): `docs/agent-operability.md`.
 
-- `checkall` legs run in fail-fast order. The web/ui legs (Biome, tsc, Vitest) print `SKIP` until `web/ui/package.json` exists (P0-T7).
+- `checkall` legs run in fail-fast order. The web/ui legs (Biome, tsc, Vitest) run `npm ci` in `web/ui` only when its lockfile changes.
+- `web/ui` is the TS HUD overlay (Vite). Trunk's `pre_build` hook runs `make ui-build`. The wasm `Bridge` (`crates/parble-app/src/bridge.rs`) and `web/ui/src/bridge.ts` are kept in sync by hand; `web/ui/src/bridge-fixtures.json` is checked by both the Rust tests and Vitest.
 - `checkall-ci` grows as Phase 0 lands: P0-T4 added `determinism-wasm`, P0-T5 `web-size`, P0-T8 `actionlint` (first leg). Keep it a superset of what `.github/workflows/ci.yml` runs.
 - Capture real exit codes when running a gate: `make checkall > /tmp/x.log 2>&1; echo EXIT=$?`. Never trust a piped exit status.
 

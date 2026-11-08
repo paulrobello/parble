@@ -1,4 +1,4 @@
-.PHONY: build test lint lint-native lint-wasm fmt fmt-check typecheck ui-static ui-test checkall checkall-ci \
+.PHONY: build test lint lint-native lint-wasm fmt fmt-check typecheck ui-static ui-test ui-build checkall checkall-ci \
 	wasm-build-check secrets-scan pre-commit pre-commit-update dev dev-start dev-restart dev-stop build-web web-size \
 	audio-process audition
 
@@ -34,16 +34,22 @@ typecheck:
 	cargo check --workspace --target $(WASM)
 	@$(MAKE) --no-print-directory ui-static
 
-# web/ui (Vite + TS + Biome + Vitest) arrives in P0-T7; until then these legs skip loudly.
-ui-static:
-	@if [ -f $(UI)/package.json ]; then \
-	  cd $(UI) && npm ci --no-audit --no-fund && ./node_modules/.bin/biome check . && ./node_modules/.bin/tsc --noEmit -p .; \
-	else echo "SKIP ui-static: $(UI)/package.json absent (added by P0-T7)"; fi
+# web/ui (Vite + TS + Biome + Vitest): the HUD overlay and its typed wasm bridge. npm ci reruns only
+# when the lockfile changes; ui-build is also Trunk's pre_build hook (Trunk.toml).
+UI_NPM := $(UI)/node_modules/.npm-ci.stamp
 
-ui-test:
-	@if [ -f $(UI)/package.json ]; then \
-	  cd $(UI) && ./node_modules/.bin/vitest run; \
-	else echo "SKIP ui-test: $(UI)/package.json absent (added by P0-T7)"; fi
+$(UI_NPM): $(UI)/package.json $(UI)/package-lock.json
+	npm ci --prefix $(UI) --no-audit --no-fund
+	touch $@
+
+ui-static: $(UI_NPM)
+	cd $(UI) && ./node_modules/.bin/biome check . && ./node_modules/.bin/tsc --noEmit -p .
+
+ui-test: $(UI_NPM)
+	cd $(UI) && ./node_modules/.bin/vitest run
+
+ui-build: $(UI_NPM)
+	cd $(UI) && ./node_modules/.bin/vite build
 
 # Fast gate, fail-fast order: fmt → clippy (native + wasm32) → Biome/tsc → cargo test → Vitest.
 checkall:
