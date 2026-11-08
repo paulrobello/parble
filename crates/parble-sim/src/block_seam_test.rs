@@ -43,6 +43,8 @@ struct Control {
     mechanisms: bool,
     /// Leaves junction triangles to the mesh contact (`ChunkColliders::no_junction_contact`).
     no_junction_contact: bool,
+    /// The start-of-step bend contact (`ChunkColliders::bend_contact_at_step_start`).
+    bend_at_step_start: bool,
 }
 
 fn run_with(
@@ -57,6 +59,7 @@ fn run_with(
     sim.pieces.end_gap_hand_over = control.end_gap_hand_over;
     sim.pieces.extra_triangles = control.extra_triangles.clone();
     sim.pieces.no_junction_contact = control.no_junction_contact;
+    sim.pieces.bend_contact_at_step_start = control.bend_at_step_start;
     for p in layout {
         sim.place_piece(kit, p.clone()).unwrap();
     }
@@ -333,7 +336,9 @@ fn curve90_l2_seams_and_interiors_stay_under_the_kick_threshold() {
     // `curve90_l2_end_gap_hand_over_chatters`). Measured 2026-11-08: kicks 19.19, 13.66, 7.53,
     // 7.97 and 23.85 (0.39 under the limit). The straight to mirrored curve seam (z 90 mm) kicks
     // 42.93 and is logged, not gated: the marble arrives there still swinging from the first
-    // curve, and that seam is open work.
+    // curve, and its worst ticks are on the straight 8-14 mm before the seam, where the swinging
+    // marble hands over from the straight's facets to the bend's exact tube. With a clean entry
+    // the seam meets the threshold (`straight_to_mirrored_curve90_l2_seam_with_a_clean_entry`).
     let tr = curve_l2_run(&Control::default());
     let (_, k_lim) = limits(2);
     assert!(
@@ -391,6 +396,72 @@ fn curve90_l2_bends_sit_on_their_cell_corners() {
             ([210_000, 90_000], 44_000, [150_000, 90_000]),
         ]
     );
+}
+
+/// A centred marble rolling +z at `speed` from the straight before the mirrored `blk_curve90_l2`
+/// of [`curve_l2_chain`] (cell (3, 0, 1), its seam at z = 90 mm), with no swing.
+fn mirrored_curve_l2_clean_entry(speed: f32, control: &Control) -> Vec<MarbleState> {
+    let layout = vec![
+        place("blk_straight_l2", 3, 0, 0, 1, false),
+        place("blk_straight_l2", 3, 0, 1, 1, false),
+        place("blk_curve90_l2", 3, 0, 2, 0, true),
+        place("blk_slope_gentle_l2", 4, 0, 2, 0, false),
+        place("blk_straight_l1", 5, 0, 2, 0, false),
+        place("blk_straight_l1", 6, 0, 2, 0, false),
+    ];
+    run_with(
+        &layout,
+        Vector::new(0.18, rest(0, 2), -0.02),
+        Vector::Z * speed,
+        1_200,
+        control,
+    )
+}
+
+#[test]
+fn straight_to_mirrored_curve90_l2_seam_with_a_clean_entry() {
+    // In the chain run the straight to mirrored curve seam kicks 42.93 (logged in
+    // `curve90_l2_seams_and_interiors_stay_under_the_kick_threshold`). Its worst ticks are 8 to
+    // 14 mm before the seam (z 76-82 mm), where the marble, still swinging up and down the
+    // straight's wall from the first curve (vx 0.04 m/s), hands over from the straight's facets
+    // to the bend's exact tube within a ball diameter of the bend's cell, and alternates +-20 mm/s
+    // there. Rolled in centred at the chain's arrival speed or faster the seam itself is clean:
+    // measured 2026-11-08, kick 5.32 at 0.4 m/s and 5.10 at 0.5 m/s (swing upward 49.61 at
+    // 0.5, the curve's geometry). The start-of-step bend contact kicks 29.34 there
+    // (`straight_to_mirrored_curve90_l2_start_of_step_bend_contact_kicks`).
+    let (_, k_lim) = limits(2);
+    let (_, lo, hi) = CURVE_L2_WINDOWS[3];
+    for speed in [0.4_f32, 0.5] {
+        let tr = mirrored_curve_l2_clean_entry(speed, &Control::default());
+        assert!(
+            tr.iter().any(|m| m.position[0] > 0.3),
+            "{speed} m/s: marble must reach the L1 run-out"
+        );
+        let k = kick(&tr, window(lo, hi));
+        eprintln!(
+            "straight to mirrored curve90_l2, clean entry at {speed} m/s: kick {k:.2} (limit {k_lim:.2})"
+        );
+        assert!(k <= k_lim, "{speed} m/s: kick {k:.2} over {k_lim:.2}");
+    }
+}
+
+#[test]
+fn straight_to_mirrored_curve90_l2_start_of_step_bend_contact_kicks() {
+    // Negative control: the start-of-step bend contact (before 2026-11-07) at the same seam.
+    let (_, k_lim) = limits(2);
+    let (_, lo, hi) = CURVE_L2_WINDOWS[3];
+    let tr = mirrored_curve_l2_clean_entry(
+        0.5,
+        &Control {
+            bend_at_step_start: true,
+            ..Control::default()
+        },
+    );
+    let k = kick(&tr, window(lo, hi));
+    eprintln!(
+        "straight to mirrored curve90_l2 with the start-of-step contact: kick {k:.2} (limit {k_lim:.2})"
+    );
+    assert!(k > k_lim, "control kick {k:.2} not over {k_lim:.2}");
 }
 
 /// The redirect's exit seam with the marble already rolling on the tunnel floor past its landing,
