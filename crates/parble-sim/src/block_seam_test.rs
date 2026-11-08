@@ -93,10 +93,6 @@ fn run_with(
         .collect()
 }
 
-fn run(layout: &[Placement], at: Vector, vel: Vector, ticks: u32) -> Vec<MarbleState> {
-    run_with(layout, at, vel, ticks, &Control::default())
-}
-
 /// `(upward limit, kick limit)` from the seamless channel at `level`: that level's straight
 /// stretched over 20 cells, the window from the first cell face to the last (`seam_test::in_run`).
 fn limits(level: u8) -> (f32, f32) {
@@ -469,7 +465,7 @@ fn straight_to_mirrored_curve90_l2_start_of_step_bend_contact_kicks() {
 
 /// The redirect's exit seam with the marble already rolling on the tunnel floor past its landing,
 /// `(upward, kick)`: `level` 3 at cell x = 1 (seam x = 90 mm), 2 at x = 2 (seam x = 150 mm).
-fn redirect_exit(level: u8) -> (f32, f32) {
+fn redirect_exit(level: u8, control: &Control) -> (f32, f32) {
     let (redirect, s, x) = match level {
         3 => ("blk_redirect_l3", "blk_straight_l3", 1),
         _ => ("blk_redirect_l2", "blk_straight_l2", 2),
@@ -480,15 +476,19 @@ fn redirect_exit(level: u8) -> (f32, f32) {
         place(s, x + 2, 0, 0, 0, false),
     ];
     // The tunnel floor (kitblocks.py: landing 15 mm over the exit floor at x = -17 mm, smoothstep
-    // down to the port) at 14 mm past the cell centre.
+    // down to the port) at 14 mm past the cell centre, and its slope there. The marble starts
+    // along the floor: launched level it fell onto the descending floor and landed 4 ticks later
+    // (kick 57.44 on the landing tick, measured 2026-11-08), which is the launch, not the seam.
     let t: f32 = (14.0 + 17.0) / 47.0;
     let rise = 0.015 * (1.0 - (3.0 * t * t - 2.0 * t * t * t));
+    let slope = 15.0 * 6.0 * t * (1.0 - t) / 47.0;
     let x0 = 0.06 * x as f32 + 0.014;
-    let tr = run(
+    let tr = run_with(
         &layout,
         Vector::new(x0, rest(0, level.into()) + rise + 0.0001, 0.0),
-        Vector::X * SPEED,
+        Vector::new(SPEED, -SPEED * slope, 0.0),
         600,
+        control,
     );
     let seam = 0.06 * x as f32 + 0.03;
     assert!(
@@ -499,42 +499,53 @@ fn redirect_exit(level: u8) -> (f32, f32) {
     (upward(&tr, &sel), kick(&tr, &sel))
 }
 
-/// The redirect exit's `(upward, kick)` limits, mm/s: the measured values with the exit port
-/// face open, rounded up, as the seam thresholds are not met there (see
-/// `redirect_exit_seam_stays_under_its_measured_limits`).
-const REDIRECT_EXIT_LIMITS_MM_S: (f32, f32) = (110.0, 106.0);
-
 #[test]
-fn redirect_exit_seam_stays_under_its_measured_limits() {
+fn redirect_exit_seam_stays_under_the_seam_thresholds() {
     // In a full run (straight → redirect → straights) the marble falls about 50 mm down the
-    // shaft, bounces three times on the landing and crosses the exit seam in flight (279 mm/s
-    // up, kick 0.40 in the seam window, measured 2026-11-07): that is the landing, not the seam.
-    // The seam itself is measured with a marble already rolling on the tunnel floor.
+    // shaft, bounces on the landing and crosses the exit seam in flight (279 mm/s up, kick 0.40
+    // in the seam window, measured 2026-11-07 on the mesh): that is the landing, not the seam.
+    // The seam itself is measured with a marble already rolling down the tunnel floor.
     //
-    // Not under the seam thresholds (15.15 / 24.25). Measured 2026-11-08 with the exit port face
-    // open (kitblocks `_open_redirect_exit`): `L3` upward 108.42 mm/s, kick 104.16 (`L2` 108.96,
-    // 104.27), against 111.24 / 105.41 (`L2` 110.03 / 104.96) with the cap. The cap was not the
-    // cause. The marble hops down the tunnel's descending landing floor, which has no exact
-    // contact (8 flat path facets, as the gentle slope before `ChannelSlope`), and lands at the
-    // seam: vertical speed −59 to +108 mm/s in one tick at x = 90.5 mm, then −55 to +38 mm/s
-    // 6 mm into the straight. Meeting the thresholds needs an exact contact for the landing floor
-    // (a smoothstep of 15 mm over 47 mm under the shaft), which also changes how a dropped marble
-    // lands, so the run-out speed band (`kit_pieces_test`) has to be re-measured with it. Gated
-    // at REDIRECT_EXIT_LIMITS_MM_S as a regression guard; no negative control, as nothing here
-    // was fixed.
-    let (u_lim, k_lim) = REDIRECT_EXIT_LIMITS_MM_S;
+    // With the exact landing floor (`chunk::ChannelSlope::landing`), measured 2026-11-08, upward
+    // / kick mm/s: `L3` 0.00 / 14.88, `L2` 0.00 / 14.89 (limits 15.15 / 24.25). On the faceted
+    // landing (`redirect_exit_mesh_landing_bumps`) the marble hopped down its 8 path facets and
+    // landed at the seam: 55.67 / 121.53 (`L2` 55.81 / 121.66) launched along the floor, and
+    // 108.42 / 104.16 (`L2` 108.96 / 104.27) launched level, as this test was before.
     for level in [3_u8, 2] {
-        let (p_lim, k_seam) = limits(level);
-        let (u, k) = redirect_exit(level);
+        let (p_lim, k_lim) = limits(level);
+        let (u, k) = redirect_exit(level, &Control::default());
         eprintln!(
-            "redirect_l{level} exit seam: upward {u:.2} mm/s (seam limit {p_lim:.2}, gated \
-             {u_lim:.2}), kick {k:.2} (seam limit {k_seam:.2}, gated {k_lim:.2})"
+            "redirect_l{level} exit seam: upward {u:.2} mm/s (limit {p_lim:.2}), kick {k:.2} \
+             (limit {k_lim:.2})"
         );
         assert!(
-            u <= u_lim,
-            "redirect_l{level}: upward {u:.2} over {u_lim:.2}"
+            u <= p_lim,
+            "redirect_l{level}: upward {u:.2} over {p_lim:.2}"
         );
         assert!(k <= k_lim, "redirect_l{level}: kick {k:.2} over {k_lim:.2}");
+    }
+}
+
+#[test]
+fn redirect_exit_mesh_landing_bumps() {
+    // Negative control: on the faceted landing floor (no landing contact) the exit seam exceeds
+    // both limits.
+    for level in [3_u8, 2] {
+        let (p_lim, k_lim) = limits(level);
+        let (u, k) = redirect_exit(
+            level,
+            &Control {
+                no_landing_contact: true,
+                ..Control::default()
+            },
+        );
+        eprintln!(
+            "redirect_l{level} exit seam on the mesh landing: upward {u:.2} mm/s, kick {k:.2}"
+        );
+        assert!(
+            u > p_lim && k > k_lim,
+            "redirect_l{level}: control {u:.2} / {k:.2}"
+        );
     }
 }
 

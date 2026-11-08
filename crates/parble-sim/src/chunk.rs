@@ -516,7 +516,7 @@ impl ChannelJunction {
 /// so past either port the tube continues flat at that port's level, as the mating straight does.
 ///
 /// The same surface, shorter, is the landing floor a dropped marble lands on in the tower socket
-/// block ([`ChannelSlope::landing`]).
+/// block and the redirect ([`ChannelSlope::landing`]).
 ///
 /// The sidecar samples the slope with 8 flat path segments. Two things bump a marble on them
 /// (measured 2026-11-07 in `seam_test`, 0.3 m/s centred into `blk_slope_gentle_l3`):
@@ -597,7 +597,8 @@ impl ChannelSlope {
     /// floor rises [`LANDING_RISE_UM`] over the exit floor under the shaft and falls by the same
     /// smoothstep to the exit (blender/kit/kitblocks.py). On the tower socket block (in by the
     /// top drop port, out by the socket) it runs from 1 mm past the shaft wall to the socket's
-    /// collision port plane, [`Port::inset_um`] inside the face.
+    /// collision port plane, [`Port::inset_um`] inside the face; on the redirect (in on a side
+    /// port, out one cell lower) from 1 mm past the shaft's far wall to the exit port face.
     ///
     /// [`Port::inset_um`]: parble_core::Port::inset_um
     fn landing(piece: &KitPiece, p: &Placement) -> Option<Self> {
@@ -614,7 +615,12 @@ impl ChannelSlope {
         let tower = out.class == PortClass::Socket
             && ports.len() == 2
             && ports.iter().any(|q| q.face == PortFace::Top);
-        if !tower {
+        let redirect = out.class == PortClass::Channel
+            && ports.len() == 2
+            && ports
+                .iter()
+                .any(|q| q.flow == PortFlow::In && side(q.face) && q.cell.y == out.cell.y + 1);
+        if !(tower || redirect) {
             return None;
         }
         let n = out.face.normal();
@@ -2116,7 +2122,7 @@ mod tests {
         PieceId::new(s).unwrap()
     }
 
-    /// The tower socket block's landing floor, placed turned and mirrored:
+    /// The landing floors of the tower socket block and the redirects, placed turned and mirrored:
     /// every floor vertex of the tunnel under the shaft lies on the exact landing, and the contact
     /// matches a brute-force nearest point on the exact surface.
     #[test]
@@ -2125,6 +2131,8 @@ mod tests {
         for (piece, yaw, mirror) in [
             ("blk_tower_socket_l1", 0, false),
             ("blk_tower_socket_l1", 1, true),
+            ("blk_redirect_l3", 0, false),
+            ("blk_redirect_l2", 3, true),
         ] {
             let p = place(piece, 2, 1, -1, yaw, mirror);
             let kp = kit.piece(&p.piece).unwrap();
@@ -2139,7 +2147,7 @@ mod tests {
                     (0.0..=len as f32 * 1.0e-6).contains(&s) && l.holds(v)
                 })
                 .count();
-            // 17 floor-ring vertices per station (6 path segments).
+            // 17 floor-ring vertices per station (6 path segments on the tower, 8 on the redirect).
             assert!(
                 held >= 17 * 7,
                 "{piece} yaw {yaw}: {held} floor vertices held"

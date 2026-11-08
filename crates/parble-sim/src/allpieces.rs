@@ -44,8 +44,10 @@
 //!   left the socket at up to 0.64 m/s sideways and 2 of the 24 climbed off the rails; with the
 //!   exact landing floor (`chunk::ChannelSlope::landing`) none leave the rails, but it still
 //!   leaves at up to 0.54 m/s sideways (`block_seam_test::tower_drop_stays_on_the_rails`).
-//! - The redirects stand before both forks: the landing in their tunnel sets the exit speed to
-//!   about 0.55–0.65 m/s whatever the entry speed, inside the 0.6 m/s the fork tests route.
+//! - The redirects stand before both forks: the landing in their tunnel sets the exit speed
+//!   whatever the entry speed, to 0.31–0.70 m/s one cell past the exit on this track (measured
+//!   2026-11-08 with the exact landing floor, 0.32–0.69 m/s on the faceted one), about the
+//!   0.2–0.6 m/s the fork tests route.
 
 use parble_core::{
     CellCoord, HopperConfig, MarbleSize, Mirror, PieceId, Placement, ReleaseMode, Track, Yaw4,
