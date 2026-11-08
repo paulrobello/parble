@@ -496,6 +496,8 @@ pub struct KitDiag {
 #[derive(Resource, Default)]
 struct KitMeshes {
     lods: Vec<[Handle<Mesh>; LODS]>,
+    /// [`Self::lods`] with reversed winding, for mirrored pieces ([`LodMesh::reversed_winding`]).
+    mirrored: Vec<[Handle<Mesh>; LODS]>,
     ranges: Option<[VisibilityRange; LODS]>,
 }
 
@@ -548,6 +550,7 @@ fn spawn_kit(
     let low = quality.is_some_and(|q| *q == crate::Quality::Low);
     let layout = scene.layout();
     let mut handles: Vec<[Handle<Mesh>; LODS]> = Vec::new();
+    let mut mirrored: Vec<[Handle<Mesh>; LODS]> = Vec::new();
     let mut ids = HashSet::new();
     for (id, bytes) in PIECES {
         let lods = glb::decode_lods(bytes, id).unwrap_or_else(|e| panic!("kit {id}: {e}"));
@@ -555,8 +558,11 @@ fn spawn_kit(
             .push(std::array::from_fn(|l| lods[l].triangles()));
         let h: [Handle<Mesh>; LODS] =
             std::array::from_fn(|l| meshes.add(lod_render_mesh(&lods[l])));
-        ids.extend(h.iter().map(|h| h.id().untyped()));
+        let m: [Handle<Mesh>; LODS] =
+            std::array::from_fn(|l| meshes.add(lod_render_mesh(&lods[l].reversed_winding())));
+        ids.extend(h.iter().chain(&m).map(|h| h.id().untyped()));
         handles.push(h);
+        mirrored.push(m);
     }
     shared.0.lock().expect("kit shared").meshes = ids;
 
@@ -589,6 +595,7 @@ fn spawn_kit(
 
     let ranges = lod_ranges(crate::camera::FOV_DEG.to_radians());
     kept.lods = handles.clone();
+    kept.mirrored = mirrored;
     kept.ranges = Some(ranges.clone());
     let (chunks, bound) = chunk_stats(&layout);
     let mut by_chunk: std::collections::BTreeMap<[i32; 3], Vec<&Placement>> = Default::default();
@@ -916,6 +923,43 @@ fn count_draws(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mirrored_lods_wind_outward_under_the_mirror_transform() {
+        // Share of triangles whose winding normal agrees with their vertex normals, with every
+        // point and normal mapped by `f` (the mirror is x → −x, determinant −1).
+        fn outward(m: &LodMesh, f: impl Fn([f32; 3]) -> Vec3) -> f32 {
+            let agree = m
+                .indices
+                .as_chunks::<3>()
+                .0
+                .iter()
+                .filter(|t| {
+                    let p = t.map(|i| f(m.positions[i as usize]));
+                    let n: Vec3 = t.iter().map(|&i| f(m.normals[i as usize])).sum();
+                    (p[1] - p[0]).cross(p[2] - p[0]).dot(n) > 0.0
+                })
+                .count();
+            agree as f32 / m.triangles() as f32
+        }
+        let id = |p: [f32; 3]| Vec3::from_array(p);
+        let mirror = |p: [f32; 3]| Vec3::new(-p[0], p[1], p[2]);
+        for (name, bytes) in PIECES {
+            for (l, m) in glb::decode_lods(bytes, name).unwrap().iter().enumerate() {
+                let plain = outward(m, id);
+                assert!(plain > 0.9, "{name} lod{l}: {plain}");
+                assert_eq!(
+                    outward(&m.reversed_winding(), mirror),
+                    plain,
+                    "{name} lod{l}"
+                );
+                assert!(
+                    outward(m, mirror) < 0.1,
+                    "{name} lod{l}: the unreversed mirror is inside-out"
+                );
+            }
+        }
+    }
 
     #[test]
     fn every_piece_decodes_three_lods_within_the_block_budget() {

@@ -59,8 +59,8 @@ pub struct KitEdits {
     /// Show only pieces whose anchor level is at most this (height slicing).
     pub slice: Option<i32>,
     entities: HashMap<[i32; 3], Entity>,
-    /// Chunk → (piece, anchor level) of its pieces.
-    content: BTreeMap<[i32; 3], Vec<(usize, i32)>>,
+    /// Chunk → (piece, mirrored, anchor level) of its pieces.
+    content: BTreeMap<[i32; 3], Vec<(usize, bool, i32)>>,
     applied_slice: Option<i32>,
 }
 
@@ -241,6 +241,11 @@ fn apply_edits(
                 for p in &pieces {
                     let t = p.transform();
                     let v = variant_of(p.cell);
+                    let lods = if p.mirror {
+                        &kept.mirrored[p.piece]
+                    } else {
+                        &kept.lods[p.piece]
+                    };
                     for (lod, range) in ranges.iter().enumerate().take(LODS) {
                         c.spawn((
                             KitInstance {
@@ -248,7 +253,7 @@ fn apply_edits(
                                 lod: lod as u8,
                             },
                             KitLayer(p.cell.y),
-                            Mesh3d(kept.lods[p.piece][lod].clone()),
+                            Mesh3d(lods[lod].clone()),
                             MeshMaterial3d(tex.materials[p.piece][lod][v].clone()),
                             t,
                             range.clone(),
@@ -259,17 +264,22 @@ fn apply_edits(
             })
             .id();
         edits.entities.insert(chunk, root);
-        edits
-            .content
-            .insert(chunk, pieces.iter().map(|p| (p.piece, p.cell.y)).collect());
+        edits.content.insert(
+            chunk,
+            pieces
+                .iter()
+                .map(|p| (p.piece, p.mirror, p.cell.y))
+                .collect(),
+        );
     }
     let ms = start.elapsed().as_secs_f32() * 1e3;
     let mut pairs = std::collections::BTreeSet::new();
     let mut pieces = 0;
     for (chunk, list) in &edits.content {
         pieces += list.len();
-        for &(piece, _) in list {
-            pairs.insert((piece, *chunk));
+        // A mirrored piece draws its own (reversed winding) mesh.
+        for &(piece, mirror, _) in list {
+            pairs.insert((piece, mirror, *chunk));
         }
     }
     diag.pieces = pieces;
@@ -294,7 +304,7 @@ fn hidden_pieces(edits: &KitEdits) -> usize {
         .content
         .values()
         .flatten()
-        .filter(|&&(_, y)| y > s)
+        .filter(|&&(_, _, y)| y > s)
         .count()
 }
 
@@ -339,7 +349,11 @@ fn show_ghost(
             } else {
                 vis.ghost_bad.clone()
             };
-            let mesh = kept.lods[p.piece][0].clone();
+            let mesh = if p.mirror {
+                kept.mirrored[p.piece][0].clone()
+            } else {
+                kept.lods[p.piece][0].clone()
+            };
             let mut t = p.transform();
             // Slightly proud of the cell so it never z-fights a neighbour.
             t.scale *= 1.01;

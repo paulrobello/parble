@@ -239,6 +239,18 @@ impl LodMesh {
     pub fn triangles(&self) -> usize {
         self.indices.len() / 3
     }
+
+    /// The same mesh with every triangle's winding reversed. A mirrored piece is drawn with a
+    /// negative x scale, which flips its screen-space winding, and Bevy culls by winding alone
+    /// (the determinant sign only corrects tangents), so the mirror uses this mesh to stay
+    /// outside-out in every pass.
+    pub fn reversed_winding(&self) -> Self {
+        let mut m = self.clone();
+        for t in m.indices.as_chunks_mut::<3>().0 {
+            t.swap(1, 2);
+        }
+        m
+    }
 }
 
 /// Number of render LODs per piece (kit contract §12).
