@@ -208,7 +208,7 @@ Acceptance:
 
 Scope: the full MVP piece set from Blender generators, with collision sidecars and kinematic mechanisms.
 
-1. Start hopper: holds a marble queue and releases one, all, or on an interval.
+1. Start hopper: holds a marble queue and releases one, all, or on an interval. Design rule (2026-11-08): only one marble is in motion at a time in normal play, so the default release waits until the moving marble has finished or come to rest. Several marbles moving at once stays supported as a nice-to-have (stress tests, "all" release), not a design target.
 2. Finish collector cup: counts arrivals and records times.
 3. Straight
 4. Curve 90° (mirrorable)
