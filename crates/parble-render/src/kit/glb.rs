@@ -483,3 +483,61 @@ fn indices(json: &Value, bin: &[u8], index: u64) -> Result<Vec<u32>, GlbError> {
         })
         .collect())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Each mechanism LOD is its body followed by every `anim_<name>_lod<n>` mesh, in node order,
+    /// placed exactly at the sidecar's rest pose: rotated `rest_mdeg` about `axis`, then moved to
+    /// `pivot_um`.
+    #[test]
+    fn animated_parts_merge_at_the_sidecar_rest_pose() {
+        let kit = parble_kit::builtin();
+        let mut checked = 0;
+        for (id, bytes) in super::super::PIECES {
+            let piece = kit.iter().find(|p| p.def.id.as_str() == *id).unwrap();
+            if piece.animated_parts.is_empty() {
+                continue;
+            }
+            let plain = rewrite_glb(bytes).unwrap();
+            let len = u32_at(&plain, 12).unwrap() as usize;
+            let json: Value = serde_json::from_slice(&plain[20..20 + len]).unwrap();
+            let bin_len = u32_at(&plain, 20 + len).unwrap() as usize;
+            let bin = &plain[28 + len..28 + len + bin_len];
+            let nodes = json["nodes"].as_array().unwrap();
+            let node = |name: &str| nodes.iter().find(|n| n["name"] == name).unwrap();
+            let merged = decode_lods(bytes, id).unwrap();
+            for (l, m) in merged.iter().enumerate() {
+                let body = node_mesh(&json, bin, node(&format!("{id}_lod{l}")), id).unwrap();
+                assert_eq!(&m.positions[..body.positions.len()], &body.positions[..]);
+                let mut at = body.positions.len();
+                for part in &piece.animated_parts {
+                    let name = format!("{}_lod{l}", part.name);
+                    let raw = node_mesh(&json, bin, node(&name), &name).unwrap();
+                    let axis = Vec3::from_array(part.axis.map(|v| v as f32));
+                    let rest =
+                        Quat::from_axis_angle(axis, (part.rest_mdeg as f32 * 1e-3).to_radians());
+                    let pivot = Vec3::from_array(part.pivot_um.map(|v| v as f32 * 1e-6));
+                    let mut moved = 0.0f32;
+                    for (k, p) in raw.positions.iter().enumerate() {
+                        let local = Vec3::from_array(*p);
+                        let want = pivot + rest * local;
+                        let got = Vec3::from_array(m.positions[at + k]);
+                        assert!(
+                            got.distance(want) < 1e-5,
+                            "{name} vertex {k}: {got} vs {want}"
+                        );
+                        moved = moved.max(got.distance(local));
+                    }
+                    // The part frame is not the piece frame: the pose moved every part.
+                    assert!(moved > 1e-3, "{name} was not moved off its local frame");
+                    at += raw.positions.len();
+                }
+                assert_eq!(at, m.positions.len(), "{id} lod{l}: only body and parts");
+            }
+            checked += 1;
+        }
+        assert_eq!(checked, 5, "mechanisms with parts");
+    }
+}
