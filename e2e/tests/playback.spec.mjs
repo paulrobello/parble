@@ -34,9 +34,12 @@ test("P pauses, N steps, comma and period change the scale, fly works while paus
   await page.keyboard.press("n");
   await expect.poll(async () => (await state(page)).tick, { timeout: 5_000 }).toBe(held.tick + 4);
 
+  // One press per wait: two presses inside one slow frame read as a single just-pressed key.
+  const scale = async () => (await state(page)).playback.timeScale;
   await page.keyboard.press("Comma");
+  await expect.poll(scale, { timeout: 5_000 }).toBe(0.5);
   await page.keyboard.press("Comma");
-  await expect.poll(async () => (await state(page)).playback.timeScale, { timeout: 5_000 }).toBe(0.25);
+  await expect.poll(scale, { timeout: 5_000 }).toBe(0.25);
   await expect.poll(() => hud(page), { timeout: 5_000 }).toMatch(/  paused  0\.25x$/);
 
   // Fly still moves the eye while the sim is paused.
@@ -63,8 +66,9 @@ test("P pauses, N steps, comma and period change the scale, fly works while paus
   expect(rate).toBeLessThan(90);
 
   await page.keyboard.press("Period");
+  await expect.poll(scale, { timeout: 5_000 }).toBe(0.5);
   await page.keyboard.press("Period");
-  await expect.poll(async () => (await state(page)).playback.timeScale, { timeout: 5_000 }).toBe(1);
+  await expect.poll(scale, { timeout: 5_000 }).toBe(1);
   await expect.poll(() => hud(page), { timeout: 5_000 }).toMatch(/^fps \d+  tick \d+$/);
   expect(await page.evaluate(() => window.__parbleErrors)).toEqual([]);
   expect(errors).toEqual([]);
