@@ -15,6 +15,7 @@
 //! allow 5 mm of penetration, more than half a standard marble's radius. At 0.06 they are
 //! 0.3 mm, 1.2 mm and 0.18 m/s. All other integration parameters are Rapier 0.36.1 defaults.
 
+pub mod behaviour;
 pub mod chunk;
 pub mod golden;
 pub mod hash;

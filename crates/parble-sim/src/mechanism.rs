@@ -52,7 +52,7 @@ pub const PART_STATE_PREFIX: &str = "part/";
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InstanceId(pub CellCoord);
 
-/// The behaviour of one mechanism kind. Implementations are P2-T5; this crate only drives them.
+/// The behaviour of one mechanism kind. The kit behaviours are in [`crate::behaviour`].
 pub trait Mechanism: Send + Sync {
     /// Stable behaviour name (diagnostics and [`Sim::mechanism_hash`]).
     fn kind(&self) -> &'static str;

@@ -1,24 +1,28 @@
-//! Running a loaded [`Track`] (P3-T3).
+//! Running a loaded [`Track`] (P3-T3, P2-T5).
 //!
 //! A track runs in the P0 tray with its placements merged in as kit chunk colliders
 //! ([`crate::chunk`], [`Sim::place_piece`]). Every placement id goes through [`kit_binding`]: a
 //! [`parble_kit::builtin`] id places that piece, an id in [`KIT_ALIASES`] places its kit piece, an
 //! id in [`NO_COLLIDER`] is a piece without a static collider yet, and any other id refuses the
-//! run. Marbles still spawn on the tray ramp rather than at a hopper (hopper and finish pieces are
-//! P2). Mechanism behaviours (P2-T5) run only through [`TrackRun::with_mechanisms`], which adds a
-//! [`crate::mechanism`] instance rooted at the track seed for each registered kit placement; the
-//! `NO_COLLIDER` mechanism ids still take no part.
+//! run. Each placement whose piece has a behaviour in the registry ([`behaviour::registry`] for
+//! [`TrackRun::new`]) also gets a [`crate::mechanism`] instance rooted at the track seed: its
+//! sensors and its kinematic parts at the sidecar pivots.
+//!
+//! Marbles spawn in the bowl of the hopper placement ([`parble_core::HopperConfig::placement`])
+//! when it is a `mech_hopper`, rolling toward its exit at [`HOPPER_KICK_M_S`], and the hopper's
+//! gate opens for each one on its release tick. Without a hopper they spawn on the tray ramp.
 //!
 //! Releases happen between steps, on whole ticks, so a run is a pure function of the track and the
 //! tick count.
 
-use crate::chunk::ChunkError;
+use crate::behaviour::{self, release_ticks};
+use crate::chunk::{ChunkError, place_point_um};
 use crate::mechanism::{MechanismError, MechanismRegistry};
 use crate::{Sim, scene};
 use parble_core::contract::{
     MARBLE_MINI_DIAMETER_UM, MARBLE_SHOOTER_DIAMETER_UM, MARBLE_STANDARD_DIAMETER_UM,
 };
-use parble_core::{MarbleSize, PieceId, Placement, ReleaseMode, Track};
+use parble_core::{CellCoord, MarbleSize, Orientation, PieceId, Placement, Track};
 use parble_kit::KitCatalog;
 use rapier3d::prelude::*;
 
@@ -26,24 +30,15 @@ use rapier3d::prelude::*;
 /// runs as. Saved tracks keep these ids (contract §10: ids are stable forever).
 pub const KIT_ALIASES: &[(&str, &str)] = &[
     ("blk_straight", "blk_straight_l3"),
-    // The block-family run terminal. The contract's finish mechanism, `mech_finish`, is P2.
+    // The block-family run terminal. The contract's finish mechanism is `mech_finish`.
     ("blk_finish", "blk_end_l3"),
+    ("mech_toggle", "mech_toggle_l3"),
 ];
 
 /// Piece ids that are valid in a track but take no part in the run yet, with the reason. This list
-/// wins over the kit: the mechanism pieces ship sidecars (P2-T3), but placing their colliders would
-/// move every saved track's golden before their behaviours land (P2-T5).
-pub const NO_COLLIDER: &[(&str, &str)] = &[
-    ("mech_hopper", "mechanisms reach the sim in P2"),
-    ("mech_finish", "mechanisms reach the sim in P2"),
-    ("mech_toggle", "mechanisms reach the sim in P2"),
-    ("mech_toggle_l3", "mechanisms reach the sim in P2"),
-    ("mech_splitter_l3", "mechanisms reach the sim in P2"),
-    ("mech_checkpoint_l1", "mechanisms reach the sim in P2"),
-    ("mech_gate_oneway_l1", "mechanisms reach the sim in P2"),
-    ("mech_hole_oneway_l1", "mechanisms reach the sim in P2"),
-    ("rail_curve_90", "no rail-family sidecar is shipped yet"),
-];
+/// wins over the kit.
+pub const NO_COLLIDER: &[(&str, &str)] =
+    &[("rail_curve_90", "no rail-family sidecar is shipped yet")];
 
 /// How a `.parble` placement reaches the sim.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -115,9 +110,13 @@ impl core::fmt::Display for TrackRunError {
 
 impl std::error::Error for TrackRunError {}
 
-/// `ReleaseMode::All` drops the queue one marble every 48 ticks (0.2 s) so no two spawn inside
-/// each other.
-pub const ALL_STAGGER_TICKS: u64 = 48;
+pub use crate::behaviour::ALL_STAGGER_TICKS;
+
+/// Speed a hopper marble starts rolling toward the hopper exit with, m/s: the bowl floor is flat.
+pub const HOPPER_KICK_M_S: f32 = 0.3;
+/// Hopper bowl centre on its floor in the piece frame, µm (`blender/kit/kitmech.py` `HOPPER_X`,
+/// floor at L1).
+pub const HOPPER_BOWL_UM: [i32; 3] = [-10_000, 15_000, 0];
 
 /// Radius in metres of a marble size (contract §6).
 pub fn marble_radius_m(size: MarbleSize) -> f32 {
@@ -129,20 +128,13 @@ pub fn marble_radius_m(size: MarbleSize) -> f32 {
     scene::um_to_m(d / 2)
 }
 
-/// Release ticks for the hopper queue, in queue order.
+/// Release ticks for the hopper queue, in queue order ([`release_ticks`]).
 pub fn release_schedule(track: &Track) -> Vec<(u64, MarbleSize)> {
     let queue = &track.hopper.queue;
-    match track.hopper.release {
-        ReleaseMode::One => queue.first().map(|&m| vec![(0, m)]).unwrap_or_default(),
-        ReleaseMode::All => (0u64..)
-            .zip(queue)
-            .map(|(i, &m)| (i * ALL_STAGGER_TICKS, m))
-            .collect(),
-        ReleaseMode::Interval { ticks } => (0u64..)
-            .zip(queue)
-            .map(|(i, &m)| (i * u64::from(ticks.max(1)), m))
-            .collect(),
-    }
+    release_ticks(track.hopper.release, queue.len())
+        .into_iter()
+        .zip(queue.iter().copied())
+        .collect()
 }
 
 /// A [`Sim`] plus the release schedule that feeds it. Reads go through `Deref` to the sim;
@@ -151,6 +143,8 @@ pub struct TrackRun {
     sim: Sim,
     releases: Vec<(u64, MarbleSize)>,
     next: usize,
+    /// The hopper placement marbles spawn in, if the track has one.
+    hopper: Option<Placement>,
 }
 
 impl TrackRun {
@@ -160,22 +154,24 @@ impl TrackRun {
             sim,
             releases: Vec::new(),
             next: 0,
+            hopper: None,
         }
     }
 
-    /// `track` in the tray with its placements as [`parble_kit::builtin`] chunk colliders, at tick
-    /// 0 with its tick-0 releases in and sampled.
+    /// `track` in the tray with its placements as [`parble_kit::builtin`] chunk colliders and the
+    /// kit behaviours ([`behaviour::registry`]), at tick 0 with its tick-0 releases in and sampled.
     pub fn new(track: &Track) -> Result<Self, TrackRunError> {
         Self::with_kit(track, parble_kit::builtin())
     }
 
     /// [`TrackRun::new`] against any kit catalogue.
     pub fn with_kit(track: &Track, kit: &KitCatalog) -> Result<Self, TrackRunError> {
-        Self::with_mechanisms(track, kit, &MechanismRegistry::new())
+        Self::with_mechanisms(track, kit, &behaviour::registry())
     }
 
-    /// [`TrackRun::with_kit`], plus a mechanism instance ([`Sim::add_registered`], rooted at the
-    /// track seed) for every kit placement whose piece `registry` has a behaviour for.
+    /// `track` with a mechanism instance ([`Sim::add_registered`], rooted at the track seed) for
+    /// every kit placement whose piece `registry` has a behaviour for. The hopper placement's
+    /// instance gets the track's queue and release mode ([`behaviour::hopper_config`]).
     pub fn with_mechanisms(
         track: &Track,
         kit: &KitCatalog,
@@ -185,6 +181,7 @@ impl TrackRun {
         let mut mechanisms = Vec::new();
         sim.world.colliders.insert(scene::tray_collider());
         let mut placed = 0usize;
+        let mut hopper = None;
         for (i, p) in track.placements.iter().enumerate() {
             match kit_binding(kit, &p.piece) {
                 None => {
@@ -196,8 +193,20 @@ impl TrackRun {
                 Some(KitBinding::NoCollider { .. }) => {}
                 Some(KitBinding::Kit(piece)) => {
                     let kp = Placement { piece, ..p.clone() };
+                    let is_hopper = track.hopper.placement == u32::try_from(i).ok()
+                        && kp.piece.as_str() == behaviour::HOPPER;
+                    if is_hopper {
+                        hopper = Some(kp.clone());
+                    }
                     if registry.get(&kp.piece).is_some() {
-                        mechanisms.push((i, kp.clone()));
+                        let mut mp = kp.clone();
+                        if is_hopper {
+                            mp.config.extend(behaviour::hopper_config(
+                                track.hopper.release,
+                                track.hopper.queue.len(),
+                            ));
+                        }
+                        mechanisms.push((i, mp));
                     }
                     sim.place_piece(kit, kp)
                         .map_err(|error| TrackRunError::Chunk {
@@ -228,6 +237,7 @@ impl TrackRun {
             sim,
             releases: release_schedule(track),
             next: 0,
+            hopper,
         };
         run.release_due();
         run.sim.sample();
@@ -264,13 +274,42 @@ impl TrackRun {
 
     fn spawn(&mut self, size: MarbleSize) {
         let r = marble_radius_m(size);
-        let x = r + 0.004;
-        let surface_y = scene::ramp_height_m() * (1.0 - x / scene::ramp_run_m());
-        let body = RigidBodyBuilder::dynamic()
-            .translation(Vector::new(x, surface_y + 1.25 * r, 0.0))
+        let (at, vel) = match &self.hopper {
+            Some(h) => {
+                let o: Orientation = h.orientation();
+                let [x, y, z] = HOPPER_BOWL_UM;
+                let r_um = match size {
+                    MarbleSize::Mini => MARBLE_MINI_DIAMETER_UM,
+                    MarbleSize::Standard => MARBLE_STANDARD_DIAMETER_UM,
+                    MarbleSize::Shooter => MARBLE_SHOOTER_DIAMETER_UM,
+                } / 2;
+                let p = place_point_um(o, h.anchor, [x, y + r_um, z]);
+                let d = place_point_um(o, CellCoord::new(0, 0, 0), [1, 0, 0]);
+                let m = |v: i64| (v as f64 * 1.0e-6) as f32;
+                let dir = Vector::new(d[0] as f32, d[1] as f32, d[2] as f32);
+                (
+                    Vector::new(m(p[0]), m(p[1]), m(p[2])),
+                    dir * HOPPER_KICK_M_S,
+                )
+            }
+            None => {
+                let x = r + 0.004;
+                let surface_y = scene::ramp_height_m() * (1.0 - x / scene::ramp_run_m());
+                (Vector::new(x, surface_y + 1.25 * r, 0.0), Vector::ZERO)
+            }
+        };
+        let mut body = RigidBodyBuilder::dynamic()
+            .translation(at)
             .ccd_enabled(true)
             .can_sleep(false)
             .build();
+        if self.hopper.is_some() {
+            body.set_linvel(vel, true);
+            body.set_angvel(
+                Vector::Y.cross(vel / HOPPER_KICK_M_S) * (HOPPER_KICK_M_S / r),
+                true,
+            );
+        }
         let collider = ColliderBuilder::ball(r)
             .density(scene::GLASS_DENSITY)
             .friction(scene::GLASS_FRICTION)
@@ -334,7 +373,7 @@ pub fn run_hash(track: &Track, ticks: u32) -> Result<u64, TrackRunError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use parble_core::HopperConfig;
+    use parble_core::{HopperConfig, ReleaseMode};
 
     fn track(queue: Vec<MarbleSize>, release: ReleaseMode) -> Track {
         let mut t = Track::new(1);
@@ -420,11 +459,7 @@ mod tests {
             assert_eq!(kit_binding(kit, &id(from)), Some(KitBinding::Kit(id(to))));
         }
         for &(from, _) in NO_COLLIDER {
-            // Mechanism pieces ship sidecars (P2-T3) but stay out of the run until P2-T5.
-            assert!(
-                kit.piece(&id(from)).is_none() || from.starts_with("mech_"),
-                "{from} has a kit piece"
-            );
+            assert!(kit.piece(&id(from)).is_none(), "{from} has a kit piece");
             assert!(matches!(
                 kit_binding(kit, &id(from)),
                 Some(KitBinding::NoCollider { .. })
@@ -466,7 +501,7 @@ mod tests {
 
     #[test]
     fn placed_pieces_become_chunk_colliders_the_marble_meets() {
-        let bare = with_pieces(&[("mech_hopper", [0, 4, 0], 0)]);
+        let bare = with_pieces(&[("rail_curve_90", [0, 4, 0], 0)]);
         let run = TrackRun::new(&bare).unwrap();
         assert_eq!(run.sim.pieces.chunks().count(), 0);
         assert_eq!(
@@ -476,7 +511,10 @@ mod tests {
 
         // An end stop on the tray floor with its closed end (yaw 2: port on +X) facing the ramp.
         // Cell 6 spans x 330..390 mm.
-        let stop = with_pieces(&[("mech_hopper", [0, 4, 0], 0), ("blk_finish", [6, 0, 0], 2)]);
+        let stop = with_pieces(&[
+            ("rail_curve_90", [0, 4, 0], 0),
+            ("blk_finish", [6, 0, 0], 2),
+        ]);
         let mut run = TrackRun::new(&stop).unwrap();
         assert_eq!(run.sim.pieces.chunks().count(), 1);
         assert_ne!(run_hash(&stop, 2_400), run_hash(&bare, 2_400));
