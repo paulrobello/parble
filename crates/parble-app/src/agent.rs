@@ -22,6 +22,7 @@ use parble_sim::{
 use serde::Serialize;
 
 use crate::SimClock;
+use crate::editor::EditorDiag;
 
 /// `window.__parble.ready` turns true once the sim has ticked and this many frames have run.
 const READY_FRAMES: u64 = 3;
@@ -50,6 +51,9 @@ pub enum Scenario {
     /// Marble lineup (P5-T1): every type side by side at rest on the floor in front of the tray,
     /// with a mini and a shooter at the ends ([`marble::LINEUP`]). Ignores `--marble`.
     Lineup,
+    /// The in-engine editor (P3-T4): the tray, no marble, an orbit camera and kit pieces edited in
+    /// place ([`crate::editor`]). Never restarts, so edits keep their incremental colliders.
+    Editor,
 }
 
 impl Scenario {
@@ -60,6 +64,7 @@ impl Scenario {
             "playroom" => Some(Self::Playroom),
             "kit2000" => Some(Self::Kit2000),
             "lineup" => Some(Self::Lineup),
+            "editor" => Some(Self::Editor),
             _ => None,
         }
     }
@@ -71,6 +76,7 @@ impl Scenario {
             Self::Playroom => "playroom",
             Self::Kit2000 => "kit2000",
             Self::Lineup => "lineup",
+            Self::Editor => "editor",
         }
     }
 
@@ -84,6 +90,7 @@ impl Scenario {
             Self::Playroom => Sim::playroom_scene(),
             Self::Closeup => Sim::closeup_scene(spec),
             Self::Lineup => Sim::lineup_scene(),
+            Self::Editor => Sim::tray_scene(),
         }
     }
 
@@ -108,7 +115,9 @@ impl Scenario {
 
     pub fn environment(self) -> Environment {
         match self {
-            Self::Ramp | Self::Closeup | Self::Kit2000 | Self::Lineup => Environment::Plain,
+            Self::Ramp | Self::Closeup | Self::Kit2000 | Self::Lineup | Self::Editor => {
+                Environment::Plain
+            }
             Self::Playroom => Environment::Playroom,
         }
     }
@@ -117,6 +126,7 @@ impl Scenario {
         match self {
             Self::Kit2000 => KitScene::Stress2000,
             Self::Playroom => KitScene::Playroom,
+            Self::Editor => KitScene::Editor,
             _ => KitScene::None,
         }
     }
@@ -125,6 +135,7 @@ impl Scenario {
     pub fn run_ticks(self) -> u32 {
         match self {
             Self::Playroom => parble_sim::playroom_run::PLAYROOM_TICKS,
+            Self::Editor => u32::MAX,
             _ => parble_sim::golden::RAMP_10S_TICKS,
         }
     }
@@ -167,7 +178,7 @@ impl CameraChoice {
             (_, Scenario::Kit2000, _) => Cues::kit(),
             (_, Scenario::Playroom, Some(v)) => Cues::playroom(v),
             (_, Scenario::Playroom, None) => Cues::playroom_run(),
-            (_, Scenario::Ramp, _) => Cues::ramp(),
+            (_, Scenario::Ramp | Scenario::Editor, _) => Cues::ramp(),
             (_, Scenario::Closeup, _) => Cues::closeup(),
             (_, Scenario::Lineup, _) => Cues::lineup(),
         }
@@ -202,6 +213,9 @@ pub struct AgentOpts {
     pub view: Option<PlayroomView>,
     /// Texture family cap (`--tex bc7|astc|png`) for the kit material; unset picks by device.
     pub tex: Option<TextureFamily>,
+    /// Editor only (`--editor-fill <n>`): start with an `n`-piece cell grid behind the tray, laid as
+    /// one undoable paste (the 2,000-piece edit perf track).
+    pub editor_fill: Option<u32>,
 }
 
 impl Default for AgentOpts {
@@ -222,6 +236,7 @@ impl Default for AgentOpts {
             screenshot_tick: None,
             view: None,
             tex: None,
+            editor_fill: None,
         }
     }
 }
@@ -257,7 +272,7 @@ impl AgentOpts {
                 "scenario" => {
                     let v = need(value)?;
                     o.scenario = Scenario::parse(&v).ok_or_else(|| {
-                        format!("scenario: unknown {v:?} (known: ramp, closeup, playroom, kit2000, lineup)")
+                        format!("scenario: unknown {v:?} (known: ramp, closeup, playroom, kit2000, lineup, editor)")
                     })?;
                 }
                 "seed" => {
@@ -329,6 +344,20 @@ impl AgentOpts {
                     o.tex = Some(
                         TextureFamily::parse(&v)
                             .ok_or_else(|| format!("tex: unknown {v:?} (bc7|astc|png)"))?,
+                    );
+                }
+                "editor-fill" => {
+                    let v = need(value)?;
+                    o.editor_fill = Some(
+                        v.parse::<u32>()
+                            .ok()
+                            .filter(|n| *n <= crate::editor::MAX_FILL)
+                            .ok_or_else(|| {
+                                format!(
+                                    "editor-fill: expected 0..={} pieces, got {v:?}",
+                                    crate::editor::MAX_FILL
+                                )
+                            })?,
                     );
                 }
                 _ if strict => return Err(format!("unknown flag --{key}")),
@@ -443,6 +472,8 @@ struct DiagState<'a> {
     view: Option<&'static str>,
     /// The P1-T4 kit renderer (pieces, chunks, draw counts, texture family); absent without a kit.
     kit: Option<&'a KitDiag>,
+    /// The editor (P3-T4); only in the `editor` scenario.
+    editor: Option<&'a EditorDiag>,
     screenshot: &'a ShotState,
     camera: &'a CameraDiag,
     shot_camera: Option<&'a CameraDiag>,
@@ -456,6 +487,7 @@ fn diag<'a>(
     camera: &'a CameraDiag,
     shadows: &ShadowLights,
     kit: &'a KitDiag,
+    editor: &'a EditorDiag,
 ) -> DiagState<'a> {
     let tick = clock.sim.tick_count();
     DiagState {
@@ -499,6 +531,7 @@ fn diag<'a>(
         shadow_light_cap: shadows.cap,
         view: opts.view.map(PlayroomView::name),
         kit: (opts.scenario.kit() != KitScene::None).then_some(kit),
+        editor: (opts.scenario == Scenario::Editor).then_some(editor),
         screenshot: &rt.shot,
         camera,
         shot_camera: rt.shot_camera.as_ref(),
@@ -706,6 +739,7 @@ fn auto_exit(
     camera: Res<CameraDiag>,
     shadows: Res<ShadowLights>,
     kit: Res<KitDiag>,
+    editor: Res<EditorDiag>,
     mut rt: ResMut<AgentRuntime>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -740,8 +774,9 @@ fn auto_exit(
     };
     rt.exiting = true;
     if opts.dump_state {
-        let json = serde_json::to_string(&diag(&clock, &rt, &opts, &camera, &shadows, &kit))
-            .unwrap_or_default();
+        let json =
+            serde_json::to_string(&diag(&clock, &rt, &opts, &camera, &shadows, &kit, &editor))
+                .unwrap_or_default();
         #[cfg(not(target_arch = "wasm32"))]
         println!("{json}");
         #[cfg(target_arch = "wasm32")]
@@ -758,9 +793,12 @@ fn publish(
     camera: Res<CameraDiag>,
     shadows: Res<ShadowLights>,
     kit: Res<KitDiag>,
+    editor: Res<EditorDiag>,
 ) {
     use js_sys::{JSON, JsString, Reflect};
-    let Ok(json) = serde_json::to_string(&diag(&clock, &rt, &opts, &camera, &shadows, &kit)) else {
+    let Ok(json) =
+        serde_json::to_string(&diag(&clock, &rt, &opts, &camera, &shadows, &kit, &editor))
+    else {
         return;
     };
     if let Ok(v) = JSON::parse(&json) {

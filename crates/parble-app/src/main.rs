@@ -7,6 +7,7 @@
 mod agent;
 mod audio;
 mod bridge;
+mod editor;
 mod persist;
 
 use agent::{AgentOpts, AgentPlugin, Scenario};
@@ -84,6 +85,10 @@ fn main() {
         .add_plugins(DirectorPlugin {
             mode: opts.camera.mode(),
             cues: opts.camera.cues(opts.scenario, opts.view),
+        })
+        .add_plugins(editor::EditorPlugin {
+            active: opts.scenario == Scenario::Editor,
+            fill: opts.editor_fill,
         })
         .insert_resource(SimClock {
             sim: recording(TrackRun::from_sim(
