@@ -9,10 +9,11 @@ parble can be launched, observed and stopped from a script, on native and on the
 | `--screenshot <path>` | `screenshot=<name>` | off | Capture the primary window once. Natively the PNG is written to `<path>` and parent directories are created. On the web the browser downloads `<name>`. |
 | `--screenshot-after <s>` | `screenshot-after=<s>` | `3` | Seconds of real time after startup before the capture. The first frames show only the backdrop while pipelines compile, so stay at 3 s or more. |
 | `--exit-after <s>` | `exit-after=<s>` | off | Exit after `<s>` seconds of real time. If a screenshot is still pending, the app waits for it, up to 10 s longer. |
-| `--scenario <name>` | `scenario=<name>` | `ramp` | Scene to load. `ramp` is the tray ramp with one marble, restarted every 10 s. `closeup` (P1-T6) rests one marble on the tray floor under a close fixed camera, for judging marble materials. |
+| `--scenario <name>` | `scenario=<name>` | `ramp` | Scene to load. `ramp` is the tray ramp with one marble, restarted every 10 s. `closeup` (P1-T6) rests one marble on the tray floor under a close fixed camera, for judging marble materials. `playroom` (P1-T5) is the ramp and its marble inside the night playroom: rug, room shell, paper lanterns, a warm lamp, toy blocks, the backdrop plate and the baked environment probe. The set dressing is render-only, so `playroom` runs the ramp's sim and reports the ramp's golden hash. |
 | `--marble <type>` | `marble=<type>` | legacy | Marble type (P1-T6, [marbles.md](marbles.md)): `cats-eye`, `glazed` or `steel`, each with its real physical values and its own look. Without it the scene uses the P0 legacy marble (golden physics, cat's eye look), so `ramp` still reproduces the golden hash. |
+| `--view <name>` | `view=<name>` | none | Playroom fixed framing, played by the director as one `set` shot (`Cues::playroom` in `camera.rs`) whose DoF focus stays on the view's lantern instead of the marble. `rug` looks low across the rug towards the big lantern (ref-07). `blocks` looks at the toy-block arches and towers around the small lantern (ref-08). Without it the playroom uses the ramp's follow cues. `--camera overview` and `orbit` take precedence. Other scenarios ignore it. |
 | `--seed <u64>` | `seed=<u64>` | `0` | Recorded and reported. No P0 scenario uses it yet. Procedural tracks consume it from P3. |
-| `--quality <tier>` | `quality=<tier>` | `medium` | `low`, `medium`, `high` or `ultra`. Per-tier AA (MSAA or TAA), SSAO, bloom, DoF and shadows are in `docs/adr/0001-post-stack-and-tiers.md`. The cat's eye uses the fallback vane shader on `low` (16 march steps) and `medium` (32), and screen-space specular transmission on `high` and `ultra`. |
+| `--quality <tier>` | `quality=<tier>` | `medium` | `low`, `medium`, `high` or `ultra`. Per-tier AA (MSAA or TAA), SSAO, bloom, DoF and shadows are in `docs/adr/0001-post-stack-and-tiers.md`. The cat's eye uses the fallback vane shader on `low` (16 march steps) and `medium` (32), and screen-space specular transmission on `high` and `ultra`. Shadow-casting lights are capped per tier: 0 on Low, 1 on Medium, 3 on High and Ultra. |
 | `--camera <c>` | `camera=<c>` | `director` | `director`: the follow-marble director with the scenario's cued cuts. `orbit`: the editor orbit camera (left drag, wheel). `overview`: the fixed P0 top-down view. `C` toggles director and orbit. |
 | `--taa <0\|1>`, `--dof <0\|1>`, `--aperture <f>`, `--tonemap <name>` | same keys | tier | Look-dev and test overrides of the tier's post stack. `tonemap`: `tony`, `agx`, `aces`, `filmic`, `sbdt`, `reinhard`. |
 | `--lockstep-after <s>` | `lockstep-after=<s>` | off | Hold the sim at tick 0 for `<s>` real seconds, then advance exactly 4 ticks (1/60 s) per frame, so a frame shows the same state on every run. The run hash is unchanged. |
@@ -51,6 +52,9 @@ The web build replaces `window.__parble` every frame. `--dump-state` prints the 
   "seed": 0,
   "quality": "medium",
   "marble": "legacy",
+  "shadowLights": 1,
+  "shadowLightCap": 1,
+  "view": null,
   "screenshot": {
     "state": "none"
   },
@@ -67,6 +71,8 @@ The web build replaces `window.__parble` every frame. `--dump-state` prints the 
 - `track`: the metadata name of the `.parble` track loaded over the bridge (`loadTrack`), or `null`. A loaded track replaces the scenario in the live sim and its 10 s restarts.
 - `trackRun`: the last bridge `runTrack`, as `{ "ticks": 2400, "hash": "…" }`, or `null`. The run is headless from tick 0, so its hash does not depend on frame timing. `web/ui/src/parble-fixtures.json` records the expected `runHash` of every valid fixture track; `make web-e2e` checks it in the browser (`e2e/tests/persistence.spec.mjs`).
 - `marble`: the `--marble` type, or `legacy` for the P0 marble.
+- `shadowLights`, `shadowLightCap`: lights casting shadows this frame and the tier's cap (0 on Low, 1 on Medium, 3 on High and Ultra). `enforce_shadow_cap` in `crates/parble-render/src/playroom.rs` turns off the lowest-priority shadows past the cap in every scenario. `playroom` on High uses all 3: the moon, the big lantern and the lamp.
+- `view`: the playroom `--view` framing, or `null` when none was given.
 - `screenshot`: `state` is one of `none`, `pending`, `capturing`, `done` (with `lit`, `colors` and `ok`), or `failed` (with `error`).
 - `camera`: the main camera this frame: `mode`, `shot`, `cuts`, `eye`, the marble's screen position over the last frames (`marblePx`, physical pixels, newest first), `marbleRadiusPx`, and `post`, which holds the post components the live camera carries (`msaa`, `taa`, `ssao`, `bloom`, `dof`, `aperture`, `focusM`, `tonemapping`).
 - `shotCamera`: the same object captured on the screenshot frame.
@@ -80,6 +86,7 @@ All timing (screenshot, exit, fps) is real time in the app layer. The sim never 
 make run-shot                        # native: PNG to target/shots/run-shot.png, then exit (non-zero unless lit)
 make run-shot SHOT=docs/shots/x.png  # another path
 make run-diag                        # native: run 3 s, print the state JSON, exit
+make playroom-shots                  # native High shots of both playroom views into target/shots/
 make shots-p1t7                      # native: per-tier shots, TAA ghost check, DoF side-by-side (P1-T7)
 make marble-shots                    # native: closeup PNG per marble type and tier to target/shots/marbles (P1-T6)
 make web-e2e                         # release build, then the Playwright suites (smoke, persistence, marbles) in GPU Chromium on 5311

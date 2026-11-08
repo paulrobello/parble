@@ -16,7 +16,9 @@ use parble_sim::{MarbleState, scene};
 
 pub mod camera;
 pub mod marble;
+pub mod playroom;
 pub mod post;
+pub use playroom::{Environment, PlayroomView, ShadowLights};
 
 /// Backdrop behind the scene (a dim warm room tone).
 pub const BACKDROP: Color = Color::srgb(0.11, 0.10, 0.09);
@@ -85,6 +87,7 @@ impl Plugin for ParbleRenderPlugin {
             .init_resource::<MarbleFrame>()
             .init_resource::<Quality>()
             .add_plugins(marble::MarblePlugin)
+            .add_plugins(playroom::PlayroomPlugin)
             .add_systems(Startup, spawn_scene)
             .add_systems(PostUpdate, sync_marbles.before(TransformSystems::Propagate));
     }
@@ -119,6 +122,7 @@ pub fn tray_render_mesh() -> Mesh {
 fn spawn_scene(
     mut commands: Commands,
     quality: Res<Quality>,
+    env: Res<Environment>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -137,11 +141,19 @@ fn spawn_scene(
         ..default()
     });
     let len = scene::tray_length_m();
-    commands.spawn((
-        Mesh3d(meshes.add(Plane3d::default().mesh().size(4.0 * len, 4.0 * len))),
-        MeshMaterial3d(floor),
-        Transform::from_xyz(len / 2.0, -0.0005, 0.0),
-    ));
+    // The playroom (P1-T5) lays its own rug and floor here, and brings its own lights below.
+    let plain = *env == Environment::Plain;
+    if plain {
+        commands.spawn((
+            Mesh3d(meshes.add(Plane3d::default().mesh().size(4.0 * len, 4.0 * len))),
+            MeshMaterial3d(floor),
+            Transform::from_xyz(len / 2.0, -0.0005, 0.0),
+        ));
+    }
+
+    if !plain {
+        return;
+    }
 
     // Shadow cascades and biases sized to a sub-metre scene (Bevy's defaults assume tens of metres:
     // a 0.02 m depth bias is wider than the marble's radius).

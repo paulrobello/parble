@@ -68,7 +68,12 @@ const BAD_TEXT = (t) => /%cERROR%c|\bERROR\b/.test(t) || /uncaptured|invalid|pan
         return { w: c.width, h: c.height, nonBlack: nonBlack / px, lit: lit / px, colors: colors.size };
       }, png.toString("base64"));
       if (stats.nonBlack > 0.5 && stats.lit > 0.02 && stats.colors > 16) {
-        if (shot) { fs.mkdirSync(path.dirname(shot), { recursive: true }); fs.writeFileSync(shot, png); }
+        // Late assets (glTF scenes load asynchronously) get 1.5 s more before the saved shot.
+        if (shot) {
+          await page.waitForTimeout(1_500);
+          fs.mkdirSync(path.dirname(shot), { recursive: true });
+          fs.writeFileSync(shot, await page.locator("canvas#parble").screenshot());
+        }
         break;
       }
     }
@@ -94,6 +99,10 @@ const BAD_TEXT = (t) => /%cERROR%c|\bERROR\b/.test(t) || /uncaptured|invalid|pan
         frameLatency: window.__frameLatency || null,
         build: window.__PARBLE_BUILD || null,
         pageErrors: window.__parbleErrors || null,
+        state: window.__parble ? {
+          scenario: window.__parble.scenario, view: window.__parble.view, quality: window.__parble.quality,
+          shadowLights: window.__parble.shadowLights, shadowLightCap: window.__parble.shadowLightCap,
+        } : null,
       };
     });
     console.log("adapter:", JSON.stringify(adapter));

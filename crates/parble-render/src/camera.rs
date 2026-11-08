@@ -47,6 +47,14 @@ pub enum Shot {
     Follow,
     /// Fixed camera; the marble crosses the frame.
     Fixed { eye: [f32; 3], look: [f32; 3] },
+    /// Fixed set shot (the playroom views): the DoF focus stays on the set at `focus_m` instead of
+    /// following the marble.
+    Set {
+        eye: [f32; 3],
+        look: [f32; 3],
+        #[serde(rename = "focusM")]
+        focus_m: f32,
+    },
 }
 
 impl Shot {
@@ -54,6 +62,7 @@ impl Shot {
         match self {
             Self::Follow => "follow",
             Self::Fixed { .. } => "fixed",
+            Self::Set { .. } => "set",
         }
     }
 }
@@ -101,6 +110,19 @@ impl Cues {
             Shot::Fixed {
                 eye: [m.x - 0.045, m.y + 0.075, m.z + 0.012],
                 look: [m.x, m.y, m.z],
+            },
+        )])
+    }
+
+    /// One playroom set shot (`--scenario playroom --view rug|blocks`).
+    pub fn playroom(view: crate::PlayroomView) -> Self {
+        let (eye, look) = view.eye_target();
+        Self(vec![(
+            0,
+            Shot::Set {
+                eye: eye.to_array(),
+                look: look.to_array(),
+                focus_m: view.focus_m(),
             },
         )])
     }
@@ -356,7 +378,9 @@ fn direct(
 
     let (eye, look) = match shot {
         None => (st.orbit.eye(), st.orbit.target),
-        Some(Shot::Fixed { eye, look }) => (Vec3::from_array(eye), Vec3::from_array(look)),
+        Some(Shot::Fixed { eye, look } | Shot::Set { eye, look, .. }) => {
+            (Vec3::from_array(eye), Vec3::from_array(look))
+        }
         Some(Shot::Follow) => {
             let (eye_t, look_t) = follow_pose(p, st.dir);
             if cut {
@@ -387,7 +411,10 @@ fn direct(
     *tf = Transform::from_translation(eye).looking_at(look, Vec3::Y);
 
     let forward = tf.forward().as_vec3();
-    let depth = (p - eye).dot(forward).max(0.01);
+    let depth = match shot {
+        Some(Shot::Set { focus_m, .. }) => focus_m,
+        _ => (p - eye).dot(forward).max(0.01),
+    };
     let mut dof = dof;
     if let Some(d) = dof.as_deref_mut() {
         d.focal_distance = depth;
@@ -447,6 +474,18 @@ mod tests {
         assert_eq!(c.at(RAMP_TRACKSIDE_TICK).unwrap().0, 1);
         assert_eq!(c.at(RAMP_TRACKSIDE_TICK - 1).unwrap().0, 0);
         assert_eq!(c.at(10_000).unwrap().0, 2);
+    }
+
+    #[test]
+    fn playroom_views_are_set_shots_focused_on_their_lantern() {
+        for v in [crate::PlayroomView::Rug, crate::PlayroomView::Blocks] {
+            let Some((0, Shot::Set { eye, look, focus_m })) = Cues::playroom(v).at(0) else {
+                panic!("{v:?}: not a set shot");
+            };
+            let (e, l) = v.eye_target();
+            assert_eq!((eye, look), (e.to_array(), l.to_array()));
+            assert!(focus_m > 0.2 && focus_m < 3.0, "{v:?}: focus {focus_m}");
+        }
     }
 
     #[test]

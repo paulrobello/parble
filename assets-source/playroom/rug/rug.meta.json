@@ -1,0 +1,8 @@
+{
+ "seed": 707,
+ "sizePx": 1024,
+ "cellsPerTile": 16,
+ "tileM": 0.64,
+ "seamWrapMeanStep": 1.652,
+ "interiorMeanStep": 21.687
+}

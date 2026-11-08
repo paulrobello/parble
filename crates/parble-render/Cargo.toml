@@ -15,7 +15,11 @@ bevy = { workspace = true, features = [
     "std",
     "bevy_winit",
     "multi_threaded",
+    # P1-T5 playroom textures: KTX2 with zstd supercompression (pure-Rust zstd builds for wasm32).
+    "ktx2",
+    "zstd_rust",
 ] }
+serde_json = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 bevy = { workspace = true, features = ["x11", "wayland"] }

@@ -4332,6 +4332,7 @@ dependencies = [
  "bevy",
  "parble-sim",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

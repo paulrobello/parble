@@ -54,7 +54,7 @@ fn main() {
         window.resolution =
             bevy::window::WindowResolution::new(1280, 720).with_scale_factor_override(1.0);
     }
-    App::new()
+    let exit = App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(window),
             ..default()
@@ -63,7 +63,7 @@ fn main() {
         .add_plugins(AgentPlugin(opts.clone()))
         .add_plugins(DirectorPlugin {
             mode: opts.camera.mode(),
-            cues: opts.camera.cues(opts.scenario),
+            cues: opts.camera.cues(opts.scenario, opts.view),
         })
         .insert_resource(SimClock {
             sim: TrackRun::from_sim(opts.scenario.build(opts.marble)),
@@ -77,6 +77,20 @@ fn main() {
         .add_systems(Startup, (spawn_camera, publish_initial, announce_bridge))
         .add_systems(Update, (advance_sim, pump_bridge).chain())
         .run();
+    // The web build's `run` returns at once while the browser drives the loop.
+    #[cfg(not(target_arch = "wasm32"))]
+    std::process::exit(i32::from(process_code(&exit)));
+    #[cfg(target_arch = "wasm32")]
+    let _ = exit;
+}
+
+/// Process exit code for an [`AppExit`] (the agent's documented 0/2/3).
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+fn process_code(exit: &AppExit) -> u8 {
+    match exit {
+        AppExit::Success => 0,
+        AppExit::Error(code) => code.get(),
+    }
 }
 
 fn spawn_camera(mut commands: Commands, opts: Res<AgentOpts>) {
@@ -234,6 +248,13 @@ fn pump_bridge(
 mod tests {
     use super::*;
     use parble_sim::Sim;
+
+    #[test]
+    fn app_exit_codes_reach_the_process() {
+        assert_eq!(process_code(&AppExit::Success), 0);
+        assert_eq!(process_code(&AppExit::from_code(3)), 3);
+        assert_eq!(process_code(&AppExit::from_code(0)), 0);
+    }
 
     #[test]
     fn plan_ticks_keeps_the_sub_tick_remainder() {

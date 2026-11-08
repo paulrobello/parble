@@ -109,7 +109,7 @@ web-test:
 	node --test scripts/web/*.test.mjs
 
 # Browser suites (local only, never CI) use e2e/'s own pinned @playwright/test.
-.PHONY: e2e-deps web-e2e run-shot run-diag
+.PHONY: e2e-deps web-e2e run-shot run-diag playroom-shots
 E2E_STAMP := e2e/node_modules/.npm-ci.stamp
 
 $(E2E_STAMP): e2e/package.json e2e/package-lock.json
@@ -152,6 +152,12 @@ web-marbles: $(E2E_STAMP)
 .PHONY: marble-shots
 marble-shots:
 	bash scripts/marble-shots.sh
+
+# P1-T5: both playroom framings on High (native). Non-zero unless each shot is lit.
+playroom-shots:
+	cargo build -p parble-app
+	./target/debug/parble --scenario playroom --view rug --quality high --screenshot target/shots/playroom-rug.png --screenshot-after 5 --exit-after 6
+	./target/debug/parble --scenario playroom --view blocks --quality high --screenshot target/shots/playroom-blocks.png --screenshot-after 5 --exit-after 6
 
 # Trunk dev server on 127.0.0.1:$(DEV_PORT). No autoreload: Trunk injects its reload script after the
 # post_build hook hashed the inline scripts, so the page's CSP would block it (a console error).
@@ -222,6 +228,16 @@ materials-build: fetch-tools
 materials-check: fetch-tools
 	$(BLENDER_RUN) -P blender/materials/check.py
 	python3 blender/materials/provenance.py check
+
+# --- P1-T5 playroom assets (blender/playroom). Local only: needs Blender 5.2, ImageMagick, numpy and
+# Pillow, and the pinned KTX-Software (fetch-tools). Not part of checkall; outputs are committed.
+.PHONY: playroom-build
+playroom-build: fetch-tools
+	python3 blender/playroom/rug.py assets-source/playroom/rug
+	blender/playroom/encode.sh
+	$(BLENDER_RUN) -P blender/playroom/blocks.py -- assets/playroom
+	$(BLENDER_RUN) -P blender/playroom/probe.py -- .
+	python3 blender/playroom/provenance.py
 
 # --- P1-T2 kit pipeline (blender/kit). Local only: needs Blender 5.2 and Node; not part of checkall.
 # kit-build: headless generator + Cycles bakes -> meshopt GLB + sidecar + maps in assets/kit/<id>/,

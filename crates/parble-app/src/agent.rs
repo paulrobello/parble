@@ -8,7 +8,7 @@ use bevy::{
     render::view::screenshot::{Screenshot, ScreenshotCaptured},
 };
 use parble_render::{
-    Quality,
+    Environment, PlayroomView, Quality, ShadowLights,
     camera::{CameraDiag, CameraMode, Cues},
     marble::MarbleLook,
     post::{PostOverrides, parse_tonemapping},
@@ -39,6 +39,9 @@ pub enum Scenario {
     Ramp,
     /// Look-dev close-up (P1-T6): one marble at rest on the tray floor under a close camera.
     Closeup,
+    /// The same ramp and marble inside the night playroom (P1-T5). Render-only set dressing, so the
+    /// sim and its golden hash are the ramp's.
+    Playroom,
 }
 
 impl Scenario {
@@ -46,6 +49,7 @@ impl Scenario {
         match s {
             "ramp" => Some(Self::Ramp),
             "closeup" => Some(Self::Closeup),
+            "playroom" => Some(Self::Playroom),
             _ => None,
         }
     }
@@ -54,16 +58,24 @@ impl Scenario {
         match self {
             Self::Ramp => "ramp",
             Self::Closeup => "closeup",
+            Self::Playroom => "playroom",
         }
     }
 
-    /// The scenario's sim. `marble: None` keeps the P0 legacy marble, so `ramp` stays the golden
-    /// run; `Some(kind)` uses that type's physical table (P1-T6).
+    /// The scenario's sim. `marble: None` keeps the P0 legacy marble, so `ramp` and `playroom` stay
+    /// the golden run; `Some(kind)` uses that type's physical table (P1-T6).
     pub fn build(self, marble: Option<MarbleKind>) -> Sim {
         match (self, marble) {
-            (Self::Ramp, None) => Sim::ramp_scene(),
-            (Self::Ramp, Some(k)) => Sim::ramp_scene_with(k.spec()),
+            (Self::Ramp | Self::Playroom, None) => Sim::ramp_scene(),
+            (Self::Ramp | Self::Playroom, Some(k)) => Sim::ramp_scene_with(k.spec()),
             (Self::Closeup, m) => Sim::closeup_scene(m.map_or(P0_LEGACY, MarbleKind::spec)),
+        }
+    }
+
+    pub fn environment(self) -> Environment {
+        match self {
+            Self::Ramp | Self::Closeup => Environment::Plain,
+            Self::Playroom => Environment::Playroom,
         }
     }
 }
@@ -97,11 +109,14 @@ impl CameraChoice {
         }
     }
 
-    pub fn cues(self, scenario: Scenario) -> Cues {
-        match (self, scenario) {
-            (Self::Overview, _) => Cues::overview(),
-            (_, Scenario::Ramp) => Cues::ramp(),
-            (_, Scenario::Closeup) => Cues::closeup(),
+    /// Director cues. A playroom `--view` is one fixed shot; without it the playroom follows the
+    /// marble like the ramp.
+    pub fn cues(self, scenario: Scenario, view: Option<PlayroomView>) -> Cues {
+        match (self, scenario, view) {
+            (Self::Overview, ..) => Cues::overview(),
+            (_, Scenario::Playroom, Some(v)) => Cues::playroom(v),
+            (_, Scenario::Ramp | Scenario::Playroom, _) => Cues::ramp(),
+            (_, Scenario::Closeup, _) => Cues::closeup(),
         }
     }
 }
@@ -127,6 +142,8 @@ pub struct AgentOpts {
     pub lockstep_after: Option<f64>,
     /// Capture the screenshot on the first frame at or past this sim tick (instead of by time).
     pub screenshot_tick: Option<u64>,
+    /// Playroom fixed framing (`--view rug|blocks`) for the director; ignored by other scenarios.
+    pub view: Option<PlayroomView>,
 }
 
 impl Default for AgentOpts {
@@ -144,6 +161,7 @@ impl Default for AgentOpts {
             post: PostOverrides::default(),
             lockstep_after: None,
             screenshot_tick: None,
+            view: None,
         }
     }
 }
@@ -178,8 +196,9 @@ impl AgentOpts {
                 "exit-after" => o.exit_after = Some(parse_seconds(&key, &need(value)?)?),
                 "scenario" => {
                     let v = need(value)?;
-                    o.scenario = Scenario::parse(&v)
-                        .ok_or_else(|| format!("scenario: unknown {v:?} (known: ramp, closeup)"))?;
+                    o.scenario = Scenario::parse(&v).ok_or_else(|| {
+                        format!("scenario: unknown {v:?} (known: ramp, closeup, playroom)")
+                    })?;
                 }
                 "seed" => {
                     let v = need(value)?;
@@ -231,6 +250,13 @@ impl AgentOpts {
                         })?);
                 }
                 "dump-state" => o.dump_state = parse_bool(&key, value.as_deref())?,
+                "view" => {
+                    let v = need(value)?;
+                    o.view = Some(
+                        PlayroomView::parse(&v)
+                            .ok_or_else(|| format!("view: unknown {v:?} (rug|blocks)"))?,
+                    );
+                }
                 _ if strict => return Err(format!("unknown flag --{key}")),
                 _ => {}
             }
@@ -335,6 +361,10 @@ struct DiagState<'a> {
     quality: &'static str,
     /// Marble type; `"legacy"` is the P0 marble the golden run uses.
     marble: &'static str,
+    /// Lights casting shadows this frame, and the tier's cap (at most 3 on High).
+    shadow_lights: usize,
+    shadow_light_cap: usize,
+    view: Option<&'static str>,
     screenshot: &'a ShotState,
     camera: &'a CameraDiag,
     shot_camera: Option<&'a CameraDiag>,
@@ -346,6 +376,7 @@ fn diag<'a>(
     rt: &'a AgentRuntime,
     opts: &AgentOpts,
     camera: &'a CameraDiag,
+    shadows: &ShadowLights,
 ) -> DiagState<'a> {
     let tick = clock.sim.tick_count();
     DiagState {
@@ -379,6 +410,9 @@ fn diag<'a>(
         seed: opts.seed,
         quality: opts.quality.name(),
         marble: opts.marble.map_or("legacy", MarbleKind::name),
+        shadow_lights: shadows.casting,
+        shadow_light_cap: shadows.cap,
+        view: opts.view.map(PlayroomView::name),
         screenshot: &rt.shot,
         camera,
         shot_camera: rt.shot_camera.as_ref(),
@@ -440,6 +474,7 @@ impl Plugin for AgentPlugin {
         })
         .insert_resource(opts.quality)
         .insert_resource(MarbleLook(opts.marble.unwrap_or_default()))
+        .insert_resource(opts.scenario.environment())
         .insert_resource(opts)
         .add_systems(
             Last,
@@ -551,6 +586,7 @@ fn auto_exit(
     opts: Res<AgentOpts>,
     clock: Res<SimClock>,
     camera: Res<CameraDiag>,
+    shadows: Res<ShadowLights>,
     mut rt: ResMut<AgentRuntime>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -585,7 +621,8 @@ fn auto_exit(
     };
     rt.exiting = true;
     if opts.dump_state {
-        let json = serde_json::to_string(&diag(&clock, &rt, &opts, &camera)).unwrap_or_default();
+        let json =
+            serde_json::to_string(&diag(&clock, &rt, &opts, &camera, &shadows)).unwrap_or_default();
         #[cfg(not(target_arch = "wasm32"))]
         println!("{json}");
         #[cfg(target_arch = "wasm32")]
@@ -600,9 +637,10 @@ fn publish(
     rt: Res<AgentRuntime>,
     opts: Res<AgentOpts>,
     camera: Res<CameraDiag>,
+    shadows: Res<ShadowLights>,
 ) {
     use js_sys::{JSON, JsString, Reflect};
-    let Ok(json) = serde_json::to_string(&diag(&clock, &rt, &opts, &camera)) else {
+    let Ok(json) = serde_json::to_string(&diag(&clock, &rt, &opts, &camera, &shadows)) else {
         return;
     };
     if let Ok(v) = JSON::parse(&json) {
@@ -655,6 +693,7 @@ mod tests {
         assert!(args("--exit-after -2").is_err());
         assert!(args("--exit-after").is_err());
         assert!(args("--frobnicate 1").is_err());
+        assert!(args("--view sky").is_err());
         assert!(args("stray").is_err());
     }
 
@@ -678,6 +717,30 @@ mod tests {
         assert_eq!(q.quality, Quality::Ultra);
         assert_eq!(q.camera, CameraChoice::Overview);
         assert_eq!(q.post.taa, Some(false));
+    }
+
+    #[test]
+    fn playroom_scenario_parses_and_keeps_the_ramp_golden() {
+        let o = args("--scenario playroom --view blocks").unwrap();
+        assert_eq!(o.scenario, Scenario::Playroom);
+        assert_eq!(o.view, Some(PlayroomView::Blocks));
+        assert_eq!(
+            o.camera.cues(o.scenario, o.view),
+            Cues::playroom(PlayroomView::Blocks)
+        );
+        assert_eq!(
+            CameraChoice::Director.cues(Scenario::Playroom, None),
+            Cues::ramp()
+        );
+        assert_eq!(o.scenario.environment(), Environment::Playroom);
+        let q = AgentOpts::from_query("?scenario=playroom&view=rug", str::to_owned).unwrap();
+        assert_eq!(
+            (q.scenario, q.view),
+            (Scenario::Playroom, Some(PlayroomView::Rug))
+        );
+        let mut sim = Scenario::Playroom.build(None);
+        sim.tick(parble_sim::golden::RAMP_10S_TICKS);
+        assert_eq!(sim.trajectory_hash(), parble_sim::golden::ramp_10s_hash());
     }
 
     #[test]

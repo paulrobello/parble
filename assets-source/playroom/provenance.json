@@ -1,0 +1,215 @@
+{
+ "schema": "parble-playroom-provenance/1",
+ "task": "P1-T5 night playroom environment",
+ "date": "2026-11-07",
+ "authoringAgent": {
+  "harness": "claude-code",
+  "model": "claude-opus-5-5"
+ },
+ "routes": {
+  "rug": "create-tileable-pbr-materials, scripted procedural route (numpy, seeded); tileable by construction",
+  "toyBlocks": "blender-kit-pieces headless generator (simple rigid render-only pieces, no LODs or colliders)",
+  "backdrop": "create-game-key-art via the art skill, Higgsfield backend",
+  "probe": "headless Blender Cycles cube-face bake + CPU GGX/Lambert prefilter (probe.py)"
+ },
+ "tools": {
+  "blender": "5.2.2 LTS (headless, --factory-startup)",
+  "ktxSoftware": "4.4.2 (pinned, scripts/fetch-ktx.sh)",
+  "imagemagick": "7 (Homebrew)",
+  "python": "system python3 with numpy and Pillow (rug.py); Blender bundled python (blocks.py, probe.py)"
+ },
+ "generations": {
+  "total": 1,
+  "cap": 10,
+  "credits": 2,
+  "creditEvidence": "Higgsfield balance 952 before, 950 after; one 'Nano Banana Pro -2 spend' at 2026-11-08 01:38 UTC",
+  "rejected": []
+ },
+ "rugContract": {
+  "tileM": 0.64,
+  "cellsPerTile": 16,
+  "cellM": 0.04,
+  "seed": 707,
+  "sourcePx": 1024,
+  "runtimePx": {
+   "base_color": 512,
+   "normal": 256
+  },
+  "channels": {
+   "base_color": "sRGB",
+   "normal": "linear, OpenGL +Y, tangent space"
+  },
+  "roughness": "constant 0.92 in the material (no ORM map)",
+  "metallic": "0 (fabric)",
+  "seamCheck": {
+   "seed": 707,
+   "sizePx": 1024,
+   "cellsPerTile": 16,
+   "tileM": 0.64,
+   "seamWrapMeanStep": 1.652,
+   "interiorMeanStep": 21.687
+  },
+  "review": "assets-source/playroom/rug/rug.tiling-3x3.png"
+ },
+ "probeContract": {
+  "specularSize": 64,
+  "specularLevels": 7,
+  "diffuseSize": 16,
+  "format": "rgba16float, layer-major (face, then mip)",
+  "renderSize": 128,
+  "samples": 64,
+  "meanRadiance": [
+   0.19115,
+   0.14264,
+   0.07436
+  ],
+  "maxRadiance": 21.667
+ },
+ "backdrop": {
+  "file": "assets-source/playroom/backdrop/backdrop-01.png",
+  "provider": "Higgsfield",
+  "cli": "higgsfield 1.2.2",
+  "model": "nano_banana_pro",
+  "jobId": "4f8509a2-cb92-4bcb-ab9c-d426fd138b04",
+  "jobStatus": "completed",
+  "createdAt": "2026-11-08T01:38:57Z",
+  "settings": {
+   "aspect_ratio": "16:9",
+   "resolution": "2k",
+   "batch_size": 1
+  },
+  "seed": "not exposed by provider",
+  "promptFile": "assets-source/playroom/backdrop/prompts/backdrop-01.txt",
+  "promptNote": "submitted with 'childs' for 'child's' (shell quoting); otherwise identical to the prompt file",
+  "negativePrompt": "none (negative guidance inline: no rug, lanterns, marbles, people, text, logos, watermark)",
+  "referenceImages": [],
+  "sourcePx": [
+   2752,
+   1536
+  ],
+  "runtimeDerivation": "ImageMagick resize to 1024x576, Gaussian blur sigma 3, RGBA8 sRGB KTX2, zstd 19, full mip chain (encode.sh)"
+ },
+ "generators": [
+  {
+   "path": "blender/playroom/rug.py",
+   "sha256": "79a792db68fbde3b5b4d502a95a4e619a4ff115a406e5140946361561fa2d009",
+   "bytes": 6191
+  },
+  {
+   "path": "blender/playroom/encode.sh",
+   "sha256": "1989df6803fdae8644f38075a6e06eb9ca2b24fa2fcbc25974738593ed3bc478",
+   "bytes": 1414
+  },
+  {
+   "path": "blender/playroom/blocks.py",
+   "sha256": "8edfce4668dc371dddf57e0055b4a1b968a5830fed1cb778e3fef73859f1bc29",
+   "bytes": 4691
+  },
+  {
+   "path": "blender/playroom/probe.py",
+   "sha256": "6e99a7a1e8a836c456c21039fb13d9e0a780c0c910bcda6b54f4470318651250",
+   "bytes": 11704
+  },
+  {
+   "path": "blender/playroom/provenance.py",
+   "sha256": "7ff1faa7c44aef42eeb99e7da98cb9b45bfa9b6ba151c8cee9057f9da61b3802",
+   "bytes": 5783
+  }
+ ],
+ "sources": [
+  {
+   "path": "assets-source/playroom/rug/rug.base_color.png",
+   "sha256": "da26d68ebc5101cbbcadfd8479b9eb6990b84af0084cc3be8f49943a6ce96288",
+   "bytes": 1962126
+  },
+  {
+   "path": "assets-source/playroom/rug/rug.normal.png",
+   "sha256": "874433b26cc723ede24fc00347dfd9a1e200a7dd01bd771bf0d4945727c518c0",
+   "bytes": 1530594
+  },
+  {
+   "path": "assets-source/playroom/rug/rug.height.png",
+   "sha256": "d1f055aaacbf0aa534fd6c0374060dae51a6c342c379335c9fdedbda0cb95113",
+   "bytes": 559583
+  },
+  {
+   "path": "assets-source/playroom/backdrop/backdrop-01.png",
+   "sha256": "812f199f3d58466d908719b052cb7eca8957a46aa1fc43f9803e20fda5c2a8a6",
+   "bytes": 5602939
+  },
+  {
+   "path": "assets-source/playroom/backdrop/prompts/backdrop-01.txt",
+   "sha256": "ba1b9c237223f568be86a85b6672ce1140b76469e085b2c4fb435a5b3c25c73d",
+   "bytes": 782
+  }
+ ],
+ "runtime": [
+  {
+   "path": "assets/playroom/layout.json",
+   "sha256": "e22a04976a5960870c75ce4732cd00a61d22e76529646f8398584feeb0bb4434",
+   "bytes": 2123
+  },
+  {
+   "path": "assets/playroom/rug.base_color.ktx2",
+   "sha256": "8d52434d10b757e05fad38e35475a51b3c2ed276e1ba2f696a8304279515f04f",
+   "bytes": 955757
+  },
+  {
+   "path": "assets/playroom/rug.normal.ktx2",
+   "sha256": "6f4f7407f9e5e5256db4cd73655215c339f3eaab9fbb4ff2da0046bccdaa039e",
+   "bytes": 161793
+  },
+  {
+   "path": "assets/playroom/backdrop.ktx2",
+   "sha256": "bc853e4cf9dbedce7814f5249039bbecac2644db676d6ae5a40312d592958ffa",
+   "bytes": 623999
+  },
+  {
+   "path": "assets/playroom/env_specular.rgba16f",
+   "sha256": "61492ff62fdf5b87e0247d1e0a520ce7a152fd2464033ad8a9eeedfefef187f4",
+   "bytes": 262128
+  },
+  {
+   "path": "assets/playroom/env_diffuse.rgba16f",
+   "sha256": "81f8668729a24c420f53dc50a9d61e4b96490e53bf374cb71dbb6a2f51d40f00",
+   "bytes": 12288
+  },
+  {
+   "path": "assets/playroom/env_probe.json",
+   "sha256": "d055037f9c69c95416d941586ed8f09bf13432365adae9e5ae2284a9c4259b25",
+   "bytes": 237
+  },
+  {
+   "path": "assets/playroom/toy_cube.glb",
+   "sha256": "49a00e16eb6d846a1ba569dd3601eca780eb37e26892da5782ecf1725bb2fa9e",
+   "bytes": 6916
+  },
+  {
+   "path": "assets/playroom/toy_brick.glb",
+   "sha256": "16087de0bd7b400209b475fe1c1225ea5318922dd068c0e662718a9be873e2ea",
+   "bytes": 6920
+  },
+  {
+   "path": "assets/playroom/toy_plank.glb",
+   "sha256": "aa3df52d85557d53a6b7d2940dfc9c62d55a1cf885fc5b546bb5b78937b5ad70",
+   "bytes": 6916
+  },
+  {
+   "path": "assets/playroom/toy_pillar.glb",
+   "sha256": "c123038954c2177c18da93244f2df5419c9e6b39cbcca7b84a197c133f22a08b",
+   "bytes": 15528
+  },
+  {
+   "path": "assets/playroom/toy_roof.glb",
+   "sha256": "35c75e16295d401b84220df2f8be224dac5fc03376f9cd7b4a4077238d79d4a1",
+   "bytes": 5448
+  },
+  {
+   "path": "assets/playroom/toy_arch.glb",
+   "sha256": "a38d455a781c586a885f0bc363df720f9a7d0ebc56104a54289436e07a5fb6c0",
+   "bytes": 24848
+  }
+ ],
+ "rights": "pending: generated on Paul's Higgsfield plus plan, commercial terms not verified; rug, blocks and probe are original scripted output",
+ "approval": "pending Paul's review against ref-07 and ref-08 (docs/shots/p1-t5-vs-ref07-ref08.png)"
+}

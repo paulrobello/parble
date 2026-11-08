@@ -1,0 +1,14 @@
+{
+ "specularSize": 64,
+ "specularLevels": 7,
+ "diffuseSize": 16,
+ "format": "rgba16float, layer-major (face, then mip)",
+ "renderSize": 128,
+ "samples": 64,
+ "meanRadiance": [
+  0.19115,
+  0.14264,
+  0.07436
+ ],
+ "maxRadiance": 21.667
+}
