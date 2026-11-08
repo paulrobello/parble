@@ -496,22 +496,42 @@ fn redirect_exit(level: u8) -> (f32, f32) {
     (upward(&tr, &sel), kick(&tr, &sel))
 }
 
+/// The redirect exit's `(upward, kick)` limits, mm/s: the measured values with the exit port
+/// face open, rounded up, as the seam thresholds are not met there (see
+/// `redirect_exit_seam_stays_under_its_measured_limits`).
+const REDIRECT_EXIT_LIMITS_MM_S: (f32, f32) = (110.0, 106.0);
+
 #[test]
-fn redirect_exit_seam_metrics() {
+fn redirect_exit_seam_stays_under_its_measured_limits() {
     // In a full run (straight → redirect → straights) the marble falls about 50 mm down the
     // shaft, bounces three times on the landing and crosses the exit seam in flight (279 mm/s
     // up, kick 0.40 in the seam window, measured 2026-11-07): that is the landing, not the seam.
-    // The seam itself is measured with a marble already rolling on the tunnel floor. Logged, not
-    // gated: measured 2026-11-08, `L3` upward 111.24 mm/s, kick 105.41 (`L2` 110.03, 104.96)
-    // against 15.15 / 24.25. The redirect still carries its exit port cap (kitblocks.py
-    // `_open_port_faces`), so its tunnel exit bumps and is open work.
+    // The seam itself is measured with a marble already rolling on the tunnel floor.
+    //
+    // Not under the seam thresholds (15.15 / 24.25). Measured 2026-11-08 with the exit port face
+    // open (kitblocks `_open_redirect_exit`): `L3` upward 108.42 mm/s, kick 104.16 (`L2` 108.96,
+    // 104.27), against 111.24 / 105.41 (`L2` 110.03 / 104.96) with the cap. The cap was not the
+    // cause. The marble hops down the tunnel's descending landing floor, which has no exact
+    // contact (8 flat path facets, as the gentle slope before `ChannelSlope`), and lands at the
+    // seam: vertical speed −59 to +108 mm/s in one tick at x = 90.5 mm, then −55 to +38 mm/s
+    // 6 mm into the straight. Meeting the thresholds needs an exact contact for the landing floor
+    // (a smoothstep of 15 mm over 47 mm under the shaft), which also changes how a dropped marble
+    // lands, so the run-out speed band (`kit_pieces_test`) has to be re-measured with it. Gated
+    // at REDIRECT_EXIT_LIMITS_MM_S as a regression guard; no negative control, as nothing here
+    // was fixed.
+    let (u_lim, k_lim) = REDIRECT_EXIT_LIMITS_MM_S;
     for level in [3_u8, 2] {
-        let (p_lim, k_lim) = limits(level);
+        let (p_lim, k_seam) = limits(level);
         let (u, k) = redirect_exit(level);
         eprintln!(
-            "redirect_l{level} exit seam: upward {u:.2} mm/s (limit {p_lim:.2}), kick {k:.2} \
-             (limit {k_lim:.2})"
+            "redirect_l{level} exit seam: upward {u:.2} mm/s (seam limit {p_lim:.2}, gated \
+             {u_lim:.2}), kick {k:.2} (seam limit {k_seam:.2}, gated {k_lim:.2})"
         );
+        assert!(
+            u <= u_lim,
+            "redirect_l{level}: upward {u:.2} over {u_lim:.2}"
+        );
+        assert!(k <= k_lim, "redirect_l{level}: kick {k:.2} over {k_lim:.2}");
     }
 }
 

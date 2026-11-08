@@ -20,6 +20,13 @@ import re
 import kitgeom as K
 
 PIECE_VERSION = 1
+# Pieces whose geometry changed since version 1 (contract §10: the id stays, the version bumps).
+# 2026-11-08: blk_redirect_l3 and blk_redirect_l2 2, exit port face opened.
+PIECE_VERSIONS = {"blk_redirect_l3": 2, "blk_redirect_l2": 2}
+
+
+def piece_version(piece_id):
+    return PIECE_VERSIONS.get(piece_id, PIECE_VERSION)
 
 # kitgeom shapes at other levels: the L2 set follows blk_slope_gentle_l3's L2 exit, and
 # blk_straight_l1 follows the L1 exits of blk_slope_gentle_l2 and blk_slope_steep_l3.
@@ -413,10 +420,7 @@ def _open_port_faces(piece_id, verts, tris):
     dropped, the rest keep their order."""
     faces = []
     if sp_shape(piece_id) == "redirect":
-        # Not yet: its 2-cell faces are single polygons across both cells and its exit tunnel
-        # ring crosses the cell boundary, so the exit cap cannot be dropped without splitting the
-        # body (tried 2026-11-08: the split cost the run-out its exit speed band).
-        return verts, tris
+        return _open_redirect_exit(piece_id, verts, tris)
     for p in spec(piece_id)["ports"]:
         if p["kind"] == "side" and p["class"] == "channel":
             ax, plane, _, _ = _expected_rings(p)
@@ -433,6 +437,80 @@ def _open_port_faces(piece_id, verts, tris):
     used = sorted({i for t in kept for i in t})
     new = {old: k for k, old in enumerate(used)}
     return [verts[i] for i in used], [tuple(new[i] for i in t) for t in kept]
+
+
+def _ear_clip(poly):
+    """Triangles [(i, j, k)] of a simple 2D polygon [(u, v)] in either winding, by ear clipping."""
+    n = len(poly)
+    area = sum(poly[i][0] * poly[(i + 1) % n][1] - poly[(i + 1) % n][0] * poly[i][1] for i in range(n))
+    sign = 1 if area > 0 else -1
+    idx = list(range(n))
+
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+    def inside(pt, a, b, c):
+        d = [cross(a, b, pt), cross(b, c, pt), cross(c, a, pt)]
+        return all(x * sign >= 0 for x in d)
+
+    out = []
+    while len(idx) > 3:
+        for k in range(len(idx)):
+            i, j, m = idx[k - 1], idx[k], idx[(k + 1) % len(idx)]
+            a, b, c = poly[i], poly[j], poly[m]
+            if cross(a, b, c) * sign <= 0:
+                continue
+            if any(inside(poly[q], a, b, c) for q in idx if q not in (i, j, m)):
+                continue
+            out.append((i, j, m))
+            idx.pop(k)
+            break
+        else:
+            raise RuntimeError("ear clipping: no ear")
+    out.append(tuple(idx))
+    return out
+
+
+def _open_redirect_exit(piece_id, verts, tris):
+    """Open the redirect's exit port face (§5.4). Its +x face is one polygon across both cells
+    with the tunnel ring cut out of it, and the ring reaches 19 mm above the cell boundary, so the
+    face is rebuilt rather than split: every triangle in the plane is dropped and the part of the
+    face above the exit cell is re-triangulated (ear clipping, integer µm) as the upper cell's
+    square minus the ring's arch. Its lower edge runs from each upper corner of the exit cell to
+    the foot of the ring's straight wall (1 mm below the cell top), so no vertex is added on the
+    port ring and the tunnel and the landing are untouched. Unused vertices are dropped, the rest
+    keep their order; new vertices follow them."""
+    p = next(q for q in spec(piece_id)["ports"] if q["kind"] == "side" and q["cell"][1] == -1)
+    ax, plane, _, tunnel = _expected_rings(p)
+    top = p["cell"][1] * 60000 + 60000
+    floor = p["cell"][1] * 60000 + 15000 * p["level"]
+    centre = floor + 14000
+    on_plane = [t for t in tris if all(verts[i][ax] == plane for i in t)]
+    out = sorted({1 if (lambda a, b, c: (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]))(
+        *(verts[i] for i in t)) > 0 else -1 for t in on_plane})
+    if ax != 0 or len(out) != 1:
+        raise RuntimeError(f"{piece_id}: exit face triangles are not one plane facing one way: {out}")
+    arch = sorted(((u, v) for u, v in tunnel if v >= centre),
+                  key=lambda q: -math.atan2(q[1] - centre, q[0]))
+    poly = [(-30000, top)] + arch + [(30000, top), (30000, 60000), (-30000, 60000)]
+    kept = [t for t in tris if t not in on_plane]
+    used = sorted({i for t in kept for i in t} | {i for i, v in enumerate(verts) if v[ax] == plane and (v[2], v[1]) in arch})
+    new = {old: k for k, old in enumerate(used)}
+    nv = [verts[i] for i in used]
+    at = {(v[2], v[1]): k for k, v in enumerate(nv) if v[ax] == plane}
+    poly_idx = []
+    for u, v in poly:
+        if (u, v) not in at:
+            at[(u, v)] = len(nv)
+            nv.append((plane, v, u))
+        poly_idx.append(at[(u, v)])
+    nt = [tuple(new[i] for i in t) for t in kept]
+    for a, b, c in _ear_clip(poly):
+        t = (poly_idx[a], poly_idx[b], poly_idx[c])
+        va, vb, vc = (nv[i] for i in t)
+        n_x = (vb[1] - va[1]) * (vc[2] - va[2]) - (vb[2] - va[2]) * (vc[1] - va[1])
+        nt.append(t if (1 if n_x > 0 else -1) == out[0] else (t[0], t[2], t[1]))
+    return nv, nt
 
 
 def collision_mesh(piece_id):
@@ -489,7 +567,7 @@ def sidecar(piece_id):
         "footprint": sorted(sp["footprint"]),
         "id": piece_id,
         "kit_contract": K.KIT_CONTRACT_VERSION,
-        "piece_version": PIECE_VERSION,
+        "piece_version": piece_version(piece_id),
         "ports": sp["ports"],
         "schema": K.SIDECAR_SCHEMA,
         "sensors": [],
