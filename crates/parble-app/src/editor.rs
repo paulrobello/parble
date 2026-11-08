@@ -502,6 +502,8 @@ struct EditState {
     pending: Option<EditTiming>,
     pending_is_fill: bool,
     marks_key: Option<(u64, usize)>,
+    /// [`SimClock::restarts`] this state is synced to.
+    restarts: u64,
 }
 
 fn palette() -> Vec<&'static str> {
@@ -573,7 +575,49 @@ impl EditState {
             pending: None,
             pending_is_fill: false,
             marks_key: None,
+            restarts: 0,
         }
+    }
+
+    /// Start over on `track`, the track a bridge `loadTrack` or `runTrack` restarted the live sim
+    /// on: its placements become the editor's, with an empty selection and no undo or redo
+    /// history. The sim already holds their colliders, so only the maps and the render chunks
+    /// change.
+    fn adopt(&mut self, track: Track, edits: &mut KitEdits) {
+        for ch in std::mem::take(&mut self.by_chunk).into_keys() {
+            edits.pending.insert(ch, Vec::new());
+        }
+        self.by_anchor.clear();
+        self.occupancy.clear();
+        self.editor = Editor::new(track);
+        let track = self.editor.track();
+        self.index_of = (0u32..)
+            .zip(&track.placements)
+            .map(|(i, p)| (p.anchor, i))
+            .collect();
+        for p in &track.placements {
+            if let Some(def) = self.kit.get(&p.piece) {
+                for c in p.world_cells(def) {
+                    self.occupancy.insert(c, p.anchor);
+                }
+            }
+            self.by_chunk
+                .entry(chunk_of_cell(ivec(p.anchor)))
+                .or_default()
+                .insert(p.anchor);
+            self.by_anchor.insert(p.anchor, p.clone());
+        }
+        for (ch, set) in &self.by_chunk {
+            let pieces = set
+                .iter()
+                .filter_map(|a| edit_piece(&self.by_anchor[a]))
+                .collect();
+            edits.pending.insert(*ch, pieces);
+        }
+        self.press = None;
+        self.dragging = false;
+        self.pending = None;
+        self.pending_is_fill = false;
     }
 
     fn visible(&self, anchor: CellCoord) -> bool {
@@ -1234,6 +1278,17 @@ fn apply_actions(
     mut editor_cam: ResMut<EditorCamera>,
     cams: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
 ) {
+    if st.restarts != clock.restarts {
+        st.restarts = clock.restarts;
+        let track = clock
+            .tracks
+            .loaded
+            .as_ref()
+            .map_or_else(|| Track::new(0), |f| f.track.clone());
+        st.adopt(track, &mut edits);
+        // The ghost and selection marks are keyed on the edit count.
+        diag.edits += 1;
+    }
     let mut actions: Vec<_> = inbox().drain(..).collect();
     // The frame's mouse and key actions (no id) first, so `last` ends on the agent's action.
     actions.sort_by_key(|(id, _)| id.is_some());
@@ -1565,6 +1620,66 @@ mod tests {
             .map(|p| chunk_of_cell(ivec(p.anchor)))
             .collect();
         assert!(chunks.len() >= 35, "{} chunks", chunks.len());
+    }
+
+    #[test]
+    fn a_loaded_track_replaces_the_pieces_selection_and_history() {
+        let mut st = EditState::new();
+        let mut edits = KitEdits::default();
+        // Before the load: an edited track with history and a selection, its chunks drawn.
+        st.adopt(Track::new(0), &mut edits);
+        st.editor
+            .apply(
+                st.kit,
+                EditCommand::PasteGroup {
+                    placements: fill_layout(120),
+                    offset: CellCoord::ORIGIN,
+                },
+            )
+            .unwrap();
+        let before: Track = st.editor.track().clone();
+        st.adopt(before, &mut edits);
+        st.editor
+            .apply(st.kit, EditCommand::Place(st.placement_at(c(0, 3, 0))))
+            .unwrap();
+        st.editor.selection = st.selection_for([c(0, 0, -5), c(1, 0, -5)]);
+        assert!(st.editor.can_undo());
+        assert_eq!(st.editor.selection.len(), 2);
+        let old_chunks: BTreeSet<[i32; 3]> = st.by_chunk.keys().copied().collect();
+        edits.pending.clear();
+
+        let mut loaded = Track::new(0);
+        loaded.placements = vec![
+            Placement::new(pid(0), c(40, 0, 10), Yaw4::new(0), Mirror::Off),
+            Placement::new(pid(1), c(41, 0, 10), Yaw4::new(1), Mirror::On),
+        ];
+        st.adopt(loaded.clone(), &mut edits);
+
+        assert_eq!(st.editor.track(), &loaded);
+        assert!(!st.editor.can_undo() && !st.editor.can_redo());
+        assert!(st.editor.selection.is_empty());
+        assert_eq!(
+            st.by_anchor.keys().copied().collect::<Vec<_>>(),
+            [c(40, 0, 10), c(41, 0, 10)]
+        );
+        assert_eq!(st.occupant(c(41, 0, 10)), Some(c(41, 0, 10)));
+        assert_eq!(st.occupant(c(0, 0, -5)), None);
+        assert_eq!(st.index_of[&c(41, 0, 10)], 1);
+        // Every old chunk is cleared and the loaded track's chunk drawn, mirror included.
+        let new_chunk = chunk_of_cell(IVec3::new(40, 0, 10));
+        for ch in &old_chunks {
+            assert_eq!(edits.pending.get(ch), Some(&Vec::new()), "chunk {ch:?}");
+        }
+        assert_eq!(
+            edits.pending[&new_chunk],
+            loaded
+                .placements
+                .iter()
+                .filter_map(edit_piece)
+                .collect::<Vec<_>>()
+        );
+        assert!(edits.pending[&new_chunk][1].mirror);
+        assert_eq!(edits.pending.len(), old_chunks.len() + 1);
     }
 
     #[test]

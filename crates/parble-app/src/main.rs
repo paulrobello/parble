@@ -48,6 +48,9 @@ struct SimClock {
     runs: u32,
     /// Trajectory hash of the last completed run (exactly [`SimClock::run_ticks`] ticks).
     last_run_hash: Option<u64>,
+    /// Bridge restarts ([`SimClock::restart`]) so far. The editor resyncs to the restarted sim's
+    /// track when it changes.
+    restarts: u64,
 }
 
 fn main() {
@@ -101,6 +104,7 @@ fn main() {
             acc: 0.0,
             runs: 0,
             last_run_hash: None,
+            restarts: 0,
         })
         .add_systems(Startup, (spawn_camera, publish_initial, announce_bridge))
         .add_systems(Update, (advance_sim, pump_bridge).chain())
@@ -218,11 +222,12 @@ fn announce_bridge() {
 }
 
 impl SimClock {
-    /// Ticks in one run: a loaded track's 10 s, or the scenario's [`Scenario::run_ticks`].
+    /// Ticks in one run: a loaded track's 10 s, or the scenario's [`Scenario::run_ticks`]. The
+    /// editor never restarts, loaded track or not, so its edits keep their incremental colliders.
     fn run_ticks(&self) -> u32 {
         match &self.tracks.loaded {
-            Some(_) => RAMP_10S_TICKS,
-            None => self.scenario.run_ticks(),
+            Some(_) if self.scenario != Scenario::Editor => RAMP_10S_TICKS,
+            _ => self.scenario.run_ticks(),
         }
     }
 
@@ -240,6 +245,7 @@ impl SimClock {
         self.acc = 0.0;
         self.runs = 0;
         self.last_run_hash = None;
+        self.restarts += 1;
         let now = self.sim.marbles();
         frame.prev = now.clone();
         frame.curr = now;
@@ -364,6 +370,32 @@ mod tests {
         // 2,400 ticks is a whole number of lockstep frames, so a run still ends on the golden hash.
         assert_eq!(RAMP_10S_TICKS % LOCKSTEP_TICKS, 0);
         assert_eq!(Scenario::Playroom.run_ticks() % LOCKSTEP_TICKS, 0);
+    }
+
+    #[test]
+    fn a_loaded_track_restarts_every_10_s_except_in_the_editor() {
+        let fixtures: serde_json::Value =
+            serde_json::from_str(include_str!("../../../web/ui/src/parble-fixtures.json")).unwrap();
+        let file = parble_core::file::load(&fixtures["valid"][1]["file"].to_string()).unwrap();
+        let clock = |scenario: Scenario| SimClock {
+            sim: TrackRun::new(&file.track).unwrap(),
+            scenario,
+            tracks: Tracks {
+                loaded: Some(file.clone()),
+                last_run: None,
+            },
+            marble: None,
+            marble_size: MarbleSize::Standard,
+            acc: 0.0,
+            runs: 0,
+            last_run_hash: None,
+            restarts: 0,
+        };
+        assert_eq!(clock(Scenario::Ramp).run_ticks(), RAMP_10S_TICKS);
+        assert_eq!(clock(Scenario::Editor).run_ticks(), u32::MAX);
+        let mut c = clock(Scenario::Editor);
+        c.restart(&mut MarbleFrame::default());
+        assert_eq!(c.restarts, 1);
     }
 
     #[test]

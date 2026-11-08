@@ -4,7 +4,10 @@
 // slicing (state, picking and pixels), box select by mouse drag and by cell box, a move-group drag,
 // undo/redo and the delete tool. Actions and pixel projections go through
 // window.wasmBindings.parbleEdit; state comes from window.__parble.editor.
+import { readFileSync, writeFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
+
+const FIXTURES = JSON.parse(readFileSync(new URL("../../web/ui/src/parble-fixtures.json", import.meta.url), "utf8"));
 
 const BAD_TEXT = (t) => /%cERROR%c|\bERROR\b/.test(t) || /uncaptured|invalid|validation|panicked/i.test(t);
 const PALETTE = ["blk_straight_l3", "blk_curve90_l3", "blk_slope_gentle_l3", "blk_end_l3"];
@@ -247,4 +250,152 @@ test("editor: ghost, picking, slicing, box select and move drag over 50 placed p
   console.log(`final: ${JSON.stringify({ pieces: s.pieces, edits: s.edits, stats: s.stats })}`);
   expect(errors).toEqual([]);
   expect(same(s.palette, PALETTE)).toBe(true);
+});
+
+/// Mean (r, g, b) of each image and their mean absolute per-channel difference.
+async function compare(page, a, b) {
+  return page.evaluate(async ([a, b]) => {
+    const data = async (b64) => {
+      const img = new Image();
+      img.src = `data:image/png;base64,${b64}`;
+      await img.decode();
+      const c = new OffscreenCanvas(img.width, img.height);
+      const g = c.getContext("2d");
+      g.drawImage(img, 0, 0);
+      return g.getImageData(0, 0, img.width, img.height).data;
+    };
+    const [da, db] = [await data(a), await data(b)];
+    const mean = (d) => {
+      const s = [0, 0, 0];
+      for (let i = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) s[k] += d[i + k];
+      return s.map((v) => v / (d.length / 4));
+    };
+    let diff = 0;
+    for (let i = 0; i < da.length; i += 4) for (let k = 0; k < 3; k++) diff += Math.abs(da[i + k] - db[i + k]);
+    return { a: mean(da), b: mean(db), diff: diff / ((da.length / 4) * 3) };
+  }, [a.toString("base64"), b.toString("base64")]);
+}
+
+async function openEditor(page) {
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error" || BAD_TEXT(m.text())) errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.goto("/?scenario=editor&quality=low");
+  await page.waitForFunction(() => window.__parble?.ready === true && window.__parble.editor && window.__parble.frame > 10, null, {
+    timeout: 60_000,
+  });
+  return { errors, box: await page.locator("canvas#parble").boundingBox() };
+}
+
+test("editor: a mirrored curve renders lit like the unmirrored curve it equals", async ({ page }) => {
+  const { errors, box } = await openEditor(page);
+  const cell = [7, 0, -7];
+  // Oblique and close over the cell, so the channel floor and walls both show.
+  await edit(page, { op: "camera", target: [0.45, 0.02, -0.39], yaw: 0.6, pitch: 0.9, radius: 0.35 });
+  await frames(page, 3);
+  const faces = async (yaw, mirror) => {
+    await edit(page, { op: "brush", piece: "blk_curve90_l3", yaw, mirror });
+    await edit(page, { op: "hoverCell", cell });
+    await frames(page);
+    return (await state(page)).hover.ports.map((p) => `${p.cell}:${p.face}`).sort().join(" ");
+  };
+  // The unmirrored yaw whose ports sit on the mirrored curve's faces: the same shape.
+  const want = await faces(0, true);
+  let yaw = -1;
+  for (let k = 0; k < 4 && yaw < 0; k++) if ((await faces(k, false)) === want) yaw = k;
+  console.log(`mirrored curve ports ${want}; unmirrored equivalent yaw ${yaw}`);
+  expect(yaw).toBeGreaterThanOrEqual(0);
+  await edit(page, { op: "unhover" });
+  await page.mouse.move(box.x + 5, box.y + 5);
+
+  // The same cell for both, so the wood variant, LOD and light are the same.
+  const [c, nx] = await project(page, box, [cell, [cell[0] + 1, cell[1], cell[2]]]);
+  const span = Math.max(Math.hypot(nx.centre[0] - c.centre[0], nx.centre[1] - c.centre[1]), 40);
+  const clip = { x: c.centre[0] - span * 0.45, y: c.centre[1] - span * 0.45, width: span * 0.9, height: span * 0.9 };
+  const shot = async () => {
+    await page.waitForFunction(() => window.__parble.editor.dirtyColliderChunks === 0);
+    await frames(page, 6);
+    return page.screenshot({ clip });
+  };
+  const empty = await shot();
+  expect((await edit(page, { op: "place", piece: "blk_curve90_l3", cell, yaw: 0, mirror: true })).ok).toBe(true);
+  const mirrored = await shot();
+  await edit(page, { op: "undo" });
+  expect((await edit(page, { op: "place", piece: "blk_curve90_l3", cell, yaw, mirror: false })).ok).toBe(true);
+  const plain = await shot();
+  for (const [name, png] of Object.entries({ empty, mirrored, plain })) writeFileSync(test.info().outputPath(`${name}.png`), png);
+  const same = await compare(page, mirrored, plain);
+  const vsEmpty = await compare(page, plain, empty);
+  console.log(
+    `clip ${JSON.stringify(Object.values(clip).map(Math.round))}: mirrored ${same.a.map(Math.round)} vs unmirrored ` +
+      `${same.b.map(Math.round)}, diff ${same.diff.toFixed(1)}; unmirrored vs empty floor diff ${vsEmpty.diff.toFixed(1)}`,
+  );
+  // The piece shows (the clip is not bare floor), and the mirror is drawn outside-out like it.
+  expect(vsEmpty.diff).toBeGreaterThan(15);
+  expect(same.diff).toBeLessThan(vsEmpty.diff * 0.25);
+  expect(errors).toEqual([]);
+});
+
+test("editor: loadTrack and runTrack start the editor over on the loaded track", async ({ page }) => {
+  const { errors } = await openEditor(page);
+  const panel = page.locator("#parble-files");
+  // Edits with history and a selection before the load.
+  for (const [x, piece] of [[0, "blk_straight_l3"], [1, "blk_straight_l3"], [2, "blk_curve90_l3"]]) {
+    expect((await edit(page, { op: "place", piece, cell: [x, 0, -6], yaw: 1 })).ok).toBe(true);
+  }
+  await edit(page, { op: "boxSelect", a: [0, 0, -6], b: [1, 0, -6] });
+  let s = await state(page);
+  expect([s.pieces, s.selection, s.canUndo]).toEqual([3, 2, true]);
+
+  const placements = [
+    { piece: "blk_straight_l3", anchor: [10, 0, -10], yaw: 1, mirror: false },
+    { piece: "blk_straight_l3", anchor: [11, 0, -10], yaw: 1, mirror: false },
+    { piece: "blk_curve90_l3", anchor: [12, 0, -10], yaw: 0, mirror: true },
+    { piece: "blk_end_l3", anchor: [9, 0, -10], yaw: 3, mirror: false },
+  ];
+  const file = { ...FIXTURES.valid[1].file, placements, metadata: { name: "Editor resync" } };
+  await page.locator("#parble-import").setInputFiles({
+    name: "resync.parble",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(file)),
+  });
+  await expect(panel).toHaveAttribute("data-track", "Editor resync");
+  await page.waitForFunction(() => window.__parble.editor.pieces === 4 && window.__parble.kit.edit?.pieces === 4, null, {
+    timeout: 10_000,
+  });
+  await frames(page, 3);
+  s = await state(page);
+  console.log(
+    `after loadTrack: ${JSON.stringify({ pieces: s.pieces, selection: s.selection, canUndo: s.canUndo, canRedo: s.canRedo, colliders: s.colliderChunks })}`,
+  );
+  expect([s.selection, s.canUndo, s.canRedo]).toEqual([0, false, false]);
+  expect(s.dirtyColliderChunks).toBe(0);
+  expect(s.colliderChunks).toBeGreaterThan(0);
+  // The loaded pieces are the editor's: an occupied cell refuses the ghost, an old one takes it,
+  // and a new piece is edited into the live sim incrementally.
+  await edit(page, { op: "hoverCell", cell: [10, 0, -10] });
+  await frames(page);
+  expect((await state(page)).hover.valid).toBe(false);
+  await edit(page, { op: "hoverCell", cell: [0, 0, -6] });
+  await frames(page);
+  expect((await state(page)).hover.valid).toBe(true);
+  await edit(page, { op: "unhover" });
+  expect((await edit(page, { op: "place", piece: "blk_straight_l3", cell: [13, 0, -11], yaw: 0 })).ok).toBe(true);
+  await page.waitForFunction(() => window.__parble.editor.dirtyColliderChunks === 0);
+  s = await state(page);
+  expect([s.pieces, s.canUndo]).toEqual([5, true]);
+  expect((await page.evaluate(() => window.__parble.kit.edit)).pieces).toBe(5);
+
+  // runTrack restarts the live sim on the loaded file, so the editor starts over on it again.
+  await page.locator("#parble-run").click();
+  await expect(panel).toHaveAttribute("data-run-hash", /^[0-9a-f]{16}$/, { timeout: 30_000 });
+  await page.waitForFunction(() => window.__parble.editor.pieces === 4 && !window.__parble.editor.canUndo, null, {
+    timeout: 10_000,
+  });
+  await frames(page, 3);
+  s = await state(page);
+  expect((await page.evaluate(() => window.__parble.kit.edit)).pieces).toBe(4);
+  expect(s.dirtyColliderChunks).toBe(0);
+  expect(await panel.getAttribute("data-error")).toBe("");
+  expect(errors).toEqual([]);
 });
