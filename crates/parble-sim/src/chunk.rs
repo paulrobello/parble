@@ -21,13 +21,16 @@
 //! - at a chunk boundary, where the next chunk is a separate collider, the [`PhysicsHooks`] impl
 //!   replaces a contact on a stitched boundary edge or vertex with the triangle's plane contact.
 //!
+//! In a 90° bend the same hook replaces facet contacts with one contact against the exact channel
+//! tube ([`ChannelBend`]), since the faceted tube chatters under the marble's outward load.
+//!
 //! [`ChunkColliders`] is the incremental API: insert or remove placements, then
 //! [`ChunkColliders::rebuild`] replaces the collider of each dirty chunk, in chunk order.
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use parble_core::contract::{CELL_UM, CHUNK_CELLS, CHUNK_UM, HALF_CELL_UM};
-use parble_core::{CellCoord, Mirror, Orientation, PieceId, Placement, PortFace};
+use parble_core::contract::{CELL_UM, CHANNEL_RADIUS_UM, CHUNK_CELLS, CHUNK_UM, HALF_CELL_UM};
+use parble_core::{CellCoord, Mirror, Orientation, PieceId, Placement, PortClass, PortFace};
 use parble_kit::{KitCatalog, KitPiece};
 use rapier3d::prelude::*;
 
@@ -166,7 +169,163 @@ pub struct ChunkMesh {
     /// piece in another chunk, and bit `3 + i` when vertex `t[i]` ends such an edge (see
     /// [`ChunkColliders`]). Empty for meshes built outside a chunk.
     pub stitched: Vec<u8>,
+    /// Channel bends of the chunk's placements (see [`ChannelBend`]).
+    pub bends: Vec<ChannelBend>,
+    /// Per triangle, `k + 1` when it lies on the channel tube of `bends[k]` (or its straight
+    /// continuation), with [`IN_BEND_CELL`] set when it also lies in the bend's cell, else 0.
+    /// Empty for meshes built outside a chunk.
+    pub bend_of: Vec<u32>,
 }
+
+/// [`ChunkMesh::bend_of`] flag: the triangle lies in its bend's cell.
+pub const IN_BEND_CELL: u32 = 1 << 31;
+
+/// A 90° channel bend in one cell: the channel half-round (radius
+/// [`CHANNEL_RADIUS_UM`]) swept about a horizontal quarter circle of radius half a cell
+/// (contract §9, §10: block curve centreline radius 30 mm about the cell corner).
+///
+/// The sidecar samples that tube with flat facets (8 path × 16 round segments). A marble in a bend
+/// presses outward and touches several facets at once whose normals lean up to 20° from the
+/// surface normal; the solver answers with a per-tick vertical chatter of 50–65 mm/s against
+/// 30–40 mm/s on the smooth tube, and finer sampling does not help (16, 32 and 64 path segments
+/// peak at 81, 117 and 109 mm/s, measured 2026-11-07 in `seam_test`). The contact hook therefore
+/// replaces a contact on a bend's tube triangle with the contact against the exact tube.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ChannelBend {
+    /// World µm `(x, z)` of the quarter circle's centre (the cell corner).
+    pub centre_um: [i64; 2],
+    /// World µm height of the tube axis (channel floor + channel radius).
+    pub axis_y_um: i64,
+    /// World µm `(min x, min z)` of the bend's cell.
+    pub cell_min_um: [i64; 2],
+}
+
+impl ChannelBend {
+    /// The bend of a 1-cell piece whose two channel ports sit on adjacent side faces at one level.
+    fn of(piece: &KitPiece, p: &Placement) -> Option<Self> {
+        let def = &piece.def;
+        let [a, b] = def.ports.as_slice() else {
+            return None;
+        };
+        let level = a.level?;
+        let side = |f: PortFace| !matches!(f, PortFace::Top | PortFace::Bottom);
+        let (na, nb) = (a.face.normal(), b.face.normal());
+        if def.footprint.len() != 1
+            || a.class != PortClass::Channel
+            || b.class != PortClass::Channel
+            || b.level != Some(level)
+            || !side(a.face)
+            || !side(b.face)
+            || na.x * nb.x + na.z * nb.z != 0
+        {
+            return None;
+        }
+        let half = HALF_CELL_UM;
+        let local = [
+            (na.x + nb.x) * half,
+            level.floor_um() + CHANNEL_RADIUS_UM,
+            (na.z + nb.z) * half,
+        ];
+        let c = place_point_um(p.orientation(), p.anchor, local);
+        let cell = i64::from(CELL_UM);
+        Some(Self {
+            centre_um: [c[0], c[2]],
+            axis_y_um: c[1],
+            cell_min_um: [
+                cell * i64::from(p.anchor.x) - i64::from(half),
+                cell * i64::from(p.anchor.z) - i64::from(half),
+            ],
+        })
+    }
+
+    /// The side `(sx, sz)` of the centre the bend's cell lies on.
+    fn sides(&self) -> (i64, i64) {
+        let half = i64::from(HALF_CELL_UM);
+        let s = |min: i64, centre: i64| if min + half > centre { 1 } else { -1 };
+        (
+            s(self.cell_min_um[0], self.centre_um[0]),
+            s(self.cell_min_um[1], self.centre_um[1]),
+        )
+    }
+
+    /// The world axis (0 for x, 2 for z) of the straight continuation a ball centre lies beside,
+    /// or `None` inside the bend's quadrant.
+    fn continuation_axis(&self, c: Vector) -> Option<usize> {
+        let (sx, sz) = self.sides();
+        let m = |v: i64| v as f32 * 1.0e-6;
+        if (c.x - m(self.centre_um[0])) * (sx as f32) < 0.0 {
+            Some(0)
+        } else if (c.z - m(self.centre_um[1])) * (sz as f32) < 0.0 {
+            Some(2)
+        } else {
+            None
+        }
+    }
+
+    /// Whether a world µm plan point lies in the bend's cell.
+    fn contains(&self, x: i64, z: i64) -> bool {
+        let cell = i64::from(CELL_UM);
+        (self.cell_min_um[0]..=self.cell_min_um[0] + cell).contains(&x)
+            && (self.cell_min_um[1]..=self.cell_min_um[1] + cell).contains(&z)
+    }
+
+    /// Whether a world µm vertex lies on the bend's tube or on its straight continuation past
+    /// either port (the half-round of a mating straight). The sidecar rounds every coordinate to
+    /// 1 µm, so a tube vertex is within 2 µm of the exact tube.
+    fn holds(&self, v: [i64; 3]) -> bool {
+        let (sx, sz) = self.sides();
+        let (dx, dz) = (v[0] - self.centre_um[0], v[2] - self.centre_um[1]);
+        let half = f64::from(HALF_CELL_UM);
+        let rho = if dx * sx < 0 {
+            (dz * sz) as f64 - half
+        } else if dz * sz < 0 {
+            (dx * sx) as f64 - half
+        } else {
+            libm::sqrt((dx * dx + dz * dz) as f64) - half
+        };
+        let dy = (v[1] - self.axis_y_um) as f64;
+        (libm::sqrt(rho * rho + dy * dy) - f64::from(CHANNEL_RADIUS_UM)).abs() <= 2.0
+    }
+
+    /// The contact of a ball (centre `c`, radius `r`, metres) with the exact tube: the normal from
+    /// the tube wall toward the ball and the gap (negative when penetrating). Past a port the
+    /// tube continues straight, as the mating straight does, so a ball leaving the bend while
+    /// still touching a bend triangle sees no torus curving away under it.
+    fn contact(&self, c: Vector, r: f32) -> Option<(Vector, f32)> {
+        let m = |v: i64| v as f32 * 1.0e-6;
+        let (cx, cz, ay) = (
+            m(self.centre_um[0]),
+            m(self.centre_um[1]),
+            m(self.axis_y_um),
+        );
+        let bend_r = m(i64::from(HALF_CELL_UM));
+        let (sx, sz) = self.sides();
+        let (sx, sz) = (sx as f32, sz as f32);
+        let plan = Vector::new(c.x - cx, 0.0, c.z - cz);
+        let axis = if plan.x * sx < 0.0 {
+            Vector::new(c.x, ay, cz + sz * bend_r)
+        } else if plan.z * sz < 0.0 {
+            Vector::new(cx + sx * bend_r, ay, c.z)
+        } else {
+            let d = plan.length();
+            if d <= 0.0 {
+                return None;
+            }
+            Vector::new(cx, ay, cz) + plan * (bend_r / d)
+        };
+        let off = (axis - c).length();
+        if off <= 0.0 {
+            return None;
+        }
+        Some(((axis - c) / off, FACET_TUBE_RADIUS_M - r - off))
+    }
+}
+
+/// Tube radius of the exact bend contact, metres: the distance from the channel axis to the
+/// midline of a collision facet, 14 mm × cos(5.625°) for the contract's 16 half-round segments
+/// (§5.4). A marble on a straight rests on the two facets beside the bottom crease at their
+/// midlines, so where it passes from facet contacts to the exact tube the floor does not move.
+const FACET_TUBE_RADIUS_M: f32 = 0.013_932_586;
 
 impl ChunkMesh {
     /// Append triangles, welding vertices on exact µm equality. Triangles that collapse are skipped.
@@ -332,6 +491,25 @@ impl ChunkMesh {
         self.vertices_um = vertices;
         self.triangles = triangles;
         self.stitched.clear();
+        self.bend_of.clear();
+    }
+
+    /// Tag every triangle whose three vertices lie on one of [`Self::bends`]' tubes.
+    fn mark_bends(&mut self) {
+        self.bend_of = self
+            .triangles
+            .iter()
+            .map(|t| {
+                let vs = t.map(|v| self.vertices_um[v as usize]);
+                self.bends
+                    .iter()
+                    .position(|b| vs.iter().all(|&v| b.holds(v)))
+                    .map_or(0, |k| {
+                        let inside = vs.iter().all(|v| self.bends[k].contains(v[0], v[2]));
+                        (k as u32 + 1) | if inside { IN_BEND_CELL } else { 0 }
+                    })
+            })
+            .collect();
     }
 
     /// The static wood collider: vertices relative to `origin_um`, collider placed at the origin.
@@ -404,6 +582,8 @@ pub struct ChunkColliders {
     handles: BTreeMap<CellCoord, ColliderHandle>,
     /// Stitched-edge masks ([`ChunkMesh::stitched`]) of each chunk collider, for the contact hook.
     stitched: BTreeMap<(u32, u32), Vec<u8>>,
+    /// Bends and per-triangle bend tags ([`ChunkMesh::bend_of`]) of each chunk collider.
+    bends: BTreeMap<(u32, u32), (Vec<ChannelBend>, Vec<u32>)>,
     dirty: BTreeSet<CellCoord>,
 }
 
@@ -506,9 +686,11 @@ impl ChunkColliders {
                 .filter(|t| !self.culled(placed, t))
                 .collect();
             mesh.push_welded(&mut weld, &tris);
+            mesh.bends.extend(ChannelBend::of(piece, &placed.placement));
         }
         mesh.simplify_flat();
         self.mark_stitched(&mut mesh, chunk);
+        mesh.mark_bends();
         mesh
     }
 
@@ -618,18 +800,21 @@ impl ChunkColliders {
             if let Some(h) = self.handles.remove(&chunk) {
                 world.remove_collider(h);
                 self.stitched.remove(&h.into_raw_parts());
+                self.bends.remove(&h.into_raw_parts());
             }
             let mesh = self.chunk_mesh(kit, chunk);
             if !mesh.triangles.is_empty() {
                 let mut collider = mesh
                     .collider(chunk_origin_um(chunk))
                     .map_err(|e| ChunkError::TriMesh(chunk, format!("{e:?}")))?;
-                if mesh.stitched.iter().any(|&b| b != 0) {
+                if mesh.stitched.iter().any(|&b| b != 0) || mesh.bend_of.iter().any(|&b| b != 0) {
                     collider.set_active_hooks(ActiveHooks::MODIFY_SOLVER_CONTACTS);
                 }
                 let h = world.colliders.insert(collider);
                 self.handles.insert(chunk, h);
                 self.stitched.insert(h.into_raw_parts(), mesh.stitched);
+                self.bends
+                    .insert(h.into_raw_parts(), (mesh.bends, mesh.bend_of));
             }
             self.dirty.remove(&chunk);
         }
@@ -666,6 +851,59 @@ impl PhysicsHooks for ChunkColliders {
         } else {
             rigid.manifold.subshape2
         };
+        if let Some((bends, bend_of)) = self.bends.get(&handle.into_raw_parts())
+            && let Some(&tag @ 1..) = bend_of.get(tri as usize)
+            && let Some((n, gap)) = {
+                // A straight triangle can lie on the continuation of several bends: the bend
+                // whose cell holds the ball owns the contact. Off every bend cell a straight
+                // triangle's tube holds only along its own span, so a ball rolling past the next
+                // seam (onto a slope, say) keeps the mesh contact there.
+                let um = |v: f32| (v * 1.0e6).round() as i64;
+                let t = colliders[handle]
+                    .shape()
+                    .as_trimesh()
+                    .map(|m| m.triangle(tri));
+                let pose = colliders[handle].position();
+                match bends
+                    .iter()
+                    .find(|b| b.contains(um(centre.x), um(centre.z)))
+                {
+                    Some(b) => b.contact(centre, ball.radius),
+                    None => {
+                        let b = &bends[(tag & !IN_BEND_CELL) as usize - 1];
+                        let along = b.continuation_axis(centre);
+                        let spans = |i: usize| {
+                            tag & IN_BEND_CELL != 0
+                                || t.is_some_and(|t| {
+                                    let v = [pose * t.a, pose * t.b, pose * t.c].map(|p| p[i]);
+                                    (v[0].min(v[1]).min(v[2])..=v[0].max(v[1]).max(v[2]))
+                                        .contains(&centre[i])
+                                })
+                        };
+                        along
+                            .filter(|&i| spans(i))
+                            .and_then(|_| b.contact(centre, ball.radius))
+                    }
+                }
+            }
+        {
+            // One contact against the exact tube (see [`ChannelBend`]).
+            let ball_point = centre - n * ball.radius;
+            let mesh_point = ball_point - n * gap;
+            *rigid.normal = if first { n } else { -n };
+            rigid.solver_contacts.truncate(1);
+            for c in rigid.solver_contacts.iter_mut() {
+                c.dist = gap;
+                if first {
+                    c.anchor1 = mesh_point;
+                    c.anchor2 = ball_point;
+                } else {
+                    c.anchor1 = ball_point;
+                    c.anchor2 = mesh_point;
+                }
+            }
+            return;
+        }
         let bits = self.stitched[&handle.into_raw_parts()]
             .get(tri as usize)
             .copied()
