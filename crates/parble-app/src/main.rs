@@ -9,6 +9,7 @@ mod audio;
 mod bridge;
 mod editor;
 mod persist;
+mod playback;
 
 use agent::{AgentOpts, AgentPlugin, Scenario};
 use bevy::{prelude::*, transform::TransformSystems};
@@ -28,6 +29,7 @@ use parble_sim::{
     track_run::TrackRun,
 };
 use persist::{After, Tracks};
+use playback::Playback;
 
 /// At most this many ticks per frame (50 ms of sim time); a longer stall drops the backlog instead
 /// of spiralling.
@@ -108,8 +110,18 @@ fn main() {
             last_run_hash: None,
             restarts: 0,
         })
+        .insert_resource(Playback::new(opts.time_scale, opts.paused))
         .add_systems(Startup, (spawn_camera, publish_initial, announce_bridge))
-        .add_systems(Update, (advance_sim, pump_bridge, publish_sensors).chain())
+        .add_systems(
+            Update,
+            (
+                playback::playback_keys,
+                advance_sim,
+                pump_bridge,
+                publish_sensors,
+            )
+                .chain(),
+        )
         .add_systems(PostUpdate, pump_audio.after(TransformSystems::Propagate))
         .run();
     // The web build's `run` returns at once while the browser drives the loop.
@@ -175,27 +187,23 @@ fn cap_to_run(ticks: u32, tick_count: u64, run_ticks: u32) -> u32 {
     ticks.min(u32::try_from(left).unwrap_or(u32::MAX))
 }
 
-/// Lockstep ticks for this frame: none while holding for `after` real seconds, then a fixed count.
-fn lockstep_ticks(real_elapsed: f64, after: f64) -> u32 {
-    if real_elapsed < after {
-        0
-    } else {
-        LOCKSTEP_TICKS
-    }
-}
-
+#[allow(clippy::too_many_arguments)]
 fn advance_sim(
     time: Res<Time>,
     real: Res<Time<Real>>,
     opts: Res<AgentOpts>,
+    mut playback: ResMut<Playback>,
     mut clock: ResMut<SimClock>,
     mut frame: ResMut<MarbleFrame>,
     mut parts: ResMut<PartFrame>,
     mut director: ResMut<DirectorClock>,
 ) {
     let (ticks, rest) = match opts.lockstep_after {
-        Some(after) => (lockstep_ticks(real.elapsed_secs_f64(), after), 0.0),
-        None => plan_ticks(clock.acc, time.delta_secs_f64()),
+        Some(after) => (
+            playback::lockstep_frame_ticks(&mut playback, real.elapsed_secs_f64() < after),
+            0.0,
+        ),
+        None => playback::frame_ticks(&mut playback, clock.acc, time.delta_secs_f64()),
     };
     clock.acc = rest;
     if ticks > 0 {
@@ -301,6 +309,7 @@ impl SimClock {
 /// after [`advance_sim`], so commands that replace the sim apply between ticks.
 fn pump_bridge(
     time: Res<Time>,
+    playback: Res<Playback>,
     mut clock: ResMut<SimClock>,
     mut frame: ResMut<MarbleFrame>,
     mut parts: ResMut<PartFrame>,
@@ -330,6 +339,8 @@ fn pump_bridge(
     bridge::push_event(Event::Frame {
         tick: clock.sim.tick_count(),
         fps: *fps,
+        paused: playback.paused,
+        time_scale: playback.scale() as f32,
     });
 }
 
@@ -340,8 +351,11 @@ fn recording(mut run: TrackRun) -> TrackRun {
 }
 
 /// Drains the frame's sim events into one [`audio::AudioFrame`] with the camera as rendered this
-/// frame. Runs after transform propagation, so the director's camera pose is current.
+/// frame. Runs after transform propagation, so the director's camera pose is current. Paused or
+/// slowed, the events go out at most once per [`LOCKSTEP_TICKS`] sim ticks ([`audio::AudioPacer`]).
 fn pump_audio(
+    playback: Res<Playback>,
+    mut pacer: Local<audio::AudioPacer>,
     mut clock: ResMut<SimClock>,
     look: Option<Res<MarbleLook>>,
     cameras: Query<&GlobalTransform, With<MainCamera>>,
@@ -361,7 +375,13 @@ fn pump_audio(
         forward: t.forward().to_array(),
         up: t.up().to_array(),
     });
-    bridge::push_event(Event::AudioFrame(frame));
+    frame.paused = playback.paused;
+    let min_ticks = if playback.slowed() {
+        u64::from(LOCKSTEP_TICKS)
+    } else {
+        0
+    };
+    bridge::push_event(Event::AudioFrame(pacer.pace(frame, min_ticks)));
 }
 
 #[cfg(test)]
@@ -402,8 +422,12 @@ mod tests {
 
     #[test]
     fn lockstep_holds_then_steps_a_fixed_count() {
-        assert_eq!(lockstep_ticks(1.0, 3.0), 0);
-        assert_eq!(lockstep_ticks(3.0, 3.0), LOCKSTEP_TICKS);
+        let mut pb = Playback::default();
+        assert_eq!(playback::lockstep_frame_ticks(&mut pb, true), 0);
+        assert_eq!(
+            playback::lockstep_frame_ticks(&mut pb, false),
+            LOCKSTEP_TICKS
+        );
         // 2,400 ticks is a whole number of lockstep frames, so a run still ends on the golden hash.
         assert_eq!(RAMP_10S_TICKS % LOCKSTEP_TICKS, 0);
         assert_eq!(Scenario::Playroom.run_ticks() % LOCKSTEP_TICKS, 0);

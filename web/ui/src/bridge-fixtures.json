@@ -1,6 +1,6 @@
 {
   "about": "One example of every bridge command and event, in declaration order. Checked by crates/parble-app/src/bridge.rs (cargo test) and web/ui/test/bridge.test.ts (Vitest); a variant added on one side only fails both.",
-  "protocol": 2,
+  "protocol": 3,
   "commands": [
     {
       "type": "ping",
@@ -21,12 +21,19 @@
   "events": [
     {
       "type": "ready",
-      "protocol": 2
+      "protocol": 3
     },
     {
       "type": "frame",
       "tick": 2400,
       "fps": 59.5
+    },
+    {
+      "type": "frame",
+      "tick": 2404,
+      "fps": 60.0,
+      "paused": true,
+      "timeScale": 0.25
     },
     {
       "type": "pong",
@@ -140,9 +147,39 @@
       "rolls": [],
       "mechanisms": [],
       "camera": null
+    },
+    {
+      "type": "audioFrame",
+      "tick": 4,
+      "contacts": [],
+      "rolls": [],
+      "mechanisms": [],
+      "camera": null,
+      "paused": true
     }
   ],
   "rejectedEvents": [
+    {
+      "type": "frame",
+      "tick": 1,
+      "fps": 60.0,
+      "paused": "yes"
+    },
+    {
+      "type": "frame",
+      "tick": 1,
+      "fps": 60.0,
+      "timeScale": "slow"
+    },
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "contacts": [],
+      "rolls": [],
+      "mechanisms": [],
+      "camera": null,
+      "paused": 1
+    },
     {
       "type": "audioFrame",
       "tick": 1,

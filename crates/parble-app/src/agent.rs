@@ -25,6 +25,7 @@ use serde::Serialize;
 
 use crate::SimClock;
 use crate::editor::EditorDiag;
+use crate::playback::Playback;
 
 /// Looks of the all-pieces marbles in release order, repeated: glass types only, since the run
 /// releases glass marbles.
@@ -265,6 +266,11 @@ pub struct AgentOpts {
     pub editor_fill: Option<u32>,
     /// Start with the mechanism sensor overlay on (`--sensors`, `?sensors=1`); `G` toggles it.
     pub sensors: bool,
+    /// Starting time scale (`--time-scale`, one of [`crate::playback::TIME_SCALES`]); `,` and `.`
+    /// change it.
+    pub time_scale: f64,
+    /// Start paused (`--paused`, `?paused=1`); `P` toggles it.
+    pub paused: bool,
 }
 
 impl Default for AgentOpts {
@@ -287,6 +293,8 @@ impl Default for AgentOpts {
             tex: None,
             editor_fill: None,
             sensors: false,
+            time_scale: 1.0,
+            paused: false,
         }
     }
 }
@@ -383,6 +391,15 @@ impl AgentOpts {
                 }
                 "dump-state" => o.dump_state = parse_bool(&key, value.as_deref())?,
                 "sensors" => o.sensors = parse_bool(&key, value.as_deref())?,
+                "paused" => o.paused = parse_bool(&key, value.as_deref())?,
+                "time-scale" | "timescale" => {
+                    let v = need(value)?;
+                    o.time_scale = v
+                        .parse::<f64>()
+                        .ok()
+                        .filter(|s| crate::playback::level_of(*s).is_some())
+                        .ok_or_else(|| format!("{key}: expected 1, 0.5, 0.25 or 0.1, got {v:?}"))?;
+                }
                 "view" => {
                     let v = need(value)?;
                     o.view = Some(
@@ -438,7 +455,7 @@ impl AgentOpts {
             };
             if let Some((k, v)) = flag.split_once('=') {
                 pairs.push((k.to_owned(), Some(v.to_owned())));
-            } else if flag == "dump-state" || flag == "sensors" {
+            } else if matches!(flag, "dump-state" | "sensors" | "paused") {
                 pairs.push((flag.to_owned(), None));
             } else {
                 pairs.push((flag.to_owned(), args.next()));
@@ -543,7 +560,17 @@ struct DiagState<'a> {
     shot_parts: Option<&'a Vec<PartDiag>>,
     /// The mechanism sensor overlay: whether it is drawn, and the sensors and occupied sensors.
     sensors: SensorsDiag,
+    /// Pause and slow motion ([`crate::playback`]).
+    playback: PlaybackDiag,
     exited: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PlaybackDiag {
+    paused: bool,
+    /// The chosen time scale; it is kept while paused.
+    time_scale: f64,
 }
 
 #[derive(Serialize, Default)]
@@ -553,8 +580,10 @@ struct SensorsDiag {
     occupied: usize,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn diag<'a>(
     clock: &SimClock,
+    playback: &Playback,
     rt: &'a AgentRuntime,
     opts: &AgentOpts,
     camera: &'a CameraDiag,
@@ -564,7 +593,8 @@ fn diag<'a>(
 ) -> DiagState<'a> {
     let tick = clock.sim.tick_count();
     DiagState {
-        ready: tick > 0 && rt.frames >= READY_FRAMES,
+        // Started paused, the sim never ticks on its own.
+        ready: (tick > 0 || playback.paused) && rt.frames >= READY_FRAMES,
         tick,
         run: clock.runs,
         frame: rt.frames,
@@ -612,6 +642,10 @@ fn diag<'a>(
         shot_camera: rt.shot_camera.as_ref(),
         shot_parts: rt.shot_parts.as_ref(),
         sensors: SensorsDiag::default(),
+        playback: PlaybackDiag {
+            paused: playback.paused,
+            time_scale: playback.scale(),
+        },
         exited: rt.exiting,
     }
 }
@@ -830,6 +864,7 @@ fn auto_exit(
     editor: Res<EditorDiag>,
     sensor_overlay: Res<SensorOverlay>,
     sensor_frame: Res<SensorFrame>,
+    playback: Res<Playback>,
     mut rt: ResMut<AgentRuntime>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -864,7 +899,9 @@ fn auto_exit(
     };
     rt.exiting = true;
     if opts.dump_state {
-        let mut state = diag(&clock, &rt, &opts, &camera, &shadows, &kit, &editor);
+        let mut state = diag(
+            &clock, &playback, &rt, &opts, &camera, &shadows, &kit, &editor,
+        );
         state.sensors = sensors_diag(&sensor_overlay, &sensor_frame);
         let json = serde_json::to_string(&state).unwrap_or_default();
         #[cfg(not(target_arch = "wasm32"))]
@@ -887,9 +924,12 @@ fn publish(
     editor: Res<EditorDiag>,
     sensor_overlay: Res<SensorOverlay>,
     sensor_frame: Res<SensorFrame>,
+    playback: Res<Playback>,
 ) {
     use js_sys::{JSON, JsString, Reflect};
-    let mut state = diag(&clock, &rt, &opts, &camera, &shadows, &kit, &editor);
+    let mut state = diag(
+        &clock, &playback, &rt, &opts, &camera, &shadows, &kit, &editor,
+    );
     state.sensors = sensors_diag(&sensor_overlay, &sensor_frame);
     let Ok(json) = serde_json::to_string(&state) else {
         return;
@@ -919,7 +959,8 @@ mod tests {
     fn every_flag_parses_in_both_spellings() {
         let o = args(
             "--screenshot out/a.png --screenshot-after=1.5 --exit-after 4 --scenario ramp \
-             --seed=42 --quality low --marble steel --dump-state --sensors",
+             --seed=42 --quality low --marble steel --dump-state --sensors --paused \
+             --time-scale 0.25",
         )
         .unwrap();
         assert_eq!(o.screenshot.as_deref(), Some("out/a.png"));
@@ -931,6 +972,11 @@ mod tests {
         assert_eq!(o.marble, Some(MarbleKind::Steel));
         assert!(o.dump_state);
         assert!(o.sensors);
+        assert!(o.paused);
+        assert_eq!(o.time_scale, 0.25);
+        assert!(!args("--paused=0").unwrap().paused);
+        assert!(args("--paused --scenario editor").unwrap().paused);
+        assert_eq!(args("--timescale=0.1").unwrap().time_scale, 0.1);
         assert!(!args("--sensors=0").unwrap().sensors);
         assert!(args("--sensors=1 --scenario mechanisms").unwrap().sensors);
     }
@@ -950,6 +996,10 @@ mod tests {
         assert!(args("--frobnicate 1").is_err());
         assert!(args("--view sky").is_err());
         assert!(args("stray").is_err());
+        assert!(args("--time-scale 0.3").is_err());
+        assert!(args("--time-scale 2").is_err());
+        assert!(args("--time-scale").is_err());
+        assert!(args("--paused maybe").is_err());
     }
 
     #[test]
@@ -1129,7 +1179,7 @@ mod tests {
     #[test]
     fn query_matches_argv_and_ignores_unknown_keys() {
         let q = AgentOpts::from_query(
-            "?screenshot=a%2Fb.png&exit-after=4&seed=7&quality=high&marble=cats-eye&dump-state&sensors=1&utm=x",
+            "?screenshot=a%2Fb.png&exit-after=4&seed=7&quality=high&marble=cats-eye&dump-state&sensors=1&paused=1&timescale=0.5&utm=x",
             |s| s.replace("%2F", "/"),
         )
         .unwrap();
@@ -1140,6 +1190,15 @@ mod tests {
         assert_eq!(q.marble, Some(MarbleKind::CatsEye));
         assert!(q.dump_state);
         assert!(q.sensors);
+        assert!(q.paused);
+        assert_eq!(q.time_scale, 0.5);
+        assert_eq!(
+            AgentOpts::from_query("?time-scale=0.25", str::to_owned)
+                .unwrap()
+                .time_scale,
+            0.25
+        );
+        assert!(AgentOpts::from_query("?timescale=3", str::to_owned).is_err());
         assert!(
             !AgentOpts::from_query("?dump-state=0", str::to_owned)
                 .unwrap()

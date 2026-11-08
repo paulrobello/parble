@@ -7,7 +7,8 @@
 //   the marble size's pitch offset (rolls get the same offset);
 // - mechanism one-shots per signal, the cue picked by piece and signal name;
 // - PannerNode spatialisation against an AudioListener placed at the camera;
-// - a voice budget where the loudest heard voices (gain × distance gain) win.
+// - a voice budget where the loudest heard voices (gain × distance gain) win;
+// - pause: a paused frame releases every roll loop; a single step's impacts and signals still play.
 // Buses: sfx and music into master, master through a compressor into the destination.
 
 import type { AudioContact, AudioFrame, AudioRoll, Vec3 } from "../bridge";
@@ -236,10 +237,16 @@ export class AudioEngine {
     }
     this.#lastTick = frame.tick;
     if (frame.camera) this.#setListener(frame.camera.position, frame.camera.forward, frame.camera.up);
-    for (const r of frame.rolls) this.#held.set(r.marble, { roll: r, tick: frame.tick });
-    for (const [m, h] of this.#held) if (frame.tick - h.tick > STALE_TICKS) this.#held.delete(m);
+    if (frame.paused) {
+      // The tick stands still while paused, so held rolls would never go stale: release them now.
+      for (const m of [...this.#rolls.keys()]) this.#releaseRoll(m, now);
+      this.#held.clear();
+    } else {
+      for (const r of frame.rolls) this.#held.set(r.marble, { roll: r, tick: frame.tick });
+      for (const [m, h] of this.#held) if (frame.tick - h.tick > STALE_TICKS) this.#held.delete(m);
+    }
     this.#prune(now);
-    this.#updateRolls(now);
+    if (!frame.paused) this.#updateRolls(now);
     s.contacts += frame.contacts.length;
     this.#impacts(frame.contacts, now);
     for (const e of frame.mechanisms) {

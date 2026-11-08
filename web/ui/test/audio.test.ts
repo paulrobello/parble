@@ -506,6 +506,36 @@ describe("engine voice budget", () => {
     expect(e.stats()).toMatchObject({ rollVoices: 0, resets: 1 });
   });
 
+  it("releases every roll on pause, still plays a step's impact, and resumes on the next sample", () => {
+    const { e } = engine();
+    e.consume(frame(4, { rolls: [roll(0), roll(1)] }));
+    expect(e.stats().rollVoices).toBe(2);
+    e.consume(frame(4, { paused: true }));
+    expect(e.stats().rollVoices).toBe(0);
+    // Paused frames repeat the tick; nothing comes back without a sample.
+    e.consume(frame(4, { paused: true }));
+    e.consume(frame(8, { paused: true, rolls: [roll(0)], contacts: [contact({ impulse: 0.002 })] }));
+    expect(e.stats()).toMatchObject({ rollVoices: 0, started: 1 });
+    e.consume(frame(9));
+    expect(e.stats().rollVoices).toBe(0);
+    e.consume(frame(12, { rolls: [roll(0)] }));
+    expect(e.stats().rollVoices).toBe(1);
+  });
+
+  it("holds one roll voice without restarts through 0.1x slow motion", () => {
+    const { ctx, e } = engine();
+    e.consume(frame(4, { rolls: [roll(0)] }));
+    const sources = ctx.sources.length;
+    // At 0.1x a frame runs 0 or 1 ticks, and a roll sample arrives every 4 ticks (~10 frames).
+    for (let f = 1; f <= 100; f++) {
+      const tick = 4 + Math.floor(f * 0.4);
+      e.consume(frame(tick, tick % 4 === 0 && f % 10 === 0 ? { rolls: [roll(0, { speed: 0.6 })] } : {}));
+      expect(e.stats().rollVoices).toBe(1);
+    }
+    expect(ctx.sources.length).toBe(sources);
+    expect(e.stats().crossfades).toBe(0);
+  });
+
   it("picks the same variants and jitter for the same seed and frames", () => {
     const play = (seed: number) => {
       const { ctx, e } = engine(seed);

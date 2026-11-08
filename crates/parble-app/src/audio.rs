@@ -197,6 +197,10 @@ pub struct AudioFrame {
     pub mechanisms: Vec<AudioMechanism>,
     /// `null` when there is no main camera.
     pub camera: Option<AudioCamera>,
+    /// Playback is paused ([`crate::playback`]): the engine releases its roll loops. Sent only
+    /// when true. A single step's contacts and mechanism events still play.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub paused: bool,
 }
 
 /// Mechanism events kept across undrained frames: the native build never drains.
@@ -379,6 +383,39 @@ pub fn coalesce(
         rolls: fold_by_marble(Vec::new(), rolls, |r| r.marble, AudioRoll::fold),
         mechanisms,
         camera: None,
+        paused: false,
+    }
+}
+
+/// Holds a slowed run's contacts, rolls and mechanism events until at least `min_ticks` sim ticks
+/// have passed since the last flush, so slow motion (one tick or none per frame) sends no more
+/// impact one-shots per sim second than 1x at 60 fps does. Every frame still goes out with its
+/// tick, camera and pause state.
+#[derive(Debug, Default)]
+pub struct AudioPacer {
+    pending: Option<AudioFrame>,
+    flushed: u64,
+}
+
+impl AudioPacer {
+    /// The frame to send for `frame`. `min_ticks` 0 (1x) sends everything at once.
+    pub fn pace(&mut self, mut frame: AudioFrame, min_ticks: u64) -> AudioFrame {
+        if let Some(older) = self.pending.take() {
+            frame.absorb_older(older);
+        }
+        // A run restart (tick back to 0) flushes at once.
+        if frame.tick >= self.flushed && frame.tick - self.flushed < min_ticks {
+            let held = AudioFrame {
+                tick: frame.tick,
+                camera: frame.camera,
+                paused: frame.paused,
+                ..AudioFrame::default()
+            };
+            self.pending = Some(frame);
+            return held;
+        }
+        self.flushed = frame.tick;
+        frame
     }
 }
 
@@ -701,6 +738,41 @@ mod tests {
             Some(&ev(110 - MAX_AUDIO_MECHANISMS as u64))
         );
         assert_eq!(f.mechanisms.last(), Some(&ev(109)));
+    }
+
+    #[test]
+    fn a_slowed_run_sends_its_events_once_per_four_ticks() {
+        let marbles = two_marbles();
+        let hit = |t: u64| {
+            coalesce(
+                &[contact(t, 0, ContactOther::Static, WOOD, 0.25)],
+                &marbles,
+                no_piece,
+                t,
+            )
+        };
+        let mut pacer = AudioPacer::default();
+        // 1x sends every frame's events at once.
+        assert_eq!(pacer.pace(hit(4), 0).contacts.len(), 1);
+        // One tick per frame (0.25x): three frames held, the fourth carries all four contacts.
+        for t in 5..8 {
+            let f = pacer.pace(hit(t), 4);
+            assert!(f.contacts.is_empty(), "tick {t}");
+            assert_eq!(f.tick, t);
+        }
+        let f = pacer.pace(hit(8), 4);
+        assert_eq!((f.tick, f.contacts.len(), f.contacts[0].count), (8, 1, 4));
+        // Paused frames hold the tick and keep the pause flag; a restart flushes at once.
+        let paused = pacer.pace(
+            AudioFrame {
+                tick: 8,
+                paused: true,
+                ..AudioFrame::default()
+            },
+            4,
+        );
+        assert!(paused.paused);
+        assert_eq!(pacer.pace(hit(0), 4).contacts.len(), 1);
     }
 
     #[test]

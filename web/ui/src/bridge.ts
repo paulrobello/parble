@@ -2,7 +2,7 @@
 // hand. bridge-fixtures.json holds an example of every command and event plus events both sides
 // refuse; the Rust tests and test/bridge.test.ts both check it.
 
-export const PROTOCOL = 2;
+export const PROTOCOL = 3;
 
 export type BridgeCommand =
   | { type: "ping"; id: number }
@@ -12,13 +12,22 @@ export type BridgeCommand =
 
 export type BridgeEvent =
   | { type: "ready"; protocol: number }
-  | { type: "frame"; tick: number; fps: number }
+  | FrameEvent
   | { type: "pong"; id: number }
   | { type: "trackLoaded"; name: string; schema: number; placements: number; marbles: number }
   | { type: "runFinished"; ticks: number; hash: string }
   | { type: "trackExported"; name: string; json: string }
   | { type: "bridgeError"; command: string; message: string }
   | AudioFrame;
+
+/** One rendered frame. `paused` and `timeScale` (crates/parble-app/src/playback.rs) are sent only when not running at 1x. */
+export interface FrameEvent {
+  type: "frame";
+  tick: number;
+  fps: number;
+  paused?: true;
+  timeScale?: number;
+}
 
 /** Marble type (crates/parble-sim `MarbleKind::name`). */
 export const MARBLE_KINDS = ["cats-eye", "glazed", "steel", "swirl", "onionskin", "opal", "glow"] as const;
@@ -84,6 +93,8 @@ export interface AudioFrame {
   rolls: AudioRoll[];
   mechanisms: AudioMechanism[];
   camera: AudioCamera | null;
+  /** Playback is paused: the engine releases its roll loops. Sent only when true. */
+  paused?: true;
 }
 
 /** Every wire tag, in the Rust enums' declaration order. */
@@ -223,14 +234,29 @@ function decodeCamera(v: unknown): AudioCamera | null {
 }
 
 function decodeAudioFrame(v: Obj): AudioFrame | null {
-  if (!hasOnly(v, ["type", "tick", "contacts", "rolls", "mechanisms", "camera"]) || !isU64(v.tick)) return null;
+  if (!hasOnly(v, ["type", "tick", "contacts", "rolls", "mechanisms", "camera", "paused"]) || !isU64(v.tick))
+    return null;
+  if (v.paused !== undefined && typeof v.paused !== "boolean") return null;
   const contacts = isListOf(v.contacts, decodeContact);
   const rolls = isListOf(v.rolls, decodeRoll);
   const mechanisms = isListOf(v.mechanisms, decodeMechanism);
   const rawCamera = v.camera ?? null;
   const camera = rawCamera === null ? null : decodeCamera(rawCamera);
   if (!contacts || !rolls || !mechanisms || (rawCamera !== null && camera === null)) return null;
-  return { type: "audioFrame", tick: v.tick, contacts, rolls, mechanisms, camera };
+  const frame: AudioFrame = { type: "audioFrame", tick: v.tick, contacts, rolls, mechanisms, camera };
+  if (v.paused) frame.paused = true;
+  return frame;
+}
+
+function decodeFrame(v: Obj): FrameEvent | null {
+  if (!hasOnly(v, ["type", "tick", "fps", "paused", "timeScale"]) || !isU64(v.tick) || typeof v.fps !== "number")
+    return null;
+  if (v.paused !== undefined && typeof v.paused !== "boolean") return null;
+  if (v.timeScale !== undefined && !isNum(v.timeScale)) return null;
+  const frame: FrameEvent = { type: "frame", tick: v.tick, fps: v.fps };
+  if (v.paused) frame.paused = true;
+  if (v.timeScale !== undefined && v.timeScale !== 1) frame.timeScale = v.timeScale;
+  return frame;
 }
 
 /** `v` as a command, or null when Rust would refuse it (unknown type, missing or extra fields). */
@@ -257,9 +283,7 @@ export function decodeEvent(v: unknown): BridgeEvent | null {
     case "ready":
       return hasOnly(v, ["type", "protocol"]) && isU32(v.protocol) ? { type: "ready", protocol: v.protocol } : null;
     case "frame":
-      return hasOnly(v, ["type", "tick", "fps"]) && isU64(v.tick) && typeof v.fps === "number"
-        ? { type: "frame", tick: v.tick, fps: v.fps }
-        : null;
+      return decodeFrame(v);
     case "pong":
       return hasOnly(v, ["type", "id"]) && isU32(v.id) ? { type: "pong", id: v.id } : null;
     case "trackLoaded":

@@ -3,6 +3,9 @@ import type { BridgeEvent } from "./bridge";
 export interface HudState {
   fps: number | null;
   tick: number | null;
+  /** Playback (crates/parble-app/src/playback.rs); absent while running at 1x. */
+  paused?: boolean;
+  timeScale?: number;
 }
 
 export const emptyHud = (): HudState => ({ fps: null, tick: null });
@@ -11,15 +14,22 @@ export const emptyHud = (): HudState => ({ fps: null, tick: null });
 export function applyEvents(state: HudState, events: readonly BridgeEvent[]): HudState {
   let next = state;
   for (const e of events) {
-    if (e.type === "frame") next = { fps: e.fps, tick: e.tick };
+    if (e.type !== "frame") continue;
+    next = { fps: e.fps, tick: e.tick };
+    if (e.paused) next.paused = true;
+    if (e.timeScale !== undefined && e.timeScale !== 1) next.timeScale = e.timeScale;
   }
   return next;
 }
 
+/** `fps N  tick N`, then `  paused` and the time scale (`  0.25x`) only when they apply. */
 export function formatHud(state: HudState): string {
   const fps = state.fps === null ? "--" : Math.round(state.fps).toString();
   const tick = state.tick === null ? "--" : state.tick.toString();
-  return `fps ${fps}  tick ${tick}`;
+  let text = `fps ${fps}  tick ${tick}`;
+  if (state.paused) text += "  paused";
+  if (state.timeScale !== undefined && state.timeScale !== 1) text += `  ${state.timeScale}x`;
+  return text;
 }
 
 /** A fixed, non-interactive readout in the top-left corner of the page. */
@@ -46,9 +56,10 @@ export function mountHud(doc: Document): HTMLElement {
   return el;
 }
 
-/** Camera controls (crates/parble-render/src/camera.rs) and the sensor overlay (sensors.rs); keys reach the game only while the canvas has focus. */
+/** Camera controls (crates/parble-render/src/camera.rs), the sensor overlay (sensors.rs) and playback (crates/parble-app/src/playback.rs); keys reach the game only while the canvas has focus. */
 export const CONTROLS_HINT =
-  "click the scene, then F: fly camera  WASD move  Q/E down/up  drag look  wheel speed  F/Esc back  G sensors";
+  "click the scene, then F: fly camera  WASD move  Q/E down/up  drag look  wheel speed  F/Esc back  G sensors\n" +
+  "P pause  , slower  . faster  N step (paused)";
 
 /** A fixed, non-interactive controls line in the bottom-left corner, apart from the readout. */
 export function mountControlsHint(doc: Document): HTMLElement {

@@ -16,7 +16,7 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 
 /// Bumped on any incompatible change to [`Command`] or [`Event`].
-pub const PROTOCOL: u32 = 2;
+pub const PROTOCOL: u32 = 3;
 
 /// Outbound bound: with no drainer (the native build, a hidden tab) the oldest events are dropped.
 const MAX_EVENTS: usize = 256;
@@ -39,6 +39,15 @@ pub enum Command {
     RunTrack { ticks: u32 },
     /// Answered with [`Event::TrackExported`] carrying the loaded track's canonical file text.
     ExportTrack {},
+}
+
+fn one() -> f32 {
+    1.0
+}
+
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::float_cmp)]
+fn is_one(v: &f32) -> bool {
+    *v == 1.0
 }
 
 #[cfg(test)]
@@ -68,10 +77,15 @@ pub enum Event {
     Ready {
         protocol: u32,
     },
-    /// The latest frame only: a newer frame replaces an undrained one.
+    /// The latest frame only: a newer frame replaces an undrained one. `paused` and `timeScale`
+    /// are the playback state ([`crate::playback`]), sent only when not the defaults (running, 1).
     Frame {
         tick: u64,
         fps: f32,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        paused: bool,
+        #[serde(default = "one", skip_serializing_if = "is_one")]
+        time_scale: f32,
     },
     Pong {
         id: u32,
@@ -356,16 +370,31 @@ mod tests {
     #[test]
     fn a_newer_frame_replaces_an_undrained_one() {
         push_event(Event::Ready { protocol: PROTOCOL });
-        push_event(Event::Frame { tick: 1, fps: 60.0 });
+        push_event(Event::Frame {
+            tick: 1,
+            fps: 60.0,
+            paused: false,
+            time_scale: 1.0,
+        });
         push_event(Event::Pong { id: 7 });
-        push_event(Event::Frame { tick: 2, fps: 60.0 });
+        push_event(Event::Frame {
+            tick: 2,
+            fps: 60.0,
+            paused: false,
+            time_scale: 1.0,
+        });
         let out: Vec<Event> = serde_json::from_str(&drain_events_json()).unwrap();
         assert_eq!(
             out,
             vec![
                 Event::Ready { protocol: PROTOCOL },
                 Event::Pong { id: 7 },
-                Event::Frame { tick: 2, fps: 60.0 },
+                Event::Frame {
+                    tick: 2,
+                    fps: 60.0,
+                    paused: false,
+                    time_scale: 1.0
+                },
             ]
         );
         assert_eq!(drain_events_json(), "[]");

@@ -23,9 +23,11 @@ parble can be launched, observed and stopped from a script, on native and on the
 | `--lockstep-after <s>` | `lockstep-after=<s>` | off | Hold the sim at tick 0 for `<s>` real seconds, then advance exactly 4 ticks (1/60 s) per frame, so a frame shows the same state on every run. The run hash is unchanged. |
 | `--screenshot-tick <n>` | `screenshot-tick=<n>` | off | Capture on the first frame at or past sim tick `<n>` instead of by time, then exit as soon as the PNG is written. Native captures with `--screenshot` use a 1280x720 window at scale factor 1. |
 | `--sensors` (or `--sensors=0\|1`) | `sensors=1` | off | Start with the mechanism sensor overlay on: every sensor volume of every mechanism instance (boxes and spheres from the sidecars, placed with the piece's anchor, yaw and mirror) drawn as a world-space wireframe over the scene, cyan while idle and magenta while a marble is inside. `G` toggles it in any scenario ([Camera controls](#camera-controls)). It is drawn with Bevy gizmos (`crates/parble-render/src/sensors.rs`) from the read-only `Sim::sensors`, so it cannot change a hash. |
+| `--time-scale <s>` (alias `--timescale`) | `time-scale=<s>` or `timescale=<s>` | `1` | Start at time scale `<s>`, one of `1`, `0.5`, `0.25` or `0.1` (any other value is refused). The sim step stays the fixed 240 Hz tick: the app feeds `<s>` times the frame's real time into the tick accumulator, so it runs fewer ticks per real second and the renderer interpolates between them. Trajectories and hashes depend only on the tick count, so they are unchanged. `,` and `.` change it ([Playback](#playback-pause-and-slow-motion)). |
+| `--paused` (or `--paused=0\|1`) | `paused=1` | off | Start paused: the sim holds at tick 0 until `P` resumes it or `N` steps it. `ready` still turns true ([State JSON](#state-json-and-windowparble)). |
 | `--dump-state` | `dump-state` (or `=1`) | off | At auto-exit, print the state JSON. Natively it goes to stdout as one line. On the web it is logged to the console as `parble state: {...}`. |
 
-Native flags accept both `--key value` and `--key=value`. `--dump-state` and `--sensors` take no value; give one with `=`. An unknown flag or a bad value prints an error and exits with code 2. Unknown query keys are ignored on the web. A bad query value logs an error and the app falls back to the defaults.
+Native flags accept both `--key value` and `--key=value`. `--dump-state`, `--sensors` and `--paused` take no value; give one with `=`. An unknown flag or a bad value prints an error and exits with code 2. Unknown query keys are ignored on the web. A bad query value logs an error and the app falls back to the defaults.
 
 When `--screenshot` or `--exit-after` is set, the app redraws continuously even if its window never gets focus.
 
@@ -65,11 +67,12 @@ The web build replaces `window.__parble` every frame. `--dump-state` prints the 
     "state": "none"
   },
   "sensors": {"on": false, "volumes": 0, "occupied": 0},
+  "playback": {"paused": false, "timeScale": 1.0},
   "exited": true
 }
 ```
 
-- `ready`: the sim has ticked and at least 3 frames have run. Pixels can lag behind it while pipelines compile, so a pixel check still needs to poll.
+- `ready`: the sim has ticked (or playback is paused, so `--paused` runs get ready at tick 0) and at least 3 frames have run. Pixels can lag behind it while pipelines compile, so a pixel check still needs to poll.
 - `tick`: sim ticks in the current run (240 Hz).
 - `run`: completed 10 s runs.
 - `hash`: the trajectory hash of the current run so far, as 16 hex digits. It is a string because a `u64` does not fit a JS number.
@@ -86,6 +89,7 @@ The web build replaces `window.__parble` every frame. `--dump-state` prints the 
 - `camera`: the main camera this frame: `mode` (`director`, `orbit` or `fly`), `shot`, `cuts`, `eye`, `forward` (unit view direction), `flySpeed` (m/s), the marble's screen position over the last frames (`marblePx`, physical pixels, newest first), `marbleRadiusPx`, and `post`, which holds the post components the live camera carries (`msaa`, `taa`, `ssao`, `bloom`, `dof`, `aperture`, `focusM`, `tonemapping`).
 - `kit.parts` (P2-T6, only when a mechanism with animated parts is drawn): one entry per part, by anchor `cell`, `piece` and sidecar `part` index. `angleMdeg` is the angle drawn this frame, `prevMdeg` and `tickMdeg` the sim's angles at the previous and the current tick (`null` for an editor-placed piece, which has no behaviour and holds its sidecar rest angle), `alpha` the frame's interpolation factor (`angleMdeg` = `prevMdeg` + (`tickMdeg` − `prevMdeg`) × `alpha`, as for the marbles; 1 in lockstep), and `rotation` the LOD0 part's rotation in the piece frame.
 - `sensors`: the sensor overlay. `on` is whether it is drawn (`--sensors`, `G`), `volumes` the sensors of every mechanism instance and `occupied` how many hold a marble at the current tick.
+- `playback`: `paused` (`--paused`, `P`) and `timeScale`, the chosen time scale (`--time-scale`, `,` and `.`; kept while paused). See [Playback](#playback-pause-and-slow-motion).
 - `shotCamera`: the same object captured on the screenshot frame. `shotParts` is `kit.parts` on that frame.
 - `editor` (only with `--scenario editor`): see [Editor](#editor).
 - `camera.orbit`: the orbit camera's `target`, `yaw`, `pitch` and `radius`.
@@ -108,6 +112,8 @@ Each `audioFrame` contact and roll carries the marble's `size` (`mini`, `standar
 - `frames`, `contacts`, `skippedFrames` (frames before the context ran), `missingBuffers`, `buffers`, `errors` and `lastError` (engine failures; the engine never throws into the HUD loop).
 - `injected`: whether `inject` was used.
 
+Pause and slow motion ([Playback](#playback-pause-and-slow-motion)): an `audioFrame` carries `"paused": true` while playback is paused (the field is left out otherwise). The engine then releases every roll loop at once and forgets the held rolls, because the tick stands still and a held roll would never go stale; listener updates continue, and a single step's impacts and mechanism cues still play. Rolls come back with the first roll sample after resuming. While paused or slowed, the app sends a frame's contacts, rolls and mechanism events only once at least 4 sim ticks (one 60 Hz roll sample) have passed since the last ones went out (`AudioPacer` in `crates/parble-app/src/audio.rs`); the frames in between carry only the tick, camera and pause flag. Slow motion therefore sends no more impact one-shots per sim second than 1x at 60 fps, and the engine holds the last roll between samples as it does at high frame rates. Rolls keep the pitch and gain of the marble's real speed.
+
 `window.__parbleAudio.inject(event)` is a test hook: it decodes `event` like a bridge event and feeds it to the engine if it is an `audioFrame`, returning `false` otherwise. After the first injected frame, live bridge frames are ignored, so a driver can stress the engine with more marbles than any scenario has. `make web-e2e` runs both (`e2e/tests/audio.spec.mjs`).
 
 ## Camera controls
@@ -126,6 +132,23 @@ Every scenario, `kit2000` and `lineup` included, has a free-fly camera (`Fly` in
 | `G` | Mechanism sensor overlay on or off, in every camera mode (see `--sensors`). |
 
 The camera moves only on input and uses real time, so it keeps working while `--lockstep-after` holds the sim. With no input it never leaves the director, so `--screenshot`, `--exit-after`, `?screenshot=` and `window.__parble` runs frame exactly as before. Keys typed into the HUD (the Import, Export, Run and Save controls) stay there, because the browser only delivers keys to the canvas while it has focus. The HUD shows the controls in its bottom-left line. `make web-e2e` drives the fly camera with the keyboard and mouse in GPU Chromium (`e2e/tests/flycam.spec.mjs`).
+
+## Playback: pause and slow motion
+
+The live sim can be paused, stepped and slowed in every scenario, the editor's run and a loaded track included (`crates/parble-app/src/playback.rs`). The sim step never changes: `advance_sim` in `crates/parble-app/src/main.rs` scales the real time it feeds the fixed-step accumulator (`frame_ticks`), so a run at any time scale, or one paused and resumed, reaches the same tick-for-tick trajectory and the same hashes and goldens. The bridge's headless `runTrack` is not affected.
+
+| Key | Effect |
+|---|---|
+| `P` | Pause or resume. Paused, no ticks run and the accumulator is kept, so the frame freezes exactly where it was and resuming does not jump. |
+| `,` | Slower: 1 → 0.5 → 0.25 → 0.1 (stops at 0.1). Works while paused. |
+| `.` | Faster: back toward 1 (stops at 1). Works while paused. |
+| `N` | While paused, run one step of 4 ticks (1/60 s, one 60 Hz roll sample). Ignored while running. |
+
+The keys are ignored while Ctrl or Super is held (browser print and preferences). On the web, click the scene first. The camera (director, orbit, fly), the sensor overlay (`G`), the HUD and the editor keep working while paused or slowed: they run on real time, not on sim ticks. The HUD readout appends `  paused` and the time scale (`  0.25x`) only when they apply, so at 1x it stays `fps N  tick N`; the bridge `frame` event carries `paused` and `timeScale` only when not the defaults (bridge protocol 3). Its bottom-left controls line lists the keys.
+
+With `--lockstep-after`, pause and `N` apply but the time scale does not: lockstep advances exactly 4 ticks per frame, and a scaled lockstep frame would not be a whole tick count.
+
+Tests: `playback::tests` (`a_quarter_speed_run_reaches_the_golden_hash_in_four_times_the_frames`, `every_time_scale_reaches_the_golden_hash`, `a_paused_stepped_and_resumed_run_reaches_the_golden_hash`) drive the ramp run through `frame_ticks` one 60 Hz frame at a time and check the golden `ramp_10s` hash. `make web-e2e` presses the keys in GPU Chromium (`e2e/tests/playback.spec.mjs`).
 
 ## Editor
 
