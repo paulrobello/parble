@@ -101,6 +101,7 @@ parble-sim-wasm ──► parble-procgen, parble-sim   (wasm-bindgen worker buil
 - **Size gates:** a 12 mm hole passes minis only, a 19 mm hole passes up to standard.
 - **Ports:** a port is (cell face, floor height level). Side faces carry horizontal ports at floor height levels in 15 mm steps. Top and bottom faces carry vertical drop ports. Exact levels, tolerances and the slope gradients they imply are fixed by the P0 kit-contract task.
 - **Orientation:** yaw only, 4 orientations, plus a mirror flag for chiral pieces. Pieces never tip on their sides.
+- **Slope profiles:** the steep slope's floor uses a C2-continuous profile (decided 2026-11-08) so its entry and exit seams stay under the seam bump limits. The gentle slope keeps its smoothstep.
 - **Footprints:** block pieces fill 1 cell. Rail pieces span several cells (for example S-rail 1×3, helix 2×2×N) and land their ends on grid ports.
 
 ### 5.4 Simulation rules
@@ -109,6 +110,9 @@ parble-sim-wasm ──► parble-procgen, parble-sim   (wasm-bindgen worker buil
 - Pieces in a chunk merge into one trimesh with `FIX_INTERNAL_EDGES` so marbles never bump at seams. A chunk rebuilds when the track is edited.
 - Mechanisms (toggle, splitter, one-way gate, one-way hole, checkpoint, hopper) are **kinematic**: sensors detect the marble, a state machine decides the outcome (the splitter uses the seeded RNG), and an animated flap with a kinematic collider routes the marble.
 - The redirect drop uses real internal tunnel geometry. The marble never teleports.
+- Channel floors that a marble rolls or lands on (bends, slopes, joiners, redirect and tower landings) use exact analytic contacts instead of the faceted trimesh, so seams stay under the seam bump limits.
+- A low-speed rolling-resistance model lets slow marbles settle instead of creeping forever (approved 2026-11-08; it moves every golden hash once, deliberately).
+- Marbles keep their natural bounce on landings: the tower landing's sideways wobble is accepted as is (2026-11-08) and revisited only if play feels off.
 - Determinism contract: identical trajectory hash for the same build, track and seed, natively and in wasm. Saves and replays carry a physics version. Old replays may diverge after a physics change, but seed + track still regenerate a run.
 
 ### 5.5 Rendering
@@ -218,6 +222,13 @@ Scope: the full MVP piece set from Blender generators, with collision sidecars a
 15. Support pillar and tower block with ports (`ref-06`)
 16. Rail family proof: rail straight, rail curve, S-rail 1×3, and a rail-to-block port joint
 
+Added 2026-11-08:
+
+17. Stepper elevator (`ref-09`): a row of vertical slats of rising height. Alternate slats move up and down, and each slat top is slanted so the marble steps onto the next higher slat. Height and length vary with the room available. The slats run only while a marble is on the lift, so the entry slat is always ready, and the moving slat resets smoothly if the marble is moved back off the start. It links a low port to a higher one, so tracks can climb and the validator sees a real link instead of a free-fall hand-off. Other elevator types stay in P7.
+18. Rope-curtain arch: an arch over part of one cell's length with ropes hanging into the channel. A marble passing through loses about half its speed and the ropes swing. The swing starts cosmetic (driven from the sim's drag state) with the rope model kept swappable for real rope physics later.
+
+Look: every moving part of a mechanism (flaps, blades, trapdoors, gates, slats) uses a medium-stain wood, darker than the body, for contrast.
+
 Acceptance:
 - [ ] Every piece passes kit-check: ports match the contract, collider and LODs are present, provenance is recorded.
 - [ ] A scripted sim test per mechanism proves the routing behaviour (toggle alternates, splitter matches the seeded sequence, one-way pieces block reverse travel).
@@ -289,7 +300,7 @@ Scope:
 - **Vertical spans:** helix 1–4 turns at two radii, vertical drop tube, zig-zag switchback wall.
 - **Terrain:** wave/bump channels, S-bends, funnel bowl spinner, half-pipe.
 - **Musical:** xylophone/chime bars, bell, wood-block knockers, each tuned to a scale.
-- **Mechanisms:** lift/elevator, seesaw/catapult, turnstile, trapdoor, size sieve, counterweight switch.
+- **Mechanisms:** further lift/elevator types (the stepper elevator ships in P2), seesaw/catapult, turnstile, trapdoor, size sieve, counterweight switch.
 - **Decor:** placeable lanterns. Light-strip inlays (`ref-09`) are optional and only allowed on mechanical pieces (lift, seesaw, turnstile and similar). Track channels and plain track pieces never carry them.
 
 All of these are fixed Blender catalog variants.
@@ -342,7 +353,7 @@ Acceptance:
 | ID | Question | Default until answered |
 |---|---|---|
 | Q1 | Share-by-URL (compressed track or seed in the URL) | Not planned. File export only. |
-| Q2 | Finish collector recycling marbles back to the hopper (endless run) | Not in MVP. Candidate for P7 mechanisms (lift). |
+| Q2 | Finish collector recycling marbles back to the hopper (endless run) | Not in MVP. Now possible with the P2 stepper elevator; decide before P5. |
 | Q3 | Hand-drop a marble anywhere on the track | Not in MVP. Hopper only. |
 | Q4 | Gamepad support for steer-play mode | Keyboard and mouse only |
 | Q5 | Exact medal thresholds and level count beyond 12 | Set during P9 playtesting |
