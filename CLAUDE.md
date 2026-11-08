@@ -19,7 +19,7 @@ make fmt            # cargo fmt --all
 make lint           # clippy -D warnings, native (--all-targets) and wasm32
 make typecheck      # cargo check native + wasm32, plus web/ui Biome/tsc
 
-make checkall       # fast gate: fmt-check → clippy (native + wasm32) → Biome/tsc → cargo test → Vitest
+make checkall       # fast gate: fmt-check → clippy (native + wasm32) → Biome/tsc → cargo test → Vitest → audio tests + provenance
 make checkall-ci    # push gate: actionlint (pinned, target/tools) + checkall + wasm32 --locked build + gitleaks history scan + web-test + determinism-wasm + web-size
 make pre-commit     # pre-commit run --all-files
 

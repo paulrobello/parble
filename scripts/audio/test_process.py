@@ -39,6 +39,10 @@ FIXTURES = [
      "aformat=channel_layouts=stereo"),
     ("tunnel_rumble", "drop_tunnel", True,
      "anoisesrc=d=6:a=0.3:color=brown:seed=9:r=48000,lowpass=f=400"),
+    # 3 s take for a 6-8 s loop cue: only the extended (chained crossfaded passes) path reaches
+    # the sheet's length.
+    ("roll_steel_block", "roll", True,
+     "anoisesrc=d=3:a=0.2:color=brown:seed=5:r=48000,lowpass=f=500"),
 ]
 
 
@@ -149,6 +153,17 @@ class PipelineTest(unittest.TestCase):
                 self.assertTrue(lo <= i["duration_s"] <= hi, i["duration_s"])
         # The fade-in head forces the crossfade path.
         self.assertTrue(all(i["loop_check"]["crossfade_s"] for i in self.items("roll_glass_block")))
+
+    def test_short_take_extended_to_sheet_length(self) -> None:
+        for i in self.items("roll_steel_block"):
+            self.assertTrue(i["loop_check"]["master_pass"] and i["loop_check"]["pass"], i["stem"])
+            self.assertTrue(6.0 <= i["duration_s"] <= 8.0, i["duration_s"])
+            self.assertTrue(i["loop_check"]["extended"], i["stem"])
+
+    def test_opus_loop_decodes_to_exact_length(self) -> None:
+        for i in self.manifest["items"]:
+            if i.get("loop"):
+                self.assertEqual(i["files"]["ogg"]["decoded_samples"], i["samples"], i["stem"])
 
     def test_double_hit_flagged(self) -> None:
         for i in self.items("clack_glass_glass_medium"):

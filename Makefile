@@ -51,13 +51,20 @@ ui-test: $(UI_NPM)
 ui-build: $(UI_NPM)
 	cd $(UI) && ./node_modules/.bin/vite build
 
-# Fast gate, fail-fast order: fmt → clippy (native + wasm32) → Biome/tsc → cargo test → Vitest.
+# Fast gate, fail-fast order: fmt → clippy (native + wasm32) → Biome/tsc → cargo test → Vitest → audio tests + provenance.
 checkall:
 	@$(MAKE) --no-print-directory fmt-check
 	@$(MAKE) --no-print-directory lint
 	@$(MAKE) --no-print-directory ui-static
 	@$(MAKE) --no-print-directory test
 	@$(MAKE) --no-print-directory ui-test
+	@$(MAKE) --no-print-directory audio-test
+
+# Audio pipeline unit tests and provenance reconciliation (needs numpy + ffmpeg; local only, not in CI).
+.PHONY: audio-test
+audio-test:
+	python3 -m unittest discover -s scripts/audio -p 'test_*.py'
+	python3 scripts/audio/validate_provenance.py
 
 # Push gate: actionlint (cheap, first) + checkall + the CI-parity legs.
 # web-size is a full Trunk release build: ~3.5 min cold, ~15 s warm.

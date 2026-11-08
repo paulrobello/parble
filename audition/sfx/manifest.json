@@ -6,9 +6,9 @@
   "python": "3.14.10",
   "loop_checker_sha256": "d14117b674dd4b8182a413319705d69444fff823855c85b57cef32e3a2ea4a97",
   "repair_loop_sha256": "24255459e18bf4372dae3b49a061c79dea2bdc8ac393c18d5b5a8295aa6715fe",
-  "process_py_sha256": "909dabec86763e0284fbfe2bf499a2e3a48d1bbf834d9a31cddc590d981ac884"
+  "process_py_sha256": "77da7b469d9bc8523a274e5d3e43942220209cacc1e09ced083307728426f650"
  },
- "cue_sheet_sha256": "2ea889fa199619ad5f70cf38026f7b6f2bf7c1572d9adc6bf8eafdb4c39b7819",
+ "cue_sheet_sha256": "99e9050f09073525dad7764345079799f6a87580bdeb73fea528be6388ba78b7",
  "parameters": {
   "sample_rate": 48000,
   "channels": 1,
@@ -23,7 +23,22 @@
    0.75,
    1.0,
    1.5
-  ]
+  ],
+  "loop_extended": {
+   "grid_s": 0.1,
+   "min_region_s": 2.0,
+   "edge_s": 0.5,
+   "edge_db": 3.0,
+   "range_db": 20.0,
+   "max_candidates": 10
+  },
+  "loop_leveler": {
+   "floor_db": 12.0,
+   "ceil_db": 6.0,
+   "boost_db": 24.0,
+   "cut_db": 12.0
+  },
+  "opus_loop_context_s": 0.1
  },
  "items": [
   {
@@ -884,20 +899,16 @@
    },
    "prompt": "A small glass marble rolling through a short enclosed tunnel bored inside a solid hardwood block, hollow woody rumble with a boxy low resonance, continuous with no start or stop, close mic, dry room, real recording, no music, no reverb",
    "issues": [
-    "ogg loudness -33.2 LUFS outside -26.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -33.3 LUFS outside -26.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "duration 3.3s outside 4.0-6.0s",
-    "loop check failed on master"
+    "ogg loudness -27.8 LUFS outside -26.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -27.9 LUFS outside -26.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 6.000s",
     "interior dropouts in take; loop region limited to longest clean run 2.20s + 3.80s",
-    "clean region 3.80s too short for a 4.0s loop; crossfading anyway, duration falls short",
+    "extended loop: 3 crossfaded passes of 0.2-3.3s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "Opus seam failed loop check; rotated loop start to sample 31970",
-    "Opus seam failed loop check; rotated loop start to sample 63507",
-    "linear gain +6.00 dB; export Opus 96k + AAC 96k"
+    "linear gain +14.30 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -911,68 +922,88 @@
     "lufs_method": "integrated over whole loop"
    },
    "loop_check_master": {
-    "pass": false,
+    "pass": true,
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "extended",
       "crossfade_s": 0.5,
-      "pass": false
+      "pass": true
      }
-    ]
+    ],
+    "extended": {
+     "region_s": [
+      0.2,
+      3.3
+     ],
+     "passes": 3
+    },
+    "output": "tunnel_rumble_v01.wav wrap     24 / p99.9   2178   head  -26.3 dB   tail  -23.7 dB   min  -37.8 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
-   "gain_db": 6.0,
+   "gain_db": 14.3,
    "master": {
     "path": "_masters/drop_tunnel/tunnel_rumble_v01.wav",
-    "sha256": "797bbe35ddf37f966c33823c6de6d9eac531b2c02b3d8a9739faffe48819ddb6",
-    "samples": 158400,
-    "duration_s": 3.3,
-    "lufs": -33.2,
+    "sha256": "5f24c41e361a88603bf6512231ee3137707f76d930c20171563540a86439073e",
+    "samples": 288000,
+    "duration_s": 6.0,
+    "lufs": -27.8,
     "true_peak_db": -6.3,
-    "leading_silence_ms": 0.94
+    "leading_silence_ms": 0.19
    },
-   "samples": 158400,
-   "duration_s": 3.3,
+   "samples": 288000,
+   "duration_s": 6.0,
    "files": {
     "ogg": {
      "path": "drop_tunnel/tunnel_rumble_v01.ogg",
-     "sha256": "836a51a9706717d895bb128af5e65897e1b3724e5ae642d2d2687a7858d410aa",
-     "bytes": 41330,
-     "lufs": -33.2,
-     "true_peak_db": -6.3,
-     "decoded_samples": 158400,
-     "duration_s": 3.3,
-     "leading_silence_ms": 1.0,
+     "sha256": "3715a9e44eb6473ed7738c901e5c7faf5d96bec81ef76c7e43ca403da1dc250f",
+     "bytes": 73884,
+     "lufs": -27.8,
+     "true_peak_db": -6.4,
+     "decoded_samples": 288000,
+     "duration_s": 6.0,
+     "leading_silence_ms": 0.19,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap     22 / p99.9   1717   head  -33.9 dB   tail  -32.0 dB   min  -46.1 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap      3 / p99.9   2157   head  -26.4 dB   tail  -23.7 dB   min  -37.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "drop_tunnel/tunnel_rumble_v01.m4a",
-     "sha256": "9b5d323fed8c8ffed45f9f2201c79b64c6e17c9ec88bd639ac26ae0c38640b5d",
-     "bytes": 41549,
-     "lufs": -33.3,
-     "true_peak_db": -6.6,
-     "decoded_samples": 158400,
-     "duration_s": 3.3,
-     "leading_silence_ms": 0.94,
+     "sha256": "71e35c6db22275937e8bdb15e8ddac9b0170a01d002ba83a8a0aaaf0f151d235",
+     "bytes": 74697,
+     "lufs": -27.9,
+     "true_peak_db": -6.2,
+     "decoded_samples": 288000,
+     "duration_s": 6.0,
+     "leading_silence_ms": 0.19,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap     26 / p99.9   1735   head  -33.8 dB   tail  -32.2 dB   min  -46.1 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_m4a.wav wrap     16 / p99.9   2156   head  -26.4 dB   tail  -23.9 dB   min  -37.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
-   "lufs": -33.2,
-   "true_peak_db": -6.3,
+   "lufs": -27.8,
+   "true_peak_db": -6.2,
    "loop_check": {
     "pass": true,
-    "master_pass": false,
+    "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": {
+     "region_s": [
+      0.2,
+      3.3
+     ],
+     "passes": 3
+    },
+    "leveler": null
    }
   },
   {
@@ -993,17 +1024,16 @@
    },
    "prompt": "A small glass marble rolling through a short enclosed tunnel bored inside a solid hardwood block, hollow woody rumble with a boxy low resonance, continuous with no start or stop, close mic, dry room, real recording, no music, no reverb",
    "issues": [
-    "ogg loudness -28.4 LUFS outside -26.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -28.4 LUFS outside -26.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "loop check failed on master"
+    "ogg loudness -30.5 LUFS outside -26.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -30.6 LUFS outside -26.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 6.000s",
     "interior dropouts in take; loop region limited to longest clean run 1.50s + 4.50s",
+    "extended loop: 4 crossfaded passes of 1.9-4.3s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "Opus seam failed loop check; rotated loop start to sample 38394",
-    "linear gain +9.70 dB; export Opus 96k + AAC 96k"
+    "linear gain +10.80 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -1017,68 +1047,93 @@
     "lufs_method": "integrated over whole loop"
    },
    "loop_check_master": {
-    "pass": false,
+    "pass": true,
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "plain",
       "crossfade_s": 0.5,
       "pass": false
+     },
+     {
+      "mode": "extended",
+      "crossfade_s": 0.5,
+      "pass": true
      }
-    ]
+    ],
+    "extended": {
+     "region_s": [
+      1.9,
+      4.3
+     ],
+     "passes": 4
+    },
+    "output": "tunnel_rumble_v02.wav wrap     73 / p99.9    930   head  -28.9 dB   tail  -28.9 dB   min  -37.5 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
-   "gain_db": 9.7,
+   "gain_db": 10.8,
    "master": {
     "path": "_masters/drop_tunnel/tunnel_rumble_v02.wav",
-    "sha256": "2c2a92743d45cecedbf861fbd1bef457b375e2e90b5385661657b9773658440e",
-    "samples": 192000,
-    "duration_s": 4.0,
-    "lufs": -28.4,
+    "sha256": "2299e133ce134dcd20ad8ccb53cac07504986065c34cfe9f1b3c55f7a32330c9",
+    "samples": 288000,
+    "duration_s": 6.0,
+    "lufs": -30.5,
     "true_peak_db": -6.3,
-    "leading_silence_ms": 0.08
+    "leading_silence_ms": 0.0
    },
-   "samples": 192000,
-   "duration_s": 4.0,
+   "samples": 288000,
+   "duration_s": 6.0,
    "files": {
     "ogg": {
      "path": "drop_tunnel/tunnel_rumble_v02.ogg",
-     "sha256": "2764c091592eb58ee55724dd6e250da2966526eb903e5e13a243d68dbac71a32",
-     "bytes": 55848,
-     "lufs": -28.4,
+     "sha256": "aaf5f1a9c72c95a44feb795883e5586d87dd71d1cabc64e19ef47b36409b74ef",
+     "bytes": 82465,
+     "lufs": -30.5,
      "true_peak_db": -6.3,
-     "decoded_samples": 192000,
-     "duration_s": 4.0,
-     "leading_silence_ms": 0.08,
+     "decoded_samples": 288000,
+     "duration_s": 6.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap     38 / p99.9   1715   head  -26.8 dB   tail  -24.6 dB   min  -40.8 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap     72 / p99.9    924   head  -28.9 dB   tail  -29.0 dB   min  -37.4 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "drop_tunnel/tunnel_rumble_v02.m4a",
-     "sha256": "1a5fa1428a87cfb0504fd42e5e841fa7b7791116d9bacb5ea9a0545d49973b48",
-     "bytes": 50274,
-     "lufs": -28.4,
+     "sha256": "1cd8621d040b46476091ffa71fb83d6b9e1c6c711bafd9503e6068b901aa7a85",
+     "bytes": 75177,
+     "lufs": -30.6,
      "true_peak_db": -6.3,
-     "decoded_samples": 192000,
-     "duration_s": 4.0,
-     "leading_silence_ms": 0.08,
+     "decoded_samples": 288000,
+     "duration_s": 6.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap      9 / p99.9   1700   head  -26.8 dB   tail  -24.7 dB   min  -40.8 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_m4a.wav wrap     54 / p99.9    924   head  -28.9 dB   tail  -29.0 dB   min  -37.6 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
-   "lufs": -28.4,
+   "lufs": -30.5,
    "true_peak_db": -6.3,
    "loop_check": {
     "pass": true,
-    "master_pass": false,
+    "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": {
+     "region_s": [
+      1.9,
+      4.3
+     ],
+     "passes": 4
+    },
+    "leveler": null
    }
   },
   {
@@ -1099,22 +1154,17 @@
    },
    "prompt": "A small glass marble rolling through a short enclosed tunnel bored inside a solid hardwood block, hollow woody rumble with a boxy low resonance, continuous with no start or stop, close mic, dry room, real recording, no music, no reverb",
    "issues": [
-    "ogg loudness -30.9 LUFS outside -26.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -30.9 LUFS outside -26.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "duration 1.0s outside 4.0-6.0s",
-    "loop check failed on master",
-    "loop check failed on decoded m4a (AAC priming/padding; fallback only)"
+    "ogg loudness -35.1 LUFS outside -26.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -35.2 LUFS outside -26.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 6.000s",
     "interior dropouts in take; loop region limited to longest clean run 4.70s + 1.00s",
-    "clean region 1.00s too short to loop",
-    "Opus seam failed loop check; rotated loop start to sample 9984",
-    "Opus seam failed loop check; rotated loop start to sample 19341",
-    "Opus seam failed loop check; rotated loop start to sample 28454",
-    "Opus seam failed loop check; rotated loop start to sample 38316",
-    "linear gain +6.10 dB; export Opus 96k + AAC 96k"
+    "envelope swing needed levelling: {'ref_db': -39.2, 'floor_db': -12.0, 'ceil_db': 6.0, 'max_boost_db': 19.1, 'max_cut_db': 7.6}",
+    "extended loop: 2 crossfaded passes of 0.4-6.0s",
+    "repair-loop.py equal-power tail-over-head crossfade 0.5s",
+    "linear gain +6.10 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -1128,64 +1178,101 @@
     "lufs_method": "integrated over whole loop"
    },
    "loop_check_master": {
-    "pass": false,
-    "crossfade_s": null,
+    "pass": true,
+    "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
+     },
+     {
+      "mode": "extended",
+      "crossfade_s": 0.5,
+      "pass": true
      }
-    ]
+    ],
+    "leveler": {
+     "ref_db": -39.2,
+     "floor_db": -12.0,
+     "ceil_db": 6.0,
+     "max_boost_db": 19.1,
+     "max_cut_db": 7.6
+    },
+    "extended": {
+     "region_s": [
+      0.4,
+      6.0
+     ],
+     "passes": 2
+    },
+    "output": "tunnel_rumble_v03.wav wrap      5 / p99.9   1012   head  -35.6 dB   tail  -39.2 dB   min  -42.1 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": 6.1,
    "master": {
     "path": "_masters/drop_tunnel/tunnel_rumble_v03.wav",
-    "sha256": "0e650813c36074419870e28ed4913bbec3ab4d7c65e46a3604b76ef0dd8c09d6",
-    "samples": 48000,
-    "duration_s": 1.0,
-    "lufs": -30.9,
+    "sha256": "4b6dbdc2fc89b02c56e2a8e16e66e3850f959d71f60bec07620e5b35a412245e",
+    "samples": 288000,
+    "duration_s": 6.0,
+    "lufs": -35.1,
     "true_peak_db": -6.3,
-    "leading_silence_ms": 0.23
+    "leading_silence_ms": 0.0
    },
-   "samples": 48000,
-   "duration_s": 1.0,
+   "samples": 288000,
+   "duration_s": 6.0,
    "files": {
     "ogg": {
      "path": "drop_tunnel/tunnel_rumble_v03.ogg",
-     "sha256": "233d89614a1ff8ae68c8515fdf18bc4c27fec91a0781ed7cc3f9fd758f59c900",
-     "bytes": 13372,
-     "lufs": -30.9,
+     "sha256": "a8e90c4d6354646f64fe033f87db9f6e93f7cb6dca632e5ebe778c6f4ac996c3",
+     "bytes": 73835,
+     "lufs": -35.1,
      "true_peak_db": -6.3,
-     "decoded_samples": 48000,
-     "duration_s": 1.0,
-     "leading_silence_ms": 0.25,
+     "decoded_samples": 288000,
+     "duration_s": 6.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
-      "pass": false,
-      "output": "FAIL (1):\n  - dec_ogg.wav: too short to judge as a loop"
+      "pass": true,
+      "output": "dec_ogg.wav wrap      4 / p99.9   1013   head  -35.6 dB   tail  -39.2 dB   min  -42.1 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "drop_tunnel/tunnel_rumble_v03.m4a",
-     "sha256": "392bd6865a269a00b36627e16f2207deb5e30dc8f68d1b7bad751d85b59611e2",
-     "bytes": 13375,
-     "lufs": -30.9,
-     "true_peak_db": -6.3,
-     "decoded_samples": 48000,
-     "duration_s": 1.0,
-     "leading_silence_ms": 0.23,
+     "sha256": "9e14cd1531a5368fe77394592acffb18df899a9909e990df308c9e355c883d90",
+     "bytes": 75061,
+     "lufs": -35.2,
+     "true_peak_db": -6.7,
+     "decoded_samples": 288000,
+     "duration_s": 6.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
-      "pass": false,
-      "output": "FAIL (1):\n  - dec_m4a.wav: too short to judge as a loop"
+      "pass": true,
+      "output": "dec_m4a.wav wrap     83 / p99.9   1011   head  -35.7 dB   tail  -39.3 dB   min  -42.2 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
-   "lufs": -30.9,
+   "lufs": -35.1,
    "true_peak_db": -6.3,
    "loop_check": {
-    "pass": false,
-    "master_pass": false,
-    "aac_pass": false,
-    "crossfade_s": null
+    "pass": true,
+    "master_pass": true,
+    "aac_pass": true,
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": {
+     "region_s": [
+      0.4,
+      6.0
+     ],
+     "passes": 2
+    },
+    "leveler": {
+     "ref_db": -39.2,
+     "floor_db": -12.0,
+     "ceil_db": 6.0,
+     "max_boost_db": 19.1,
+     "max_cut_db": 7.6
+    }
    }
   },
   {
@@ -20086,17 +20173,16 @@
    },
    "prompt": "A 16 mm clear glass marble rolling steadily at constant medium speed along a smooth U-shaped channel carved into a solid maple toy block, steady rolling rumble with the faint grain texture of the wood, bright, glassy, slightly ringing character, continuous with no start or stop, close mic, dry room, real recording, no music, no reverb",
    "issues": [
-    "ogg loudness -28.3 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -28.3 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "duration 4.3s outside 6.0-8.0s"
+    "ogg loudness -26.3 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -26.4 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "interior dropouts in take; loop region limited to longest clean run 3.20s + 4.80s",
-    "clean region 4.80s too short for a 6.0s loop; crossfading anyway, duration falls short",
+    "extended loop: 3 crossfaded passes of 1.5-4.8s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "linear gain +1.10 dB; export Opus 96k + AAC 96k"
+    "linear gain +5.00 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -20114,64 +20200,84 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "extended",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "extended": {
+     "region_s": [
+      1.5,
+      4.8
+     ],
+     "passes": 3
+    },
+    "output": "roll_glass_block_v01.wav wrap    484 / p99.9   6201   head  -27.3 dB   tail  -27.5 dB   min  -39.2 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
-   "gain_db": 1.1,
+   "gain_db": 5.0,
    "master": {
     "path": "_masters/roll/roll_glass_block_v01.wav",
-    "sha256": "549b375ae540952687e96243b2488958f4d50890e40152a9e8be5835eafe7424",
-    "samples": 206400,
-    "duration_s": 4.3,
-    "lufs": -28.3,
+    "sha256": "cf2030005aa338abb65cbf8d0f5cb5ecc198d0e249a47f5617f3debc4e145d3f",
+    "samples": 384000,
+    "duration_s": 8.0,
+    "lufs": -26.3,
     "true_peak_db": -6.3,
-    "leading_silence_ms": 0.02
+    "leading_silence_ms": 0.0
    },
-   "samples": 206400,
-   "duration_s": 4.3,
+   "samples": 384000,
+   "duration_s": 8.0,
    "files": {
     "ogg": {
      "path": "roll/roll_glass_block_v01.ogg",
-     "sha256": "82af16921ea155869880e9bfe2ce612b713e2f038252fece5995b1e714d58479",
-     "bytes": 64887,
-     "lufs": -28.3,
-     "true_peak_db": -6.3,
-     "decoded_samples": 206400,
-     "duration_s": 4.3,
-     "leading_silence_ms": 0.02,
+     "sha256": "5f431c8fc3df95b64bffe745a88a037243301745673a6ecd931cf96627d3f3a7",
+     "bytes": 121052,
+     "lufs": -26.3,
+     "true_peak_db": -6.4,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap    299 / p99.9   7269   head  -30.4 dB   tail  -30.4 dB   min  -45.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap    661 / p99.9   6309   head  -27.2 dB   tail  -27.6 dB   min  -39.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_glass_block_v01.m4a",
-     "sha256": "9792f8bd25054b213c392bdca7961f757b696e0349b8b867d77d4a644ed42459",
-     "bytes": 53889,
-     "lufs": -28.3,
-     "true_peak_db": -6.4,
-     "decoded_samples": 206400,
-     "duration_s": 4.3,
-     "leading_silence_ms": 0.02,
+     "sha256": "14a975ad89411285b4f5e8d1bc9527d32a693bd8f2cf412a705d455afde812e2",
+     "bytes": 99470,
+     "lufs": -26.4,
+     "true_peak_db": -6.3,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap    336 / p99.9   7215   head  -30.5 dB   tail  -30.4 dB   min  -45.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_m4a.wav wrap    800 / p99.9   6171   head  -27.4 dB   tail  -27.6 dB   min  -39.2 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
-   "lufs": -28.3,
+   "lufs": -26.3,
    "true_peak_db": -6.3,
    "loop_check": {
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": {
+     "region_s": [
+      1.5,
+      4.8
+     ],
+     "passes": 3
+    },
+    "leveler": null
    }
   },
   {
@@ -20192,17 +20298,16 @@
    },
    "prompt": "A 16 mm clear glass marble rolling steadily at constant medium speed along a smooth U-shaped channel carved into a solid maple toy block, steady rolling rumble with the faint grain texture of the wood, bright, glassy, slightly ringing character, continuous with no start or stop, close mic, dry room, real recording, no music, no reverb",
    "issues": [
-    "ogg loudness -30.7 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -30.8 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "duration 4.6s outside 6.0-8.0s"
+    "ogg loudness -30.4 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -30.4 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "interior dropouts in take; loop region limited to longest clean run 2.80s + 5.10s",
-    "clean region 5.10s too short for a 6.0s loop; crossfading anyway, duration falls short",
+    "extended loop: 2 crossfaded passes of 0.2-4.9s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "linear gain +3.30 dB; export Opus 96k + AAC 96k"
+    "linear gain +3.30 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -20220,64 +20325,84 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "extended",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "extended": {
+     "region_s": [
+      0.2,
+      4.9
+     ],
+     "passes": 2
+    },
+    "output": "roll_glass_block_v02.wav wrap    146 / p99.9   2804   head  -37.5 dB   tail  -32.2 dB   min  -44.7 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": 3.3,
    "master": {
     "path": "_masters/roll/roll_glass_block_v02.wav",
-    "sha256": "4ec4ff8142d163e50dc9d734aefb37188e30e4440a7475864f9d401a76c27be8",
-    "samples": 220800,
-    "duration_s": 4.6,
-    "lufs": -30.7,
+    "sha256": "a1e28d4ae5fd359bf11a94745ca9e57cad827f18fa755d4b6709e39a2f869d96",
+    "samples": 384000,
+    "duration_s": 8.0,
+    "lufs": -30.4,
     "true_peak_db": -6.3,
     "leading_silence_ms": 0.0
    },
-   "samples": 220800,
-   "duration_s": 4.6,
+   "samples": 384000,
+   "duration_s": 8.0,
    "files": {
     "ogg": {
      "path": "roll/roll_glass_block_v02.ogg",
-     "sha256": "93372346419fafde6b73f992ced04b9093d284b6f90404a762ed5847e97b87a1",
-     "bytes": 76111,
-     "lufs": -30.7,
+     "sha256": "6ee6b899edf90552e97d61295ff516cdeb3c7260dc82dd6d8aff4a72a8fed2e5",
+     "bytes": 135605,
+     "lufs": -30.4,
      "true_peak_db": -6.3,
-     "decoded_samples": 220800,
-     "duration_s": 4.6,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
      "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap    211 / p99.9   2743   head  -39.9 dB   tail  -36.5 dB   min  -44.8 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap    163 / p99.9   2808   head  -37.6 dB   tail  -32.1 dB   min  -44.8 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_glass_block_v02.m4a",
-     "sha256": "1fdde9a144acaefbc76b9a3b7e613497c8f45d651ff443526ec72093d6b0dd07",
-     "bytes": 58088,
-     "lufs": -30.8,
-     "true_peak_db": -6.4,
-     "decoded_samples": 220800,
-     "duration_s": 4.6,
-     "leading_silence_ms": 0.0,
+     "sha256": "8bdce59f28f51ac6655a01c1d78ac7a18ba7e2078ae3bb547e79ab82391827d7",
+     "bytes": 100815,
+     "lufs": -30.4,
+     "true_peak_db": -6.2,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.1,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap    354 / p99.9   2707   head  -39.9 dB   tail  -36.6 dB   min  -44.7 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_m4a.wav wrap    205 / p99.9   2793   head  -37.6 dB   tail  -32.2 dB   min  -44.7 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
-   "lufs": -30.7,
-   "true_peak_db": -6.3,
+   "lufs": -30.4,
+   "true_peak_db": -6.2,
    "loop_check": {
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": {
+     "region_s": [
+      0.2,
+      4.9
+     ],
+     "passes": 2
+    },
+    "leveler": null
    }
   },
   {
@@ -20298,17 +20423,16 @@
    },
    "prompt": "A 16 mm clear glass marble rolling steadily at constant medium speed along a smooth U-shaped channel carved into a solid maple toy block, steady rolling rumble with the faint grain texture of the wood, bright, glassy, slightly ringing character, continuous with no start or stop, close mic, dry room, real recording, no music, no reverb",
    "issues": [
-    "ogg loudness -27.0 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -27.0 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "duration 5.2s outside 6.0-8.0s"
+    "ogg loudness -26.3 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -26.3 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "interior dropouts in take; loop region limited to longest clean run 2.10s + 5.70s",
-    "clean region 5.70s too short for a 6.0s loop; crossfading anyway, duration falls short",
+    "extended loop: 3 crossfaded passes of 0.0-4.3s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "linear gain +7.00 dB; export Opus 96k + AAC 96k"
+    "linear gain +7.00 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -20326,64 +20450,84 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "extended",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "extended": {
+     "region_s": [
+      0.0,
+      4.3
+     ],
+     "passes": 3
+    },
+    "output": "roll_glass_block_v03.wav wrap    420 / p99.9   6635   head  -27.0 dB   tail  -30.3 dB   min  -36.4 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": 7.0,
    "master": {
     "path": "_masters/roll/roll_glass_block_v03.wav",
-    "sha256": "ce5a0b857bfbd1d203e7c23d7d8fa265df26f45c233971b31a8897e213179d21",
-    "samples": 249600,
-    "duration_s": 5.2,
-    "lufs": -27.0,
+    "sha256": "93b4d1aa6e2ea49b8f1aaad09f68acf72ec85267e6b69a2f7c17c9a79c937b84",
+    "samples": 384000,
+    "duration_s": 8.0,
+    "lufs": -26.3,
     "true_peak_db": -6.3,
-    "leading_silence_ms": 16.08
+    "leading_silence_ms": 0.0
    },
-   "samples": 249600,
-   "duration_s": 5.2,
+   "samples": 384000,
+   "duration_s": 8.0,
    "files": {
     "ogg": {
      "path": "roll/roll_glass_block_v03.ogg",
-     "sha256": "24991b3a14221337f8c1c5cf0748aa6d04011060755d7a5624f22dcbbf2458ea",
-     "bytes": 80551,
-     "lufs": -27.0,
+     "sha256": "6148ae53f8f4b74ae6a1eadbbff7ed9784787cab525095918859b2c5e9789f8a",
+     "bytes": 125418,
+     "lufs": -26.3,
      "true_peak_db": -6.4,
-     "decoded_samples": 249600,
-     "duration_s": 5.2,
-     "leading_silence_ms": 16.1,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap     88 / p99.9   6097   head  -30.4 dB   tail  -34.6 dB   min  -46.6 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap    426 / p99.9   6702   head  -27.0 dB   tail  -30.4 dB   min  -36.7 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_glass_block_v03.m4a",
-     "sha256": "43b43ab38818c381e9414e7fb975151ee88197e18aee94b5748a0d27c3c576cd",
-     "bytes": 65364,
-     "lufs": -27.0,
-     "true_peak_db": -6.3,
-     "decoded_samples": 249600,
-     "duration_s": 5.2,
-     "leading_silence_ms": 12.65,
+     "sha256": "0baa9937ed18d7729931bcfd662d037cc3b1fba560aae4647675a8d0b07bae74",
+     "bytes": 99852,
+     "lufs": -26.3,
+     "true_peak_db": -6.6,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap     20 / p99.9   5954   head  -30.3 dB   tail  -34.7 dB   min  -45.7 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_m4a.wav wrap    253 / p99.9   6548   head  -27.1 dB   tail  -30.4 dB   min  -36.5 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
-   "lufs": -27.0,
-   "true_peak_db": -6.3,
+   "lufs": -26.3,
+   "true_peak_db": -6.4,
    "loop_check": {
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": {
+     "region_s": [
+      0.0,
+      4.3
+     ],
+     "passes": 3
+    },
+    "leveler": null
    }
   },
   {
@@ -20404,17 +20548,16 @@
    },
    "prompt": "A 16 mm clear glass marble rolling steadily at constant medium speed along two parallel smooth round beech dowel rails forming an open trough, light hollow rolling whirr with soft rhythmic ticking from the two rail contacts, bright, glassy, slightly ringing character, continuous with no start or stop, close mic, dry room, real recording, no music, no reverb",
    "issues": [
-    "ogg loudness -26.9 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -26.9 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "duration 5.4s outside 6.0-8.0s"
+    "ogg loudness -27.0 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -27.0 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "interior dropouts in take; loop region limited to longest clean run 2.00s + 5.90s",
-    "clean region 5.90s too short for a 6.0s loop; crossfading anyway, duration falls short",
+    "extended loop: 2 crossfaded passes of 0.0-5.9s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "linear gain +4.70 dB; export Opus 96k + AAC 96k"
+    "linear gain +4.70 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -20432,64 +20575,84 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "extended",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "extended": {
+     "region_s": [
+      0.0,
+      5.9
+     ],
+     "passes": 2
+    },
+    "output": "roll_glass_rail_v01.wav wrap    283 / p99.9   2369   head  -29.3 dB   tail  -24.1 dB   min  -39.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": 4.7,
    "master": {
     "path": "_masters/roll/roll_glass_rail_v01.wav",
-    "sha256": "94a37b151a6a2a4b1dc4bc0c3532251ffb28e7f61eb61f824a851dc9cd486b5b",
-    "samples": 259200,
-    "duration_s": 5.4,
-    "lufs": -26.9,
+    "sha256": "1a8ecbe4ace67aff48dcee35e5fd2d70ce0668b4b0e8d54ebbf0295ceef61f04",
+    "samples": 384000,
+    "duration_s": 8.0,
+    "lufs": -27.0,
     "true_peak_db": -6.3,
-    "leading_silence_ms": 0.0
+    "leading_silence_ms": 0.02
    },
-   "samples": 259200,
-   "duration_s": 5.4,
+   "samples": 384000,
+   "duration_s": 8.0,
    "files": {
     "ogg": {
      "path": "roll/roll_glass_rail_v01.ogg",
-     "sha256": "5d8daad0d884271284791c6671bb488a28f0c7afa93b78c4776cc2c670333cc5",
-     "bytes": 78849,
-     "lufs": -26.9,
+     "sha256": "fc107b4d2c65abc51bd076689d0d072616261c234052cdd5ed353abe9035d550",
+     "bytes": 120051,
+     "lufs": -27.0,
      "true_peak_db": -6.4,
-     "decoded_samples": 259200,
-     "duration_s": 5.4,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
      "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap     32 / p99.9   2273   head  -31.3 dB   tail  -31.8 dB   min  -40.0 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap    278 / p99.9   2353   head  -29.3 dB   tail  -24.1 dB   min  -39.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_glass_rail_v01.m4a",
-     "sha256": "114cfc62d0dad45b2df260b9264eb7f14aaef72e02d6f07243f78be119e4f852",
-     "bytes": 67805,
-     "lufs": -26.9,
+     "sha256": "813024a154b4abed614ef65f138e8da7c77d24716af6b02c940144dc885993a5",
+     "bytes": 101184,
+     "lufs": -27.0,
      "true_peak_db": -6.3,
-     "decoded_samples": 259200,
-     "duration_s": 5.4,
-     "leading_silence_ms": 0.0,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.02,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap     94 / p99.9   2245   head  -31.4 dB   tail  -31.8 dB   min  -40.0 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_m4a.wav wrap    302 / p99.9   2358   head  -29.3 dB   tail  -24.1 dB   min  -40.0 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
-   "lufs": -26.9,
+   "lufs": -27.0,
    "true_peak_db": -6.3,
    "loop_check": {
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": {
+     "region_s": [
+      0.0,
+      5.9
+     ],
+     "passes": 2
+    },
+    "leveler": null
    }
   },
   {
@@ -20510,17 +20673,16 @@
    },
    "prompt": "A 16 mm clear glass marble rolling steadily at constant medium speed along two parallel smooth round beech dowel rails forming an open trough, light hollow rolling whirr with soft rhythmic ticking from the two rail contacts, bright, glassy, slightly ringing character, continuous with no start or stop, close mic, dry room, real recording, no music, no reverb",
    "issues": [
-    "ogg loudness -31.1 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -31.1 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "duration 4.3s outside 6.0-8.0s"
+    "ogg loudness -30.0 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -30.0 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "interior dropouts in take; loop region limited to longest clean run 3.20s + 4.80s",
-    "clean region 4.80s too short for a 6.0s loop; crossfading anyway, duration falls short",
+    "extended loop: 3 crossfaded passes of 1.4-4.8s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "linear gain +2.50 dB; export Opus 96k + AAC 96k"
+    "linear gain +2.50 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -20538,64 +20700,84 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "extended",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "extended": {
+     "region_s": [
+      1.4,
+      4.8
+     ],
+     "passes": 3
+    },
+    "output": "roll_glass_rail_v02.wav wrap    639 / p99.9   2117   head  -29.4 dB   tail  -31.8 dB   min  -41.2 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": 2.5,
    "master": {
     "path": "_masters/roll/roll_glass_rail_v02.wav",
-    "sha256": "1c59aaee27875de97f982b3638c414753ec9ac4d28822777512c73a6d7654a52",
-    "samples": 206400,
-    "duration_s": 4.3,
-    "lufs": -31.1,
+    "sha256": "758e73751de57c423ac865b53c6c820a8432604e69361409d8220c97776fa995",
+    "samples": 384000,
+    "duration_s": 8.0,
+    "lufs": -30.0,
     "true_peak_db": -6.3,
-    "leading_silence_ms": 0.42
+    "leading_silence_ms": 0.0
    },
-   "samples": 206400,
-   "duration_s": 4.3,
+   "samples": 384000,
+   "duration_s": 8.0,
    "files": {
     "ogg": {
      "path": "roll/roll_glass_rail_v02.ogg",
-     "sha256": "0cd6f8e9c4de0ec5dc2c428852f6f90468cc1f49e73359065a209c7a6e776404",
-     "bytes": 63151,
-     "lufs": -31.1,
+     "sha256": "d839a1a15226a82761f59d7902479ba0a809a18f0210153f51891539c472c77b",
+     "bytes": 126981,
+     "lufs": -30.0,
      "true_peak_db": -6.4,
-     "decoded_samples": 206400,
-     "duration_s": 4.3,
-     "leading_silence_ms": 0.42,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap      9 / p99.9   1968   head  -29.2 dB   tail  -27.7 dB   min  -49.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap    603 / p99.9   2112   head  -29.4 dB   tail  -31.7 dB   min  -41.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_glass_rail_v02.m4a",
-     "sha256": "b44775cf8053cc22f637b8211e27c1f3ab429aed1e661ac681d50f411d0bfc73",
-     "bytes": 54235,
-     "lufs": -31.1,
-     "true_peak_db": -6.2,
-     "decoded_samples": 206400,
-     "duration_s": 4.3,
-     "leading_silence_ms": 0.4,
+     "sha256": "a1c8fba2d2ed27dbc22af896734ab6e3652106762221ba4501adb2c740db0d60",
+     "bytes": 101078,
+     "lufs": -30.0,
+     "true_peak_db": -6.4,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap     10 / p99.9   1944   head  -29.2 dB   tail  -27.7 dB   min  -49.8 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_m4a.wav wrap    615 / p99.9   2102   head  -29.3 dB   tail  -31.9 dB   min  -41.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
-   "lufs": -31.1,
-   "true_peak_db": -6.2,
+   "lufs": -30.0,
+   "true_peak_db": -6.4,
    "loop_check": {
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": {
+     "region_s": [
+      1.4,
+      4.8
+     ],
+     "passes": 3
+    },
+    "leveler": null
    }
   },
   {
@@ -20616,17 +20798,16 @@
    },
    "prompt": "A 16 mm clear glass marble rolling steadily at constant medium speed along two parallel smooth round beech dowel rails forming an open trough, light hollow rolling whirr with soft rhythmic ticking from the two rail contacts, bright, glassy, slightly ringing character, continuous with no start or stop, close mic, dry room, real recording, no music, no reverb",
    "issues": [
-    "ogg loudness -33.5 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -33.6 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "duration 5.4s outside 6.0-8.0s"
+    "ogg loudness -29.5 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -29.6 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "interior dropouts in take; loop region limited to longest clean run 2.10s + 5.90s",
-    "clean region 5.90s too short for a 6.0s loop; crossfading anyway, duration falls short",
+    "extended loop: 2 crossfaded passes of 0.7-5.8s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "linear gain -1.90 dB; export Opus 96k + AAC 96k"
+    "linear gain +2.00 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -20644,64 +20825,84 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "extended",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "extended": {
+     "region_s": [
+      0.7,
+      5.8
+     ],
+     "passes": 2
+    },
+    "output": "roll_glass_rail_v03.wav wrap    354 / p99.9   3815   head  -30.3 dB   tail  -31.9 dB   min  -43.7 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
-   "gain_db": -1.9,
+   "gain_db": 2.0,
    "master": {
     "path": "_masters/roll/roll_glass_rail_v03.wav",
-    "sha256": "be56dda15ec7c4d03fe890dd1e46eb463ab0f0901b17f5a0a651a68e7277ce6f",
-    "samples": 259200,
-    "duration_s": 5.4,
-    "lufs": -33.5,
+    "sha256": "48f43c844a1611bfc19963c22ac55bb9e13ed234886c00b023b16f3c2a2363a5",
+    "samples": 384000,
+    "duration_s": 8.0,
+    "lufs": -29.5,
     "true_peak_db": -6.3,
     "leading_silence_ms": 0.0
    },
-   "samples": 259200,
-   "duration_s": 5.4,
+   "samples": 384000,
+   "duration_s": 8.0,
    "files": {
     "ogg": {
      "path": "roll/roll_glass_rail_v03.ogg",
-     "sha256": "7d5ee34e76fa47412b64a330243c1521fa003ef68c1941a6b3574d8c1cf9ac7a",
-     "bytes": 79567,
-     "lufs": -33.5,
-     "true_peak_db": -6.2,
-     "decoded_samples": 259200,
-     "duration_s": 5.4,
+     "sha256": "ac8657cc086e6c48eece6b3699887542645071f926f5714cd7a0227413ab8277",
+     "bytes": 120406,
+     "lufs": -29.5,
+     "true_peak_db": -6.3,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
      "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap     58 / p99.9   2467   head  -36.4 dB   tail  -35.3 dB   min  -47.6 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap    315 / p99.9   3764   head  -30.3 dB   tail  -31.9 dB   min  -43.7 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_glass_rail_v03.m4a",
-     "sha256": "476e8a32a001ffdd6b2e098d4c5a9499c6c7c6a2f59a90ed9e3634faef7f8deb",
-     "bytes": 68378,
-     "lufs": -33.6,
-     "true_peak_db": -6.9,
-     "decoded_samples": 259200,
-     "duration_s": 5.4,
-     "leading_silence_ms": 0.19,
+     "sha256": "5ca552dc0c092ec93642630dadfdc4132f882d8e5bd4cddce2feb6649377ebb6",
+     "bytes": 101798,
+     "lufs": -29.6,
+     "true_peak_db": -6.6,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap    164 / p99.9   2460   head  -36.5 dB   tail  -35.4 dB   min  -47.6 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_m4a.wav wrap    275 / p99.9   3757   head  -30.3 dB   tail  -31.9 dB   min  -43.7 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
-   "lufs": -33.5,
-   "true_peak_db": -6.2,
+   "lufs": -29.5,
+   "true_peak_db": -6.3,
    "loop_check": {
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": {
+     "region_s": [
+      0.7,
+      5.8
+     ],
+     "passes": 2
+    },
+    "leveler": null
    }
   },
   {
@@ -20729,8 +20930,7 @@
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "raw take already loops cleanly; no crossfade",
-    "Opus seam failed loop check; rotated loop start to sample 307087",
-    "linear gain +35.10 dB; export Opus 96k + AAC 96k"
+    "linear gain +35.10 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -20748,50 +20948,53 @@
     "crossfade_s": 0.0,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_glass_rug_v07.wav wrap     51 / p99.9    336   head  -19.1 dB   tail  -21.5 dB   min  -29.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": 35.1,
    "master": {
     "path": "_masters/roll/roll_glass_rug_v07.wav",
-    "sha256": "d4da19486f2e9b010da50a32672efa618bc180be902706202781f13001335448",
+    "sha256": "61ec6bcf7de7fdfada52f1751fd364cf371b41588ae8712e1275ee6c7d20a780",
     "samples": 384000,
     "duration_s": 8.0,
-    "lufs": -30.8,
+    "lufs": -30.7,
     "true_peak_db": -6.3,
-    "leading_silence_ms": 0.4
+    "leading_silence_ms": 0.0
    },
    "samples": 384000,
    "duration_s": 8.0,
    "files": {
     "ogg": {
      "path": "roll/roll_glass_rug_v07.ogg",
-     "sha256": "1e82ac06a7a3dee5cc7e3992777926ed275d7b5273a98d3e51e1add364d345ae",
-     "bytes": 90137,
-     "lufs": -30.8,
-     "true_peak_db": -6.5,
-     "decoded_samples": 384000,
-     "duration_s": 8.0,
-     "leading_silence_ms": 0.4,
-     "loop_check": {
-      "pass": true,
-      "output": "dec_ogg.wav wrap     66 / p99.9    334   head  -19.9 dB   tail  -21.7 dB   min  -30.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
-     }
-    },
-    "m4a": {
-     "path": "roll/roll_glass_rug_v07.m4a",
-     "sha256": "9dbb0ebda188711be67b5c2eee09f3c84a28c30559b5a24471bb58c16d8a57d6",
-     "bytes": 98775,
+     "sha256": "6220098e70a5eb2b0cc1b2e8f4a234739b23931a3a67360dec1c610bb81f9f5c",
+     "bytes": 92482,
      "lufs": -30.8,
      "true_peak_db": -6.4,
      "decoded_samples": 384000,
      "duration_s": 8.0,
-     "leading_silence_ms": 0.38,
+     "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap     92 / p99.9    322   head  -19.7 dB   tail  -21.6 dB   min  -30.2 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap    190 / p99.9    334   head  -19.3 dB   tail  -21.5 dB   min  -30.0 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+     }
+    },
+    "m4a": {
+     "path": "roll/roll_glass_rug_v07.m4a",
+     "sha256": "82586aec2ee09667c385b120ba66cdf8f83c8067abe76a23b2fc9274e7e57d79",
+     "bytes": 98794,
+     "lufs": -30.8,
+     "true_peak_db": -6.4,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.0,
+     "loop_check": {
+      "pass": true,
+      "output": "dec_m4a.wav wrap     51 / p99.9    324   head  -19.1 dB   tail  -21.6 dB   min  -29.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
@@ -20801,7 +21004,10 @@
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.0
+    "crossfade_s": 0.0,
+    "variant": "as built",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -20819,15 +21025,17 @@
    },
    "prompt": "felt DSP of roll_glass_rug_v07 (no generation)",
    "issues": [
-    "ogg loudness -30.2 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -30.2 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "loop check failed on ogg"
+    "ogg loudness -30.1 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -30.1 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "raw take already loops cleanly; no crossfade",
-    "linear gain -3.30 dB; export Opus 96k + AAC 96k"
+    "loop check score 1/3 for as built; trying re-folded with a 0.5s crossfade",
+    "loop check score 0/3 for re-folded with a 0.5s crossfade; trying re-folded with a 0.75s crossfade",
+    "loop variant used: re-folded with a 0.75s crossfade",
+    "linear gain -3.30 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -20845,60 +21053,66 @@
     "crossfade_s": 0.0,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_glass_rug_v07f.wav wrap      1 / p99.9     99   head  -21.7 dB   tail  -21.3 dB   min  -29.6 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "re-folded with a 0.75s crossfade"
    },
    "gain_db": -3.3,
    "master": {
     "path": "_masters/roll/roll_glass_rug_v07f.wav",
-    "sha256": "0b2e7e83d8c3c049250f58ad494faf2a8b82ce9d520ea7347ae6f58613808ba9",
-    "samples": 384000,
-    "duration_s": 8.0,
-    "lufs": -30.2,
+    "sha256": "4342c075ca41ed872eb7af43b1fe4503c57e42c02ff9c8d1b1331226a48e793b",
+    "samples": 348000,
+    "duration_s": 7.25,
+    "lufs": -30.1,
     "true_peak_db": -6.3,
     "leading_silence_ms": 0.0
    },
-   "samples": 384000,
-   "duration_s": 8.0,
+   "samples": 348000,
+   "duration_s": 7.25,
    "files": {
     "ogg": {
      "path": "roll/roll_glass_rug_v07f.ogg",
-     "sha256": "92fe400bfdc26a1407703a2b1bf9fe247cc7c64f9ac61c7c0566c33786120ef8",
-     "bytes": 112828,
-     "lufs": -30.2,
+     "sha256": "fd412f8635b10fb6fb7464a8fe59e31e585e70a8cf6e61ac7f81454e5e0bf4e4",
+     "bytes": 103772,
+     "lufs": -30.1,
      "true_peak_db": -6.5,
-     "decoded_samples": 384000,
-     "duration_s": 8.0,
+     "decoded_samples": 348000,
+     "duration_s": 7.25,
      "leading_silence_ms": 0.0,
      "loop_check": {
-      "pass": false,
-      "output": "dec_ogg.wav wrap    589 / p99.9     97   head  -18.2 dB   tail  -20.8 dB   min  -29.7 dB   FAIL\n\nFAIL (1):\n  - dec_ogg.wav: wrap step 589 exceeds the p99.9 intra-loop step 97, so the loop point clicks"
+      "pass": true,
+      "output": "dec_ogg.wav wrap     77 / p99.9     98   head  -21.7 dB   tail  -21.4 dB   min  -29.7 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_glass_rug_v07f.m4a",
-     "sha256": "3e1cb31ef9c07b09e8997ada8561ad10a9a9bcdd27360a16be3a93b4a103830e",
-     "bytes": 98644,
-     "lufs": -30.2,
+     "sha256": "d983f7a81cb9b69ae38b8791777a94fbdcbc14ae444e03d2a42ee14c985f7cf6",
+     "bytes": 89603,
+     "lufs": -30.1,
      "true_peak_db": -6.3,
-     "decoded_samples": 384000,
-     "duration_s": 8.0,
+     "decoded_samples": 348000,
+     "duration_s": 7.25,
      "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap     58 / p99.9     98   head  -17.9 dB   tail  -20.7 dB   min  -29.6 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_m4a.wav wrap     87 / p99.9     99   head  -21.7 dB   tail  -21.3 dB   min  -29.6 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
-   "lufs": -30.2,
+   "lufs": -30.1,
    "true_peak_db": -6.3,
    "loop_check": {
-    "pass": false,
+    "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.0
+    "crossfade_s": 0.0,
+    "variant": "re-folded with a 0.75s crossfade",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -20920,14 +21134,15 @@
    "prompt": "very soft muffled brushing hush of thick wool felt being very lightly rubbed, a continuous steady low and dull fabric whisper, almost silent, no clicks, no hard surface, no wood, no ring, no music",
    "issues": [
     "ogg loudness -29.4 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -29.4 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "loop check failed on decoded m4a (AAC priming/padding; fallback only)"
+    "m4a loudness -29.4 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "raw take already loops cleanly; no crossfade",
-    "linear gain +37.50 dB; export Opus 96k + AAC 96k"
+    "loop check score 2/3 for as built; trying rotated to sample 76325",
+    "loop variant used: rotated to sample 76325",
+    "linear gain +37.50 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -20945,28 +21160,31 @@
     "crossfade_s": 0.0,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_glass_rug_v08.wav wrap    105 / p99.9    296   head  -17.8 dB   tail  -17.0 dB   min  -30.7 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "rotated to sample 76325"
    },
    "gain_db": 37.5,
    "master": {
     "path": "_masters/roll/roll_glass_rug_v08.wav",
-    "sha256": "ebd22ad0c37132cb95eeba729fc015484330fa16638f087c88511484b1991da8",
+    "sha256": "694ad2595c8928e12f9d8179acb193620193790874cfe7c7300ea41bd0ab26b4",
     "samples": 384000,
     "duration_s": 8.0,
     "lufs": -29.4,
     "true_peak_db": -6.3,
-    "leading_silence_ms": 0.0
+    "leading_silence_ms": 0.02
    },
    "samples": 384000,
    "duration_s": 8.0,
    "files": {
     "ogg": {
      "path": "roll/roll_glass_rug_v08.ogg",
-     "sha256": "5f4224ddd8314f2e427598b03b1201e6d11572af0fb93f488cd9ba98fcb0c269",
-     "bytes": 91647,
+     "sha256": "6be3769e83af6746994848184f2e0f32dfd56dc8291e365c605241c858045637",
+     "bytes": 93892,
      "lufs": -29.4,
      "true_peak_db": -6.4,
      "decoded_samples": 384000,
@@ -20974,21 +21192,21 @@
      "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap    115 / p99.9    292   head  -16.2 dB   tail  -19.8 dB   min  -32.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap     66 / p99.9    294   head  -17.8 dB   tail  -17.1 dB   min  -31.1 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_glass_rug_v08.m4a",
-     "sha256": "44ffa09f2c1ac84429206f33bcbe39f3114db1e53beaf10a2a3eb1fe5c180b00",
-     "bytes": 98866,
+     "sha256": "bfcb466703767fe44cbbfb9cf354102f1bc8bbb643919415e6803f928fca186a",
+     "bytes": 98772,
      "lufs": -29.4,
      "true_peak_db": -6.3,
      "decoded_samples": 384000,
      "duration_s": 8.0,
-     "leading_silence_ms": 0.0,
+     "leading_silence_ms": 0.04,
      "loop_check": {
-      "pass": false,
-      "output": "dec_m4a.wav wrap    376 / p99.9    285   head  -16.0 dB   tail  -19.6 dB   min  -32.7 dB   FAIL\n\nFAIL (1):\n  - dec_m4a.wav: wrap step 376 exceeds the p99.9 intra-loop step 285, so the loop point clicks"
+      "pass": true,
+      "output": "dec_m4a.wav wrap     34 / p99.9    282   head  -17.3 dB   tail  -16.9 dB   min  -30.7 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
@@ -20997,8 +21215,11 @@
    "loop_check": {
     "pass": true,
     "master_pass": true,
-    "aac_pass": false,
-    "crossfade_s": 0.0
+    "aac_pass": true,
+    "crossfade_s": 0.0,
+    "variant": "rotated to sample 76325",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -21016,15 +21237,16 @@
    },
    "prompt": "felt DSP of roll_glass_rug_v08 (no generation)",
    "issues": [
-    "ogg loudness -28.0 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -28.0 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "loop check failed on decoded m4a (AAC priming/padding; fallback only)"
+    "ogg loudness -28.1 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -28.0 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "raw take already loops cleanly; no crossfade",
-    "linear gain -3.30 dB; export Opus 96k + AAC 96k"
+    "loop check score 0/3 for as built; trying rotated to sample 76338",
+    "loop variant used: rotated to sample 76338",
+    "linear gain -3.30 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -21042,60 +21264,66 @@
     "crossfade_s": 0.0,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_glass_rug_v08f.wav wrap     13 / p99.9    107   head  -16.0 dB   tail  -15.1 dB   min  -28.7 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "rotated to sample 76338"
    },
    "gain_db": -3.3,
    "master": {
     "path": "_masters/roll/roll_glass_rug_v08f.wav",
-    "sha256": "89abe747ee2704533f53eeddf468748b0aba038473cc41b33a00c5e9a721142b",
+    "sha256": "fac43e5685e7f2f680c7a27a28944fa835ba36dc65fef902902e0787d62b9808",
     "samples": 384000,
     "duration_s": 8.0,
     "lufs": -28.0,
     "true_peak_db": -6.3,
-    "leading_silence_ms": 0.0
+    "leading_silence_ms": 0.29
    },
    "samples": 384000,
    "duration_s": 8.0,
    "files": {
     "ogg": {
      "path": "roll/roll_glass_rug_v08f.ogg",
-     "sha256": "8efdb3e831e34b844170bb30710ea73050bc0d7e4d34045738ca0893cdc70e9e",
-     "bytes": 113289,
-     "lufs": -28.0,
-     "true_peak_db": -6.5,
+     "sha256": "3e0441dad2b9f293f5cda0fd28afdf622accb6cf5a2275341db03d8b6d3ccb91",
+     "bytes": 121952,
+     "lufs": -28.1,
+     "true_peak_db": -6.6,
      "decoded_samples": 384000,
      "duration_s": 8.0,
      "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap     18 / p99.9    107   head  -14.5 dB   tail  -18.2 dB   min  -30.6 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap     25 / p99.9    107   head  -16.1 dB   tail  -15.3 dB   min  -29.0 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_glass_rug_v08f.m4a",
-     "sha256": "03e4cfb999984552be7d575e441ae58b76a0a20ac5fe8a7d1d9fb4985a0aeaa5",
-     "bytes": 99847,
+     "sha256": "aebf14ab06c356b6e41481682b12db9b300cbc4200d275680b7723aadad5a362",
+     "bytes": 100253,
      "lufs": -28.0,
      "true_peak_db": -6.3,
      "decoded_samples": 384000,
      "duration_s": 8.0,
-     "leading_silence_ms": 0.0,
+     "leading_silence_ms": 0.29,
      "loop_check": {
-      "pass": false,
-      "output": "dec_m4a.wav wrap    281 / p99.9    107   head  -14.3 dB   tail  -18.1 dB   min  -30.8 dB   FAIL\n\nFAIL (1):\n  - dec_m4a.wav: wrap step 281 exceeds the p99.9 intra-loop step 107, so the loop point clicks"
+      "pass": true,
+      "output": "dec_m4a.wav wrap     30 / p99.9    107   head  -15.5 dB   tail  -15.1 dB   min  -28.7 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
-   "lufs": -28.0,
+   "lufs": -28.1,
    "true_peak_db": -6.3,
    "loop_check": {
     "pass": true,
     "master_pass": true,
-    "aac_pass": false,
-    "crossfade_s": 0.0
+    "aac_pass": true,
+    "crossfade_s": 0.0,
+    "variant": "rotated to sample 76338",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -21117,18 +21345,15 @@
    "prompt": "very soft muffled brushing hush of thick wool felt being very lightly rubbed, a continuous steady low and dull fabric whisper, almost silent, no clicks, no hard surface, no wood, no ring, no music",
    "issues": [
     "ogg loudness -34.2 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -34.2 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "loop check failed on ogg",
-    "loop check failed on decoded m4a (AAC priming/padding; fallback only)"
+    "m4a loudness -34.1 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "Opus seam failed loop check; rotated loop start to sample 72339",
-    "Opus seam failed loop check; rotated loop start to sample 144281",
-    "Opus seam failed loop check; rotated loop start to sample 288106",
-    "linear gain +31.40 dB; export Opus 96k + AAC 96k"
+    "loop check score 0/3 for as built; trying rotated to sample 72339",
+    "loop variant used: rotated to sample 72339",
+    "linear gain +31.40 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -21146,64 +21371,71 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "plain",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_glass_rug_v09.wav wrap     48 / p99.9    103   head  -24.8 dB   tail  -20.6 dB   min  -36.2 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "rotated to sample 72339"
    },
    "gain_db": 31.4,
    "master": {
     "path": "_masters/roll/roll_glass_rug_v09.wav",
-    "sha256": "b6fc83fb46dc9148c5fa2f0fb84facfa580636a75d4800c7760a0c877fda679f",
+    "sha256": "fff79deace9fa99e06ea3aa94b2e34cb1386f05c34b4382e7c0b0b9595564c3f",
     "samples": 360000,
     "duration_s": 7.5,
-    "lufs": -34.2,
+    "lufs": -34.1,
     "true_peak_db": -6.3,
-    "leading_silence_ms": 2.62
+    "leading_silence_ms": 2.44
    },
    "samples": 360000,
    "duration_s": 7.5,
    "files": {
     "ogg": {
      "path": "roll/roll_glass_rug_v09.ogg",
-     "sha256": "93c6c2e747d590429e763d5959c79f6578c9d9af7323ed0b98d729e55a148e0b",
-     "bytes": 88057,
+     "sha256": "46cd03dd7c910fc173c578ea6d58416a17da8ada7837f813f6f2399abfa49460",
+     "bytes": 88923,
      "lufs": -34.2,
      "true_peak_db": -6.5,
      "decoded_samples": 360000,
      "duration_s": 7.5,
-     "leading_silence_ms": 2.62,
+     "leading_silence_ms": 0.98,
      "loop_check": {
-      "pass": false,
-      "output": "dec_ogg.wav wrap    170 / p99.9    103   head  -18.1 dB   tail  -24.6 dB   min  -35.0 dB   FAIL\n\nFAIL (2):\n  - dec_ogg.wav: wrap step 170 exceeds the p99.9 intra-loop step 103, so the loop point clicks\n  - dec_ogg.wav: head -18.1 dB and tail -24.6 dB differ by 6.5 dB, so the loop point is an audible level jump"
+      "pass": true,
+      "output": "dec_ogg.wav wrap     62 / p99.9    103   head  -24.8 dB   tail  -20.7 dB   min  -36.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_glass_rug_v09.m4a",
-     "sha256": "3285cd1e6e6725dc7de025113819cbd805735a86f8deeb489dcf1392f904e336",
-     "bytes": 92790,
-     "lufs": -34.2,
-     "true_peak_db": -6.5,
+     "sha256": "8cfd3f92693b0c9d94e05e428eefaffb951a730f06091cf06b3022ca3a5fdc03",
+     "bytes": 92807,
+     "lufs": -34.1,
+     "true_peak_db": -6.3,
      "decoded_samples": 360000,
      "duration_s": 7.5,
-     "leading_silence_ms": 3.06,
+     "leading_silence_ms": 1.19,
      "loop_check": {
-      "pass": false,
-      "output": "dec_m4a.wav wrap     34 / p99.9    101   head  -18.3 dB   tail  -24.5 dB   min  -35.2 dB   FAIL\n\nFAIL (1):\n  - dec_m4a.wav: head -18.3 dB and tail -24.5 dB differ by 6.2 dB, so the loop point is an audible level jump"
+      "pass": true,
+      "output": "dec_m4a.wav wrap     42 / p99.9    102   head  -24.8 dB   tail  -20.6 dB   min  -36.2 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
    "lufs": -34.2,
-   "true_peak_db": -6.5,
+   "true_peak_db": -6.3,
    "loop_check": {
-    "pass": false,
+    "pass": true,
     "master_pass": true,
-    "aac_pass": false,
-    "crossfade_s": 0.5
+    "aac_pass": true,
+    "crossfade_s": 0.5,
+    "variant": "rotated to sample 72339",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -21222,15 +21454,15 @@
    "prompt": "felt DSP of roll_glass_rug_v09 (no generation)",
    "issues": [
     "ogg loudness -34.4 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -34.3 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "loop check failed on ogg"
+    "m4a loudness -34.3 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "Opus seam failed loop check; rotated loop start to sample 144201",
-    "linear gain -2.30 dB; export Opus 96k + AAC 96k"
+    "loop check score 2/3 for as built; trying rotated to sample 144201",
+    "loop variant used: rotated to sample 144201",
+    "linear gain -2.30 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -21248,14 +21480,18 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "plain",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_glass_rug_v09f.wav wrap      2 / p99.9     60   head  -20.8 dB   tail  -21.7 dB   min  -34.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "rotated to sample 144201"
    },
    "gain_db": -2.3,
    "master": {
@@ -21272,16 +21508,16 @@
    "files": {
     "ogg": {
      "path": "roll/roll_glass_rug_v09f.ogg",
-     "sha256": "e1d9467e5a4d182a83da07fccf33cd791f8bb010fb2bca0cf9d5446776927cd0",
-     "bytes": 87853,
+     "sha256": "fd764ca3a2ffb9f677ddbd92f3c51256280a49f96a3431f766681528b6dc2a47",
+     "bytes": 85895,
      "lufs": -34.4,
      "true_peak_db": -6.9,
      "decoded_samples": 360000,
      "duration_s": 7.5,
-     "leading_silence_ms": 3.96,
+     "leading_silence_ms": 2.96,
      "loop_check": {
-      "pass": false,
-      "output": "dec_ogg.wav wrap    182 / p99.9     61   head  -21.0 dB   tail  -21.8 dB   min  -35.0 dB   FAIL\n\nFAIL (1):\n  - dec_ogg.wav: wrap step 182 exceeds the p99.9 intra-loop step 61, so the loop point clicks"
+      "pass": true,
+      "output": "dec_ogg.wav wrap     48 / p99.9     60   head  -21.0 dB   tail  -21.8 dB   min  -35.0 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
@@ -21302,10 +21538,13 @@
    "lufs": -34.4,
    "true_peak_db": -6.4,
    "loop_check": {
-    "pass": false,
+    "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "rotated to sample 144201",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -21326,17 +21565,16 @@
    },
    "prompt": "A 16 mm opaque solid-colour glazed ceramic marble rolling steadily at constant medium speed along a smooth U-shaped channel carved into a solid maple toy block, steady rolling rumble with the faint grain texture of the wood, duller, denser, less ring than glass character, continuous with no start or stop, close mic, dry room, real recording, no music, no reverb",
    "issues": [
-    "ogg loudness -28.4 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -28.5 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "duration 5.6s outside 6.0-8.0s"
+    "ogg loudness -28.2 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -28.3 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "interior dropouts in take; loop region limited to longest clean run 1.90s + 6.10s",
-    "clean region 6.10s too short for a 6.0s loop; crossfading anyway, duration falls short",
+    "extended loop: 2 crossfaded passes of 0.2-5.7s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "linear gain +1.70 dB; export Opus 96k + AAC 96k"
+    "linear gain +1.70 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -21354,64 +21592,84 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "extended",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "extended": {
+     "region_s": [
+      0.2,
+      5.7
+     ],
+     "passes": 2
+    },
+    "output": "roll_solid_block_v01.wav wrap    120 / p99.9   2165   head  -27.2 dB   tail  -26.4 dB   min  -41.4 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": 1.7,
    "master": {
     "path": "_masters/roll/roll_solid_block_v01.wav",
-    "sha256": "703eecc73d52d73a1c8c48d5d7b14f91e4c4e1dba0f3e8a74202bad00f21609d",
-    "samples": 268800,
-    "duration_s": 5.6,
-    "lufs": -28.5,
+    "sha256": "bc4b63393c93de6aef9cff78a4360a33acf3c495b5df57c5e33d1482ec529adf",
+    "samples": 384000,
+    "duration_s": 8.0,
+    "lufs": -28.3,
     "true_peak_db": -6.3,
     "leading_silence_ms": 0.0
    },
-   "samples": 268800,
-   "duration_s": 5.6,
+   "samples": 384000,
+   "duration_s": 8.0,
    "files": {
     "ogg": {
      "path": "roll/roll_solid_block_v01.ogg",
-     "sha256": "4f69baefc3807a12dcbfee33b9e4db1753b10219f56921fac892ebee250052d5",
-     "bytes": 83706,
-     "lufs": -28.4,
+     "sha256": "b64c808f045ec0e4c097cad1403f8f248a6f1a07731e4de8219a9480768948b5",
+     "bytes": 121067,
+     "lufs": -28.2,
      "true_peak_db": -6.2,
-     "decoded_samples": 268800,
-     "duration_s": 5.6,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
      "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap    348 / p99.9   2096   head  -31.5 dB   tail  -34.4 dB   min  -43.1 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap    145 / p99.9   2177   head  -27.2 dB   tail  -26.3 dB   min  -41.4 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_solid_block_v01.m4a",
-     "sha256": "72639343458c0d69109b04501ffb9abeee0c90b12e3673fbad56b516ad918ad0",
-     "bytes": 70924,
-     "lufs": -28.5,
-     "true_peak_db": -7.1,
-     "decoded_samples": 268800,
-     "duration_s": 5.6,
-     "leading_silence_ms": 0.0,
+     "sha256": "419327e3eff8a3e2db7bace0d39442376552d25372d88f9287fd91d05f8978c7",
+     "bytes": 101015,
+     "lufs": -28.3,
+     "true_peak_db": -6.3,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.1,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap    149 / p99.9   2071   head  -31.6 dB   tail  -34.6 dB   min  -43.1 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_m4a.wav wrap    273 / p99.9   2146   head  -27.2 dB   tail  -26.5 dB   min  -41.5 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
-   "lufs": -28.4,
+   "lufs": -28.2,
    "true_peak_db": -6.2,
    "loop_check": {
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": {
+     "region_s": [
+      0.2,
+      5.7
+     ],
+     "passes": 2
+    },
+    "leveler": null
    }
   },
   {
@@ -21432,17 +21690,16 @@
    },
    "prompt": "A 16 mm opaque solid-colour glazed ceramic marble rolling steadily at constant medium speed along a smooth U-shaped channel carved into a solid maple toy block, steady rolling rumble with the faint grain texture of the wood, duller, denser, less ring than glass character, continuous with no start or stop, close mic, dry room, real recording, no music, no reverb",
    "issues": [
-    "ogg loudness -32.4 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -32.5 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "duration 4.6s outside 6.0-8.0s"
+    "ogg loudness -29.3 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -29.4 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "interior dropouts in take; loop region limited to longest clean run 2.90s + 5.10s",
-    "clean region 5.10s too short for a 6.0s loop; crossfading anyway, duration falls short",
+    "extended loop: 4 crossfaded passes of 2.5-5.1s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "linear gain +5.10 dB; export Opus 96k + AAC 96k"
+    "linear gain +5.10 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -21460,64 +21717,84 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "extended",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "extended": {
+     "region_s": [
+      2.5,
+      5.1
+     ],
+     "passes": 4
+    },
+    "output": "roll_solid_block_v02.wav wrap     38 / p99.9   2342   head  -28.6 dB   tail  -30.7 dB   min  -37.8 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": 5.1,
    "master": {
     "path": "_masters/roll/roll_solid_block_v02.wav",
-    "sha256": "e962bfdfbc521f1a1c17bf49c1cff841d0777d7e2bacb3b3f99bbf0d01962f3f",
-    "samples": 220800,
-    "duration_s": 4.6,
-    "lufs": -32.4,
+    "sha256": "c8b31537072f898eaa362f468b32bdb9421a02d7375e223ca2f53c0cca374e94",
+    "samples": 384000,
+    "duration_s": 8.0,
+    "lufs": -29.3,
     "true_peak_db": -6.3,
-    "leading_silence_ms": 0.67
+    "leading_silence_ms": 0.0
    },
-   "samples": 220800,
-   "duration_s": 4.6,
+   "samples": 384000,
+   "duration_s": 8.0,
    "files": {
     "ogg": {
      "path": "roll/roll_solid_block_v02.ogg",
-     "sha256": "eafafe862d41540286904ece0fa4748f08a168b4c2d64a27814c7bf15429c3a7",
-     "bytes": 61166,
-     "lufs": -32.4,
+     "sha256": "5b832dfacfbdbd245b363fd7cd4d3f84124c666af288dd4be283e385a7d4091c",
+     "bytes": 117363,
+     "lufs": -29.3,
      "true_peak_db": -6.3,
-     "decoded_samples": 220800,
-     "duration_s": 4.6,
-     "leading_silence_ms": 0.65,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap     63 / p99.9   1909   head  -26.9 dB   tail  -28.6 dB   min  -47.2 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap     69 / p99.9   2358   head  -28.6 dB   tail  -30.8 dB   min  -37.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_solid_block_v02.m4a",
-     "sha256": "7789e04e3ce954c668cc886aa84e198d13f428f4bbb6640d15730cb8dc67ebd0",
-     "bytes": 57528,
-     "lufs": -32.5,
-     "true_peak_db": -6.4,
-     "decoded_samples": 220800,
-     "duration_s": 4.6,
-     "leading_silence_ms": 0.67,
+     "sha256": "373ddaf7b83fd92ff8f08562a22554b1d6d89b22c7770aef8156863cb770c477",
+     "bytes": 101203,
+     "lufs": -29.4,
+     "true_peak_db": -6.2,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap     75 / p99.9   1896   head  -27.0 dB   tail  -28.6 dB   min  -47.0 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_m4a.wav wrap    167 / p99.9   2309   head  -28.7 dB   tail  -30.9 dB   min  -37.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
-   "lufs": -32.4,
-   "true_peak_db": -6.3,
+   "lufs": -29.3,
+   "true_peak_db": -6.2,
    "loop_check": {
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": {
+     "region_s": [
+      2.5,
+      5.1
+     ],
+     "passes": 4
+    },
+    "leveler": null
    }
   },
   {
@@ -21539,16 +21816,15 @@
    "prompt": "A 16 mm opaque solid-colour glazed ceramic marble rolling steadily at constant medium speed along a smooth U-shaped channel carved into a solid maple toy block, steady rolling rumble with the faint grain texture of the wood, duller, denser, less ring than glass character, continuous with no start or stop, close mic, dry room, real recording, no music, no reverb",
    "issues": [
     "ogg loudness -29.5 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -29.6 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "duration 5.5s outside 6.0-8.0s"
+    "m4a loudness -29.6 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "interior dropouts in take; loop region limited to longest clean run 2.00s + 6.00s",
-    "clean region 6.00s too short for a 6.0s loop; crossfading anyway, duration falls short",
+    "extended loop: 2 crossfaded passes of 0.3-5.7s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "linear gain +3.00 dB; export Opus 96k + AAC 96k"
+    "linear gain +3.00 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -21566,54 +21842,65 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "extended",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "extended": {
+     "region_s": [
+      0.3,
+      5.7
+     ],
+     "passes": 2
+    },
+    "output": "roll_solid_block_v03.wav wrap     91 / p99.9   2164   head  -29.7 dB   tail  -25.8 dB   min  -42.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": 3.0,
    "master": {
     "path": "_masters/roll/roll_solid_block_v03.wav",
-    "sha256": "ff3cf2ed014a975ed65c70f3bf795a53acf051687cd1fed44547bb0fbf836b21",
-    "samples": 264000,
-    "duration_s": 5.5,
+    "sha256": "ed9fc3d354868f3d444a97e42b9778859484dfae31c90ef45008b3307aedef41",
+    "samples": 384000,
+    "duration_s": 8.0,
     "lufs": -29.5,
     "true_peak_db": -6.3,
-    "leading_silence_ms": 17.54
+    "leading_silence_ms": 0.0
    },
-   "samples": 264000,
-   "duration_s": 5.5,
+   "samples": 384000,
+   "duration_s": 8.0,
    "files": {
     "ogg": {
      "path": "roll/roll_solid_block_v03.ogg",
-     "sha256": "823b2dbfb81081f995aa7505053fbdb201cd7541e6969207077fc2df928c30fa",
-     "bytes": 77472,
+     "sha256": "1b3953f9d01ae7bec0770972d65b1015594cbbdc164956f21f844ad8af0d1342",
+     "bytes": 115895,
      "lufs": -29.5,
      "true_peak_db": -6.3,
-     "decoded_samples": 264000,
-     "duration_s": 5.5,
-     "leading_silence_ms": 17.54,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap      6 / p99.9   2090   head  -40.2 dB   tail  -36.8 dB   min  -47.6 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap     94 / p99.9   2168   head  -29.7 dB   tail  -25.8 dB   min  -42.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_solid_block_v03.m4a",
-     "sha256": "ce2023729b20903ee36f209b37fcc586c3f6621fd4dd7e3365d57567615d36cc",
-     "bytes": 70129,
+     "sha256": "5d7b6f95f87608806a7b574af0a1cb0bc7f44bdfa55aa5de6775b33b4297c16a",
+     "bytes": 101459,
      "lufs": -29.6,
-     "true_peak_db": -7.0,
-     "decoded_samples": 264000,
-     "duration_s": 5.5,
-     "leading_silence_ms": 2.25,
+     "true_peak_db": -6.6,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap     19 / p99.9   2041   head  -40.4 dB   tail  -36.8 dB   min  -47.6 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_m4a.wav wrap     66 / p99.9   2119   head  -29.8 dB   tail  -26.0 dB   min  -42.4 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
@@ -21623,7 +21910,16 @@
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": {
+     "region_s": [
+      0.3,
+      5.7
+     ],
+     "passes": 2
+    },
+    "leveler": null
    }
   },
   {
@@ -21644,17 +21940,16 @@
    },
    "prompt": "A 16 mm opaque solid-colour glazed ceramic marble rolling steadily at constant medium speed along two parallel smooth round beech dowel rails forming an open trough, light hollow rolling whirr with soft rhythmic ticking from the two rail contacts, duller, denser, less ring than glass character, continuous with no start or stop, close mic, dry room, real recording, no music, no reverb",
    "issues": [
-    "ogg loudness -31.3 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -31.4 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "duration 5.3s outside 6.0-8.0s"
+    "ogg loudness -30.7 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -30.8 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "interior dropouts in take; loop region limited to longest clean run 2.20s + 5.80s",
-    "clean region 5.80s too short for a 6.0s loop; crossfading anyway, duration falls short",
+    "extended loop: 2 crossfaded passes of 0.9-5.8s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "linear gain -0.10 dB; export Opus 96k + AAC 96k"
+    "linear gain -0.10 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -21672,64 +21967,84 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "extended",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "extended": {
+     "region_s": [
+      0.9,
+      5.8
+     ],
+     "passes": 2
+    },
+    "output": "roll_solid_rail_v01.wav wrap    370 / p99.9   2234   head  -31.5 dB   tail  -28.9 dB   min  -40.7 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": -0.1,
    "master": {
     "path": "_masters/roll/roll_solid_rail_v01.wav",
-    "sha256": "15faa9a452c41f4573d84824f11dc27176a9031da867515c6175ce3bd23b978c",
-    "samples": 254400,
-    "duration_s": 5.3,
-    "lufs": -31.3,
+    "sha256": "314a7f8d73908cf9960309818bd3a38adb514a95c28c2eb041b4ecf5b87304c2",
+    "samples": 384000,
+    "duration_s": 8.0,
+    "lufs": -30.7,
     "true_peak_db": -6.3,
-    "leading_silence_ms": 5.15
+    "leading_silence_ms": 0.0
    },
-   "samples": 254400,
-   "duration_s": 5.3,
+   "samples": 384000,
+   "duration_s": 8.0,
    "files": {
     "ogg": {
      "path": "roll/roll_solid_rail_v01.ogg",
-     "sha256": "24978068f60aa3a5f595d43e2803e6aec8c67221bddf00f415ea1e4be023e7b8",
-     "bytes": 76822,
-     "lufs": -31.3,
+     "sha256": "b61f4aad63c042251fd4f793a6526fd72153bbe4718caa921c36a41d4b7583b6",
+     "bytes": 118931,
+     "lufs": -30.7,
      "true_peak_db": -6.3,
-     "decoded_samples": 254400,
-     "duration_s": 5.3,
-     "leading_silence_ms": 5.15,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap      1 / p99.9   2149   head  -35.3 dB   tail  -30.2 dB   min  -45.2 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap    358 / p99.9   2244   head  -31.4 dB   tail  -28.9 dB   min  -40.8 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_solid_rail_v01.m4a",
-     "sha256": "89fb91aa0f5af7be72b6e0104830ad8ef60c49a5c6b87e1ab414ed9668e93def",
-     "bytes": 66504,
-     "lufs": -31.4,
-     "true_peak_db": -6.5,
-     "decoded_samples": 254400,
-     "duration_s": 5.3,
-     "leading_silence_ms": 5.15,
+     "sha256": "007ee1d058751ab7e59ef0b6e94cc8b6e49c95f1b7ffef44d146e09653683c29",
+     "bytes": 99871,
+     "lufs": -30.8,
+     "true_peak_db": -6.3,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap     20 / p99.9   2130   head  -35.3 dB   tail  -30.2 dB   min  -45.2 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_m4a.wav wrap    615 / p99.9   2207   head  -31.6 dB   tail  -29.0 dB   min  -40.8 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
-   "lufs": -31.3,
+   "lufs": -30.7,
    "true_peak_db": -6.3,
    "loop_check": {
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": {
+     "region_s": [
+      0.9,
+      5.8
+     ],
+     "passes": 2
+    },
+    "leveler": null
    }
   },
   {
@@ -21757,7 +22072,7 @@
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "raw take already loops cleanly; no crossfade",
-    "linear gain +10.20 dB; export Opus 96k + AAC 96k"
+    "linear gain +10.20 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -21775,10 +22090,13 @@
     "crossfade_s": 0.0,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_solid_rail_v02.wav wrap    185 / p99.9   1584   head  -32.8 dB   tail  -36.7 dB   min  -47.4 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": 10.2,
    "master": {
@@ -21795,8 +22113,8 @@
    "files": {
     "ogg": {
      "path": "roll/roll_solid_rail_v02.ogg",
-     "sha256": "8d15711e873f96a0a0958fc14f0c034cc4acc2c11d96408fa7cd462955aad8e2",
-     "bytes": 101409,
+     "sha256": "63d04e28c22ea25af2d1984637c7c3f223d44339312a1c8dd22edd5f4e90cb0b",
+     "bytes": 104156,
      "lufs": -31.7,
      "true_peak_db": -6.3,
      "decoded_samples": 384000,
@@ -21804,7 +22122,7 @@
      "leading_silence_ms": 0.15,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap    153 / p99.9   1586   head  -32.8 dB   tail  -36.7 dB   min  -47.5 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap    167 / p99.9   1586   head  -32.8 dB   tail  -36.7 dB   min  -47.5 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
@@ -21828,7 +22146,10 @@
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.0
+    "crossfade_s": 0.0,
+    "variant": "as built",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -21849,17 +22170,16 @@
    },
    "prompt": "A 16 mm opaque solid-colour glazed ceramic marble rolling steadily at constant medium speed along two parallel smooth round beech dowel rails forming an open trough, light hollow rolling whirr with soft rhythmic ticking from the two rail contacts, duller, denser, less ring than glass character, continuous with no start or stop, close mic, dry room, real recording, no music, no reverb",
    "issues": [
-    "ogg loudness -30.9 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -30.8 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "duration 1.8s outside 6.0-8.0s"
+    "ogg loudness -29.8 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -29.9 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "interior dropouts in take; loop region limited to longest clean run 5.70s + 2.30s",
-    "clean region 2.30s too short for a 6.0s loop; crossfading anyway, duration falls short",
+    "extended loop: 6 crossfaded passes of 0.3-2.3s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "linear gain -0.50 dB; export Opus 96k + AAC 96k"
+    "linear gain -0.50 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -21877,64 +22197,84 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "extended",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "extended": {
+     "region_s": [
+      0.3,
+      2.3
+     ],
+     "passes": 6
+    },
+    "output": "roll_solid_rail_v03.wav wrap    210 / p99.9   2912   head  -27.3 dB   tail  -30.1 dB   min  -44.0 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": -0.5,
    "master": {
     "path": "_masters/roll/roll_solid_rail_v03.wav",
-    "sha256": "e438e586b6014fd76de5cb7cc95c3957d5566fe89d6ac8b55085523158ca2651",
-    "samples": 86400,
-    "duration_s": 1.8,
-    "lufs": -30.9,
+    "sha256": "56ab2baa24e2676a448c25bd9bc488435696481afc2d183a736d5821b3df70ae",
+    "samples": 384000,
+    "duration_s": 8.0,
+    "lufs": -29.8,
     "true_peak_db": -6.3,
-    "leading_silence_ms": 0.19
+    "leading_silence_ms": 0.0
    },
-   "samples": 86400,
-   "duration_s": 1.8,
+   "samples": 384000,
+   "duration_s": 8.0,
    "files": {
     "ogg": {
      "path": "roll/roll_solid_rail_v03.ogg",
-     "sha256": "f166e424794c05fb86fcf2b7ccd01b266fdc2c85cbcfd48a9b9a785b82ff6488",
-     "bytes": 24938,
-     "lufs": -30.9,
+     "sha256": "1661db922a54d0ec2b676f9427f4184669b7b85e969b4bd3cae02a8d37e05dd5",
+     "bytes": 112582,
+     "lufs": -29.8,
      "true_peak_db": -6.3,
-     "decoded_samples": 86400,
-     "duration_s": 1.8,
-     "leading_silence_ms": 0.19,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap     57 / p99.9   2691   head  -30.1 dB   tail  -28.6 dB   min  -44.0 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap    228 / p99.9   2921   head  -27.3 dB   tail  -30.1 dB   min  -44.1 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_solid_rail_v03.m4a",
-     "sha256": "c9180fd7e0d069b2e0a1770a6de2aaba462980ad505ac921faafc99c3d5e5c11",
-     "bytes": 23145,
-     "lufs": -30.8,
-     "true_peak_db": -6.4,
-     "decoded_samples": 86400,
-     "duration_s": 1.8,
-     "leading_silence_ms": 0.19,
+     "sha256": "07d8ef1025f12005b8e6c96deeb591a62642a4d9256d87732016dd9066ee79ca",
+     "bytes": 101445,
+     "lufs": -29.9,
+     "true_peak_db": -6.3,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap     61 / p99.9   2670   head  -30.2 dB   tail  -28.6 dB   min  -44.1 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_m4a.wav wrap     68 / p99.9   2857   head  -27.2 dB   tail  -30.2 dB   min  -44.2 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
-   "lufs": -30.9,
+   "lufs": -29.8,
    "true_peak_db": -6.3,
    "loop_check": {
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": {
+     "region_s": [
+      0.3,
+      2.3
+     ],
+     "passes": 6
+    },
+    "leveler": null
    }
   },
   {
@@ -21962,8 +22302,9 @@
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "Opus seam failed loop check; rotated loop start to sample 71765",
-    "linear gain +29.00 dB; export Opus 96k + AAC 96k"
+    "loop check score 2/3 for as built; trying rotated to sample 71765",
+    "loop variant used: rotated to sample 71765",
+    "linear gain +29.00 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -21981,14 +22322,18 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "plain",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_solid_rug_v07.wav wrap      7 / p99.9    163   head  -12.9 dB   tail  -16.8 dB   min  -34.7 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "rotated to sample 71765"
    },
    "gain_db": 29.0,
    "master": {
@@ -22005,16 +22350,16 @@
    "files": {
     "ogg": {
      "path": "roll/roll_solid_rug_v07.ogg",
-     "sha256": "474a708bb61b95c6cc46c5c92b7453d5158fffb14d76657cf99e13fd33d2bc46",
-     "bytes": 89511,
+     "sha256": "df7c9cba25bb3a74d62daddacfa6d947495b65a30b0cccda16f896cb6818f73e",
+     "bytes": 91469,
      "lufs": -33.2,
      "true_peak_db": -6.2,
      "decoded_samples": 360000,
      "duration_s": 7.5,
-     "leading_silence_ms": 0.88,
+     "leading_silence_ms": 0.42,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap    120 / p99.9    163   head  -13.1 dB   tail  -16.8 dB   min  -34.8 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap     35 / p99.9    163   head  -13.1 dB   tail  -16.8 dB   min  -34.8 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
@@ -22038,7 +22383,10 @@
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "rotated to sample 71765",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -22057,15 +22405,16 @@
    "prompt": "felt DSP of roll_solid_rug_v07 (no generation)",
    "issues": [
     "ogg loudness -33.3 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -33.2 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "loop check failed on ogg"
+    "m4a loudness -33.2 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "Opus seam failed loop check; rotated loop start to sample 216222",
-    "linear gain -3.30 dB; export Opus 96k + AAC 96k"
+    "loop check score 2/3 for as built; trying rotated to sample 216222",
+    "loop check score 1/3 for rotated to sample 216222; trying re-folded with a 0.5s crossfade",
+    "loop variant used: re-folded with a 0.5s crossfade",
+    "linear gain -3.30 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -22083,64 +22432,71 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "plain",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_solid_rug_v07f.wav wrap     11 / p99.9    107   head  -17.6 dB   tail  -22.1 dB   min  -34.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "re-folded with a 0.5s crossfade"
    },
    "gain_db": -3.3,
    "master": {
     "path": "_masters/roll/roll_solid_rug_v07f.wav",
-    "sha256": "32745f5df32830827a78072c7fc9091c6449baa1181f61fae285ac624bb444c7",
-    "samples": 360000,
-    "duration_s": 7.5,
-    "lufs": -33.2,
+    "sha256": "acb1a53481a438bff046baf7121bf7a59891b793c7d7902c3ce24fe1fb814e1b",
+    "samples": 336000,
+    "duration_s": 7.0,
+    "lufs": -33.3,
     "true_peak_db": -6.3,
-    "leading_silence_ms": 3.12
+    "leading_silence_ms": 0.0
    },
-   "samples": 360000,
-   "duration_s": 7.5,
+   "samples": 336000,
+   "duration_s": 7.0,
    "files": {
     "ogg": {
      "path": "roll/roll_solid_rug_v07f.ogg",
-     "sha256": "db3b1f4c5d39042d5a0439d8c8e5d13a012b1c288aaa7b22e19271bb0ed3da7a",
-     "bytes": 86345,
+     "sha256": "6c7a4180dac18cd7b77ae4785aff8a14125a3944aeac6248dd1b4a8d7b25cc4b",
+     "bytes": 80467,
      "lufs": -33.3,
-     "true_peak_db": -6.2,
-     "decoded_samples": 360000,
-     "duration_s": 7.5,
-     "leading_silence_ms": 3.12,
+     "true_peak_db": -6.3,
+     "decoded_samples": 336000,
+     "duration_s": 7.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
-      "pass": false,
-      "output": "dec_ogg.wav wrap    195 / p99.9    113   head  -21.3 dB   tail  -18.7 dB   min  -34.3 dB   FAIL\n\nFAIL (1):\n  - dec_ogg.wav: wrap step 195 exceeds the p99.9 intra-loop step 113, so the loop point clicks"
+      "pass": true,
+      "output": "dec_ogg.wav wrap     65 / p99.9    107   head  -17.6 dB   tail  -22.0 dB   min  -34.4 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_solid_rug_v07f.m4a",
-     "sha256": "93d4ab089a73fef497214be83e2686731d1465d8765aeace7372a22572cbeab4",
-     "bytes": 92710,
+     "sha256": "47f3e8a5e9148e77e0bc300f3db5d9386cf8cd55d7d098cbfc77403fffbd1a35",
+     "bytes": 86637,
      "lufs": -33.2,
      "true_peak_db": -6.3,
-     "decoded_samples": 360000,
-     "duration_s": 7.5,
-     "leading_silence_ms": 1.71,
+     "decoded_samples": 336000,
+     "duration_s": 7.0,
+     "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap      9 / p99.9    117   head  -21.2 dB   tail  -18.5 dB   min  -34.2 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_m4a.wav wrap     51 / p99.9    107   head  -17.6 dB   tail  -22.2 dB   min  -34.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
    "lufs": -33.3,
-   "true_peak_db": -6.2,
+   "true_peak_db": -6.3,
    "loop_check": {
-    "pass": false,
+    "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "re-folded with a 0.5s crossfade",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -22168,7 +22524,7 @@
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "linear gain +29.70 dB; export Opus 96k + AAC 96k"
+    "linear gain +29.70 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -22186,14 +22542,18 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "plain",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_solid_rug_v08.wav wrap     45 / p99.9    336   head  -18.7 dB   tail  -15.2 dB   min  -32.4 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": 29.7,
    "master": {
@@ -22210,8 +22570,8 @@
    "files": {
     "ogg": {
      "path": "roll/roll_solid_rug_v08.ogg",
-     "sha256": "198a3f7e5561b59c3ea95f7488d65d3ccaf3a2e1e6589fa2370239e0ed19b38c",
-     "bytes": 88228,
+     "sha256": "99c068ee684451f8f57306b48ee805361580df1944aab90674bd32ef11e0fd19",
+     "bytes": 89947,
      "lufs": -31.2,
      "true_peak_db": -6.4,
      "decoded_samples": 360000,
@@ -22219,7 +22579,7 @@
      "leading_silence_ms": 0.12,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap     92 / p99.9    335   head  -18.8 dB   tail  -15.4 dB   min  -31.6 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap    196 / p99.9    335   head  -18.8 dB   tail  -15.4 dB   min  -31.6 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
@@ -22243,7 +22603,10 @@
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -22261,15 +22624,21 @@
    },
    "prompt": "felt DSP of roll_solid_rug_v08 (no generation)",
    "issues": [
-    "ogg loudness -31.2 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -31.2 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "ogg loudness -31.1 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -31.1 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
     "loop check failed on decoded m4a (AAC priming/padding; fallback only)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "raw take already loops cleanly; no crossfade",
-    "linear gain -3.30 dB; export Opus 96k + AAC 96k"
+    "loop check score 0/3 for as built; trying rotated to sample 76917",
+    "loop check score 1/3 for rotated to sample 76917; trying re-folded with a 0.5s crossfade",
+    "loop check score 1/3 for re-folded with a 0.5s crossfade; trying re-folded with a 0.75s crossfade",
+    "loop check score 2/3 for re-folded with a 0.75s crossfade; trying re-folded with a 1.0s crossfade",
+    "loop check score 2/3 for re-folded with a 1.0s crossfade; trying re-folded with a 1.5s crossfade",
+    "loop variant used: re-folded with a 0.75s crossfade",
+    "linear gain -3.30 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -22287,60 +22656,66 @@
     "crossfade_s": 0.0,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_solid_rug_v08f.wav wrap     33 / p99.9     58   head  -18.3 dB   tail  -15.6 dB   min  -32.1 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "re-folded with a 0.75s crossfade"
    },
    "gain_db": -3.3,
    "master": {
     "path": "_masters/roll/roll_solid_rug_v08f.wav",
-    "sha256": "aff3118f41046dfd405662dc97a107948910aa0d187cc2e96c5d85d74a8bdca7",
-    "samples": 384000,
-    "duration_s": 8.0,
-    "lufs": -31.2,
+    "sha256": "149f0fe93fb94ba2484b6f9d9229fbeb4db6834533e8d0cb501af2ab0b362316",
+    "samples": 348000,
+    "duration_s": 7.25,
+    "lufs": -31.0,
     "true_peak_db": -6.3,
     "leading_silence_ms": 0.0
    },
-   "samples": 384000,
-   "duration_s": 8.0,
+   "samples": 348000,
+   "duration_s": 7.25,
    "files": {
     "ogg": {
      "path": "roll/roll_solid_rug_v08f.ogg",
-     "sha256": "cc724cb55690dc829e4f9dcbbf310e41b8a5d940a992866c7d60fa8603242474",
-     "bytes": 141742,
-     "lufs": -31.2,
+     "sha256": "b1dd9be9ca63540ff7cf913b613969544474738f72d99ade38c19347e2373155",
+     "bytes": 132889,
+     "lufs": -31.1,
      "true_peak_db": -6.2,
-     "decoded_samples": 384000,
-     "duration_s": 8.0,
+     "decoded_samples": 348000,
+     "duration_s": 7.25,
      "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap     25 / p99.9     57   head  -20.9 dB   tail  -18.9 dB   min  -31.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap     36 / p99.9     57   head  -18.6 dB   tail  -15.7 dB   min  -31.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_solid_rug_v08f.m4a",
-     "sha256": "9dd4367fddcc9d35f747c1cefa124a2e4c4c9e45f8e6113c4e27d4c4a133c40d",
-     "bytes": 98670,
-     "lufs": -31.2,
+     "sha256": "f0214222eb99d6095cb6c7709172e6a9495b12de8adfaf3be77ce789e3883cc1",
+     "bytes": 89334,
+     "lufs": -31.1,
      "true_peak_db": -6.3,
-     "decoded_samples": 384000,
-     "duration_s": 8.0,
+     "decoded_samples": 348000,
+     "duration_s": 7.25,
      "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": false,
-      "output": "dec_m4a.wav wrap    495 / p99.9     58   head  -20.8 dB   tail  -18.7 dB   min  -32.1 dB   FAIL\n\nFAIL (1):\n  - dec_m4a.wav: wrap step 495 exceeds the p99.9 intra-loop step 58, so the loop point clicks"
+      "output": "dec_m4a.wav wrap    319 / p99.9     59   head  -18.3 dB   tail  -15.6 dB   min  -32.1 dB   FAIL\n\nFAIL (1):\n  - dec_m4a.wav: wrap step 319 exceeds the p99.9 intra-loop step 59, so the loop point clicks"
      }
     }
    },
-   "lufs": -31.2,
+   "lufs": -31.1,
    "true_peak_db": -6.2,
    "loop_check": {
     "pass": true,
     "master_pass": true,
     "aac_pass": false,
-    "crossfade_s": 0.0
+    "crossfade_s": 0.0,
+    "variant": "re-folded with a 0.75s crossfade",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -22368,7 +22743,7 @@
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "raw take already loops cleanly; no crossfade",
-    "linear gain +39.70 dB; export Opus 96k + AAC 96k"
+    "linear gain +39.70 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -22386,10 +22761,13 @@
     "crossfade_s": 0.0,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_solid_rug_v09.wav wrap    323 / p99.9   3938   head  -25.6 dB   tail  -24.0 dB   min  -41.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": 39.7,
    "master": {
@@ -22406,8 +22784,8 @@
    "files": {
     "ogg": {
      "path": "roll/roll_solid_rug_v09.ogg",
-     "sha256": "9fc89210980ade3b9a797ae168f8c1d78c531421e006509c5c90bce6c7fce006",
-     "bytes": 87160,
+     "sha256": "1362bae76dcbb31ff0a49b9edcf4e7549e204a3540ca42a63d9aedf9e65c31cc",
+     "bytes": 89106,
      "lufs": -27.8,
      "true_peak_db": -6.3,
      "decoded_samples": 384000,
@@ -22415,7 +22793,7 @@
      "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap    199 / p99.9   3923   head  -25.7 dB   tail  -24.0 dB   min  -41.7 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap    519 / p99.9   3923   head  -25.7 dB   tail  -24.0 dB   min  -41.7 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
@@ -22439,7 +22817,10 @@
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.0
+    "crossfade_s": 0.0,
+    "variant": "as built",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -22461,7 +22842,7 @@
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "raw take already loops cleanly; no crossfade",
-    "linear gain -3.60 dB; export Opus 96k + AAC 96k"
+    "linear gain -3.60 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -22479,10 +22860,13 @@
     "crossfade_s": 0.0,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_solid_rug_v09f.wav wrap     87 / p99.9    870   head  -21.2 dB   tail  -17.1 dB   min  -32.8 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": -3.6,
    "master": {
@@ -22499,8 +22883,8 @@
    "files": {
     "ogg": {
      "path": "roll/roll_solid_rug_v09f.ogg",
-     "sha256": "46c5e20c3e3ec25617b17a2292ffddd54ea5dd3d76164138c2b0f10972c38a00",
-     "bytes": 94546,
+     "sha256": "8d4b2787d9b38f5f8a6f4b0a978dd799add4900d1f2e9bb20a45277d52b4e8a3",
+     "bytes": 96624,
      "lufs": -24.0,
      "true_peak_db": -6.4,
      "decoded_samples": 384000,
@@ -22508,7 +22892,7 @@
      "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap    598 / p99.9    879   head  -21.4 dB   tail  -17.2 dB   min  -32.7 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap     91 / p99.9    879   head  -21.4 dB   tail  -17.2 dB   min  -32.7 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
@@ -22532,7 +22916,10 @@
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.0
+    "crossfade_s": 0.0,
+    "variant": "as built",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -22560,7 +22947,7 @@
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "raw take already loops cleanly; no crossfade",
-    "linear gain +4.70 dB; export Opus 96k + AAC 96k"
+    "linear gain +4.70 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -22578,10 +22965,13 @@
     "crossfade_s": 0.0,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_steel_block_v01.wav wrap    131 / p99.9   1390   head  -30.1 dB   tail  -29.9 dB   min  -44.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": 4.7,
    "master": {
@@ -22598,8 +22988,8 @@
    "files": {
     "ogg": {
      "path": "roll/roll_steel_block_v01.ogg",
-     "sha256": "eb8e3f066c6b7e774db83c449fa6c68c18129a45d0565ea3fc6837878aba9d30",
-     "bytes": 103692,
+     "sha256": "8ae89a79bc9a1bf465f72f406ee1496a9b629c48dc5bcce720f0166a5a76fe2d",
+     "bytes": 106443,
      "lufs": -31.9,
      "true_peak_db": -6.2,
      "decoded_samples": 384000,
@@ -22607,7 +22997,7 @@
      "leading_silence_ms": 0.02,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap    112 / p99.9   1397   head  -30.0 dB   tail  -29.9 dB   min  -44.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap    122 / p99.9   1397   head  -30.0 dB   tail  -29.9 dB   min  -44.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
@@ -22631,7 +23021,10 @@
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.0
+    "crossfade_s": 0.0,
+    "variant": "as built",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -22652,17 +23045,16 @@
    },
    "prompt": "A 16 mm polished chrome steel ball bearing rolling steadily at constant medium speed along a smooth U-shaped channel carved into a solid maple toy block, steady rolling rumble with the faint grain texture of the wood, heavy, metallic, hard and sharp character, continuous with no start or stop, close mic, dry room, real recording, no music, no reverb",
    "issues": [
-    "ogg loudness -30.7 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -30.8 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "duration 4.4s outside 6.0-8.0s"
+    "ogg loudness -28.6 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -28.6 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "interior dropouts in take; loop region limited to longest clean run 3.10s + 4.90s",
-    "clean region 4.90s too short for a 6.0s loop; crossfading anyway, duration falls short",
+    "extended loop: 4 crossfaded passes of 2.0-4.9s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "linear gain +7.10 dB; export Opus 96k + AAC 96k"
+    "linear gain +7.10 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -22680,64 +23072,84 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "extended",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "extended": {
+     "region_s": [
+      2.0,
+      4.9
+     ],
+     "passes": 4
+    },
+    "output": "roll_steel_block_v02.wav wrap    111 / p99.9   1741   head  -29.9 dB   tail  -29.8 dB   min  -36.1 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": 7.1,
    "master": {
     "path": "_masters/roll/roll_steel_block_v02.wav",
-    "sha256": "25f1d6c6f96b902791105926d2cea3a12496ed7bd9190eedddd5a505067a0e13",
-    "samples": 211200,
-    "duration_s": 4.4,
-    "lufs": -30.7,
+    "sha256": "0a7e4bfbd498e1afe908be5cc2d1725ca663330c7331ff375e381b2b83cf7275",
+    "samples": 384000,
+    "duration_s": 8.0,
+    "lufs": -28.5,
     "true_peak_db": -6.3,
-    "leading_silence_ms": 0.0
+    "leading_silence_ms": 0.02
    },
-   "samples": 211200,
-   "duration_s": 4.4,
+   "samples": 384000,
+   "duration_s": 8.0,
    "files": {
     "ogg": {
      "path": "roll/roll_steel_block_v02.ogg",
-     "sha256": "6ccfa1bdd38adb210d3a6289826e662f4ab963792cf0ed8af81a895ad2392460",
-     "bytes": 51479,
-     "lufs": -30.7,
+     "sha256": "4d4599ea3ca196a434906f5d0d5cf5ac4192362090f105ae8a0705d970787069",
+     "bytes": 98406,
+     "lufs": -28.6,
      "true_peak_db": -6.2,
-     "decoded_samples": 211200,
-     "duration_s": 4.4,
-     "leading_silence_ms": 0.0,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.02,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap    328 / p99.9   1567   head  -27.9 dB   tail  -26.4 dB   min  -44.8 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap    110 / p99.9   1762   head  -29.9 dB   tail  -29.9 dB   min  -36.0 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_steel_block_v02.m4a",
-     "sha256": "c57b2d1c901e5d1c68f3b507b8c2ff601abf05f5e0797ad2465a3e409e3cc434",
-     "bytes": 56322,
-     "lufs": -30.8,
-     "true_peak_db": -6.3,
-     "decoded_samples": 211200,
-     "duration_s": 4.4,
-     "leading_silence_ms": 0.0,
+     "sha256": "93b4405f1b816999501246157739b5d69a96597b3e38ea11fee044f2368953ac",
+     "bytes": 99968,
+     "lufs": -28.6,
+     "true_peak_db": -6.4,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.02,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap    348 / p99.9   1536   head  -28.0 dB   tail  -26.4 dB   min  -44.8 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_m4a.wav wrap     83 / p99.9   1722   head  -29.9 dB   tail  -29.9 dB   min  -36.1 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
-   "lufs": -30.7,
+   "lufs": -28.6,
    "true_peak_db": -6.2,
    "loop_check": {
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": {
+     "region_s": [
+      2.0,
+      4.9
+     ],
+     "passes": 4
+    },
+    "leveler": null
    }
   },
   {
@@ -22765,7 +23177,7 @@
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "raw take already loops cleanly; no crossfade",
-    "linear gain +3.00 dB; export Opus 96k + AAC 96k"
+    "linear gain +3.00 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -22783,10 +23195,13 @@
     "crossfade_s": 0.0,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_steel_block_v03.wav wrap     29 / p99.9   1127   head  -30.2 dB   tail  -29.8 dB   min  -35.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": 3.0,
    "master": {
@@ -22803,8 +23218,8 @@
    "files": {
     "ogg": {
      "path": "roll/roll_steel_block_v03.ogg",
-     "sha256": "ffaadd0848f77b752191b4df96b052395d104eeec540492cdf37f1f1b53ebb33",
-     "bytes": 99319,
+     "sha256": "76730146faabdb9dd40c073df634b85405f62f90ba2504e55be85815cb019a84",
+     "bytes": 101671,
      "lufs": -29.4,
      "true_peak_db": -6.3,
      "decoded_samples": 384000,
@@ -22812,7 +23227,7 @@
      "leading_silence_ms": 0.04,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap      4 / p99.9   1123   head  -30.2 dB   tail  -29.7 dB   min  -35.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap     35 / p99.9   1123   head  -30.2 dB   tail  -29.7 dB   min  -35.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
@@ -22836,7 +23251,10 @@
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.0
+    "crossfade_s": 0.0,
+    "variant": "as built",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -22864,7 +23282,7 @@
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "raw take already loops cleanly; no crossfade",
-    "linear gain +3.30 dB; export Opus 96k + AAC 96k"
+    "linear gain +3.30 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -22882,10 +23300,13 @@
     "crossfade_s": 0.0,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_steel_rail_v01.wav wrap      8 / p99.9    633   head  -28.0 dB   tail  -33.2 dB   min  -46.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": 3.3,
    "master": {
@@ -22902,8 +23323,8 @@
    "files": {
     "ogg": {
      "path": "roll/roll_steel_rail_v01.ogg",
-     "sha256": "3b5ee5a24a207e23380a1caf1b35d406b2b67ec2251116cdb6b246ab7b43208f",
-     "bytes": 101261,
+     "sha256": "f0bf505c11e0c9855f03afffea9af2fc826940d713e637e7f2c04fa3bd016cc2",
+     "bytes": 103808,
      "lufs": -35.0,
      "true_peak_db": -6.4,
      "decoded_samples": 384000,
@@ -22911,7 +23332,7 @@
      "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap     25 / p99.9    634   head  -28.0 dB   tail  -33.2 dB   min  -47.0 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap     13 / p99.9    632   head  -28.0 dB   tail  -33.2 dB   min  -46.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
@@ -22935,7 +23356,10 @@
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.0
+    "crossfade_s": 0.0,
+    "variant": "as built",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -22963,7 +23387,7 @@
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "raw take already loops cleanly; no crossfade",
-    "linear gain +10.20 dB; export Opus 96k + AAC 96k"
+    "linear gain +10.20 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -22981,10 +23405,13 @@
     "crossfade_s": 0.0,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_steel_rail_v02.wav wrap     56 / p99.9    817   head  -30.8 dB   tail  -31.4 dB   min  -40.6 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": 10.2,
    "master": {
@@ -23001,8 +23428,8 @@
    "files": {
     "ogg": {
      "path": "roll/roll_steel_rail_v02.ogg",
-     "sha256": "0617b90b52643b551b7c724c56b7d57cfaa08d619bc7afb339f121b4017a7b83",
-     "bytes": 98046,
+     "sha256": "1d6c6340302cd07205bdf6fba382f6ac042313b9bda74bda82fc312b9f4b5dce",
+     "bytes": 100638,
      "lufs": -32.6,
      "true_peak_db": -6.3,
      "decoded_samples": 384000,
@@ -23010,7 +23437,7 @@
      "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap     54 / p99.9    817   head  -30.8 dB   tail  -31.4 dB   min  -40.6 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap     48 / p99.9    817   head  -30.8 dB   tail  -31.4 dB   min  -40.6 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
@@ -23034,7 +23461,10 @@
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.0
+    "crossfade_s": 0.0,
+    "variant": "as built",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -23054,18 +23484,14 @@
     "bytes": 129192
    },
    "prompt": "A 16 mm polished chrome steel ball bearing rolling steadily at constant medium speed along two parallel smooth round beech dowel rails forming an open trough, light hollow rolling whirr with soft rhythmic ticking from the two rail contacts, heavy, metallic, hard and sharp character, continuous with no start or stop, close mic, dry room, real recording, no music, no reverb",
-   "issues": [
-    "ogg loudness -29.9 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -29.9 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "duration 5.9s outside 6.0-8.0s"
-   ],
+   "issues": [],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "interior dropouts in take; loop region limited to longest clean run 1.60s + 6.40s",
-    "clean region 6.40s too short for a 6.0s loop; crossfading anyway, duration falls short",
+    "extended loop: 3 crossfaded passes of 1.9-5.3s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "linear gain +9.30 dB; export Opus 96k + AAC 96k"
+    "linear gain +15.20 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -23083,64 +23509,84 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "extended",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "extended": {
+     "region_s": [
+      1.9,
+      5.3
+     ],
+     "passes": 3
+    },
+    "output": "roll_steel_rail_v03.wav wrap     52 / p99.9   1029   head  -22.4 dB   tail  -19.8 dB   min  -27.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
-   "gain_db": 9.3,
+   "gain_db": 15.2,
    "master": {
     "path": "_masters/roll/roll_steel_rail_v03.wav",
-    "sha256": "8a738ea252f5328c66187cf0c2a9842b370888dfcd0c79c576f43aec2167ac55",
-    "samples": 283200,
-    "duration_s": 5.9,
-    "lufs": -29.9,
-    "true_peak_db": -6.3,
+    "sha256": "7dc97fe8210e37d20e7d25ba497952b61bac1689436282711548bdcd709a3c1a",
+    "samples": 384000,
+    "duration_s": 8.0,
+    "lufs": -24.0,
+    "true_peak_db": -6.8,
     "leading_silence_ms": 0.0
    },
-   "samples": 283200,
-   "duration_s": 5.9,
+   "samples": 384000,
+   "duration_s": 8.0,
    "files": {
     "ogg": {
      "path": "roll/roll_steel_rail_v03.ogg",
-     "sha256": "536002406ddef1d874c360565b951b28e6db8a7bb0b1762ccbd2b345df38f541",
-     "bytes": 76370,
-     "lufs": -29.9,
-     "true_peak_db": -6.3,
-     "decoded_samples": 283200,
-     "duration_s": 5.9,
+     "sha256": "0f06f41485741ff9241b040fb87c6b79047f0e3b264a7ee8887c8a9e37433c28",
+     "bytes": 107698,
+     "lufs": -24.0,
+     "true_peak_db": -6.8,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
      "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap    293 / p99.9    644   head  -22.0 dB   tail  -23.0 dB   min  -43.2 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap     44 / p99.9   1031   head  -22.4 dB   tail  -19.8 dB   min  -27.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_steel_rail_v03.m4a",
-     "sha256": "375e860d9d663f37452c9ba7f4f0cec40e93b6889b4e01a27ca5fa675aa5e431",
-     "bytes": 73329,
-     "lufs": -29.9,
-     "true_peak_db": -6.3,
-     "decoded_samples": 283200,
-     "duration_s": 5.9,
+     "sha256": "467a415fe485896a967ee67613ca232eb8e8a8d19fad70842f6fde96dd8409dd",
+     "bytes": 99895,
+     "lufs": -24.1,
+     "true_peak_db": -6.8,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
      "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap    100 / p99.9    643   head  -21.9 dB   tail  -23.1 dB   min  -43.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_m4a.wav wrap    451 / p99.9   1027   head  -22.2 dB   tail  -19.9 dB   min  -27.4 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
-   "lufs": -29.9,
-   "true_peak_db": -6.3,
+   "lufs": -24.0,
+   "true_peak_db": -6.8,
    "loop_check": {
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": {
+     "region_s": [
+      1.9,
+      5.3
+     ],
+     "passes": 3
+    },
+    "leveler": null
    }
   },
   {
@@ -23161,17 +23607,16 @@
    },
    "prompt": "very soft muffled brushing hush of thick wool felt being gently rubbed with a little more weight, slightly deeper, a continuous steady low and dull fabric whisper, almost silent, no clicks, no hard surface, no wood, no ring, no music",
    "issues": [
-    "ogg loudness -25.9 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -25.8 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "duration 4.5s outside 6.0-8.0s"
+    "ogg loudness -26.3 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -26.2 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "interior dropouts in take; loop region limited to longest clean run 3.00s + 5.00s",
-    "clean region 5.00s too short for a 6.0s loop; crossfading anyway, duration falls short",
+    "extended loop: 5 crossfaded passes of 0.0-2.4s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "linear gain +29.20 dB; export Opus 96k + AAC 96k"
+    "linear gain +30.50 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -23189,64 +23634,84 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "extended",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "extended": {
+     "region_s": [
+      0.0,
+      2.4
+     ],
+     "passes": 5
+    },
+    "output": "roll_steel_rug_v07.wav wrap     11 / p99.9    523   head  -21.3 dB   tail  -16.3 dB   min  -35.8 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
-   "gain_db": 29.2,
+   "gain_db": 30.5,
    "master": {
     "path": "_masters/roll/roll_steel_rug_v07.wav",
-    "sha256": "23619b9a18153352c662d1a7303dc647d1eeb4390e2b2543d4a2d1de0fc6da35",
-    "samples": 216000,
-    "duration_s": 4.5,
-    "lufs": -25.8,
+    "sha256": "5605fa919ce5e500cc6a67e0547fe55f155be62d9114a99153a14841a55bf26b",
+    "samples": 384000,
+    "duration_s": 8.0,
+    "lufs": -26.2,
     "true_peak_db": -6.3,
-    "leading_silence_ms": 0.0
+    "leading_silence_ms": 0.06
    },
-   "samples": 216000,
-   "duration_s": 4.5,
+   "samples": 384000,
+   "duration_s": 8.0,
    "files": {
     "ogg": {
      "path": "roll/roll_steel_rug_v07.ogg",
-     "sha256": "bb562822f77f2769816fc617dd0478d566dd9abaa92249620fb829b1fd6cf1e2",
-     "bytes": 52003,
-     "lufs": -25.9,
-     "true_peak_db": -6.6,
-     "decoded_samples": 216000,
-     "duration_s": 4.5,
-     "leading_silence_ms": 0.0,
+     "sha256": "b4922aa96a208d5f9302d60ae27a99305bf939436a613c2162f365219dbbf42e",
+     "bytes": 93847,
+     "lufs": -26.3,
+     "true_peak_db": -6.1,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.02,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap     49 / p99.9    500   head  -21.4 dB   tail  -16.0 dB   min  -37.2 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap     17 / p99.9    520   head  -21.3 dB   tail  -16.3 dB   min  -35.8 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_steel_rug_v07.m4a",
-     "sha256": "e7b089af1ffea84284d4cb465657bbae5e0aff3285293ac62a0e43b6bb81aa2b",
-     "bytes": 56086,
-     "lufs": -25.8,
-     "true_peak_db": -6.5,
-     "decoded_samples": 216000,
-     "duration_s": 4.5,
-     "leading_silence_ms": 0.0,
+     "sha256": "40cb316158775ce4dd4ff4b6eb07bd1a4cc6c61d042e8a5cd4ae3e1f15907568",
+     "bytes": 98842,
+     "lufs": -26.2,
+     "true_peak_db": -6.1,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.04,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap    295 / p99.9    471   head  -21.3 dB   tail  -16.0 dB   min  -37.0 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_m4a.wav wrap     28 / p99.9    518   head  -21.2 dB   tail  -16.3 dB   min  -35.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
-   "lufs": -25.9,
-   "true_peak_db": -6.5,
+   "lufs": -26.3,
+   "true_peak_db": -6.1,
    "loop_check": {
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": {
+     "region_s": [
+      0.0,
+      2.4
+     ],
+     "passes": 5
+    },
+    "leveler": null
    }
   },
   {
@@ -23264,17 +23729,16 @@
    },
    "prompt": "felt DSP of roll_steel_rug_v07 (no generation)",
    "issues": [
-    "ogg loudness -26.9 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "m4a loudness -26.8 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
-    "duration 4.5s outside 6.0-8.0s"
+    "ogg loudness -27.0 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -27.0 LUFS outside -24.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
    ],
    "warnings": [],
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "interior dropouts in take; loop region limited to longest clean run 3.00s + 5.00s",
-    "clean region 5.00s too short for a 6.0s loop; crossfading anyway, duration falls short",
+    "extended loop: 5 crossfaded passes of 0.0-2.2s",
     "repair-loop.py equal-power tail-over-head crossfade 0.5s",
-    "linear gain -3.30 dB; export Opus 96k + AAC 96k"
+    "linear gain -1.00 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -23292,64 +23756,84 @@
     "crossfade_s": 0.5,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": false
      },
      {
+      "mode": "extended",
       "crossfade_s": 0.5,
       "pass": true
      }
-    ]
+    ],
+    "extended": {
+     "region_s": [
+      0.0,
+      2.2
+     ],
+     "passes": 5
+    },
+    "output": "roll_steel_rug_v07f.wav wrap      2 / p99.9    237   head  -16.5 dB   tail  -20.4 dB   min  -33.5 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
-   "gain_db": -3.3,
+   "gain_db": -1.0,
    "master": {
     "path": "_masters/roll/roll_steel_rug_v07f.wav",
-    "sha256": "821d2ea3b4a8729896ece4f504efdb082598b1f0a49587afe9ca825a07684bd8",
-    "samples": 216000,
-    "duration_s": 4.5,
-    "lufs": -26.8,
+    "sha256": "bcef9dbad396f90b4fd392091b52073ccb8de389b022e3c20bc73776ea366d14",
+    "samples": 384000,
+    "duration_s": 8.0,
+    "lufs": -27.0,
     "true_peak_db": -6.3,
     "leading_silence_ms": 0.0
    },
-   "samples": 216000,
-   "duration_s": 4.5,
+   "samples": 384000,
+   "duration_s": 8.0,
    "files": {
     "ogg": {
      "path": "roll/roll_steel_rug_v07f.ogg",
-     "sha256": "1c6500e5141dc7fc692be0aa371d2ccfab34bbc7f1a8c5b32b3c406c80b83a16",
-     "bytes": 52004,
-     "lufs": -26.9,
-     "true_peak_db": -6.5,
-     "decoded_samples": 216000,
-     "duration_s": 4.5,
+     "sha256": "8715521d5ef9ffbe9b9c08f6466d802cb06bff36332e87b6378f3b119e2edc6d",
+     "bytes": 91066,
+     "lufs": -27.0,
+     "true_peak_db": -6.0,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
      "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap     63 / p99.9    215   head  -22.1 dB   tail  -16.6 dB   min  -36.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap      9 / p99.9    234   head  -16.6 dB   tail  -20.5 dB   min  -33.5 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
      "path": "roll/roll_steel_rug_v07f.m4a",
-     "sha256": "af6a3987e9fa865f0e8c6637a66dd369fdbb9ab733f52848775f2b76b92760bb",
-     "bytes": 56067,
-     "lufs": -26.8,
-     "true_peak_db": -6.3,
-     "decoded_samples": 216000,
-     "duration_s": 4.5,
-     "leading_silence_ms": 0.0,
+     "sha256": "efce244b5ab26eacc34485cff764f8e06e07cb631fc1d1cc7068ac5467349396",
+     "bytes": 98748,
+     "lufs": -27.0,
+     "true_peak_db": -6.1,
+     "decoded_samples": 384000,
+     "duration_s": 8.0,
+     "leading_silence_ms": 0.02,
      "loop_check": {
       "pass": true,
-      "output": "dec_m4a.wav wrap      1 / p99.9    219   head  -21.7 dB   tail  -16.5 dB   min  -36.8 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_m4a.wav wrap      4 / p99.9    236   head  -16.4 dB   tail  -20.4 dB   min  -33.6 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     }
    },
-   "lufs": -26.9,
-   "true_peak_db": -6.3,
+   "lufs": -27.0,
+   "true_peak_db": -6.0,
    "loop_check": {
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.5
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": {
+     "region_s": [
+      0.0,
+      2.2
+     ],
+     "passes": 5
+    },
+    "leveler": null
    }
   },
   {
@@ -23377,7 +23861,7 @@
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "raw take already loops cleanly; no crossfade",
-    "linear gain +29.00 dB; export Opus 96k + AAC 96k"
+    "linear gain +29.00 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -23395,10 +23879,13 @@
     "crossfade_s": 0.0,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_steel_rug_v08.wav wrap     52 / p99.9    216   head  -21.7 dB   tail  -27.2 dB   min  -33.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": 29.0,
    "master": {
@@ -23415,8 +23902,8 @@
    "files": {
     "ogg": {
      "path": "roll/roll_steel_rug_v08.ogg",
-     "sha256": "e4f641670b441c161aec24c8cf2db55f7765382f0a7fbba54a2c5bcfe97f14ec",
-     "bytes": 91116,
+     "sha256": "b1933dacc022f4f65132e041d380199c087d2c616dc9c7f2fb42151dc7c73d61",
+     "bytes": 93400,
      "lufs": -30.1,
      "true_peak_db": -6.5,
      "decoded_samples": 384000,
@@ -23424,7 +23911,7 @@
      "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap     33 / p99.9    219   head  -21.9 dB   tail  -27.3 dB   min  -33.3 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap     24 / p99.9    218   head  -22.0 dB   tail  -27.3 dB   min  -33.4 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
@@ -23448,7 +23935,10 @@
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.0
+    "crossfade_s": 0.0,
+    "variant": "as built",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -23473,7 +23963,7 @@
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "raw take already loops cleanly; no crossfade",
-    "linear gain -3.30 dB; export Opus 96k + AAC 96k"
+    "linear gain -3.30 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -23491,10 +23981,13 @@
     "crossfade_s": 0.0,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_steel_rug_v08f.wav wrap      0 / p99.9     88   head  -20.8 dB   tail  -26.0 dB   min  -32.2 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": -3.3,
    "master": {
@@ -23511,8 +24004,8 @@
    "files": {
     "ogg": {
      "path": "roll/roll_steel_rug_v08f.ogg",
-     "sha256": "c397e9c18888bee3ee5ee176ee7898b8b2c3e2d10428e7e103760d8bbad111ca",
-     "bytes": 133808,
+     "sha256": "448f5afa65c0d124675bcbabef81b171b10aaee75b841f31256393095d407a37",
+     "bytes": 136044,
      "lufs": -29.5,
      "true_peak_db": -6.5,
      "decoded_samples": 384000,
@@ -23520,7 +24013,7 @@
      "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap     22 / p99.9     88   head  -20.9 dB   tail  -26.1 dB   min  -32.6 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap      0 / p99.9     88   head  -21.0 dB   tail  -26.1 dB   min  -32.6 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
@@ -23544,7 +24037,10 @@
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.0
+    "crossfade_s": 0.0,
+    "variant": "as built",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -23572,7 +24068,7 @@
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "raw take already loops cleanly; no crossfade",
-    "linear gain +31.50 dB; export Opus 96k + AAC 96k"
+    "linear gain +31.50 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -23590,10 +24086,13 @@
     "crossfade_s": 0.0,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_steel_rug_v09.wav wrap    227 / p99.9   6553   head  -29.7 dB   tail  -35.7 dB   min  -41.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": 31.5,
    "master": {
@@ -23610,8 +24109,8 @@
    "files": {
     "ogg": {
      "path": "roll/roll_steel_rug_v09.ogg",
-     "sha256": "beef64794e58df4ebd174ed3a02f0f6d322eb729da173903ec382df81344fcfb",
-     "bytes": 88270,
+     "sha256": "8858fc1e7d105358e1a6da456c331deaf13fec6ab52adb281765cefe852347c3",
+     "bytes": 90511,
      "lufs": -27.3,
      "true_peak_db": -6.6,
      "decoded_samples": 384000,
@@ -23619,7 +24118,7 @@
      "leading_silence_ms": 0.15,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap    197 / p99.9   6526   head  -29.8 dB   tail  -35.7 dB   min  -41.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap    263 / p99.9   6526   head  -29.8 dB   tail  -35.7 dB   min  -41.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
@@ -23643,7 +24142,10 @@
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.0
+    "crossfade_s": 0.0,
+    "variant": "as built",
+    "extended": null,
+    "leveler": null
    }
   },
   {
@@ -23668,7 +24170,7 @@
    "processing": [
     "decode -> 48000 Hz mono (channel average), 8.000s",
     "raw take already loops cleanly; no crossfade",
-    "linear gain -3.30 dB; export Opus 96k + AAC 96k"
+    "linear gain -3.30 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
    ],
    "loop": true,
    "target": {
@@ -23686,10 +24188,13 @@
     "crossfade_s": 0.0,
     "attempts": [
      {
+      "mode": "raw",
       "crossfade_s": 0.0,
       "pass": true
      }
-    ]
+    ],
+    "output": "roll_steel_rug_v09f.wav wrap     20 / p99.9   1660   head  -24.1 dB   tail  -27.0 dB   min  -31.5 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
    },
    "gain_db": -3.3,
    "master": {
@@ -23706,8 +24211,8 @@
    "files": {
     "ogg": {
      "path": "roll/roll_steel_rug_v09f.ogg",
-     "sha256": "38b67ecbddffef7fc7e9a7005f6924439af4b4051cddfb836739dc7e6ed6173c",
-     "bytes": 94387,
+     "sha256": "2eef2a602185af5d7f15e1ea59dc9449252db48a5cc0f47df3d72e1700ab8cd1",
+     "bytes": 96885,
      "lufs": -25.4,
      "true_peak_db": -6.8,
      "decoded_samples": 384000,
@@ -23715,7 +24220,7 @@
      "leading_silence_ms": 0.0,
      "loop_check": {
       "pass": true,
-      "output": "dec_ogg.wav wrap    220 / p99.9   1676   head  -24.2 dB   tail  -27.1 dB   min  -31.5 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+      "output": "dec_ogg.wav wrap     35 / p99.9   1675   head  -24.2 dB   tail  -27.1 dB   min  -31.5 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
      }
     },
     "m4a": {
@@ -23739,7 +24244,10 @@
     "pass": true,
     "master_pass": true,
     "aac_pass": true,
-    "crossfade_s": 0.0
+    "crossfade_s": 0.0,
+    "variant": "as built",
+    "extended": null,
+    "leveler": null
    }
   },
   {
