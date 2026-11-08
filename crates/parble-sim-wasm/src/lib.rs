@@ -31,6 +31,13 @@ pub fn run_playroom() -> String {
     parble_sim::playroom_run::playroom_4s_hash_hex()
 }
 
+/// Run the P2-T7 all-pieces track and return its hash, the same format as
+/// `crates/parble-sim/tests/golden/allpieces_30s.hash` (without the newline).
+#[wasm_bindgen]
+pub fn run_allpieces() -> String {
+    parble_sim::allpieces::allpieces_hash_hex()
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -47,6 +54,10 @@ mod tests {
         assert_eq!(
             super::run_playroom(),
             parble_sim::playroom_run::playroom_4s_hash_hex()
+        );
+        assert_eq!(
+            super::run_allpieces(),
+            parble_sim::allpieces::allpieces_hash_hex()
         );
     }
 }

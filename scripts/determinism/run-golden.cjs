@@ -1,21 +1,25 @@
 // Usage: node run-golden.cjs <wasm-bindgen nodejs module> <golden hash file> [<variants golden file>
-//   [<mechanism golden file> [<playroom hash file>]]]
+//   [<mechanism golden file> [<playroom hash file> [<allpieces hash file>]]]]
 // Runs run_golden() from the wasm build and compares it with the committed native golden. With a
 // variants file (P5-T1), also runs run_variants() (every marble type × size on the ramp) and
 // compares it line by line. With a mechanism file (P2-T1), also runs run_mechanism_demo(). With a
-// playroom file, also runs run_playroom() (the playroom kit run on chunk colliders).
+// playroom file, also runs run_playroom() (the playroom kit run on chunk colliders). With an
+// allpieces file (P2-T7), also runs run_allpieces() (the all-pieces track, 10 marbles, 30 s).
 "use strict";
 
 const fs = require("node:fs");
 const path = require("node:path");
 
-const [modulePath, goldenPath, variantsPath, mechanismPath, playroomPath] = process.argv.slice(2);
+const [modulePath, goldenPath, variantsPath, mechanismPath, playroomPath, allpiecesPath] =
+  process.argv.slice(2);
 if (!modulePath || !goldenPath) {
-  console.error("usage: node run-golden.cjs <module.js> <golden.hash> [<variants.hash> [<mechanism.hash> [<playroom.hash>]]]");
+  console.error("usage: node run-golden.cjs <module.js> <golden.hash> [<variants.hash> [<mechanism.hash> [<playroom.hash> [<allpieces.hash>]]]]");
   process.exit(2);
 }
 
-const { run_golden, run_variants, run_mechanism_demo, run_playroom } = require(path.resolve(modulePath));
+const { run_golden, run_variants, run_mechanism_demo, run_playroom, run_allpieces } = require(
+  path.resolve(modulePath),
+);
 const expected = fs.readFileSync(goldenPath, "utf8").trim();
 const actual = run_golden();
 
@@ -61,4 +65,16 @@ if (playroomPath) {
     process.exit(1);
   }
   console.log("determinism-wasm: playroom kit run matches native");
+}
+
+if (allpiecesPath) {
+  const want = fs.readFileSync(allpiecesPath, "utf8").trim();
+  const got = run_allpieces();
+  console.log(`allpieces (native) ${want}`);
+  console.log(`allpieces (wasm)   ${got}`);
+  if (got !== want) {
+    console.error(`FAIL: wasm all-pieces hash ${got} != native ${want} (${allpiecesPath})`);
+    process.exit(1);
+  }
+  console.log("determinism-wasm: all-pieces track run matches native");
 }
