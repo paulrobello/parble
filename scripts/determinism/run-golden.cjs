@@ -1,20 +1,21 @@
 // Usage: node run-golden.cjs <wasm-bindgen nodejs module> <golden hash file> [<variants golden file>
-//   [<mechanism golden file>]]
+//   [<mechanism golden file> [<playroom hash file>]]]
 // Runs run_golden() from the wasm build and compares it with the committed native golden. With a
 // variants file (P5-T1), also runs run_variants() (every marble type × size on the ramp) and
-// compares it line by line. With a mechanism file (P2-T1), also runs run_mechanism_demo().
+// compares it line by line. With a mechanism file (P2-T1), also runs run_mechanism_demo(). With a
+// playroom file, also runs run_playroom() (the playroom kit run on chunk colliders).
 "use strict";
 
 const fs = require("node:fs");
 const path = require("node:path");
 
-const [modulePath, goldenPath, variantsPath, mechanismPath] = process.argv.slice(2);
+const [modulePath, goldenPath, variantsPath, mechanismPath, playroomPath] = process.argv.slice(2);
 if (!modulePath || !goldenPath) {
-  console.error("usage: node run-golden.cjs <module.js> <golden.hash> [<variants.hash> [<mechanism.hash>]]");
+  console.error("usage: node run-golden.cjs <module.js> <golden.hash> [<variants.hash> [<mechanism.hash> [<playroom.hash>]]]");
   process.exit(2);
 }
 
-const { run_golden, run_variants, run_mechanism_demo } = require(path.resolve(modulePath));
+const { run_golden, run_variants, run_mechanism_demo, run_playroom } = require(path.resolve(modulePath));
 const expected = fs.readFileSync(goldenPath, "utf8").trim();
 const actual = run_golden();
 
@@ -48,4 +49,16 @@ if (mechanismPath) {
     process.exit(1);
   }
   console.log(`determinism-wasm: mechanism fixture run matches native (${mechanismPath})`);
+}
+
+if (playroomPath) {
+  const want = fs.readFileSync(playroomPath, "utf8").trim();
+  const got = run_playroom();
+  console.log(`playroom (native) ${want}`);
+  console.log(`playroom (wasm)   ${got}`);
+  if (got !== want) {
+    console.error(`FAIL: wasm playroom hash ${got} != native ${want} (${playroomPath})`);
+    process.exit(1);
+  }
+  console.log("determinism-wasm: playroom kit run matches native");
 }

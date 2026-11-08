@@ -43,7 +43,7 @@ struct SimClock {
     acc: f64,
     /// Completed runs.
     runs: u32,
-    /// Trajectory hash of the last completed run (exactly [`RAMP_10S_TICKS`] ticks).
+    /// Trajectory hash of the last completed run (exactly [`SimClock::run_ticks`] ticks).
     last_run_hash: Option<u64>,
 }
 
@@ -138,9 +138,9 @@ fn plan_ticks(acc: f64, delta: f64) -> (u32, f64) {
     (ticks, rest)
 }
 
-/// Clamp a frame's ticks so a run stops exactly at [`RAMP_10S_TICKS`].
-fn cap_to_run(ticks: u32, tick_count: u64) -> u32 {
-    let left = u64::from(RAMP_10S_TICKS).saturating_sub(tick_count);
+/// Clamp a frame's ticks so a run stops exactly at `run_ticks`.
+fn cap_to_run(ticks: u32, tick_count: u64, run_ticks: u32) -> u32 {
+    let left = u64::from(run_ticks).saturating_sub(tick_count);
     ticks.min(u32::try_from(left).unwrap_or(u32::MAX))
 }
 
@@ -167,13 +167,14 @@ fn advance_sim(
     };
     clock.acc = rest;
     if ticks > 0 {
-        if clock.sim.tick_count() >= u64::from(RAMP_10S_TICKS) {
+        let run_ticks = clock.run_ticks();
+        if clock.sim.tick_count() >= u64::from(run_ticks) {
             clock.last_run_hash = Some(clock.sim.trajectory_hash());
             clock.runs += 1;
             clock.sim = clock.build_run();
             frame.curr = clock.sim.marbles();
         }
-        let ticks = cap_to_run(ticks, clock.sim.tick_count());
+        let ticks = cap_to_run(ticks, clock.sim.tick_count(), run_ticks);
         frame.prev = if ticks == 1 {
             std::mem::take(&mut frame.curr)
         } else {
@@ -207,6 +208,14 @@ fn announce_bridge() {
 }
 
 impl SimClock {
+    /// Ticks in one run: a loaded track's 10 s, or the scenario's [`Scenario::run_ticks`].
+    fn run_ticks(&self) -> u32 {
+        match &self.tracks.loaded {
+            Some(_) => RAMP_10S_TICKS,
+            None => self.scenario.run_ticks(),
+        }
+    }
+
     /// A fresh run of the loaded track, or of the scenario when none is loaded.
     fn build_run(&self) -> TrackRun {
         match &self.tracks.loaded {
@@ -286,12 +295,16 @@ mod tests {
 
     #[test]
     fn capped_frames_end_a_run_on_the_golden_hash() {
-        assert_eq!(cap_to_run(12, 2_395), 5);
-        assert_eq!(cap_to_run(12, 2_400), 0);
-        assert_eq!(cap_to_run(3, 0), 3);
+        assert_eq!(cap_to_run(12, 2_395, RAMP_10S_TICKS), 5);
+        assert_eq!(cap_to_run(12, 2_400, RAMP_10S_TICKS), 0);
+        assert_eq!(cap_to_run(3, 0, RAMP_10S_TICKS), 3);
         let mut sim = Sim::ramp_scene();
         while sim.tick_count() < u64::from(RAMP_10S_TICKS) {
-            sim.tick(cap_to_run(MAX_TICKS_PER_FRAME, sim.tick_count()));
+            sim.tick(cap_to_run(
+                MAX_TICKS_PER_FRAME,
+                sim.tick_count(),
+                RAMP_10S_TICKS,
+            ));
         }
         assert_eq!(sim.trajectory_hash(), parble_sim::golden::ramp_10s_hash());
     }
@@ -302,6 +315,7 @@ mod tests {
         assert_eq!(lockstep_ticks(3.0, 3.0), LOCKSTEP_TICKS);
         // 2,400 ticks is a whole number of lockstep frames, so a run still ends on the golden hash.
         assert_eq!(RAMP_10S_TICKS % LOCKSTEP_TICKS, 0);
+        assert_eq!(Scenario::Playroom.run_ticks() % LOCKSTEP_TICKS, 0);
     }
 
     #[test]

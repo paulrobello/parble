@@ -765,6 +765,37 @@ mod tests {
     }
 
     #[test]
+    fn set_dressing_stays_clear_of_the_kit_run() {
+        use parble_sim::{playroom_run::RUN, scene};
+        let cell = scene::cell_m();
+        let half = cell / 2.0 + 0.012;
+        let (mut lo, mut hi) = (Vec2::splat(f32::MAX), Vec2::splat(f32::MIN));
+        for &(_, [x, _, z], _) in &RUN {
+            let c = Vec2::new(x as f32, z as f32) * cell;
+            lo = lo.min(c - half);
+            hi = hi.max(c + half);
+        }
+        let clear = |p: Vec2, r: f32| (p - p.clamp(lo, hi)).length() > r;
+        let lay = layout();
+        for b in &lay.blocks {
+            let r = piece_radius(&b.piece).unwrap();
+            assert!(
+                clear(Vec2::new(b.at[0], b.at[2]), r),
+                "{b:?} overlaps the run"
+            );
+        }
+        for l in &lay.lanterns {
+            assert!(clear(Vec2::new(l.center[0], l.center[2]), l.radius));
+        }
+        // The run stands on the rug.
+        let (c, s) = (
+            Vec2::from_array(lay.rug.center),
+            Vec2::from_array(lay.rug.size),
+        );
+        assert!(lo.cmpge(c - s / 2.0).all() && hi.cmple(c + s / 2.0).all());
+    }
+
+    #[test]
     fn embedded_assets_decode() {
         let rug = ktx2_image(RUG_BASE, true, true);
         assert!(rug.texture_descriptor.mip_level_count > 1);

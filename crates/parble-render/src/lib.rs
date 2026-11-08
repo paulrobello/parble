@@ -135,7 +135,12 @@ fn spawn_scene(
         cull_mode: None,
         ..default()
     });
-    commands.spawn((Mesh3d(meshes.add(tray_render_mesh())), MeshMaterial3d(wood)));
+    // The playroom (P1-T5) lays its own rug and floor here, brings its own lights below, and runs
+    // its kit-piece run instead of the tray.
+    let plain = *env == Environment::Plain;
+    if plain {
+        commands.spawn((Mesh3d(meshes.add(tray_render_mesh())), MeshMaterial3d(wood)));
+    }
 
     let floor = materials.add(StandardMaterial {
         base_color: Color::srgb(0.30, 0.24, 0.20),
@@ -143,8 +148,6 @@ fn spawn_scene(
         ..default()
     });
     let len = scene::tray_length_m();
-    // The playroom (P1-T5) lays its own rug and floor here, and brings its own lights below.
-    let plain = *env == Environment::Plain;
     if plain {
         commands.spawn((
             Mesh3d(meshes.add(Plane3d::default().mesh().size(4.0 * len, 4.0 * len))),

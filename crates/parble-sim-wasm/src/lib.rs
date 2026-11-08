@@ -24,6 +24,13 @@ pub fn run_mechanism_demo() -> String {
     parble_sim::golden::mechanism_demo()
 }
 
+/// Run the playroom kit run (P1-T3 chunk colliders) and return its hash, the same format as
+/// `crates/parble-sim/tests/golden/playroom_4s.hash` (without the newline).
+#[wasm_bindgen]
+pub fn run_playroom() -> String {
+    parble_sim::playroom_run::playroom_4s_hash_hex()
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -36,6 +43,10 @@ mod tests {
         assert_eq!(
             super::run_mechanism_demo(),
             parble_sim::golden::mechanism_demo()
+        );
+        assert_eq!(
+            super::run_playroom(),
+            parble_sim::playroom_run::playroom_4s_hash_hex()
         );
     }
 }

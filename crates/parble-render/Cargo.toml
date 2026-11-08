@@ -23,6 +23,10 @@ bevy = { workspace = true, features = [
 ] }
 serde_json = { workspace = true }
 
+[dev-dependencies]
+# Port positions of the playroom run's pieces, to check the render poses against the sim's.
+parble-kit = { path = "../parble-kit" }
+
 [target.'cfg(target_os = "linux")'.dependencies]
 bevy = { workspace = true, features = ["x11", "wayland"] }
 

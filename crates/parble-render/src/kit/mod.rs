@@ -223,6 +223,20 @@ pub enum KitScene {
     None,
     /// 2,000 pieces in a 50 × 10 × 4-cell wall beside the tray.
     Stress2000,
+    /// The playroom marble run ([`parble_sim::playroom_run::RUN`]), the same placements the sim
+    /// runs as chunk colliders.
+    Playroom,
+}
+
+impl KitScene {
+    /// The placements this scene draws.
+    pub fn layout(self) -> Vec<Placement> {
+        match self {
+            Self::None => Vec::new(),
+            Self::Stress2000 => stress_layout(),
+            Self::Playroom => playroom_layout(),
+        }
+    }
 }
 
 /// Agent cap on the texture family (`--tex`); see [`family::select_family_capped`].
@@ -267,6 +281,21 @@ pub fn stress_layout() -> Vec<Placement> {
         }
     }
     out
+}
+
+/// The playroom run's placements, from the sim's own list so the drawn and simulated runs agree.
+pub fn playroom_layout() -> Vec<Placement> {
+    parble_sim::playroom_run::RUN
+        .iter()
+        .map(|&(id, cell, yaw)| Placement {
+            piece: PIECES
+                .iter()
+                .position(|(p, _)| *p == id)
+                .unwrap_or_else(|| panic!("playroom run piece {id} has no GLB")),
+            cell: IVec3::from_array(cell),
+            yaw,
+        })
+        .collect()
 }
 
 pub fn chunk_of(cell: IVec3) -> IVec3 {
@@ -459,7 +488,7 @@ fn spawn_kit(
         return;
     }
     let low = quality.is_some_and(|q| *q == crate::Quality::Low);
-    let layout = stress_layout();
+    let layout = scene.layout();
     let mut handles: Vec<[Handle<Mesh>; LODS]> = Vec::new();
     let mut ids = HashSet::new();
     for (id, bytes) in PIECES {
@@ -565,9 +594,12 @@ fn load_textures(
     mut tex: ResMut<KitTextures>,
     mut materials: ResMut<Assets<KitWoodMaterial>>,
 ) {
-    let (KitScene::Stress2000, None, Some(device)) = (*scene, diag.family, device) else {
+    let (None, Some(device)) = (diag.family, device) else {
         return;
     };
+    if *scene == KitScene::None {
+        return;
+    }
     let f = device.features();
     let bc = f.contains(WgpuFeatures::TEXTURE_COMPRESSION_BC);
     let astc = f.contains(WgpuFeatures::TEXTURE_COMPRESSION_ASTC);
@@ -862,6 +894,28 @@ mod tests {
         assert_eq!(chunks, 14);
         assert_eq!(bound, 14 * PIECES.len() * LODS);
         assert_eq!(stress_layout(), layout, "deterministic");
+    }
+
+    #[test]
+    fn playroom_layout_draws_the_sim_run_at_the_sim_poses() {
+        let kit = parble_kit::builtin();
+        let layout = playroom_layout();
+        let sim = parble_sim::playroom_run::placements();
+        assert_eq!(layout.len(), sim.len());
+        for (r, p) in layout.iter().zip(&sim) {
+            assert_eq!(PIECES[r.piece].0, p.piece.as_str());
+            assert_eq!(r.cell.to_array(), [p.anchor.x, p.anchor.y, p.anchor.z]);
+            // Every port position the sim places matches the render transform of the piece.
+            let t = placement_transform(r);
+            for port in &kit.piece(&p.piece).unwrap().def.ports {
+                let n = port.face.normal();
+                let local = [n.x * 30_000, 0, n.z * 30_000];
+                let w = parble_sim::chunk::place_point_um(p.orientation(), p.anchor, local);
+                let want = Vec3::new(w[0] as f32, w[1] as f32, w[2] as f32) * 1e-6;
+                let got = t.transform_point(Vec3::from_array(local.map(|v| v as f32 * 1e-6)));
+                assert!(got.distance(want) < 1e-6, "{}: {got} vs {want}", p.piece);
+            }
+        }
     }
 
     #[test]

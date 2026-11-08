@@ -20,6 +20,7 @@ pub mod golden;
 pub mod hash;
 pub mod marble;
 pub mod mechanism;
+pub mod playroom_run;
 pub mod scene;
 pub mod track_run;
 

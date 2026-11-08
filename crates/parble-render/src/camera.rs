@@ -144,6 +144,26 @@ impl Cues {
         )])
     }
 
+    /// Playroom kit run (`--scenario playroom` without `--view`): follow the lead marble out of the
+    /// start and round both curves, then cut to a set shot over the whole run as the marbles reach
+    /// the finish stop.
+    pub fn playroom_run() -> Self {
+        let cell = scene::cell_m();
+        let finish = Vec3::new(0.0, 0.05, parble_sim::playroom_run::ROW_FAR as f32 * cell);
+        let eye = Vec3::new(-0.20, 0.36, 0.30);
+        Self(vec![
+            (0, Shot::Follow),
+            (
+                PLAYROOM_FINISH_TICK,
+                Shot::Set {
+                    eye: eye.to_array(),
+                    look: [0.22, 0.0, -0.12],
+                    focus_m: eye.distance(finish),
+                },
+            ),
+        ])
+    }
+
     /// One fixed overview of the whole tray (`--camera overview`).
     /// The kit stress wall (P1-T4) from its near end: the near pieces draw LOD0 and the far end
     /// LOD2, with both crossfade bands in frame.
@@ -169,6 +189,9 @@ impl Cues {
         )])
     }
 }
+
+/// Tick of the playroom run's cut to the finish shot (2.5 s, just before the lead marble arrives).
+pub const PLAYROOM_FINISH_TICK: u64 = 600;
 
 /// Tick of the ramp scenario's trackside cut.
 pub const RAMP_TRACKSIDE_TICK: u64 = 140;

@@ -40,8 +40,9 @@ pub enum Scenario {
     Ramp,
     /// Look-dev close-up (P1-T6): one marble at rest on the tray floor under a close camera.
     Closeup,
-    /// The same ramp and marble inside the night playroom (P1-T5). Render-only set dressing, so the
-    /// sim and its golden hash are the ramp's.
+    /// The night playroom (P1-T5) with a marble run of shipped kit pieces on the rug in place of
+    /// the tray: [`parble_sim::playroom_run`], drawn by the kit renderer and simulated on chunk
+    /// colliders, with its own committed hash. Ignores `--marble`.
     Playroom,
     /// The P1-T4 kit stress wall: 2,000 instanced pieces beside the ramp. Render-only, so the sim
     /// and its golden hash are the ramp's.
@@ -79,7 +80,8 @@ impl Scenario {
     pub fn build(self, marble: Option<MarbleKind>, size: MarbleSize) -> Sim {
         let spec = marble::spec_for(marble, size);
         match self {
-            Self::Ramp | Self::Playroom | Self::Kit2000 => Sim::ramp_scene_with(spec),
+            Self::Ramp | Self::Kit2000 => Sim::ramp_scene_with(spec),
+            Self::Playroom => Sim::playroom_scene(),
             Self::Closeup => Sim::closeup_scene(spec),
             Self::Lineup => Sim::lineup_scene(),
         }
@@ -90,6 +92,10 @@ impl Scenario {
     pub fn looks(self, marble: Option<MarbleKind>, size: MarbleSize) -> Vec<(MarbleKind, f32)> {
         match self {
             Self::Lineup => marble::LINEUP
+                .iter()
+                .map(|&(k, s)| (k, s.radius_m()))
+                .collect(),
+            Self::Playroom => parble_sim::playroom_run::MARBLES
                 .iter()
                 .map(|&(k, s)| (k, s.radius_m()))
                 .collect(),
@@ -110,7 +116,16 @@ impl Scenario {
     pub fn kit(self) -> KitScene {
         match self {
             Self::Kit2000 => KitScene::Stress2000,
+            Self::Playroom => KitScene::Playroom,
             _ => KitScene::None,
+        }
+    }
+
+    /// Ticks in one run before the scenario restarts: 10 s, or the playroom run's 4 s.
+    pub fn run_ticks(self) -> u32 {
+        match self {
+            Self::Playroom => parble_sim::playroom_run::PLAYROOM_TICKS,
+            _ => parble_sim::golden::RAMP_10S_TICKS,
         }
     }
 }
@@ -145,13 +160,14 @@ impl CameraChoice {
     }
 
     /// Director cues. A playroom `--view` is one fixed shot; without it the playroom follows the
-    /// marble like the ramp.
+    /// lead marble round its kit run.
     pub fn cues(self, scenario: Scenario, view: Option<PlayroomView>) -> Cues {
         match (self, scenario, view) {
             (Self::Overview, ..) => Cues::overview(),
             (_, Scenario::Kit2000, _) => Cues::kit(),
             (_, Scenario::Playroom, Some(v)) => Cues::playroom(v),
-            (_, Scenario::Ramp | Scenario::Playroom, _) => Cues::ramp(),
+            (_, Scenario::Playroom, None) => Cues::playroom_run(),
+            (_, Scenario::Ramp, _) => Cues::ramp(),
             (_, Scenario::Closeup, _) => Cues::closeup(),
             (_, Scenario::Lineup, _) => Cues::lineup(),
         }
@@ -474,6 +490,7 @@ fn diag<'a>(
         quality: opts.quality.name(),
         marble: match (opts.scenario, opts.marble, opts.marble_size) {
             (Scenario::Lineup, ..) => "lineup",
+            (Scenario::Playroom, ..) => "playroom",
             (_, None, MarbleSize::Standard) => "legacy",
             (_, m, _) => m.unwrap_or_default().name(),
         },
@@ -824,7 +841,7 @@ mod tests {
     }
 
     #[test]
-    fn playroom_scenario_parses_and_keeps_the_ramp_golden() {
+    fn playroom_scenario_parses_and_runs_its_kit_run() {
         let o = args("--scenario playroom --view blocks").unwrap();
         assert_eq!(o.scenario, Scenario::Playroom);
         assert_eq!(o.view, Some(PlayroomView::Blocks));
@@ -834,17 +851,28 @@ mod tests {
         );
         assert_eq!(
             CameraChoice::Director.cues(Scenario::Playroom, None),
-            Cues::ramp()
+            Cues::playroom_run()
         );
         assert_eq!(o.scenario.environment(), Environment::Playroom);
+        assert_eq!(o.scenario.kit(), KitScene::Playroom);
         let q = AgentOpts::from_query("?scenario=playroom&view=rug", str::to_owned).unwrap();
         assert_eq!(
             (q.scenario, q.view),
             (Scenario::Playroom, Some(PlayroomView::Rug))
         );
-        let mut sim = Scenario::Playroom.build(None, MarbleSize::Standard);
-        sim.tick(parble_sim::golden::RAMP_10S_TICKS);
-        assert_eq!(sim.trajectory_hash(), parble_sim::golden::ramp_10s_hash());
+        // `--marble` does not reach the playroom run: one look per run marble, in spawn order.
+        let mut sim = Scenario::Playroom.build(Some(MarbleKind::Steel), MarbleSize::Shooter);
+        let looks = Scenario::Playroom.looks(Some(MarbleKind::Steel), MarbleSize::Shooter);
+        assert_eq!(looks.len(), sim.marbles().len());
+        assert_eq!(
+            Scenario::Playroom.run_ticks(),
+            parble_sim::playroom_run::PLAYROOM_TICKS
+        );
+        sim.tick(Scenario::Playroom.run_ticks());
+        assert_eq!(
+            sim.trajectory_hash(),
+            parble_sim::playroom_run::playroom_4s_hash()
+        );
     }
 
     #[test]

@@ -4345,6 +4345,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "meshoptimizer-rs",
+ "parble-kit",
  "parble-sim",
  "serde",
  "serde_json",
