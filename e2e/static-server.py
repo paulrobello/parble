@@ -1,4 +1,4 @@
-"""Static preview of dist/ for the Playwright suite (e2e/playwright.config.mjs).
+"""Static preview of target/web-dist for the Playwright suite (e2e/playwright.config.mjs).
 
 `python3 -m http.server` listens with socketserver's default backlog of 5 and answers HTTP/1.0, so
 every fetch is a new connection. The kit2000 scenario starts about 30 texture fetches at once; on

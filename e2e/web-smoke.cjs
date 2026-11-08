@@ -3,7 +3,7 @@
 // to show a lit scene and the HUD (web/ui) a moving tick, fails on any console error, and prints the
 // WebGPU adapter.
 // Usage: node e2e/web-smoke.cjs [url] [screenshot.png]   (after npm ci --prefix e2e)
-//   url defaults to serving ./dist (make build-web) on a random loopback port.
+//   url defaults to serving ./target/web-dist (make build-web) on a random loopback port.
 // PW_GPU=swiftshader opts into the CPU renderer; the default is the platform GPU (Metal on macOS).
 "use strict";
 const { spawn } = require("node:child_process");
@@ -26,7 +26,7 @@ const BAD_TEXT = (t) => /%cERROR%c|\bERROR\b/.test(t) || /uncaptured|invalid|pan
   if (!url) {
     const port = 20000 + Math.floor(Math.random() * 20000);
     server = spawn("python3", ["-m", "http.server", String(port), "--bind", "127.0.0.1",
-      "--directory", path.resolve(__dirname, "../dist")], { stdio: "ignore" });
+      "--directory", path.resolve(__dirname, "../target/web-dist")], { stdio: "ignore" });
     await new Promise((r) => setTimeout(r, 800));
     url = `http://127.0.0.1:${port}/`;
   }

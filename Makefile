@@ -124,7 +124,7 @@ e2e-deps: $(E2E_STAMP)
 web-smoke: build-web $(E2E_STAMP)
 	node e2e/web-smoke.cjs "" docs/shots/p0-t5-chromium.png
 
-# P0-T6 Playwright smoke against the 5311 static preview of dist/ (Playwright starts and stops it).
+# P0-T6 Playwright smoke against the 5311 static preview of target/web-dist (Playwright starts and stops it).
 web-e2e: build-web $(E2E_STAMP)
 	cd e2e && ./node_modules/.bin/playwright test
 
@@ -152,7 +152,7 @@ shots-test:
 	cargo build -p parble-app
 	python3 scripts/shots/mechanisms.py
 
-# P1-T6: the marble spec alone (GPU Chromium, every type on Low and High) against an existing dist/.
+# P1-T6: the marble spec alone (GPU Chromium, every type on Low and High) against an existing target/web-dist.
 .PHONY: web-editor-perf
 web-editor-perf: $(E2E_STAMP)
 	cd e2e && PARBLE_PERF=1 ./node_modules/.bin/playwright test tests/editor-perf.spec.mjs
@@ -201,14 +201,16 @@ dev-stop:
 	if lsof -ti tcp:$(DEV_PORT) -sTCP:LISTEN >/dev/null; then echo "ERROR: port $(DEV_PORT) still busy"; exit 1; fi; \
 	echo "port $(DEV_PORT) free"
 
+# Release build into its own dir, so it never races `make dev` (trunk serve writes dist/).
+WEB_DIST := target/web-dist
 build-web: $(TRUNK)
-	$(TRUNK) build --release
+	$(TRUNK) build --release --dist $(WEB_DIST)
 
 # PRD §6 P0 budget: wasm <= 15 MB gzip.
 web-size:
-	@rm -rf dist
+	@rm -rf $(WEB_DIST)
 	@$(MAKE) --no-print-directory build-web
-	@wasm=$$(ls dist/*.wasm); raw=$$(wc -c < $$wasm | tr -d ' '); gz=$$(gzip -9 -c $$wasm | wc -c | tr -d ' '); \
+	@wasm=$$(ls $(WEB_DIST)/*.wasm); raw=$$(wc -c < $$wasm | tr -d ' '); gz=$$(gzip -9 -c $$wasm | wc -c | tr -d ' '); \
 	echo "wasm raw=$$raw gzip=$$gz"; \
 	test $$gz -le 15000000 || { echo "FAIL: wasm gzip $$gz > 15 MB budget"; exit 1; }
 

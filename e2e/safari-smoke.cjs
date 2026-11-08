@@ -3,7 +3,7 @@
 // Automation"). Safari WebDriver cannot read the console, so this reads index.html's page-side log
 // (window.__parbleErrors) and the WGSL shim stats, and saves a WebDriver screenshot.
 // Usage: node e2e/safari-smoke.cjs [url] [screenshot.png]
-//   url defaults to serving ./dist (make build-web) on a random loopback port.
+//   url defaults to serving ./target/web-dist (make build-web) on a random loopback port.
 // Limit: errors the browser reports itself (native WebGPU validation warnings) never reach the page
 // log; console.error, Bevy's ERROR lines, uncaught errors and CSP violations do.
 "use strict";
@@ -30,7 +30,7 @@ async function wd(method, p, body) {
   if (!url) {
     const sitePort = port + 1;
     server = spawn("python3", ["-m", "http.server", String(sitePort), "--bind", "127.0.0.1",
-      "--directory", path.resolve(__dirname, "../dist")], { stdio: "ignore" });
+      "--directory", path.resolve(__dirname, "../target/web-dist")], { stdio: "ignore" });
     url = `http://127.0.0.1:${sitePort}/`;
   }
   let session = null, code = 1;

@@ -178,8 +178,8 @@ make playroom-shots                  # native High shots of both playroom views 
 make shots-p1t7                      # native: per-tier shots, TAA ghost check, DoF side-by-side (P1-T7)
 make marble-shots                    # native: closeup PNG per marble type and tier, two sizes, the lineup per tier and the glow bloom check, to target/shots/marbles (P1-T6, P5-T1)
 make web-e2e                         # release build, then the Playwright suites (smoke, persistence, marbles, kit, flycam, editor) in GPU Chromium on 5311
-make web-editor-perf                 # the P3-T4 2,000-piece edit frame-time trace against an existing dist/ (load-guarded)
-make web-marbles                     # the marbles spec alone against an existing dist/ (P1-T6)
+make web-editor-perf                 # the P3-T4 2,000-piece edit frame-time trace against an existing target/web-dist (load-guarded)
+make web-marbles                     # the marbles spec alone against an existing target/web-dist (P1-T6)
 make web-smoke                       # the P0-T5 single-script smoke (random port)
 ```
 

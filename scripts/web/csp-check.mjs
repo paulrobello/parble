@@ -2,7 +2,7 @@
 // Content-Security-Policy script-src directive, or the browser blocks it. Written independently of
 // version-dist.mjs's hashing so a bug there cannot pass its own check. version-dist's CLI runs it after
 // every Trunk build (post_build), so a mismatch fails the build.
-// Usage: node scripts/web/csp-check.mjs [dir]   (default: dist)
+// Usage: node scripts/web/csp-check.mjs [dir]   (default: target/web-dist)
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -36,7 +36,7 @@ export function assertCsp(html, where = "index.html") {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const dir = process.argv[2] ?? "dist";
+  const dir = process.argv[2] ?? "target/web-dist";
   assertCsp(readFileSync(join(dir, "index.html"), "utf8"), join(dir, "index.html"));
   console.log(`csp-check: every inline script in ${dir}/index.html is hashed in script-src`);
 }

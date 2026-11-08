@@ -1,4 +1,4 @@
-// P0-T6 Playwright smoke against the 5311 static preview of dist/ (make build-web first).
+// P0-T6 Playwright smoke against the 5311 static preview of target/web-dist (make build-web first).
 // Local done-gate only, never CI. GPU Chromium by default; PW_GPU=swiftshader opts into the CPU renderer.
 import { defineConfig } from "@playwright/test";
 
@@ -24,7 +24,7 @@ export default defineConfig({
   },
   webServer: {
     // Not `python3 -m http.server`: its backlog of 5 resets kit2000's burst of texture fetches.
-    command: "python3 static-server.py 5311 ../dist",
+    command: "python3 static-server.py 5311 ../target/web-dist",
     url: "http://127.0.0.1:5311/",
     reuseExistingServer: false,
     timeout: 15_000,

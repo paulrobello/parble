@@ -25,7 +25,7 @@ make pre-commit     # pre-commit run --all-files
 
 make dev            # trunk serve on 127.0.0.1:5310 (needs index.html, added in P0-T5)
 make dev-stop       # stop the 5310 listener: TERM, poll ≤ 2 s, then SIGKILL
-make build-web      # trunk build --release into dist/
+make build-web      # trunk build --release into target/web-dist (dist/ is make dev's)
 make web-size       # build-web + wasm ≤ 15 MB gzip budget
 
 make run-shot       # native screenshot to target/shots/run-shot.png, then exits (non-zero unless lit)
