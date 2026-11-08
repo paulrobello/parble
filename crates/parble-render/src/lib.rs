@@ -15,6 +15,7 @@ use bevy::{
 use parble_sim::{MarbleState, scene};
 
 pub mod camera;
+pub mod director;
 pub mod kit;
 pub mod marble;
 pub mod playroom;
