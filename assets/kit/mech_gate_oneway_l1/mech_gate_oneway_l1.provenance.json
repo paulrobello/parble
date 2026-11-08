@@ -1,18 +1,18 @@
 {
   "schema": "parble-kit-provenance/1",
   "pieceId": "mech_gate_oneway_l1",
-  "pieceVersion": 1,
+  "pieceVersion": 2,
   "route": "scripted",
   "card": "P2-T3",
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "598168abc009ce13b7e42cfeb7194a4e1bb9939ee13669d3bb565ede5d7dd841",
+    "sha256": "7c2251a18e1a4fb4279da9a2ce54c0b676213eaa9f42e44ae9c4809dcaed3d03",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "7f8a9f772acf63a53ad23a67b316b76ee8ff068499bf4d74355c9fd7187b173c"
+    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
   },
   "generatorDeps": [
     {
@@ -21,11 +21,11 @@
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "4af584be5af2ea3827da638e45c13fbba52ecec08950720b05597f733c591e9e"
+      "sha256": "fe82520ff25b453ef318332b3b462d271b293e5a33b24e98e217add8ea311a52"
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "2ad8e089c960207ab1d476f108b694257dcf2cf875226f2b4563daf7f6579531"
+      "sha256": "114b72b4406994b4011397c2eca373ea1ad3ec4e5948ab2292ab17336c4db644"
     }
   ],
   "authoringAgent": {
@@ -96,7 +96,7 @@
   ],
   "collider": {
     "node": "mech_gate_oneway_l1_collider",
-    "tris": 116
+    "tris": 74
   },
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
@@ -118,19 +118,19 @@
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 40276,
+    "glbBytes": 39800,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/mech_gate_oneway_l1/mech_gate_oneway_l1.glb",
-      "sha256": "0b1a39ee3c5846ace1aa7ba891eba8335355a7ae67afb9a2df7a8eb216f84333",
-      "bytes": 40276
+      "sha256": "8687558343826963dd84574c7e46edfb03abbc1a0a21310776a83d0c634251c3",
+      "bytes": 39800
     },
     {
       "path": "assets/kit/mech_gate_oneway_l1/mech_gate_oneway_l1.kit.json",
-      "sha256": "288cf815cdf526063df9fb1d8f51c66a21e8305e969517fdb9e557ab879475a1",
-      "bytes": 12453
+      "sha256": "51afabd1bdeeaf18d7d3f3fd6957a265a328e17a30c82ea9458bccdecad679c2",
+      "bytes": 10987
     },
     {
       "path": "assets/kit/mech_gate_oneway_l1/mech_gate_oneway_l1_lod0_ao.png",
@@ -164,13 +164,13 @@
     },
     {
       "path": "assets-source/kit/mech_gate_oneway_l1/mech_gate_oneway_l1_high.blend",
-      "sha256": "2f2ffbd16296eefd7464fadee9b3aa17898b0e0f28b84efc7ab29bbbd099add9",
-      "bytes": 143770
+      "sha256": "7d356a9e160f7f3a3b59f3aef264b752eaff63af29e2803e6b1cdf28aaba57a7",
+      "bytes": 143347
     },
     {
       "path": "assets-source/kit/mech_gate_oneway_l1/mech_gate_oneway_l1_low.blend",
-      "sha256": "12cfdc6334e0a17246d62e9aa5aced3b4377e7971f7aff02e484358a73005443",
-      "bytes": 117502
+      "sha256": "cca9e5f51daeee594b4c30d1566fcc089e9400e159bf3f1bc090dbc48b0cc2d6",
+      "bytes": 116952
     }
   ],
   "references": [

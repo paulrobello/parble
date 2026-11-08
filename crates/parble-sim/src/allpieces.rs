@@ -30,11 +30,12 @@
 //! - Finish cup capacity: one cup holds and counts 10 standard marbles (the top ones stack with
 //!   their centres 47–53 mm above the cup's cell floor, inside the `cup` sensor, which reaches the
 //!   cell top). The last toggle still sends the marbles to two cups, 5 each.
-//! - One-way hole from the trap side: with a 32 mm bore in the cell below (pillar, redirect), the
-//!   open 60° trapdoor hangs about 11 mm into that cell and the marble wedges between door and
-//!   bore; with an empty cell below, neither a redirect nor a cup two layers down keeps the
-//!   falling marble (0 of 10 and 0 of 5 kept). The hole is used from its other side, where
-//!   marbles roll over the shut door.
+//! - One-way hole from the trap side: the version 1 door (60°) hung about 11 mm into the cell
+//!   below and wedged marbles against the bore. The version 2 door fills the bore, opens to 90°
+//!   and delivers trap-side marbles into a drop port directly below (tower socket, or pillar then
+//!   tower socket: 10 of 10). Into an empty cell below, the v1 door kept no falling marble on a
+//!   redirect or a cup two layers down (0 of 10 and 0 of 5); that case was not re-measured with
+//!   v2. The track still uses the hole from its other side, where marbles roll over the shut door.
 //! - A drop → pillar → tower fall (120 mm) gave tower exit speeds of 0.25–0.96 m/s and one
 //!   0.85 m/s sideways kick off the rail joint, so the drop feeds the tower directly and the
 //!   pillar is a support.

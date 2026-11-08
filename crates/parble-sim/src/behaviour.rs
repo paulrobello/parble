@@ -625,8 +625,8 @@ impl Mechanism for OneWayGate {
     }
 }
 
-/// One-way hole trapdoor open angle and timing (limit 60°).
-pub const HOLE_OPEN_MDEG: i32 = 60_000;
+/// One-way hole trapdoor open angle and timing (limit 90°: the door hangs along the bore wall).
+pub const HOLE_OPEN_MDEG: i32 = 90_000;
 pub const HOLE_OPEN_TICKS: u32 = 6;
 pub const HOLE_CLOSE_TICKS: u32 = 24;
 /// The trapdoor stays open this long after the last trap-side marble left the sensors, so it

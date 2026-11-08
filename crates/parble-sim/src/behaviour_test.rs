@@ -616,6 +616,84 @@ fn finish_counts_ten_marbles_in_one_cup() {
     }
 }
 
+/// Trap-side marbles drop through the open trapdoor into the drop port below and leave by the
+/// tower socket's side port: straight into the tower, and through a pillar into it. The 60° door
+/// hung 11 mm into the cell below and wedged the marbles against the bore.
+#[test]
+fn one_way_hole_trap_side_delivers_ten_marbles_into_the_piece_below() {
+    for stack in [
+        &["blk_tower_socket_l1"][..],
+        &["blk_pillar", "blk_tower_socket_l1"],
+    ] {
+        let top = stack.len() as i32;
+        let mut layout = vec![
+            place("blk_straight_l1", 0, top, 0, 0),
+            place(HOLE, 1, top, 0, 0),
+        ];
+        for (i, below) in stack.iter().enumerate() {
+            layout.push(place(below, 1, top - 1 - i as i32, 0, 0));
+        }
+        let mut sim = rig(&layout, 1);
+        let (mut tr, mut ev) = (Vec::new(), Vec::new());
+        for i in 0..10 {
+            let v = 0.3 + 0.02 * i as f32;
+            let y = CELL * top as f32 + rest(1);
+            launch(&mut sim, Vector::new(-0.02, y, 0.0), Vector::X * v);
+            run(&mut sim, 360, &mut tr, &mut ev);
+        }
+        // Out of the socket: past the tower cell's -X face, in layer 0.
+        let out: Vec<Option<usize>> = (0..10)
+            .map(|m| {
+                first(&tr, m, |s| {
+                    s.position[0] < CELL / 2.0 && s.position[1] < CELL
+                })
+            })
+            .collect();
+        assert!(out.iter().all(Option::is_some), "{stack:?}: {out:?}");
+        let s = state(&sim);
+        assert_eq!((s["drops"], s["overs"]), (10, 0), "{stack:?}");
+        assert_eq!(signals(&ev, "open").len(), 10, "{stack:?}");
+    }
+}
+
+/// Rolled over from the +X side, the shut trapdoor carries every marble out of the -X port: 120
+/// crossings, seeds 0–11, entry 0.35–0.5 m/s and up to 4 mm off centre. With the port faces
+/// capped the seam threw marbles up and some stalled on the door.
+#[test]
+fn one_way_hole_carries_every_marble_over_from_the_other_side() {
+    let mut stalled = Vec::new();
+    for seed in 0..12u64 {
+        let mut rng = SeededRng::new(seed).stream("hole_over");
+        let mut u = || rng.next_u32() as f32 / u32::MAX as f32;
+        for _ in 0..10 {
+            let v = 0.35 + 0.15 * u();
+            let dz = 0.004 * (2.0 * u() - 1.0);
+            let layout = [
+                place("blk_straight_l1", 0, 0, 0, 0),
+                place(HOLE, 1, 0, 0, 0),
+                place("blk_straight_l1", 2, 0, 0, 0),
+            ];
+            let mut sim = rig(&layout, seed);
+            launch(&mut sim, Vector::new(0.14, rest(1), dz), Vector::X * -v);
+            let (mut tr, mut ev) = (Vec::new(), Vec::new());
+            run(&mut sim, 480, &mut tr, &mut ev);
+            let out = first(&tr, 0, |s| s.position[0] < CELL / 2.0);
+            let low = tr[..out.unwrap_or(tr.len())]
+                .iter()
+                .map(|s| s[0].position[1])
+                .fold(f32::MAX, f32::min);
+            if out.is_none() || low < rest(1) - 0.002 {
+                stalled.push((seed, v, dz, tr.last().unwrap()[0].position));
+            }
+        }
+    }
+    assert!(
+        stalled.is_empty(),
+        "{} of 120 stalled: {stalled:?}",
+        stalled.len()
+    );
+}
+
 /// Ten hopper releases into a flat L1 run all roll out near the kick speed. The gate's 34 mm
 /// sweep reaches past the cell, and closing as soon as a marble left the old 26 mm `release` box
 /// caught it 13 mm past the port; the next opening flicked it out at up to 1.5 m/s.
@@ -668,4 +746,3 @@ fn hopper_releases_ten_into_a_flat_straight_without_a_stall() {
         assert_eq!(v.part_angles, [0], "{release:?}");
     }
 }
-

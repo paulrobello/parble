@@ -20,6 +20,10 @@ import kitblocks as B
 import kitgeom as K
 
 PIECE_VERSION = 1
+# Pieces whose geometry changed since version 1 (contract §10: the id stays, the version bumps).
+# 2026-11-08: mech_hole_oneway_l1 2, bore-filling 90° trapdoor and open port faces;
+# mech_gate_oneway_l1 2, open port faces.
+PIECE_VERSIONS = {"mech_gate_oneway_l1": 2, "mech_hole_oneway_l1": 2}
 BUILD = ("mech_finish", "mech_hopper", "mech_splitter_l3", "mech_toggle_l3", "mech_checkpoint_l1",
          "mech_gate_oneway_l1", "mech_hole_oneway_l1")
 
@@ -39,7 +43,16 @@ FINISH_X = 6.0
 FINISH_CUP = [(20.0, TOP + K.CUT_ABOVE), (20.0, 20.0), (14.0, 12.0)]
 HOLE_BOWL_R = 18.0     # §4, as blk_drop
 HOLE_R = 16.0
-TRAP_R = 14.0
+# Trapdoor: fills the 32 mm bore, so a marble rolling over it meets no gap at the bore edge, and
+# opens to 90 degrees, hanging along the bore's +x wall with 30.5 mm clear for a falling marble
+# (a 60 degree door left 16 mm between its tip and the far wall, and the marble wedged there).
+TRAP_R = HOLE_R
+TRAP_T = 3.0
+TRAP_OPEN_MDEG = 90000
+
+
+def piece_version(piece_id):
+    return PIECE_VERSIONS.get(piece_id, PIECE_VERSION)
 
 
 def handles(piece_id):
@@ -257,8 +270,38 @@ def collision_mesh(piece_id):
         if got_open != open_ring and got_tun != tunnel:
             raise RuntimeError(f"{piece_id}: port {p['index']} collision ring is not canonical: "
                                f"{sorted(got_open)[:6]} ...")
+    if piece_id in OPEN_PORT_FACES:
+        verts, tris = open_port_faces(piece_id, verts, tris)
     _COLLISION_CACHE[piece_id] = (verts, tris)
     return verts, tris
+
+
+# Pieces whose channel port faces are left open in the collision mesh (§5.4), as kitblocks does for
+# the P2-T2 blocks. The boolean's cap on a port face meets the mating straight's floor at the port
+# ring as a convex 90° edge: crossing a straight -> mech_hole seam threw a 0.42 m/s marble 0.24 m/s
+# up, and the hops that followed stalled it on the closed trapdoor (measured 2026-11-08). The gate
+# is opened too: in the all-pieces track it feeds the hole, and its capped face kicked marbles there.
+# The other mech pieces still carry the caps.
+OPEN_PORT_FACES = ("mech_gate_oneway_l1", "mech_hole_oneway_l1")
+
+
+def open_port_faces(piece_id, verts, tris):
+    """Drop the cap triangles on each channel side port's cell face. Unused vertices are dropped,
+    the rest keep their order."""
+    faces = []
+    for p in spec(piece_id)["ports"]:
+        if p["kind"] == "side" and p["class"] == "channel":
+            ax, plane, _, _ = B._expected_rings(p)
+            faces.append((ax, plane, 2 if ax == 0 else 0))
+
+    def on_face(t):
+        return any(all(verts[i][ax] == plane and abs(verts[i][other]) <= 30000 for i in t)
+                   for ax, plane, other in faces)
+
+    kept = [t for t in tris if not on_face(t)]
+    used = sorted({i for t in kept for i in t})
+    new = {old: k for k, old in enumerate(used)}
+    return [verts[i] for i in used], [tuple(new[i] for i in t) for t in kept]
 
 
 # ---------------------------------------------------------------------------------------------
@@ -368,9 +411,9 @@ def parts(piece_id, segs=None):
     if shape == "hole_oneway":  # trapdoor over the bore, hinged at its +x edge; drops the -x edge
         n = max(8, 2 * s)
         disc = [(TRAP_R * math.cos(2 * math.pi * k / n), TRAP_R * math.sin(2 * math.pi * k / n)) for k in range(n)]
-        door = _solid_prism(disc, "y", f0 - 3.0, f0)
-        return [({"name": "anim_trapdoor", "pivot_um": [14000, B.um(f0 - 1.5), 0], "axis": [0, 0, 1],
-                  "rest_mdeg": 0, "limits_mdeg": [0, 60000]}, [door])]
+        door = _solid_prism(disc, "y", f0 - TRAP_T, f0)
+        return [({"name": "anim_trapdoor", "pivot_um": [B.um(TRAP_R), B.um(f0 - TRAP_T / 2), 0], "axis": [0, 0, 1],
+                  "rest_mdeg": 0, "limits_mdeg": [0, TRAP_OPEN_MDEG]}, [door])]
     return []
 
 
@@ -409,7 +452,7 @@ def sidecar(piece_id):
         "footprint": sp["footprint"],
         "id": piece_id,
         "kit_contract": K.KIT_CONTRACT_VERSION,
-        "piece_version": PIECE_VERSION,
+        "piece_version": piece_version(piece_id),
         "ports": sp["ports"],
         "schema": K.SIDECAR_SCHEMA,
         "sensors": sp["sensors"],
