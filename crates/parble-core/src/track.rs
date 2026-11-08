@@ -1,5 +1,6 @@
 //! The track model: piece placements and the hopper configuration.
 
+use crate::camera_zone::CameraZone;
 use crate::contract::KIT_CONTRACT_VERSION;
 use crate::grid::{CellCoord, Mirror, Orientation, Yaw4};
 use crate::piece::{PieceDef, PieceId};
@@ -130,6 +131,11 @@ pub struct Track {
     pub seed: u64,
     pub placements: Vec<Placement>,
     pub hopper: HopperConfig,
+    /// Authored camera zones (PRD §5.6, [`crate::camera_zone`]). Camera data only: the sim never
+    /// reads them. Omitted from the file when empty, so tracks without zones serialize exactly as
+    /// they did before this field existed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub camera_zones: Vec<CameraZone>,
 }
 
 impl Track {
@@ -142,6 +148,7 @@ impl Track {
             seed,
             placements: Vec::new(),
             hopper: HopperConfig::default(),
+            camera_zones: Vec::new(),
         }
     }
 }

@@ -44,6 +44,45 @@ export interface Metadata {
   author?: string;
 }
 
+/** Camera zones (crates/parble-core/src/camera_zone.rs): integer µm, millidegrees and ms. */
+export type Vec3i = [number, number, number];
+export type ZoneVolume =
+  | { shape: "box"; min_um: Vec3i; max_um: Vec3i }
+  | { shape: "cylinder"; base_um: Vec3i; height_um: number; radius_um: number };
+export type ShotTarget =
+  | { kind: "marble" }
+  | { kind: "point"; at_um: Vec3i }
+  | { kind: "axis"; base_um: Vec3i; height_um: number };
+export type FocusOn = "marble" | "target";
+export type ShotRule =
+  | { rule: "follow"; back_um: number; up_um: number; ahead_um: number }
+  | {
+      rule: "frame";
+      target: ShotTarget;
+      focus?: FocusOn;
+      margin_permille: number;
+      elevation_mdeg: number;
+      azimuth_mdeg?: number;
+      fov_mdeg?: number;
+    }
+  | { rule: "orbit"; center_um: Vec3i; radius_um: number; up_um: number; speed_mdeg_s: number; focus?: FocusOn }
+  | { rule: "fixed"; eye_um: Vec3i; look_um: Vec3i; focus?: FocusOn; fov_mdeg?: number };
+
+export interface CameraZone {
+  /** Omitted when empty. */
+  name?: string;
+  volume: ZoneVolume;
+  shot: ShotRule;
+  priority: number;
+  blend_in_ms: number;
+  blend_out_ms: number;
+  /** Omitted when 0. */
+  hold_ms?: number;
+}
+
+export const MAX_ZONES = 256;
+const MAX_ZONE_MS = 10_000;
+
 export interface ParbleFile {
   format: typeof FORMAT;
   schema: number;
@@ -54,6 +93,8 @@ export interface ParbleFile {
   hopper: HopperConfig;
   mechanisms: MechanismState[];
   metadata: Metadata;
+  /** Omitted when empty. */
+  camera_zones?: CameraZone[];
 }
 
 type Obj = Record<string, unknown>;
@@ -133,6 +174,89 @@ function metadata(v: unknown): Metadata {
   return v as unknown as Metadata;
 }
 
+const isVec3i = (v: unknown): v is Vec3i => Array.isArray(v) && v.length === 3 && v.every(isI32);
+
+/** Checks the fields `o` must have (`need`) and may have (`may`), with a predicate per field. */
+function fields(
+  o: unknown,
+  what: string,
+  need: Record<string, (v: unknown) => boolean>,
+  may: Record<string, (v: unknown) => boolean> = {},
+): Obj {
+  if (!isObj(o)) return fail(`${what} is not an object`);
+  const all = { ...need, ...may };
+  if (!hasOnly(o, Object.keys(all)) || !hasAll(o, Object.keys(need))) fail(`${what} has unknown or missing fields`);
+  for (const [k, ok] of Object.entries(all)) if (k in o && !ok(o[k])) fail(`${what} ${k} is invalid`);
+  return o;
+}
+
+const isFocus = (v: unknown) => v === "marble" || v === "target";
+const isFov = (v: unknown) => isInt(v, 5_000, 120_000);
+const lit = (s: string) => (v: unknown) => v === s;
+
+function shotTarget(v: unknown, what: string): void {
+  const kind = isObj(v) ? v.kind : undefined;
+  if (kind === "marble") fields(v, what, { kind: lit("marble") });
+  else if (kind === "point") fields(v, what, { kind: lit("point"), at_um: isVec3i });
+  else if (kind === "axis") {
+    fields(v, what, { kind: lit("axis"), base_um: isVec3i, height_um: (h) => isI32(h) && h > 0 });
+  } else fail(`${what} kind is invalid`);
+}
+
+function cameraZone(v: unknown, i: number): void {
+  const what = `camera zone ${i}`;
+  const ms = (x: unknown) => isInt(x, 0, MAX_ZONE_MS);
+  const z = fields(
+    v,
+    what,
+    { volume: isObj, shot: isObj, priority: isI32, blend_in_ms: ms, blend_out_ms: ms },
+    { name: (n) => typeof n === "string" && chars(n) <= MAX_NAME_CHARS, hold_ms: ms },
+  );
+  const vol = z.volume as Obj;
+  if (vol.shape === "box") {
+    fields(vol, `${what} volume`, { shape: lit("box"), min_um: isVec3i, max_um: isVec3i });
+    const [lo, hi] = [vol.min_um as Vec3i, vol.max_um as Vec3i];
+    if (lo.some((x, k) => x >= (hi[k] as number))) fail(`${what} box min_um must be below max_um`);
+  } else if (vol.shape === "cylinder") {
+    const pos = (x: unknown) => isI32(x) && x > 0;
+    fields(vol, `${what} volume`, { shape: lit("cylinder"), base_um: isVec3i, height_um: pos, radius_um: pos });
+  } else fail(`${what} volume shape is invalid`);
+  const s = z.shot as Obj;
+  const w = `${what} shot`;
+  if (s.rule === "follow") {
+    fields(s, w, { rule: lit("follow"), back_um: (b) => isI32(b) && b > 0, up_um: isI32, ahead_um: isI32 });
+  } else if (s.rule === "frame") {
+    fields(
+      s,
+      w,
+      {
+        rule: lit("frame"),
+        target: isObj,
+        margin_permille: (m) => isInt(m, 1_000, 5_000),
+        elevation_mdeg: (e) => isInt(e, -80_000, 85_000),
+      },
+      { focus: isFocus, azimuth_mdeg: isI32, fov_mdeg: isFov },
+    );
+    shotTarget(s.target, `${w} target`);
+  } else if (s.rule === "orbit") {
+    fields(
+      s,
+      w,
+      {
+        rule: lit("orbit"),
+        center_um: isVec3i,
+        radius_um: (r) => isI32(r) && r > 0,
+        up_um: isI32,
+        speed_mdeg_s: isI32,
+      },
+      { focus: isFocus },
+    );
+  } else if (s.rule === "fixed") {
+    fields(s, w, { rule: lit("fixed"), eye_um: isVec3i, look_um: isVec3i }, { focus: isFocus, fov_mdeg: isFov });
+    if ((s.eye_um as Vec3i).every((x, k) => x === (s.look_um as Vec3i)[k])) fail(`${w} eye_um and look_um must differ`);
+  } else fail(`${w} rule is invalid`);
+}
+
 const TOP = [
   "format",
   "schema",
@@ -154,7 +278,7 @@ export function checkParbleFile(v: unknown): { ok: true; file: ParbleFile } | { 
     if (!isU32(o.schema)) fail("missing or non-integer schema version");
     if ((o.schema as number) > SCHEMA_VERSION) fail(`schema ${o.schema} is newer than ${SCHEMA_VERSION}`);
     if (o.schema !== SCHEMA_VERSION) fail(`no migration from schema ${o.schema}`);
-    if (!hasOnly(o, TOP) || !hasAll(o, TOP)) fail("unknown or missing top-level fields");
+    if (!hasOnly(o, [...TOP, "camera_zones"]) || !hasAll(o, TOP)) fail("unknown or missing top-level fields");
     if (!isU32(o.physics) || !isU32(o.kit_contract)) fail("version fields are invalid");
     if (!isInt(o.seed, 0, MAX_SAFE)) fail("seed must be an integer in 0..=2^53 - 1");
     if (!Array.isArray(o.placements)) fail("placements is not an array");
@@ -171,6 +295,10 @@ export function checkParbleFile(v: unknown): { ok: true; file: ParbleFile } | { 
       intMap(state, "mechanism state");
     }
     metadata(o.metadata);
+    if ("camera_zones" in o) {
+      if (!Array.isArray(o.camera_zones) || o.camera_zones.length > MAX_ZONES) fail("camera_zones is invalid");
+      (o.camera_zones as unknown[]).forEach(cameraZone);
+    }
     return { ok: true, file: o as unknown as ParbleFile };
   } catch (e) {
     if (e instanceof Invalid) return { ok: false, error: e.message };

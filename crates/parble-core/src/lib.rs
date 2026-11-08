@@ -3,6 +3,7 @@
 //! No Bevy, no Rapier, no floats in transforms. All lengths are integer micrometres (µm)
 //! and every number traces to `docs/kit-contract.md`.
 
+pub mod camera_zone;
 pub mod catalog;
 pub mod contract;
 pub mod edit;
@@ -14,6 +15,7 @@ pub mod rng;
 pub mod track;
 pub mod validate;
 
+pub use camera_zone::{CameraZone, FocusOn, ShotRule, ShotTarget, ZoneVolume};
 pub use catalog::{MapCatalog, PieceCatalog};
 pub use contract::KIT_CONTRACT_VERSION;
 pub use edit::{EditCommand, EditError, Editor, Selection};

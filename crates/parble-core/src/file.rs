@@ -4,10 +4,12 @@
 //!
 //! ```json
 //! { "format": "parble", "schema": 1, "physics": 1, "kit_contract": 1, "seed": 7,
-//!   "placements": [...], "hopper": {...}, "mechanisms": [...], "metadata": {...} }
+//!   "placements": [...], "hopper": {...}, "mechanisms": [...], "metadata": {...},
+//!   "camera_zones": [...] }
 //! ```
 //!
-//! The version, seed, placement and hopper fields are [`Track`]'s own. `web/ui/src/parble.ts`
+//! The version, seed, placement, hopper and camera zone fields are [`Track`]'s own. `camera_zones`
+//! ([`crate::camera_zone`]) is optional and left out when empty. `web/ui/src/parble.ts`
 //! mirrors the shape by hand; `web/ui/src/parble-fixtures.json` holds valid and rejected files that
 //! both this module's tests and the Vitest suite check.
 //!
@@ -77,6 +79,10 @@ struct WireV1 {
     hopper: crate::track::HopperConfig,
     mechanisms: Vec<MechanismState>,
     metadata: Metadata,
+    /// Optional since it was added: a file without zones has no `camera_zones` key, so every file
+    /// written before zones existed loads and saves byte for byte, still as schema 1.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    camera_zones: Vec<crate::camera_zone::CameraZone>,
 }
 
 /// Why a file was refused.
@@ -176,6 +182,7 @@ pub fn load_value(doc: Value) -> Result<ParbleFile, FileError> {
             seed: wire.seed,
             placements: wire.placements,
             hopper: wire.hopper,
+            camera_zones: wire.camera_zones,
         },
         mechanisms: wire.mechanisms,
         metadata: wire.metadata,
@@ -242,6 +249,16 @@ impl ParbleFile {
                 return bad(format!("mechanism state {k:?} = {v} exceeds ±(2^53 - 1)"));
             }
         }
+        if t.camera_zones.len() > crate::camera_zone::MAX_ZONES {
+            return bad(format!(
+                "at most {} camera zones",
+                crate::camera_zone::MAX_ZONES
+            ));
+        }
+        for (i, z) in t.camera_zones.iter().enumerate() {
+            z.check()
+                .or_else(|e| bad(format!("camera zone {i}: {e}")))?;
+        }
         let md = &self.metadata;
         if md.name.chars().count() > MAX_NAME_CHARS || md.author.chars().count() > MAX_NAME_CHARS {
             return bad(format!(
@@ -269,6 +286,7 @@ impl ParbleFile {
             hopper: t.hopper.clone(),
             mechanisms: self.mechanisms.clone(),
             metadata: self.metadata.clone(),
+            camera_zones: t.camera_zones.clone(),
         })
         .expect(".parble files serialize")
     }

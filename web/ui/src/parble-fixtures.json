@@ -145,6 +145,153 @@
           "name": "Release all at max seed"
         }
       }
+    },
+    {
+      "name": "camera-zones",
+      "runHash": "34b5dc81860b762b",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 0,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [],
+          "release": {
+            "mode": "one"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Camera zones"
+        },
+        "camera_zones": [
+          {
+            "name": "tower drop",
+            "volume": {
+              "shape": "cylinder",
+              "base_um": [
+                1440000,
+                120000,
+                -420000
+              ],
+              "height_um": 180000,
+              "radius_um": 60000
+            },
+            "shot": {
+              "rule": "frame",
+              "target": {
+                "kind": "axis",
+                "base_um": [
+                  1440000,
+                  120000,
+                  -420000
+                ],
+                "height_um": 180000
+              },
+              "focus": "target",
+              "margin_permille": 1400,
+              "elevation_mdeg": 15000,
+              "azimuth_mdeg": 0
+            },
+            "priority": 10,
+            "blend_in_ms": 900,
+            "blend_out_ms": 1200
+          },
+          {
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                -30000,
+                0,
+                -30000
+              ],
+              "max_um": [
+                30000,
+                60000,
+                30000
+              ]
+            },
+            "shot": {
+              "rule": "orbit",
+              "center_um": [
+                0,
+                30000,
+                0
+              ],
+              "radius_um": 200000,
+              "up_um": 80000,
+              "speed_mdeg_s": 20000,
+              "focus": "marble"
+            },
+            "priority": 2,
+            "blend_in_ms": 500,
+            "blend_out_ms": 500,
+            "hold_ms": 400
+          },
+          {
+            "name": "follow wide",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "follow",
+              "back_um": 220000,
+              "up_um": 120000,
+              "ahead_um": 60000
+            },
+            "priority": 0,
+            "blend_in_ms": 0,
+            "blend_out_ms": 0
+          },
+          {
+            "name": "fixed",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "fixed",
+              "eye_um": [
+                0,
+                300000,
+                300000
+              ],
+              "look_um": [
+                0,
+                0,
+                0
+              ],
+              "focus": "target",
+              "fov_mdeg": 30000
+            },
+            "priority": -1,
+            "blend_in_ms": 600,
+            "blend_out_ms": 600
+          }
+        ]
+      }
     }
   ],
   "rejected": [
@@ -2863,6 +3010,1347 @@
           }
         }
       ]
+    },
+    {
+      "why": "unknown camera zone field",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 0,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [],
+          "release": {
+            "mode": "one"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Camera zones"
+        },
+        "camera_zones": [
+          {
+            "name": "tower drop",
+            "volume": {
+              "shape": "cylinder",
+              "base_um": [
+                1440000,
+                120000,
+                -420000
+              ],
+              "height_um": 180000,
+              "radius_um": 60000
+            },
+            "shot": {
+              "rule": "frame",
+              "target": {
+                "kind": "axis",
+                "base_um": [
+                  1440000,
+                  120000,
+                  -420000
+                ],
+                "height_um": 180000
+              },
+              "focus": "target",
+              "margin_permille": 1400,
+              "elevation_mdeg": 15000,
+              "azimuth_mdeg": 0
+            },
+            "priority": 10,
+            "blend_in_ms": 900,
+            "blend_out_ms": 1200,
+            "extra": 1
+          },
+          {
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                -30000,
+                0,
+                -30000
+              ],
+              "max_um": [
+                30000,
+                60000,
+                30000
+              ]
+            },
+            "shot": {
+              "rule": "orbit",
+              "center_um": [
+                0,
+                30000,
+                0
+              ],
+              "radius_um": 200000,
+              "up_um": 80000,
+              "speed_mdeg_s": 20000,
+              "focus": "marble"
+            },
+            "priority": 2,
+            "blend_in_ms": 500,
+            "blend_out_ms": 500,
+            "hold_ms": 400
+          },
+          {
+            "name": "follow wide",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "follow",
+              "back_um": 220000,
+              "up_um": 120000,
+              "ahead_um": 60000
+            },
+            "priority": 0,
+            "blend_in_ms": 0,
+            "blend_out_ms": 0
+          },
+          {
+            "name": "fixed",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "fixed",
+              "eye_um": [
+                0,
+                300000,
+                300000
+              ],
+              "look_um": [
+                0,
+                0,
+                0
+              ],
+              "focus": "target",
+              "fov_mdeg": 30000
+            },
+            "priority": -1,
+            "blend_in_ms": 600,
+            "blend_out_ms": 600
+          }
+        ]
+      }
+    },
+    {
+      "why": "unknown zone volume field",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 0,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [],
+          "release": {
+            "mode": "one"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Camera zones"
+        },
+        "camera_zones": [
+          {
+            "name": "tower drop",
+            "volume": {
+              "shape": "cylinder",
+              "base_um": [
+                1440000,
+                120000,
+                -420000
+              ],
+              "height_um": 180000,
+              "radius_um": 60000,
+              "extra": 1
+            },
+            "shot": {
+              "rule": "frame",
+              "target": {
+                "kind": "axis",
+                "base_um": [
+                  1440000,
+                  120000,
+                  -420000
+                ],
+                "height_um": 180000
+              },
+              "focus": "target",
+              "margin_permille": 1400,
+              "elevation_mdeg": 15000,
+              "azimuth_mdeg": 0
+            },
+            "priority": 10,
+            "blend_in_ms": 900,
+            "blend_out_ms": 1200
+          },
+          {
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                -30000,
+                0,
+                -30000
+              ],
+              "max_um": [
+                30000,
+                60000,
+                30000
+              ]
+            },
+            "shot": {
+              "rule": "orbit",
+              "center_um": [
+                0,
+                30000,
+                0
+              ],
+              "radius_um": 200000,
+              "up_um": 80000,
+              "speed_mdeg_s": 20000,
+              "focus": "marble"
+            },
+            "priority": 2,
+            "blend_in_ms": 500,
+            "blend_out_ms": 500,
+            "hold_ms": 400
+          },
+          {
+            "name": "follow wide",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "follow",
+              "back_um": 220000,
+              "up_um": 120000,
+              "ahead_um": 60000
+            },
+            "priority": 0,
+            "blend_in_ms": 0,
+            "blend_out_ms": 0
+          },
+          {
+            "name": "fixed",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "fixed",
+              "eye_um": [
+                0,
+                300000,
+                300000
+              ],
+              "look_um": [
+                0,
+                0,
+                0
+              ],
+              "focus": "target",
+              "fov_mdeg": 30000
+            },
+            "priority": -1,
+            "blend_in_ms": 600,
+            "blend_out_ms": 600
+          }
+        ]
+      }
+    },
+    {
+      "why": "unknown shot rule field",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 0,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [],
+          "release": {
+            "mode": "one"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Camera zones"
+        },
+        "camera_zones": [
+          {
+            "name": "tower drop",
+            "volume": {
+              "shape": "cylinder",
+              "base_um": [
+                1440000,
+                120000,
+                -420000
+              ],
+              "height_um": 180000,
+              "radius_um": 60000
+            },
+            "shot": {
+              "rule": "frame",
+              "target": {
+                "kind": "axis",
+                "base_um": [
+                  1440000,
+                  120000,
+                  -420000
+                ],
+                "height_um": 180000
+              },
+              "focus": "target",
+              "margin_permille": 1400,
+              "elevation_mdeg": 15000,
+              "azimuth_mdeg": 0,
+              "extra": 1
+            },
+            "priority": 10,
+            "blend_in_ms": 900,
+            "blend_out_ms": 1200
+          },
+          {
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                -30000,
+                0,
+                -30000
+              ],
+              "max_um": [
+                30000,
+                60000,
+                30000
+              ]
+            },
+            "shot": {
+              "rule": "orbit",
+              "center_um": [
+                0,
+                30000,
+                0
+              ],
+              "radius_um": 200000,
+              "up_um": 80000,
+              "speed_mdeg_s": 20000,
+              "focus": "marble"
+            },
+            "priority": 2,
+            "blend_in_ms": 500,
+            "blend_out_ms": 500,
+            "hold_ms": 400
+          },
+          {
+            "name": "follow wide",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "follow",
+              "back_um": 220000,
+              "up_um": 120000,
+              "ahead_um": 60000
+            },
+            "priority": 0,
+            "blend_in_ms": 0,
+            "blend_out_ms": 0
+          },
+          {
+            "name": "fixed",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "fixed",
+              "eye_um": [
+                0,
+                300000,
+                300000
+              ],
+              "look_um": [
+                0,
+                0,
+                0
+              ],
+              "focus": "target",
+              "fov_mdeg": 30000
+            },
+            "priority": -1,
+            "blend_in_ms": 600,
+            "blend_out_ms": 600
+          }
+        ]
+      }
+    },
+    {
+      "why": "unknown shot target field",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 0,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [],
+          "release": {
+            "mode": "one"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Camera zones"
+        },
+        "camera_zones": [
+          {
+            "name": "tower drop",
+            "volume": {
+              "shape": "cylinder",
+              "base_um": [
+                1440000,
+                120000,
+                -420000
+              ],
+              "height_um": 180000,
+              "radius_um": 60000
+            },
+            "shot": {
+              "rule": "frame",
+              "target": {
+                "kind": "axis",
+                "base_um": [
+                  1440000,
+                  120000,
+                  -420000
+                ],
+                "height_um": 180000,
+                "extra": 1
+              },
+              "focus": "target",
+              "margin_permille": 1400,
+              "elevation_mdeg": 15000,
+              "azimuth_mdeg": 0
+            },
+            "priority": 10,
+            "blend_in_ms": 900,
+            "blend_out_ms": 1200
+          },
+          {
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                -30000,
+                0,
+                -30000
+              ],
+              "max_um": [
+                30000,
+                60000,
+                30000
+              ]
+            },
+            "shot": {
+              "rule": "orbit",
+              "center_um": [
+                0,
+                30000,
+                0
+              ],
+              "radius_um": 200000,
+              "up_um": 80000,
+              "speed_mdeg_s": 20000,
+              "focus": "marble"
+            },
+            "priority": 2,
+            "blend_in_ms": 500,
+            "blend_out_ms": 500,
+            "hold_ms": 400
+          },
+          {
+            "name": "follow wide",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "follow",
+              "back_um": 220000,
+              "up_um": 120000,
+              "ahead_um": 60000
+            },
+            "priority": 0,
+            "blend_in_ms": 0,
+            "blend_out_ms": 0
+          },
+          {
+            "name": "fixed",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "fixed",
+              "eye_um": [
+                0,
+                300000,
+                300000
+              ],
+              "look_um": [
+                0,
+                0,
+                0
+              ],
+              "focus": "target",
+              "fov_mdeg": 30000
+            },
+            "priority": -1,
+            "blend_in_ms": 600,
+            "blend_out_ms": 600
+          }
+        ]
+      }
+    },
+    {
+      "why": "unknown shot rule",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 0,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [],
+          "release": {
+            "mode": "one"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Camera zones"
+        },
+        "camera_zones": [
+          {
+            "name": "tower drop",
+            "volume": {
+              "shape": "cylinder",
+              "base_um": [
+                1440000,
+                120000,
+                -420000
+              ],
+              "height_um": 180000,
+              "radius_um": 60000
+            },
+            "shot": {
+              "rule": "dolly",
+              "target": {
+                "kind": "axis",
+                "base_um": [
+                  1440000,
+                  120000,
+                  -420000
+                ],
+                "height_um": 180000
+              },
+              "focus": "target",
+              "margin_permille": 1400,
+              "elevation_mdeg": 15000,
+              "azimuth_mdeg": 0
+            },
+            "priority": 10,
+            "blend_in_ms": 900,
+            "blend_out_ms": 1200
+          },
+          {
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                -30000,
+                0,
+                -30000
+              ],
+              "max_um": [
+                30000,
+                60000,
+                30000
+              ]
+            },
+            "shot": {
+              "rule": "orbit",
+              "center_um": [
+                0,
+                30000,
+                0
+              ],
+              "radius_um": 200000,
+              "up_um": 80000,
+              "speed_mdeg_s": 20000,
+              "focus": "marble"
+            },
+            "priority": 2,
+            "blend_in_ms": 500,
+            "blend_out_ms": 500,
+            "hold_ms": 400
+          },
+          {
+            "name": "follow wide",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "follow",
+              "back_um": 220000,
+              "up_um": 120000,
+              "ahead_um": 60000
+            },
+            "priority": 0,
+            "blend_in_ms": 0,
+            "blend_out_ms": 0
+          },
+          {
+            "name": "fixed",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "fixed",
+              "eye_um": [
+                0,
+                300000,
+                300000
+              ],
+              "look_um": [
+                0,
+                0,
+                0
+              ],
+              "focus": "target",
+              "fov_mdeg": 30000
+            },
+            "priority": -1,
+            "blend_in_ms": 600,
+            "blend_out_ms": 600
+          }
+        ]
+      }
+    },
+    {
+      "why": "degenerate zone box",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 0,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [],
+          "release": {
+            "mode": "one"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Camera zones"
+        },
+        "camera_zones": [
+          {
+            "name": "tower drop",
+            "volume": {
+              "shape": "cylinder",
+              "base_um": [
+                1440000,
+                120000,
+                -420000
+              ],
+              "height_um": 180000,
+              "radius_um": 60000
+            },
+            "shot": {
+              "rule": "frame",
+              "target": {
+                "kind": "axis",
+                "base_um": [
+                  1440000,
+                  120000,
+                  -420000
+                ],
+                "height_um": 180000
+              },
+              "focus": "target",
+              "margin_permille": 1400,
+              "elevation_mdeg": 15000,
+              "azimuth_mdeg": 0
+            },
+            "priority": 10,
+            "blend_in_ms": 900,
+            "blend_out_ms": 1200
+          },
+          {
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                -30000,
+                0,
+                -30000
+              ],
+              "max_um": [
+                30000,
+                0,
+                30000
+              ]
+            },
+            "shot": {
+              "rule": "orbit",
+              "center_um": [
+                0,
+                30000,
+                0
+              ],
+              "radius_um": 200000,
+              "up_um": 80000,
+              "speed_mdeg_s": 20000,
+              "focus": "marble"
+            },
+            "priority": 2,
+            "blend_in_ms": 500,
+            "blend_out_ms": 500,
+            "hold_ms": 400
+          },
+          {
+            "name": "follow wide",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "follow",
+              "back_um": 220000,
+              "up_um": 120000,
+              "ahead_um": 60000
+            },
+            "priority": 0,
+            "blend_in_ms": 0,
+            "blend_out_ms": 0
+          },
+          {
+            "name": "fixed",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "fixed",
+              "eye_um": [
+                0,
+                300000,
+                300000
+              ],
+              "look_um": [
+                0,
+                0,
+                0
+              ],
+              "focus": "target",
+              "fov_mdeg": 30000
+            },
+            "priority": -1,
+            "blend_in_ms": 600,
+            "blend_out_ms": 600
+          }
+        ]
+      }
+    },
+    {
+      "why": "zero-radius zone cylinder",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 0,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [],
+          "release": {
+            "mode": "one"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Camera zones"
+        },
+        "camera_zones": [
+          {
+            "name": "tower drop",
+            "volume": {
+              "shape": "cylinder",
+              "base_um": [
+                1440000,
+                120000,
+                -420000
+              ],
+              "height_um": 180000,
+              "radius_um": 0
+            },
+            "shot": {
+              "rule": "frame",
+              "target": {
+                "kind": "axis",
+                "base_um": [
+                  1440000,
+                  120000,
+                  -420000
+                ],
+                "height_um": 180000
+              },
+              "focus": "target",
+              "margin_permille": 1400,
+              "elevation_mdeg": 15000,
+              "azimuth_mdeg": 0
+            },
+            "priority": 10,
+            "blend_in_ms": 900,
+            "blend_out_ms": 1200
+          },
+          {
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                -30000,
+                0,
+                -30000
+              ],
+              "max_um": [
+                30000,
+                60000,
+                30000
+              ]
+            },
+            "shot": {
+              "rule": "orbit",
+              "center_um": [
+                0,
+                30000,
+                0
+              ],
+              "radius_um": 200000,
+              "up_um": 80000,
+              "speed_mdeg_s": 20000,
+              "focus": "marble"
+            },
+            "priority": 2,
+            "blend_in_ms": 500,
+            "blend_out_ms": 500,
+            "hold_ms": 400
+          },
+          {
+            "name": "follow wide",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "follow",
+              "back_um": 220000,
+              "up_um": 120000,
+              "ahead_um": 60000
+            },
+            "priority": 0,
+            "blend_in_ms": 0,
+            "blend_out_ms": 0
+          },
+          {
+            "name": "fixed",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "fixed",
+              "eye_um": [
+                0,
+                300000,
+                300000
+              ],
+              "look_um": [
+                0,
+                0,
+                0
+              ],
+              "focus": "target",
+              "fov_mdeg": 30000
+            },
+            "priority": -1,
+            "blend_in_ms": 600,
+            "blend_out_ms": 600
+          }
+        ]
+      }
+    },
+    {
+      "why": "framing margin below 1000 permille",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 0,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [],
+          "release": {
+            "mode": "one"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Camera zones"
+        },
+        "camera_zones": [
+          {
+            "name": "tower drop",
+            "volume": {
+              "shape": "cylinder",
+              "base_um": [
+                1440000,
+                120000,
+                -420000
+              ],
+              "height_um": 180000,
+              "radius_um": 60000
+            },
+            "shot": {
+              "rule": "frame",
+              "target": {
+                "kind": "axis",
+                "base_um": [
+                  1440000,
+                  120000,
+                  -420000
+                ],
+                "height_um": 180000
+              },
+              "focus": "target",
+              "margin_permille": 900,
+              "elevation_mdeg": 15000,
+              "azimuth_mdeg": 0
+            },
+            "priority": 10,
+            "blend_in_ms": 900,
+            "blend_out_ms": 1200
+          },
+          {
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                -30000,
+                0,
+                -30000
+              ],
+              "max_um": [
+                30000,
+                60000,
+                30000
+              ]
+            },
+            "shot": {
+              "rule": "orbit",
+              "center_um": [
+                0,
+                30000,
+                0
+              ],
+              "radius_um": 200000,
+              "up_um": 80000,
+              "speed_mdeg_s": 20000,
+              "focus": "marble"
+            },
+            "priority": 2,
+            "blend_in_ms": 500,
+            "blend_out_ms": 500,
+            "hold_ms": 400
+          },
+          {
+            "name": "follow wide",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "follow",
+              "back_um": 220000,
+              "up_um": 120000,
+              "ahead_um": 60000
+            },
+            "priority": 0,
+            "blend_in_ms": 0,
+            "blend_out_ms": 0
+          },
+          {
+            "name": "fixed",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "fixed",
+              "eye_um": [
+                0,
+                300000,
+                300000
+              ],
+              "look_um": [
+                0,
+                0,
+                0
+              ],
+              "focus": "target",
+              "fov_mdeg": 30000
+            },
+            "priority": -1,
+            "blend_in_ms": 600,
+            "blend_out_ms": 600
+          }
+        ]
+      }
+    },
+    {
+      "why": "blend time beyond 10 s",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 0,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [],
+          "release": {
+            "mode": "one"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Camera zones"
+        },
+        "camera_zones": [
+          {
+            "name": "tower drop",
+            "volume": {
+              "shape": "cylinder",
+              "base_um": [
+                1440000,
+                120000,
+                -420000
+              ],
+              "height_um": 180000,
+              "radius_um": 60000
+            },
+            "shot": {
+              "rule": "frame",
+              "target": {
+                "kind": "axis",
+                "base_um": [
+                  1440000,
+                  120000,
+                  -420000
+                ],
+                "height_um": 180000
+              },
+              "focus": "target",
+              "margin_permille": 1400,
+              "elevation_mdeg": 15000,
+              "azimuth_mdeg": 0
+            },
+            "priority": 10,
+            "blend_in_ms": 10001,
+            "blend_out_ms": 1200
+          },
+          {
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                -30000,
+                0,
+                -30000
+              ],
+              "max_um": [
+                30000,
+                60000,
+                30000
+              ]
+            },
+            "shot": {
+              "rule": "orbit",
+              "center_um": [
+                0,
+                30000,
+                0
+              ],
+              "radius_um": 200000,
+              "up_um": 80000,
+              "speed_mdeg_s": 20000,
+              "focus": "marble"
+            },
+            "priority": 2,
+            "blend_in_ms": 500,
+            "blend_out_ms": 500,
+            "hold_ms": 400
+          },
+          {
+            "name": "follow wide",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "follow",
+              "back_um": 220000,
+              "up_um": 120000,
+              "ahead_um": 60000
+            },
+            "priority": 0,
+            "blend_in_ms": 0,
+            "blend_out_ms": 0
+          },
+          {
+            "name": "fixed",
+            "volume": {
+              "shape": "box",
+              "min_um": [
+                0,
+                0,
+                0
+              ],
+              "max_um": [
+                60000,
+                60000,
+                60000
+              ]
+            },
+            "shot": {
+              "rule": "fixed",
+              "eye_um": [
+                0,
+                300000,
+                300000
+              ],
+              "look_um": [
+                0,
+                0,
+                0
+              ],
+              "focus": "target",
+              "fov_mdeg": 30000
+            },
+            "priority": -1,
+            "blend_in_ms": 600,
+            "blend_out_ms": 600
+          }
+        ]
+      }
+    },
+    {
+      "why": "camera_zones not an array",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 0,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [],
+          "release": {
+            "mode": "one"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Camera zones"
+        },
+        "camera_zones": {}
+      }
     }
   ]
 }
