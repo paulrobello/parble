@@ -284,6 +284,30 @@ impl TrackRun {
     }
 }
 
+/// Editing a run's pieces in place (P3-T4): the editor keeps the live colliders in step with its
+/// track one changed placement at a time and rebuilds only the touched chunks. Placements go
+/// straight to the chunk colliders, so ids must already be kit ids ([`kit_binding`]).
+impl TrackRun {
+    pub fn place_piece(&mut self, kit: &KitCatalog, p: Placement) -> Result<(), ChunkError> {
+        self.sim.place_piece(kit, p)
+    }
+
+    pub fn remove_piece(
+        &mut self,
+        anchor: parble_core::CellCoord,
+    ) -> Result<Placement, ChunkError> {
+        self.sim.remove_piece(anchor)
+    }
+
+    /// [`Sim::rebuild_next_chunk`].
+    pub fn rebuild_next_chunk(
+        &mut self,
+        kit: &KitCatalog,
+    ) -> Result<Option<parble_core::CellCoord>, ChunkError> {
+        self.sim.rebuild_next_chunk(kit)
+    }
+}
+
 impl core::ops::Deref for TrackRun {
     type Target = Sim;
 

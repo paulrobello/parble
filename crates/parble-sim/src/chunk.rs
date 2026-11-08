@@ -1025,40 +1025,50 @@ impl ChunkColliders {
         kit: &KitCatalog,
         world: &mut PhysicsWorld,
     ) -> Result<(), ChunkError> {
-        while let Some(chunk) = self.dirty.first().copied() {
-            if let Some(h) = self.handles.remove(&chunk) {
-                world.remove_collider(h);
-                self.stitched.remove(&h.into_raw_parts());
-                self.bends.remove(&h.into_raw_parts());
-                self.slopes.remove(&h.into_raw_parts());
-            }
-            let mesh = self.chunk_mesh(kit, chunk);
-            if !mesh.triangles.is_empty() {
-                let mut collider = mesh
-                    .collider(chunk_origin_um(chunk))
-                    .map_err(|e| ChunkError::TriMesh(chunk, format!("{e:?}")))?;
-                if mesh.slope_of.iter().any(|k| !k.is_empty())
-                    || mesh.bend_of.iter().any(|&b| b != 0)
-                {
-                    collider.set_active_hooks(
-                        ActiveHooks::MODIFY_SOLVER_CONTACTS | ActiveHooks::FILTER_CONTACT_PAIRS,
-                    );
-                } else if mesh.stitched.iter().any(|&b| b != 0)
-                    || mesh.bend_of.iter().any(|&b| b != 0)
-                {
-                    collider.set_active_hooks(ActiveHooks::MODIFY_SOLVER_CONTACTS);
-                }
-                let h = world.colliders.insert(collider);
-                self.handles.insert(chunk, h);
-                self.stitched.insert(h.into_raw_parts(), mesh.stitched);
-                self.bends
-                    .insert(h.into_raw_parts(), (mesh.bends, mesh.bend_of));
-                self.slopes
-                    .insert(h.into_raw_parts(), (mesh.slopes, mesh.slope_of));
-            }
-            self.dirty.remove(&chunk);
-        }
+        while self.rebuild_next(kit, world)?.is_some() {}
         Ok(())
+    }
+
+    /// Rebuild the first dirty chunk only, as [`Self::rebuild`] does for each, and return it
+    /// (`None` when nothing is dirty). The editor (P3-T4) spreads a large edit's chunks over
+    /// frames with it.
+    pub fn rebuild_next(
+        &mut self,
+        kit: &KitCatalog,
+        world: &mut PhysicsWorld,
+    ) -> Result<Option<CellCoord>, ChunkError> {
+        let Some(chunk) = self.dirty.first().copied() else {
+            return Ok(None);
+        };
+        if let Some(h) = self.handles.remove(&chunk) {
+            world.remove_collider(h);
+            self.stitched.remove(&h.into_raw_parts());
+            self.bends.remove(&h.into_raw_parts());
+            self.slopes.remove(&h.into_raw_parts());
+        }
+        let mesh = self.chunk_mesh(kit, chunk);
+        if !mesh.triangles.is_empty() {
+            let mut collider = mesh
+                .collider(chunk_origin_um(chunk))
+                .map_err(|e| ChunkError::TriMesh(chunk, format!("{e:?}")))?;
+            if mesh.slope_of.iter().any(|k| !k.is_empty()) || mesh.bend_of.iter().any(|&b| b != 0) {
+                collider.set_active_hooks(
+                    ActiveHooks::MODIFY_SOLVER_CONTACTS | ActiveHooks::FILTER_CONTACT_PAIRS,
+                );
+            } else if mesh.stitched.iter().any(|&b| b != 0) || mesh.bend_of.iter().any(|&b| b != 0)
+            {
+                collider.set_active_hooks(ActiveHooks::MODIFY_SOLVER_CONTACTS);
+            }
+            let h = world.colliders.insert(collider);
+            self.handles.insert(chunk, h);
+            self.stitched.insert(h.into_raw_parts(), mesh.stitched);
+            self.bends
+                .insert(h.into_raw_parts(), (mesh.bends, mesh.bend_of));
+            self.slopes
+                .insert(h.into_raw_parts(), (mesh.slopes, mesh.slope_of));
+        }
+        self.dirty.remove(&chunk);
+        Ok(Some(chunk))
     }
 }
 

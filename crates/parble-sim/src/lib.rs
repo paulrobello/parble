@@ -56,6 +56,15 @@ pub struct MarbleState {
     pub linvel: [f32; 3],
 }
 
+/// One chunk collider's geometry ([`Sim::chunk_collider_geometry`]).
+#[derive(Debug, Clone, PartialEq)]
+pub struct ChunkGeometry {
+    pub chunk: parble_core::CellCoord,
+    pub translation: [f32; 3],
+    pub vertices: Vec<[f32; 3]>,
+    pub triangles: Vec<[u32; 3]>,
+}
+
 /// A deterministic sim world advanced in whole ticks.
 pub struct Sim {
     world: PhysicsWorld,
@@ -188,6 +197,45 @@ impl Sim {
         self.world.integration_parameters.contact_clustering =
             self.pieces.chunks().next().is_none();
         result
+    }
+
+    /// Rebuild the first chunk touched since the last rebuild, if any, and return it (the editor's
+    /// per-frame budget, P3-T4). Repeating it until `None` matches [`Sim::rebuild_chunks`].
+    pub fn rebuild_next_chunk(
+        &mut self,
+        kit: &parble_kit::KitCatalog,
+    ) -> Result<Option<parble_core::CellCoord>, chunk::ChunkError> {
+        let result = self.pieces.rebuild_next(kit, &mut self.world);
+        self.world.integration_parameters.contact_clustering =
+            self.pieces.chunks().next().is_none();
+        result
+    }
+
+    /// The placed kit pieces and their chunk colliders.
+    pub fn chunk_colliders(&self) -> &chunk::ChunkColliders {
+        &self.pieces
+    }
+
+    /// Every chunk collider as built in the world: chunk, translation, trimesh vertices and
+    /// triangles, in chunk order. For tests that compare an edited world with a fresh one.
+    pub fn chunk_collider_geometry(&self) -> Vec<ChunkGeometry> {
+        self.pieces
+            .chunks()
+            .map(|(chunk, h)| {
+                let c = &self.world.colliders[h];
+                let t = c.translation();
+                let mesh = c
+                    .shape()
+                    .as_trimesh()
+                    .expect("chunk colliders are trimeshes");
+                ChunkGeometry {
+                    chunk,
+                    translation: [t.x, t.y, t.z],
+                    vertices: mesh.vertices().iter().map(|v| [v.x, v.y, v.z]).collect(),
+                    triangles: mesh.indices().to_vec(),
+                }
+            })
+            .collect()
     }
 
     /// Ticks advanced since construction.
