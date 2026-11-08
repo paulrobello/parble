@@ -307,6 +307,37 @@ pub fn decode_lods_with_parts(
     bytes: &[u8],
     id: &str,
 ) -> Result<[(LodMesh, Vec<String>); LODS], GlbError> {
+    Ok(decode_split(bytes, id)?.map(|lod| {
+        let mut merged = lod.body;
+        let mut names = Vec::with_capacity(lod.parts.len());
+        for p in lod.parts {
+            merged.append(&p.mesh.transformed(&p.rest));
+            names.push(p.name);
+        }
+        (merged, names)
+    }))
+}
+
+/// One animated part's mesh of one LOD, in the part frame (pivot at the origin, 0 mdeg), and its
+/// rest-pose transform into the piece frame (the `anim_<name>` node's).
+#[derive(Debug, Clone, PartialEq)]
+pub struct PartMesh {
+    /// `anim_<name>`, the sidecar part name.
+    pub name: String,
+    pub mesh: LodMesh,
+    pub rest: Mat4,
+}
+
+/// One LOD split into the static body and its animated parts, in node order.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct SplitLod {
+    pub body: LodMesh,
+    pub parts: Vec<PartMesh>,
+}
+
+/// `<id>_lod0`..`<id>_lod2` of a kit GLB, decoded without the animated parts, and each LOD's
+/// `anim_<name>_lod<n>` meshes on their own, for drawing the parts at sim angles.
+pub fn decode_split(bytes: &[u8], id: &str) -> Result<[SplitLod; LODS], GlbError> {
     let plain = rewrite_glb(bytes)?;
     let json_len = u32_at(&plain, 12)? as usize;
     let json: Value = serde_json::from_slice(slice(&plain, 20, json_len, "JSON chunk")?)
@@ -317,14 +348,14 @@ pub fn decode_lods_with_parts(
     let nodes = json["nodes"]
         .as_array()
         .ok_or_else(|| GlbError::BadJson("no nodes".into()))?;
-    let mut out: [(LodMesh, Vec<String>); LODS] = Default::default();
-    for (lod, (slot, parts)) in out.iter_mut().enumerate() {
+    let mut out: [SplitLod; LODS] = Default::default();
+    for (lod, slot) in out.iter_mut().enumerate() {
         let name = format!("{id}_lod{lod}");
         let body = nodes
             .iter()
             .find(|n| n["name"] == name.as_str())
             .ok_or_else(|| GlbError::BadJson(format!("no node {name}")))?;
-        *slot = node_mesh(&json, bin, body, &name)?;
+        slot.body = node_mesh(&json, bin, body, &name)?;
         let suffix = format!("_lod{lod}");
         for (i, n) in nodes.iter().enumerate() {
             let Some(part) = n["name"]
@@ -334,9 +365,11 @@ pub fn decode_lods_with_parts(
             else {
                 continue;
             };
-            let mesh = node_mesh(&json, bin, n, &format!("{part}{suffix}"))?;
-            slot.append(&mesh.transformed(&world_matrix(nodes, i)?));
-            parts.push(part.to_owned());
+            slot.parts.push(PartMesh {
+                name: part.to_owned(),
+                mesh: node_mesh(&json, bin, n, &format!("{part}{suffix}"))?,
+                rest: world_matrix(nodes, i)?,
+            });
         }
     }
     Ok(out)

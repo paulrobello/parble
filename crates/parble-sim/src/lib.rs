@@ -20,6 +20,7 @@ pub mod chunk;
 pub mod golden;
 pub mod hash;
 pub mod marble;
+pub mod mech_showcase;
 pub mod mechanism;
 pub mod playroom_run;
 pub mod rail_arc;

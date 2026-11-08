@@ -144,6 +144,14 @@ shots-p1t7:
 	cargo build -p parble-app
 	python3 scripts/shots/p1t7.py
 
+# Look-dev shots test (local only, native). P2-T6: the mechanism showcase in lockstep, a toggle
+# mid-flip and a one-way gate open, each checked against the part poses drawn on the shot frame.
+# Writes target/shots/mechanisms; docs/shots/p2-t6-*.png are reviewed copies. P1-T8 grows it.
+.PHONY: shots-test
+shots-test:
+	cargo build -p parble-app
+	python3 scripts/shots/mechanisms.py
+
 # P1-T6: the marble spec alone (GPU Chromium, every type on Low and High) against an existing dist/.
 .PHONY: web-editor-perf
 web-editor-perf: $(E2E_STAMP)

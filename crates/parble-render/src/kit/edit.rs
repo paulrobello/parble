@@ -13,7 +13,7 @@ use serde::Serialize;
 
 use super::{
     CHUNK_CELLS, KitChunk, KitDiag, KitInstance, KitMeshes, KitScene, KitTextures, LODS,
-    cell_origin, variant_of,
+    cell_origin, pair_draws, spawn_parts, variant_of,
 };
 
 /// Floor under the editor area, min and max (x, z) corners in metres: room for the 2,000-piece
@@ -261,6 +261,10 @@ fn apply_edits(
                             visible(slice, p.cell.y),
                         ));
                     }
+                    // The parts' parent slices with the piece; its children inherit.
+                    let mats = &tex.materials[p.piece];
+                    let root = (KitLayer(p.cell.y), visible(slice, p.cell.y));
+                    spawn_parts(c, &kept, mats, p.piece, p.cell, v, t, p.mirror, root);
                 }
             })
             .id();
@@ -290,7 +294,7 @@ fn apply_edits(
         .map(|&(piece, _, _)| piece)
         .collect::<std::collections::BTreeSet<_>>()
         .len();
-    diag.draw_bound = pairs.len() * LODS;
+    diag.draw_bound = pairs.iter().map(|&(piece, _, _)| pair_draws(piece)).sum();
     let hidden = hidden_pieces(&edits);
     diag.edit = Some(KitEditStats {
         pieces,
@@ -344,7 +348,7 @@ fn show_ghost(
     )>,
     mut meshes: Query<&mut Mesh3d>,
 ) {
-    if !ghost.is_changed() || vis.ports.is_empty() || kept.lods.is_empty() {
+    if !ghost.is_changed() || vis.ports.is_empty() || kept.ghost.is_empty() {
         return;
     }
     match ghost.piece {
@@ -354,11 +358,8 @@ fn show_ghost(
             } else {
                 vis.ghost_bad.clone()
             };
-            let mesh = if p.mirror {
-                kept.mirrored[p.piece][0].clone()
-            } else {
-                kept.lods[p.piece][0].clone()
-            };
+            // The whole piece, parts at rest.
+            let mesh = kept.ghost[p.piece][usize::from(p.mirror)].clone();
             let mut t = p.transform();
             // Slightly proud of the cell so it never z-fights a neighbour.
             t.scale *= 1.01;

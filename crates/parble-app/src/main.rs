@@ -16,10 +16,11 @@ use bridge::{Command, Event};
 use parble_render::{
     MarbleFrame, ParbleRenderPlugin,
     camera::{self, DirectorClock, DirectorPlugin, MainCamera},
+    kit::parts::PartFrame,
     marble::MarbleLook,
 };
 use parble_sim::{
-    DT,
+    DT, Sim,
     golden::RAMP_10S_TICKS,
     marble::{MarbleKind, MarbleSize},
     track_run::TrackRun,
@@ -130,11 +131,26 @@ fn spawn_camera(mut commands: Commands, opts: Res<AgentOpts>) {
     camera::spawn_main_camera(&mut commands, opts.quality, &opts.post);
 }
 
-fn publish_initial(clock: Res<SimClock>, mut frame: ResMut<MarbleFrame>) {
+fn publish_initial(
+    clock: Res<SimClock>,
+    mut frame: ResMut<MarbleFrame>,
+    mut parts: ResMut<PartFrame>,
+) {
     let now = clock.sim.marbles();
     frame.prev = now.clone();
     frame.curr = now;
     frame.alpha = 0.0;
+    parts.curr = part_angles(&clock.sim);
+    parts.prev = parts.curr.clone();
+}
+
+/// Every mechanism instance's part angles (millidegrees), keyed by its anchor cell, for
+/// [`PartFrame`].
+fn part_angles(sim: &Sim) -> std::collections::BTreeMap<[i32; 3], Vec<i32>> {
+    sim.mechanisms()
+        .into_iter()
+        .map(|m| ([m.id.0.x, m.id.0.y, m.id.0.z], m.part_angles))
+        .collect()
 }
 
 /// Whole ticks to run for `acc + delta` seconds of unsimulated time, and the remainder. Past
@@ -173,6 +189,7 @@ fn advance_sim(
     opts: Res<AgentOpts>,
     mut clock: ResMut<SimClock>,
     mut frame: ResMut<MarbleFrame>,
+    mut parts: ResMut<PartFrame>,
     mut director: ResMut<DirectorClock>,
 ) {
     let (ticks, rest) = match opts.lockstep_after {
@@ -187,16 +204,20 @@ fn advance_sim(
             clock.runs += 1;
             clock.sim = clock.build_run();
             frame.curr = clock.sim.marbles();
+            parts.curr = part_angles(&clock.sim);
         }
         let ticks = cap_to_run(ticks, clock.sim.tick_count(), run_ticks);
-        frame.prev = if ticks == 1 {
-            std::mem::take(&mut frame.curr)
+        if ticks == 1 {
+            frame.prev = std::mem::take(&mut frame.curr);
+            parts.prev = std::mem::take(&mut parts.curr);
         } else {
             clock.sim.tick(ticks - 1);
-            clock.sim.marbles()
-        };
+            frame.prev = clock.sim.marbles();
+            parts.prev = part_angles(&clock.sim);
+        }
         clock.sim.tick(1);
         frame.curr = clock.sim.marbles();
+        parts.curr = part_angles(&clock.sim);
     }
     frame.alpha = if opts.lockstep_after.is_some() {
         // Show the state at exactly the current tick.
@@ -240,7 +261,7 @@ impl SimClock {
     }
 
     /// Start the live sim over at tick 0 of [`Self::build_run`].
-    fn restart(&mut self, frame: &mut MarbleFrame) {
+    fn restart(&mut self, frame: &mut MarbleFrame, parts: &mut PartFrame) {
         self.sim = self.build_run();
         self.acc = 0.0;
         self.runs = 0;
@@ -250,6 +271,8 @@ impl SimClock {
         frame.prev = now.clone();
         frame.curr = now;
         frame.alpha = 0.0;
+        parts.curr = part_angles(&self.sim);
+        parts.prev = parts.curr.clone();
     }
 }
 
@@ -259,6 +282,7 @@ fn pump_bridge(
     time: Res<Time>,
     mut clock: ResMut<SimClock>,
     mut frame: ResMut<MarbleFrame>,
+    mut parts: ResMut<PartFrame>,
     mut fps: Local<f32>,
 ) {
     for cmd in bridge::take_commands() {
@@ -268,7 +292,7 @@ fn pump_bridge(
         }
         if let Some((event, after)) = clock.tracks.apply(cmd) {
             if after == After::Restart {
-                clock.restart(&mut frame);
+                clock.restart(&mut frame, &mut parts);
             }
             bridge::push_event(event);
         }
@@ -322,7 +346,6 @@ fn pump_audio(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use parble_sim::Sim;
 
     #[test]
     fn app_exit_codes_reach_the_process() {
@@ -387,7 +410,7 @@ mod tests {
         assert_eq!(clock(Scenario::Ramp).run_ticks(), RAMP_10S_TICKS);
         assert_eq!(clock(Scenario::Editor).run_ticks(), u32::MAX);
         let mut c = clock(Scenario::Editor);
-        c.restart(&mut MarbleFrame::default());
+        c.restart(&mut MarbleFrame::default(), &mut PartFrame::default());
         assert_eq!(c.restarts, 1);
     }
 

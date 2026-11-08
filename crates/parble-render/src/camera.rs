@@ -136,6 +136,24 @@ impl Cues {
         )])
     }
 
+    /// Mechanism showcase (P2-T6 `--scenario mechanisms`): one set shot from in front of and above
+    /// the row, both mechanisms in frame, focused between them.
+    pub fn mechanisms() -> Self {
+        use parble_sim::mech_showcase::{GATE_CELL, TOGGLE_CELL};
+        let cell = scene::cell_m();
+        let at = |c: [i32; 3]| Vec3::new(c[0] as f32, 0.0, c[2] as f32) * cell;
+        let look = (at(TOGGLE_CELL) + at(GATE_CELL)) / 2.0 + Vec3::Y * 0.03;
+        let eye = look + Vec3::new(0.0, 0.30, 0.12);
+        Self(vec![(
+            0,
+            Shot::Set {
+                eye: eye.to_array(),
+                look: look.to_array(),
+                focus_m: eye.distance(look),
+            },
+        )])
+    }
+
     /// One playroom set shot (`--scenario playroom --view rug|blocks`).
     pub fn playroom(view: crate::PlayroomView) -> Self {
         let (eye, look) = view.eye_target();

@@ -31,6 +31,7 @@ make web-size       # build-web + wasm ≤ 15 MB gzip budget
 make run-shot       # native screenshot to target/shots/run-shot.png, then exits (non-zero unless lit)
 make run-diag       # native: run 3 s, print the state JSON, exit
 make web-e2e        # build-web + Playwright smoke in GPU Chromium on the 5311 preview (local only)
+make shots-test     # native lockstep look-dev shots, checked against the drawn state (local only)
 make web-editor-perf # opt-in editor perf trace: 2,000 pieces, load-guarded, writes target/perf/p3t4-editor.json
 ```
 

@@ -17,10 +17,14 @@
 //! - Textures: the wood sets load as BC7 KTX2, else ASTC KTX2, else PNG ([`family`]), chosen once
 //!   the render device exists (on the web it arrives after `Startup`). Baked maps are PNG only.
 //! - The draw counts in [`KitDiag`] are read from the render world's binned phases ([`count_draws`]).
+//! - Mechanism parts (P2-T6, [`parts`]): each animated part is its own mesh per (type, LOD), drawn
+//!   with the piece's material and posed from the sim each frame, so a mechanism type adds one bin
+//!   per part per (LOD, variant) next to its body's.
 
 pub mod edit;
 pub mod family;
 pub mod glb;
+pub mod parts;
 
 use std::{
     borrow::Cow,
@@ -51,7 +55,8 @@ use bevy::{
 use serde::Serialize;
 
 use family::{TextureFamily, select_family_capped};
-use glb::{LODS, LodMesh};
+use glb::{LODS, LodMesh, SplitLod};
+use parts::{KitPart, PartFrame, PartKit};
 
 /// Cell edge, metres (kit contract §2).
 pub const CELL_M: f32 = 0.06;
@@ -252,6 +257,9 @@ pub enum KitScene {
     /// The editor (P3-T4): no fixed layout. The app places pieces chunk by chunk through
     /// [`edit::KitEdits`].
     Editor,
+    /// The P2-T6 mechanism showcase ([`parble_sim::mech_showcase`]): a toggle and a one-way gate
+    /// lane, the same placements the sim runs with their behaviours.
+    Mechanisms,
 }
 
 impl KitScene {
@@ -261,6 +269,7 @@ impl KitScene {
             Self::None | Self::Editor => Vec::new(),
             Self::Stress2000 => stress_layout(),
             Self::Playroom => playroom_layout(),
+            Self::Mechanisms => run_layout(&parble_sim::mech_showcase::LAYOUT),
         }
     }
 }
@@ -339,13 +348,17 @@ pub fn grid_footprint_m() -> (Vec2, Vec2) {
 
 /// The playroom run's placements, from the sim's own list so the drawn and simulated runs agree.
 pub fn playroom_layout() -> Vec<Placement> {
-    parble_sim::playroom_run::RUN
-        .iter()
+    run_layout(&parble_sim::playroom_run::RUN)
+}
+
+/// Cell-grid placements (id, anchor cell, yaw) as render placements.
+pub fn run_layout(run: &[(&str, [i32; 3], u8)]) -> Vec<Placement> {
+    run.iter()
         .map(|&(id, cell, yaw)| Placement {
             piece: PIECES
                 .iter()
                 .position(|(p, _)| *p == id)
-                .unwrap_or_else(|| panic!("playroom run piece {id} has no GLB")),
+                .unwrap_or_else(|| panic!("run piece {id} has no GLB")),
             cell: IVec3::from_array(cell),
             origin: cell_origin(IVec3::from_array(cell)),
             yaw,
@@ -376,7 +389,22 @@ pub fn placement_transform(p: &Placement) -> Transform {
     ))
 }
 
-/// Occupied chunks and the contract bound of `LODS` draws per occupied (type, chunk).
+/// Animated parts of [`PIECES`] entry `piece` (its sidecar's `animated_parts`).
+pub fn piece_parts(piece: usize) -> usize {
+    parble_kit::builtin()
+        .iter()
+        .find(|p| p.def.id.as_str() == PIECES[piece].0)
+        .map_or(0, |p| p.animated_parts.len())
+}
+
+/// Draws one occupied (type, chunk) may cost: `LODS` for the body and `LODS` per animated part
+/// ([`parts`]), so the P1-T4 bound of one draw per (type × LOD × chunk) holds per drawn mesh.
+pub fn pair_draws(piece: usize) -> usize {
+    LODS * (1 + piece_parts(piece))
+}
+
+/// Occupied chunks and the draw bound: [`pair_draws`] per occupied (type, chunk). A layout with no
+/// mechanism parts keeps the P1-T4 bound of `LODS` per pair.
 pub fn chunk_stats(layout: &[Placement]) -> (usize, usize) {
     let chunks: BTreeSet<_> = layout
         .iter()
@@ -386,7 +414,8 @@ pub fn chunk_stats(layout: &[Placement]) -> (usize, usize) {
         .iter()
         .map(|p| (p.piece, chunk_of(p.origin).to_array()))
         .collect();
-    (chunks.len(), pairs.len() * LODS)
+    let bound = pairs.iter().map(|&(piece, _)| pair_draws(piece)).sum();
+    (chunks.len(), bound)
 }
 
 /// Camera distance (m) at which one cell projects to `px` pixels tall at 1440p.
@@ -497,7 +526,8 @@ pub struct KitDiag {
     pub variants: usize,
     /// Pieces per wood variant in the layout.
     pub variant_pieces: Vec<usize>,
-    /// One draw per occupied (type × chunk) × LOD (the P1-T4 bound).
+    /// One draw per occupied (type × chunk) × LOD (the P1-T4 bound), and one more per animated
+    /// part of the type (P2-T6, [`pair_draws`]).
     pub draw_bound: usize,
     pub lod_triangles: Vec<[usize; LODS]>,
     /// Camera distances (m) of the LOD bands: `[lod0 end start, end, lod1 end start, end]`.
@@ -511,15 +541,104 @@ pub struct KitDiag {
     /// Editor-placed pieces ([`KitScene::Editor`] only).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub edit: Option<edit::KitEditStats>,
+    /// Every drawn mechanism part's pose this frame (P2-T6), by anchor cell and part.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub parts: Vec<parts::PartDiag>,
 }
 
 /// Per-piece LOD meshes and their visibility ranges, kept for pieces spawned after startup.
 #[derive(Resource, Default)]
 struct KitMeshes {
+    /// Each piece's static body per LOD (without its animated parts).
     lods: Vec<[Handle<Mesh>; LODS]>,
     /// [`Self::lods`] with reversed winding, for mirrored pieces ([`LodMesh::reversed_winding`]).
     mirrored: Vec<[Handle<Mesh>; LODS]>,
+    /// LOD0 with the parts merged at rest, plain and mirrored, for the editor ghost.
+    ghost: Vec<[Handle<Mesh>; 2]>,
+    /// Each piece's animated parts.
+    parts: Vec<Vec<PartKit>>,
     ranges: Option<[VisibilityRange; LODS]>,
+}
+
+/// `piece`'s animated parts from its split LODs, in sidecar order, with `add` turning each part
+/// mesh into a handle (plain, then mirrored, per LOD).
+fn part_kits(
+    piece: &parble_kit::KitPiece,
+    split: &[SplitLod; LODS],
+    mut add: impl FnMut(&LodMesh) -> Handle<Mesh>,
+) -> Vec<PartKit> {
+    piece
+        .animated_parts
+        .iter()
+        .enumerate()
+        .map(|(index, part)| {
+            let mesh = |lod: usize| {
+                split[lod]
+                    .parts
+                    .iter()
+                    .find(|p| p.name == part.name)
+                    .unwrap_or_else(|| panic!("{} has no {}_lod{lod}", piece.def.id, part.name))
+            };
+            let mut lods: [Option<Handle<Mesh>>; LODS] = Default::default();
+            let mut mirrored: [Option<Handle<Mesh>>; LODS] = Default::default();
+            for lod in 0..LODS {
+                lods[lod] = Some(add(&mesh(lod).mesh));
+                mirrored[lod] = Some(add(&mesh(lod).mesh.reversed_winding()));
+            }
+            PartKit {
+                index,
+                pivot: Vec3::from_array(part.pivot_um.map(|v| v as f32 * 1.0e-6)),
+                axis: Vec3::from_array(part.axis.map(|v| v as f32)).normalize(),
+                rest_mdeg: part.rest_mdeg,
+                rest: std::array::from_fn(|lod| mesh(lod).rest),
+                lods: lods.map(|h| h.expect("set per LOD")),
+                mirrored: mirrored.map(|h| h.expect("set per LOD")),
+            }
+        })
+        .collect()
+}
+
+/// Spawns the animated parts of one placed piece under a parent at the placement transform `t`
+/// (see [`parts`] for why a parent), with `root` added to that parent. No-op for a piece without
+/// parts.
+#[allow(clippy::too_many_arguments)]
+fn spawn_parts(
+    c: &mut ChildSpawnerCommands<'_>,
+    kept: &KitMeshes,
+    materials: &[[Handle<KitWoodMaterial>; 3]; LODS],
+    piece: usize,
+    cell: IVec3,
+    variant: usize,
+    t: Transform,
+    mirror: bool,
+    root: impl Bundle,
+) {
+    let (Some(kits), Some(ranges)) = (kept.parts.get(piece), kept.ranges.as_ref()) else {
+        return;
+    };
+    if kits.is_empty() {
+        return;
+    }
+    c.spawn((t, Visibility::Inherited, root))
+        .with_children(|c| {
+            for (slot, k) in kits.iter().enumerate() {
+                let meshes = if mirror { &k.mirrored } else { &k.lods };
+                for (lod, range) in ranges.iter().enumerate() {
+                    c.spawn((
+                        KitPart {
+                            cell,
+                            piece,
+                            slot,
+                            lod: lod as u8,
+                        },
+                        Mesh3d(meshes[lod].clone()),
+                        MeshMaterial3d(materials[lod][variant].clone()),
+                        Transform::from_matrix(k.rest[lod]),
+                        range.clone(),
+                    ));
+                }
+            }
+        });
 }
 
 #[derive(Resource, Default)]
@@ -548,10 +667,15 @@ impl Plugin for KitPlugin {
             .init_resource::<KitDiag>()
             .init_resource::<KitTextures>()
             .init_resource::<KitMeshes>()
+            .init_resource::<PartFrame>()
             .insert_resource(shared.clone())
             .add_plugins(edit::KitEditPlugin)
             .add_systems(Startup, spawn_kit)
-            .add_systems(Update, (load_textures, update_diag).chain());
+            .add_systems(Update, (load_textures, update_diag).chain())
+            .add_systems(
+                PostUpdate,
+                parts::animate_parts.before(bevy::transform::TransformSystems::Propagate),
+            );
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app
                 .insert_resource(shared)
@@ -580,15 +704,41 @@ fn spawn_kit(
     let mut handles: Vec<[Handle<Mesh>; LODS]> = Vec::new();
     let mut mirrored: Vec<[Handle<Mesh>; LODS]> = Vec::new();
     let mut ids = HashSet::new();
+    let catalogue = parble_kit::builtin();
     for (id, bytes) in PIECES {
-        let lods = glb::decode_lods(bytes, id).unwrap_or_else(|e| panic!("kit {id}: {e}"));
-        diag.lod_triangles
-            .push(std::array::from_fn(|l| lods[l].triangles()));
+        let split = glb::decode_split(bytes, id).unwrap_or_else(|e| panic!("kit {id}: {e}"));
+        let piece = catalogue
+            .iter()
+            .find(|p| p.def.id.as_str() == *id)
+            .unwrap_or_else(|| panic!("kit {id} is not in the catalogue"));
+        // A piece draws its body and every part.
+        diag.lod_triangles.push(std::array::from_fn(|l| {
+            let parts: usize = split[l].parts.iter().map(|p| p.mesh.triangles()).sum();
+            split[l].body.triangles() + parts
+        }));
         let h: [Handle<Mesh>; LODS] =
-            std::array::from_fn(|l| meshes.add(lod_render_mesh(&lods[l])));
+            std::array::from_fn(|l| meshes.add(lod_render_mesh(&split[l].body)));
         let m: [Handle<Mesh>; LODS] =
-            std::array::from_fn(|l| meshes.add(lod_render_mesh(&lods[l].reversed_winding())));
+            std::array::from_fn(|l| meshes.add(lod_render_mesh(&split[l].body.reversed_winding())));
         ids.extend(h.iter().chain(&m).map(|h| h.id().untyped()));
+        let kits = part_kits(piece, &split, |mesh| {
+            let h = meshes.add(lod_render_mesh(mesh));
+            ids.insert(h.id().untyped());
+            h
+        });
+        kept.ghost.push(if kits.is_empty() {
+            [h[0].clone(), m[0].clone()]
+        } else {
+            let mut rest = split[0].body.clone();
+            for p in &split[0].parts {
+                rest.append(&p.mesh.transformed(&p.rest));
+            }
+            [
+                meshes.add(lod_render_mesh(&rest)),
+                meshes.add(lod_render_mesh(&rest.reversed_winding())),
+            ]
+        });
+        kept.parts.push(kits);
         handles.push(h);
         mirrored.push(m);
     }
@@ -658,6 +808,8 @@ fn spawn_kit(
                             range.clone(),
                         ));
                     }
+                    let mats = &tex.materials[p.piece];
+                    spawn_parts(c, &kept, mats, p.piece, p.cell, v, t, false, ());
                 }
             });
     }
@@ -1149,6 +1301,24 @@ mod tests {
                 let got = t.transform_point(Vec3::from_array(local.map(|v| v as f32 * 1e-6)));
                 assert!(got.distance(want) < 1e-6, "{}: {got} vs {want}", p.piece);
             }
+        }
+    }
+
+    #[test]
+    fn mechanism_parts_raise_the_draw_bound_per_part() {
+        let layout = KitScene::Mechanisms.layout();
+        let sim = parble_sim::mech_showcase::placements();
+        assert_eq!(layout.len(), sim.len());
+        for (r, p) in layout.iter().zip(&sim) {
+            assert_eq!(PIECES[r.piece].0, p.piece.as_str());
+            assert_eq!(r.cell.to_array(), [p.anchor.x, p.anchor.y, p.anchor.z]);
+        }
+        // One chunk: two blocks at 3 draws each, the toggle and the gate at 3 for the body and 3
+        // for their one part each.
+        assert_eq!(chunk_stats(&layout), (1, 3 + 3 + 6 + 6));
+        // No parts, no change: the P1-T4 bounds stay.
+        for l in [playroom_layout(), stress_layout()] {
+            assert!(l.iter().all(|p| piece_parts(p.piece) == 0));
         }
     }
 

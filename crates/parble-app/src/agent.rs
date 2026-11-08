@@ -10,7 +10,7 @@ use bevy::{
 use parble_render::{
     Environment, PlayroomView, Quality, ShadowLights,
     camera::{CameraDiag, CameraMode, Cues},
-    kit::{KitDiag, KitScene, TextureCap, family::TextureFamily},
+    kit::{KitDiag, KitScene, TextureCap, family::TextureFamily, parts::PartDiag},
     marble::MarbleLook,
     post::{PostOverrides, parse_tonemapping},
 };
@@ -54,6 +54,9 @@ pub enum Scenario {
     /// The in-engine editor (P3-T4): the tray, no marble, an orbit camera and kit pieces edited in
     /// place ([`crate::editor`]). Never restarts, so edits keep their incremental colliders.
     Editor,
+    /// Mechanism showcase (P2-T6): a toggle lane and a one-way gate lane behind the tray, one cat's
+    /// eye each, the parts drawn at the sim's angles ([`parble_sim::mech_showcase`]).
+    Mechanisms,
 }
 
 impl Scenario {
@@ -65,6 +68,7 @@ impl Scenario {
             "kit2000" => Some(Self::Kit2000),
             "lineup" => Some(Self::Lineup),
             "editor" => Some(Self::Editor),
+            "mechanisms" => Some(Self::Mechanisms),
             _ => None,
         }
     }
@@ -77,6 +81,7 @@ impl Scenario {
             Self::Kit2000 => "kit2000",
             Self::Lineup => "lineup",
             Self::Editor => "editor",
+            Self::Mechanisms => "mechanisms",
         }
     }
 
@@ -91,6 +96,7 @@ impl Scenario {
             Self::Closeup => Sim::closeup_scene(spec),
             Self::Lineup => Sim::lineup_scene(),
             Self::Editor => Sim::tray_scene(),
+            Self::Mechanisms => Sim::mech_showcase_scene(),
         }
     }
 
@@ -106,6 +112,9 @@ impl Scenario {
                 .iter()
                 .map(|&(k, s)| (k, s.radius_m()))
                 .collect(),
+            Self::Mechanisms => {
+                vec![(MarbleKind::CatsEye, parble_sim::marble::CATS_EYE.radius_m); 2]
+            }
             _ => vec![(
                 marble.unwrap_or_default(),
                 marble::spec_for(marble, size).radius_m,
@@ -115,9 +124,12 @@ impl Scenario {
 
     pub fn environment(self) -> Environment {
         match self {
-            Self::Ramp | Self::Closeup | Self::Kit2000 | Self::Lineup | Self::Editor => {
-                Environment::Plain
-            }
+            Self::Ramp
+            | Self::Closeup
+            | Self::Kit2000
+            | Self::Lineup
+            | Self::Editor
+            | Self::Mechanisms => Environment::Plain,
             Self::Playroom => Environment::Playroom,
         }
     }
@@ -127,6 +139,7 @@ impl Scenario {
             Self::Kit2000 => KitScene::Stress2000,
             Self::Playroom => KitScene::Playroom,
             Self::Editor => KitScene::Editor,
+            Self::Mechanisms => KitScene::Mechanisms,
             _ => KitScene::None,
         }
     }
@@ -181,6 +194,7 @@ impl CameraChoice {
             (_, Scenario::Ramp | Scenario::Editor, _) => Cues::ramp(),
             (_, Scenario::Closeup, _) => Cues::closeup(),
             (_, Scenario::Lineup, _) => Cues::lineup(),
+            (_, Scenario::Mechanisms, _) => Cues::mechanisms(),
         }
     }
 }
@@ -422,6 +436,8 @@ struct AgentRuntime {
     shot: ShotState,
     /// The camera state on the screenshot frame.
     shot_camera: Option<CameraDiag>,
+    /// The mechanism part poses on the screenshot frame (`kit.parts`).
+    shot_parts: Option<Vec<PartDiag>>,
     exiting: bool,
 }
 
@@ -477,6 +493,8 @@ struct DiagState<'a> {
     screenshot: &'a ShotState,
     camera: &'a CameraDiag,
     shot_camera: Option<&'a CameraDiag>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shot_parts: Option<&'a Vec<PartDiag>>,
     exited: bool,
 }
 
@@ -523,6 +541,7 @@ fn diag<'a>(
         marble: match (opts.scenario, opts.marble, opts.marble_size) {
             (Scenario::Lineup, ..) => "lineup",
             (Scenario::Playroom, ..) => "playroom",
+            (Scenario::Mechanisms, ..) => "mechanisms",
             (_, None, MarbleSize::Standard) => "legacy",
             (_, m, _) => m.unwrap_or_default().name(),
         },
@@ -535,6 +554,7 @@ fn diag<'a>(
         screenshot: &rt.shot,
         camera,
         shot_camera: rt.shot_camera.as_ref(),
+        shot_parts: rt.shot_parts.as_ref(),
         exited: rt.exiting,
     }
 }
@@ -616,6 +636,7 @@ impl Plugin for AgentPlugin {
                 ShotState::None
             },
             shot_camera: None,
+            shot_parts: None,
             exiting: false,
         })
         .insert_resource(opts.quality)
@@ -652,6 +673,7 @@ fn request_shot(
     opts: Res<AgentOpts>,
     clock: Res<SimClock>,
     camera: Res<CameraDiag>,
+    kit: Res<KitDiag>,
     mut rt: ResMut<AgentRuntime>,
 ) {
     if rt.shot != ShotState::Pending {
@@ -666,6 +688,7 @@ fn request_shot(
     }
     rt.shot = ShotState::Capturing;
     rt.shot_camera = Some(camera.clone());
+    rt.shot_parts = (!kit.parts.is_empty()).then(|| kit.parts.clone());
     let mut shot = commands.spawn(Screenshot::primary_window());
     #[cfg(target_arch = "wasm32")]
     if let Some(path) = &opts.screenshot {
@@ -911,6 +934,23 @@ mod tests {
             sim.trajectory_hash(),
             parble_sim::playroom_run::playroom_4s_hash()
         );
+    }
+
+    #[test]
+    fn mechanisms_scenario_parses_and_runs_its_mechanisms() {
+        let o = args("--scenario mechanisms").unwrap();
+        assert_eq!(o.scenario, Scenario::Mechanisms);
+        assert_eq!(
+            Scenario::parse(o.scenario.name()),
+            Some(Scenario::Mechanisms)
+        );
+        assert_eq!(o.scenario.kit(), KitScene::Mechanisms);
+        assert_eq!(o.scenario.environment(), Environment::Plain);
+        let sim = o.scenario.build(None, MarbleSize::Standard);
+        let looks = o.scenario.looks(None, MarbleSize::Standard);
+        assert_eq!(looks.len(), sim.marbles().len());
+        let kinds: Vec<_> = sim.mechanisms().iter().map(|m| m.kind).collect();
+        assert_eq!(kinds, ["toggle", "gate_oneway"]);
     }
 
     #[test]
