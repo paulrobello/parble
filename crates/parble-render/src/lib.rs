@@ -1,9 +1,9 @@
 //! parble-render: Bevy rendering of sim state. Reads [`MarbleFrame`] (written by the app after
 //! each fixed-step advance) and never touches the Rapier world.
 //!
-//! P0 scene: the P0-T3 ramp tray built from [`parble_sim::scene::tray_mesh`], one standard marble,
-//! a directional light and a floor. The tray triangles face into the tray, so the tray material is
-//! double-sided with culling off.
+//! P0 scene: the P0-T3 ramp tray built from [`parble_sim::scene::tray_mesh`], one marble (its look
+//! lives in [`marble`]), a directional light and a floor. The tray triangles face into the tray, so
+//! the tray material is double-sided with culling off.
 
 use bevy::{
     asset::RenderAssetUsages,
@@ -15,6 +15,7 @@ use bevy::{
 use parble_sim::{MarbleState, scene};
 
 pub mod camera;
+pub mod marble;
 pub mod post;
 
 /// Backdrop behind the scene (a dim warm room tone).
@@ -83,6 +84,7 @@ impl Plugin for ParbleRenderPlugin {
         app.insert_resource(ClearColor(BACKDROP))
             .init_resource::<MarbleFrame>()
             .init_resource::<Quality>()
+            .add_plugins(marble::MarblePlugin)
             .add_systems(Startup, spawn_scene)
             .add_systems(PostUpdate, sync_marbles.before(TransformSystems::Propagate));
     }
@@ -139,25 +141,6 @@ fn spawn_scene(
         Mesh3d(meshes.add(Plane3d::default().mesh().size(4.0 * len, 4.0 * len))),
         MeshMaterial3d(floor),
         Transform::from_xyz(len / 2.0, -0.0005, 0.0),
-    ));
-
-    let glass = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.20, 0.45, 0.85),
-        perceptual_roughness: 0.08,
-        reflectance: 0.6,
-        ..default()
-    });
-    let marble = meshes.add(
-        Sphere::new(scene::standard_marble_radius_m())
-            .mesh()
-            .uv(32, 18),
-    );
-    let spawn = scene::marble_spawn_m();
-    commands.spawn((
-        Mesh3d(marble),
-        MeshMaterial3d(glass),
-        Transform::from_xyz(spawn.x, spawn.y, spawn.z),
-        MarbleVisual(0),
     ));
 
     // Shadow cascades and biases sized to a sub-metre scene (Bevy's defaults assume tens of metres:

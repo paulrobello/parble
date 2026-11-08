@@ -92,6 +92,19 @@ impl Cues {
         ])
     }
 
+    /// Look-dev close-up (P1-T6 `--scenario closeup`): one fixed shot of the resting marble from
+    /// above and to the side, close enough to judge its material.
+    pub fn closeup() -> Self {
+        let m = scene::closeup_marble_m(scene::standard_marble_radius_m());
+        Self(vec![(
+            0,
+            Shot::Fixed {
+                eye: [m.x - 0.045, m.y + 0.075, m.z + 0.012],
+                look: [m.x, m.y, m.z],
+            },
+        )])
+    }
+
     /// One fixed overview of the whole tray (`--camera overview`).
     pub fn overview() -> Self {
         let len = scene::tray_length_m();

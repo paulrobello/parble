@@ -142,6 +142,17 @@ shots-p1t7:
 	cargo build -p parble-app
 	python3 scripts/shots/p1t7.py
 
+# P1-T6: the marble spec alone (GPU Chromium, every type on Low and High) against an existing dist/.
+.PHONY: web-marbles
+web-marbles: $(E2E_STAMP)
+	cd e2e && ./node_modules/.bin/playwright test tests/marbles.spec.mjs
+
+# P1-T6: native close-up shots of every marble type at every tier into target/shots/marbles
+# (P1-T8 folds this into shots-test).
+.PHONY: marble-shots
+marble-shots:
+	bash scripts/marble-shots.sh
+
 # Trunk dev server on 127.0.0.1:$(DEV_PORT). No autoreload: Trunk injects its reload script after the
 # post_build hook hashed the inline scripts, so the page's CSP would block it (a console error).
 # ui-build first: Trunk refuses to serve while a [watch] ignore path (web/ui/dist) is missing.

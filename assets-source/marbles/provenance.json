@@ -1,0 +1,116 @@
+{
+  "schema": "parble-lookdev-provenance/1",
+  "task": "P1-T6 marble vane textures",
+  "purpose": "Inner vane colour for the cat's eye marble (red and green blades, after look-dev frame 01). Runtime derivatives live in assets/marbles/.",
+  "date": "2026-11-07",
+  "route": "art skill, Higgsfield backend (higgsfield CLI 1.2.2)",
+  "authoringAgent": {
+    "harness": "claude-code",
+    "model": "claude-opus-5-5"
+  },
+  "generationTotal": 2,
+  "generationCap": 6,
+  "creditsTotal": 4,
+  "creditEvidence": "higgsfield account transactions: two 'Nano Banana Pro -2 spend' entries at 2026-11-08 01:34 UTC, matching jobs 30ee95e9 and fa71257f (created 01:34:03); balance 956 before, 952 after. The shared account also shows a 01:38 job from a parallel agent, not counted here.",
+  "rejectedJobs": [],
+  "frames": [
+    {
+      "file": "vane-red.png",
+      "subject": "cat's eye inner vane colour swatch (red)",
+      "targetsReference": [
+        "assets-source/lookdev/01-macro-channel-cats-eye.png"
+      ],
+      "provider": "Higgsfield",
+      "model": "nano_banana_pro",
+      "jobId": "30ee95e9-095f-4be9-8350-df71692047fe",
+      "jobStatus": "completed",
+      "createdAt": "2026-11-08T01:34:03Z",
+      "settings": {
+        "aspect_ratio": "1:1",
+        "resolution": "1k",
+        "batch_size": 1
+      },
+      "seed": "not exposed by provider",
+      "prompt": "Flat square texture swatch that fills the entire frame edge to edge: the coloured glass ribbon from inside a cat's eye marble, seen straight on as if unrolled flat. Long smooth flowing vertical streaks of saturated crimson and scarlet glass paint, with thin darker oxblood striations and a few bright cherry highlights, slight translucent glassy depth, soft gradients between streaks. Even flat lighting, no shadows, no specular glare, no marble, no sphere, no background, no border. Orthographic texture map for a 3D material, photoreal macro detail. No text, no logos, no watermark.",
+      "promptFile": "prompts/vane-red.txt",
+      "negativePrompt": "none (negative guidance is inline)",
+      "referenceImages": [],
+      "generations": 1,
+      "credits": 2,
+      "format": "png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 2114048,
+      "sha256": "6d7dfd32d1345e5ff21b51b966028b6a41c0b88510c88452954f02892101ac1c",
+      "transformations": "none; stored exactly as delivered by the provider CDN",
+      "runtimeDerivative": {
+        "file": "assets/marbles/vane-red.png",
+        "command": "sips -z 256 256 assets-source/marbles/vane-red.png --out assets/marbles/vane-red.png",
+        "width": 256,
+        "height": 256,
+        "bytes": 76645,
+        "sha256": "08c27dc8553830cb50a48ad1b60175ffe4d82c59f9a516abac7e7762b272b8c9",
+        "use": "embedded in parble-render (include_bytes) as the vane colour for the High-tier vane mesh and the Low/Medium fallback shader"
+      },
+      "ownerReview": {
+        "status": "pending",
+        "date": null
+      }
+    },
+    {
+      "file": "vane-green.png",
+      "subject": "cat's eye inner vane colour swatch (green)",
+      "targetsReference": [
+        "assets-source/lookdev/01-macro-channel-cats-eye.png"
+      ],
+      "provider": "Higgsfield",
+      "model": "nano_banana_pro",
+      "jobId": "fa71257f-f607-4918-a889-5a2ff8840f2d",
+      "jobStatus": "completed",
+      "createdAt": "2026-11-08T01:34:03Z",
+      "settings": {
+        "aspect_ratio": "1:1",
+        "resolution": "1k",
+        "batch_size": 1
+      },
+      "seed": "not exposed by provider",
+      "prompt": "Flat square texture swatch that fills the entire frame edge to edge: the coloured glass ribbon from inside a cat's eye marble, seen straight on as if unrolled flat. Long smooth flowing vertical streaks of saturated emerald and leaf green glass paint, with thin darker bottle-green striations and a few bright lime highlights, slight translucent glassy depth, soft gradients between streaks. Even flat lighting, no shadows, no specular glare, no marble, no sphere, no background, no border. Orthographic texture map for a 3D material, photoreal macro detail. No text, no logos, no watermark.",
+      "promptFile": "prompts/vane-green.txt",
+      "negativePrompt": "none (negative guidance is inline)",
+      "referenceImages": [],
+      "generations": 1,
+      "credits": 2,
+      "format": "png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 2392806,
+      "sha256": "f3b3cc4c5adc1e3d779fa376d9e9ab89a46d94851d77c3f5e7ec50780984167e",
+      "transformations": "none; stored exactly as delivered by the provider CDN",
+      "runtimeDerivative": {
+        "file": "assets/marbles/vane-green.png",
+        "command": "sips -z 256 256 assets-source/marbles/vane-green.png --out assets/marbles/vane-green.png",
+        "width": 256,
+        "height": 256,
+        "bytes": 81196,
+        "sha256": "56ae6afbd4364978cad077a290d673b84d70ddc1ddc4ecf901fa67cd743e7755",
+        "use": "embedded in parble-render (include_bytes) as the vane colour for the High-tier vane mesh and the Low/Medium fallback shader"
+      },
+      "ownerReview": {
+        "status": "pending",
+        "date": null
+      }
+    }
+  ],
+  "rights": {
+    "generatedOn": "Paul's Higgsfield plus plan",
+    "terms": "commercial terms not verified",
+    "references": "none: text-only prompts, no reference images uploaded",
+    "status": "pending"
+  },
+  "gates": {
+    "technical": "pass (node assets-source/marbles/check-provenance.mjs)",
+    "creative": "pending Paul's review",
+    "rights": "pending",
+    "owner": "pending"
+  }
+}

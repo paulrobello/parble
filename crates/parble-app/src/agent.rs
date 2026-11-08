@@ -10,9 +10,14 @@ use bevy::{
 use parble_render::{
     Quality,
     camera::{CameraDiag, CameraMode, Cues},
+    marble::MarbleLook,
     post::{PostOverrides, parse_tonemapping},
 };
-use parble_sim::{Sim, hash::format_hash};
+use parble_sim::{
+    Sim,
+    hash::format_hash,
+    marble::{MarbleKind, P0_LEGACY},
+};
 use serde::Serialize;
 
 use crate::SimClock;
@@ -32,12 +37,15 @@ pub enum Scenario {
     /// The P0 ramp tray with one standard marble, restarted every 10 s.
     #[default]
     Ramp,
+    /// Look-dev close-up (P1-T6): one marble at rest on the tray floor under a close camera.
+    Closeup,
 }
 
 impl Scenario {
     pub fn parse(s: &str) -> Option<Self> {
         match s {
             "ramp" => Some(Self::Ramp),
+            "closeup" => Some(Self::Closeup),
             _ => None,
         }
     }
@@ -45,12 +53,17 @@ impl Scenario {
     pub fn name(self) -> &'static str {
         match self {
             Self::Ramp => "ramp",
+            Self::Closeup => "closeup",
         }
     }
 
-    pub fn build(self) -> Sim {
-        match self {
-            Self::Ramp => Sim::ramp_scene(),
+    /// The scenario's sim. `marble: None` keeps the P0 legacy marble, so `ramp` stays the golden
+    /// run; `Some(kind)` uses that type's physical table (P1-T6).
+    pub fn build(self, marble: Option<MarbleKind>) -> Sim {
+        match (self, marble) {
+            (Self::Ramp, None) => Sim::ramp_scene(),
+            (Self::Ramp, Some(k)) => Sim::ramp_scene_with(k.spec()),
+            (Self::Closeup, m) => Sim::closeup_scene(m.map_or(P0_LEGACY, MarbleKind::spec)),
         }
     }
 }
@@ -88,6 +101,7 @@ impl CameraChoice {
         match (self, scenario) {
             (Self::Overview, _) => Cues::overview(),
             (_, Scenario::Ramp) => Cues::ramp(),
+            (_, Scenario::Closeup) => Cues::closeup(),
         }
     }
 }
@@ -102,6 +116,8 @@ pub struct AgentOpts {
     /// Recorded and reported; no P0 scenario consumes it yet (procgen arrives in P3).
     pub seed: u64,
     pub quality: Quality,
+    /// Marble type (`--marble`). `None` is the P0 legacy marble (golden physics, cat's eye look).
+    pub marble: Option<MarbleKind>,
     pub dump_state: bool,
     pub camera: CameraChoice,
     /// Post overrides (`--taa`, `--dof`, `--aperture`, `--tonemap`) for look-dev and the shots test.
@@ -122,6 +138,7 @@ impl Default for AgentOpts {
             scenario: Scenario::Ramp,
             seed: 0,
             quality: Quality::Medium,
+            marble: None,
             dump_state: false,
             camera: CameraChoice::Director,
             post: PostOverrides::default(),
@@ -162,7 +179,7 @@ impl AgentOpts {
                 "scenario" => {
                     let v = need(value)?;
                     o.scenario = Scenario::parse(&v)
-                        .ok_or_else(|| format!("scenario: unknown {v:?} (known: ramp)"))?;
+                        .ok_or_else(|| format!("scenario: unknown {v:?} (known: ramp, closeup)"))?;
                 }
                 "seed" => {
                     let v = need(value)?;
@@ -205,6 +222,13 @@ impl AgentOpts {
                         v.parse()
                             .map_err(|_| format!("screenshot-tick: expected a u64, got {v:?}"))?,
                     );
+                }
+                "marble" => {
+                    let v = need(value)?;
+                    o.marble =
+                        Some(MarbleKind::parse(&v).ok_or_else(|| {
+                            format!("marble: unknown {v:?} (cats-eye|glazed|steel)")
+                        })?);
                 }
                 "dump-state" => o.dump_state = parse_bool(&key, value.as_deref())?,
                 _ if strict => return Err(format!("unknown flag --{key}")),
@@ -309,6 +333,8 @@ struct DiagState<'a> {
     track_run: Option<TrackRunDiag>,
     seed: u64,
     quality: &'static str,
+    /// Marble type; `"legacy"` is the P0 marble the golden run uses.
+    marble: &'static str,
     screenshot: &'a ShotState,
     camera: &'a CameraDiag,
     shot_camera: Option<&'a CameraDiag>,
@@ -352,6 +378,7 @@ fn diag<'a>(
         }),
         seed: opts.seed,
         quality: opts.quality.name(),
+        marble: opts.marble.map_or("legacy", MarbleKind::name),
         screenshot: &rt.shot,
         camera,
         shot_camera: rt.shot_camera.as_ref(),
@@ -412,6 +439,7 @@ impl Plugin for AgentPlugin {
             exiting: false,
         })
         .insert_resource(opts.quality)
+        .insert_resource(MarbleLook(opts.marble.unwrap_or_default()))
         .insert_resource(opts)
         .add_systems(
             Last,
@@ -602,7 +630,7 @@ mod tests {
     fn every_flag_parses_in_both_spellings() {
         let o = args(
             "--screenshot out/a.png --screenshot-after=1.5 --exit-after 4 --scenario ramp \
-             --seed=42 --quality low --dump-state",
+             --seed=42 --quality low --marble steel --dump-state",
         )
         .unwrap();
         assert_eq!(o.screenshot.as_deref(), Some("out/a.png"));
@@ -611,6 +639,7 @@ mod tests {
         assert_eq!(o.scenario, Scenario::Ramp);
         assert_eq!(o.seed, 42);
         assert_eq!(o.quality, Quality::Low);
+        assert_eq!(o.marble, Some(MarbleKind::Steel));
         assert!(o.dump_state);
     }
 
@@ -621,6 +650,7 @@ mod tests {
         assert!(args("--camera drone").is_err());
         assert!(args("--aperture 0").is_err());
         assert!(args("--tonemap neon").is_err());
+        assert!(args("--marble opal").is_err());
         assert!(args("--seed -1").is_err());
         assert!(args("--exit-after -2").is_err());
         assert!(args("--exit-after").is_err());
@@ -653,7 +683,7 @@ mod tests {
     #[test]
     fn query_matches_argv_and_ignores_unknown_keys() {
         let q = AgentOpts::from_query(
-            "?screenshot=a%2Fb.png&exit-after=4&seed=7&quality=high&dump-state&utm=x",
+            "?screenshot=a%2Fb.png&exit-after=4&seed=7&quality=high&marble=cats-eye&dump-state&utm=x",
             |s| s.replace("%2F", "/"),
         )
         .unwrap();
@@ -661,6 +691,7 @@ mod tests {
         assert_eq!(q.exit_after, Some(4.0));
         assert_eq!(q.seed, 7);
         assert_eq!(q.quality, Quality::High);
+        assert_eq!(q.marble, Some(MarbleKind::CatsEye));
         assert!(q.dump_state);
         assert!(
             !AgentOpts::from_query("?dump-state=0", str::to_owned)

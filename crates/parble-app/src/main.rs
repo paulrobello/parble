@@ -15,7 +15,7 @@ use parble_render::{
     MarbleFrame, ParbleRenderPlugin,
     camera::{self, DirectorClock, DirectorPlugin},
 };
-use parble_sim::{DT, golden::RAMP_10S_TICKS, track_run::TrackRun};
+use parble_sim::{DT, golden::RAMP_10S_TICKS, marble::MarbleKind, track_run::TrackRun};
 use persist::{After, Tracks};
 
 /// At most this many ticks per frame (50 ms of sim time); a longer stall drops the backlog instead
@@ -30,6 +30,8 @@ struct SimClock {
     scenario: Scenario,
     /// The `.parble` track loaded over the bridge; when set it replaces `scenario`.
     tracks: Tracks,
+    /// Marble type (`--marble`); `None` is the P0 legacy marble. A loaded track ignores it.
+    marble: Option<MarbleKind>,
     /// Unsimulated wall time, seconds.
     acc: f64,
     /// Completed runs.
@@ -64,9 +66,10 @@ fn main() {
             cues: opts.camera.cues(opts.scenario),
         })
         .insert_resource(SimClock {
-            sim: TrackRun::from_sim(opts.scenario.build()),
+            sim: TrackRun::from_sim(opts.scenario.build(opts.marble)),
             scenario: opts.scenario,
             tracks: Tracks::default(),
+            marble: opts.marble,
             acc: 0.0,
             runs: 0,
             last_run_hash: None,
@@ -175,7 +178,7 @@ impl SimClock {
     fn build_run(&self) -> TrackRun {
         match &self.tracks.loaded {
             Some(f) => TrackRun::new(&f.track),
-            None => TrackRun::from_sim(self.scenario.build()),
+            None => TrackRun::from_sim(self.scenario.build(self.marble)),
         }
     }
 

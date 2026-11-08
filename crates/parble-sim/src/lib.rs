@@ -17,6 +17,7 @@
 
 pub mod golden;
 pub mod hash;
+pub mod marble;
 pub mod scene;
 pub mod track_run;
 
@@ -59,7 +60,7 @@ impl Sim {
     /// An empty world: 240 Hz, cell length unit, gravity −9.81 m/s² on Y.
     pub fn empty() -> Self {
         let mut world = PhysicsWorld::new();
-        world.gravity = Vector::new(0.0, -9.81, 0.0);
+        world.gravity = Vector::new(0.0, -marble::G, 0.0);
         world.integration_parameters.dt = DT;
         world.integration_parameters.length_unit = length_unit();
         Self {
@@ -70,11 +71,32 @@ impl Sim {
         }
     }
 
-    /// The P0 scene: one standard glass marble at the top of the tray ramp.
+    /// The P0 scene: one marble with the [`marble::P0_LEGACY`] parameters at the top of the tray
+    /// ramp. This is the golden run (`tests/golden/ramp_10s.hash`).
     pub fn ramp_scene() -> Self {
+        Self::ramp_scene_with(marble::P0_LEGACY)
+    }
+
+    /// The P0 tray ramp with one marble of the given spec (P1-T6 `--marble`).
+    pub fn ramp_scene_with(spec: marble::MarbleSpec) -> Self {
         let mut sim = Self::empty();
         sim.world.colliders.insert(scene::tray_collider());
-        let (body, collider) = scene::standard_marble(scene::marble_spawn_m());
+        let (body, collider) = spec.build(scene::marble_spawn_m());
+        let handle = sim.world.bodies.insert(body);
+        sim.world
+            .colliders
+            .insert_with_parent(collider, handle, &mut sim.world.bodies);
+        sim.marbles.push(handle);
+        sim.sample();
+        sim
+    }
+
+    /// Look-dev close-up (P1-T6): the tray with one marble of the given spec resting on the flat
+    /// floor at [`scene::closeup_marble_m`], so a fixed close camera can frame it.
+    pub fn closeup_scene(spec: marble::MarbleSpec) -> Self {
+        let mut sim = Self::empty();
+        sim.world.colliders.insert(scene::tray_collider());
+        let (body, collider) = spec.build(scene::closeup_marble_m(spec.radius_m));
         let handle = sim.world.bodies.insert(body);
         sim.world
             .colliders

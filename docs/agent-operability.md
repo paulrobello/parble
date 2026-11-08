@@ -9,9 +9,10 @@ parble can be launched, observed and stopped from a script, on native and on the
 | `--screenshot <path>` | `screenshot=<name>` | off | Capture the primary window once. Natively the PNG is written to `<path>` and parent directories are created. On the web the browser downloads `<name>`. |
 | `--screenshot-after <s>` | `screenshot-after=<s>` | `3` | Seconds of real time after startup before the capture. The first frames show only the backdrop while pipelines compile, so stay at 3 s or more. |
 | `--exit-after <s>` | `exit-after=<s>` | off | Exit after `<s>` seconds of real time. If a screenshot is still pending, the app waits for it, up to 10 s longer. |
-| `--scenario <name>` | `scenario=<name>` | `ramp` | Scene to load. P0 has only `ramp`, the tray ramp with one standard marble, which restarts every 10 s. |
+| `--scenario <name>` | `scenario=<name>` | `ramp` | Scene to load. `ramp` is the tray ramp with one marble, restarted every 10 s. `closeup` (P1-T6) rests one marble on the tray floor under a close fixed camera, for judging marble materials. |
+| `--marble <type>` | `marble=<type>` | legacy | Marble type (P1-T6, [marbles.md](marbles.md)): `cats-eye`, `glazed` or `steel`, each with its real physical values and its own look. Without it the scene uses the P0 legacy marble (golden physics, cat's eye look), so `ramp` still reproduces the golden hash. |
 | `--seed <u64>` | `seed=<u64>` | `0` | Recorded and reported. No P0 scenario uses it yet. Procedural tracks consume it from P3. |
-| `--quality <tier>` | `quality=<tier>` | `medium` | `low`, `medium`, `high` or `ultra`. Per-tier AA (MSAA or TAA), SSAO, bloom, DoF and shadows are in `docs/adr/0001-post-stack-and-tiers.md`. |
+| `--quality <tier>` | `quality=<tier>` | `medium` | `low`, `medium`, `high` or `ultra`. Per-tier AA (MSAA or TAA), SSAO, bloom, DoF and shadows are in `docs/adr/0001-post-stack-and-tiers.md`. The cat's eye uses the fallback vane shader on `low` (16 march steps) and `medium` (32), and screen-space specular transmission on `high` and `ultra`. |
 | `--camera <c>` | `camera=<c>` | `director` | `director`: the follow-marble director with the scenario's cued cuts. `orbit`: the editor orbit camera (left drag, wheel). `overview`: the fixed P0 top-down view. `C` toggles director and orbit. |
 | `--taa <0\|1>`, `--dof <0\|1>`, `--aperture <f>`, `--tonemap <name>` | same keys | tier | Look-dev and test overrides of the tier's post stack. `tonemap`: `tony`, `agx`, `aces`, `filmic`, `sbdt`, `reinhard`. |
 | `--lockstep-after <s>` | `lockstep-after=<s>` | off | Hold the sim at tick 0 for `<s>` real seconds, then advance exactly 4 ticks (1/60 s) per frame, so a frame shows the same state on every run. The run hash is unchanged. |
@@ -49,6 +50,7 @@ The web build replaces `window.__parble` every frame. `--dump-state` prints the 
   "trackRun": null,
   "seed": 0,
   "quality": "medium",
+  "marble": "legacy",
   "screenshot": {
     "state": "none"
   },
@@ -64,6 +66,7 @@ The web build replaces `window.__parble` every frame. `--dump-state` prints the 
 - `marbles`: one entry per marble in spawn order. Positions are in metres, rotation is a quaternion `[x, y, z, w]`, and `linvel` is in m/s.
 - `track`: the metadata name of the `.parble` track loaded over the bridge (`loadTrack`), or `null`. A loaded track replaces the scenario in the live sim and its 10 s restarts.
 - `trackRun`: the last bridge `runTrack`, as `{ "ticks": 2400, "hash": "…" }`, or `null`. The run is headless from tick 0, so its hash does not depend on frame timing. `web/ui/src/parble-fixtures.json` records the expected `runHash` of every valid fixture track; `make web-e2e` checks it in the browser (`e2e/tests/persistence.spec.mjs`).
+- `marble`: the `--marble` type, or `legacy` for the P0 marble.
 - `screenshot`: `state` is one of `none`, `pending`, `capturing`, `done` (with `lit`, `colors` and `ok`), or `failed` (with `error`).
 - `camera`: the main camera this frame: `mode`, `shot`, `cuts`, `eye`, the marble's screen position over the last frames (`marblePx`, physical pixels, newest first), `marbleRadiusPx`, and `post`, which holds the post components the live camera carries (`msaa`, `taa`, `ssao`, `bloom`, `dof`, `aperture`, `focusM`, `tonemapping`).
 - `shotCamera`: the same object captured on the screenshot frame.
@@ -78,7 +81,9 @@ make run-shot                        # native: PNG to target/shots/run-shot.png,
 make run-shot SHOT=docs/shots/x.png  # another path
 make run-diag                        # native: run 3 s, print the state JSON, exit
 make shots-p1t7                      # native: per-tier shots, TAA ghost check, DoF side-by-side (P1-T7)
-make web-e2e                         # release build, then the Playwright suites (smoke, persistence) in GPU Chromium on 5311
+make marble-shots                    # native: closeup PNG per marble type and tier to target/shots/marbles (P1-T6)
+make web-e2e                         # release build, then the Playwright suites (smoke, persistence, marbles) in GPU Chromium on 5311
+make web-marbles                     # the marbles spec alone against an existing dist/ (P1-T6)
 make web-smoke                       # the P0-T5 single-script smoke (random port)
 ```
 

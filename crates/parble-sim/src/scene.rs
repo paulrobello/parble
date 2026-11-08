@@ -129,17 +129,13 @@ pub fn marble_spawn_m() -> Vector {
     Vector::new(x, surface_y + 1.25 * r, 0.0)
 }
 
-/// A standard 16 mm glass marble body (CCD on, never sleeps) and its collider.
+/// Resting point of the close-up marble: on the flat floor, 4 cells past the ramp foot.
+pub fn closeup_marble_m(radius: f32) -> Vector {
+    Vector::new(ramp_run_m() + 4.0 * cell_m(), radius, 0.0)
+}
+
+/// A standard 16 mm glass marble body (CCD on, never sleeps) and its collider, with the
+/// [`crate::marble::P0_LEGACY`] parameters.
 pub fn standard_marble(at: Vector) -> (RigidBody, Collider) {
-    let body = RigidBodyBuilder::dynamic()
-        .translation(at)
-        .ccd_enabled(true)
-        .can_sleep(false)
-        .build();
-    let collider = ColliderBuilder::ball(standard_marble_radius_m())
-        .density(GLASS_DENSITY)
-        .friction(GLASS_FRICTION)
-        .restitution(GLASS_RESTITUTION)
-        .build();
-    (body, collider)
+    crate::marble::P0_LEGACY.build(at)
 }
