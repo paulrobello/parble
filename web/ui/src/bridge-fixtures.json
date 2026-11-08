@@ -1,17 +1,98 @@
 {
   "about": "One example of every bridge command and event, in declaration order. Checked by crates/parble-app/src/bridge.rs (cargo test) and web/ui/test/bridge.test.ts (Vitest); a variant added on one side only fails both.",
   "protocol": 1,
-  "commands": [{ "type": "ping", "id": 42 }],
+  "commands": [
+    {
+      "type": "ping",
+      "id": 42
+    },
+    {
+      "type": "loadTrack",
+      "json": "{\"format\":\"parble\"}"
+    },
+    {
+      "type": "runTrack",
+      "ticks": 2400
+    },
+    {
+      "type": "exportTrack"
+    }
+  ],
   "events": [
-    { "type": "ready", "protocol": 1 },
-    { "type": "frame", "tick": 2400, "fps": 59.5 },
-    { "type": "pong", "id": 42 }
+    {
+      "type": "ready",
+      "protocol": 1
+    },
+    {
+      "type": "frame",
+      "tick": 2400,
+      "fps": 59.5
+    },
+    {
+      "type": "pong",
+      "id": 42
+    },
+    {
+      "type": "trackLoaded",
+      "name": "Round-trip demo",
+      "schema": 1,
+      "placements": 5,
+      "marbles": 4
+    },
+    {
+      "type": "runFinished",
+      "ticks": 2400,
+      "hash": "0c9206fc016d9b17"
+    },
+    {
+      "type": "trackExported",
+      "name": "Round-trip demo",
+      "json": "{}\n"
+    },
+    {
+      "type": "bridgeError",
+      "command": "runTrack",
+      "message": "no track loaded"
+    }
   ],
   "rejectedCommands": [
-    { "type": "pong", "id": 1 },
-    { "type": "ping" },
-    { "type": "ping", "id": -1 },
-    { "type": "ping", "id": 1, "extra": true },
-    { "id": 1 }
+    {
+      "type": "pong",
+      "id": 1
+    },
+    {
+      "type": "ping"
+    },
+    {
+      "type": "ping",
+      "id": -1
+    },
+    {
+      "type": "ping",
+      "id": 1,
+      "extra": true
+    },
+    {
+      "id": 1
+    },
+    {
+      "type": "loadTrack"
+    },
+    {
+      "type": "loadTrack",
+      "json": 5
+    },
+    {
+      "type": "runTrack",
+      "ticks": -1
+    },
+    {
+      "type": "runTrack",
+      "ticks": 1.5
+    },
+    {
+      "type": "exportTrack",
+      "now": true
+    }
   ]
 }

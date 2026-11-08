@@ -41,6 +41,8 @@ The web build replaces `window.__parble` every frame. `--dump-state` prints the 
   "lastRunHash": null,
   "marbles": [{"position": [0.34963298, 0.007915289, -1.3966178e-07], "rotation": [1.4082439e-06, 3.885606e-08, 0.36115447, -0.932506], "linvel": [0.25444952, 0.0, -1.9141713e-07]}],
   "scenario": "ramp",
+  "track": null,
+  "trackRun": null,
   "seed": 0,
   "quality": "medium",
   "screenshot": {
@@ -56,6 +58,8 @@ The web build replaces `window.__parble` every frame. `--dump-state` prints the 
 - `hash`: the trajectory hash of the current run so far, as 16 hex digits. It is a string because a `u64` does not fit a JS number.
 - `lastRunHash`: the hash of the last completed run. A run always stops at exactly 2,400 ticks, so for `ramp` this equals the golden hash in `crates/parble-sim/tests/golden/ramp_10s.hash`.
 - `marbles`: one entry per marble in spawn order. Positions are in metres, rotation is a quaternion `[x, y, z, w]`, and `linvel` is in m/s.
+- `track`: the metadata name of the `.parble` track loaded over the bridge (`loadTrack`), or `null`. A loaded track replaces the scenario in the live sim and its 10 s restarts.
+- `trackRun`: the last bridge `runTrack`, as `{ "ticks": 2400, "hash": "…" }`, or `null`. The run is headless from tick 0, so its hash does not depend on frame timing. `web/ui/src/parble-fixtures.json` records the expected `runHash` of every valid fixture track; `make web-e2e` checks it in the browser (`e2e/tests/persistence.spec.mjs`).
 - `screenshot`: `state` is one of `none`, `pending`, `capturing`, `done` (with `lit`, `colors` and `ok`), or `failed` (with `error`).
 - `exited`: set when auto-exit fires.
 
@@ -67,7 +71,7 @@ All timing (screenshot, exit, fps) is real time in the app layer. The sim never 
 make run-shot                        # native: PNG to target/shots/run-shot.png, then exit (non-zero unless lit)
 make run-shot SHOT=docs/shots/x.png  # another path
 make run-diag                        # native: run 3 s, print the state JSON, exit
-make web-e2e                         # release build, then the Playwright smoke in GPU Chromium on 5311
+make web-e2e                         # release build, then the Playwright suites (smoke, persistence) in GPU Chromium on 5311
 make web-smoke                       # the P0-T5 single-script smoke (random port)
 ```
 

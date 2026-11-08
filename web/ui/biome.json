@@ -1,7 +1,16 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["src/**", "test/**", "*.ts", "*.json", "!src/bridge-fixtures.json", "!dist", "!node_modules"]
+    "includes": [
+      "src/**",
+      "test/**",
+      "*.ts",
+      "*.json",
+      "!src/bridge-fixtures.json",
+      "!src/parble-fixtures.json",
+      "!dist",
+      "!node_modules"
+    ]
   },
   "formatter": {
     "indentStyle": "space",

@@ -6,12 +6,14 @@
 
 mod agent;
 mod bridge;
+mod persist;
 
 use agent::{AgentOpts, AgentPlugin, Scenario};
 use bevy::prelude::*;
 use bridge::{Command, Event};
 use parble_render::{MarbleFrame, ParbleRenderPlugin};
-use parble_sim::{DT, Sim, golden::RAMP_10S_TICKS, scene};
+use parble_sim::{DT, golden::RAMP_10S_TICKS, scene, track_run::TrackRun};
+use persist::{After, Tracks};
 
 /// At most this many ticks per frame (50 ms of sim time); a longer stall drops the backlog instead
 /// of spiralling.
@@ -19,8 +21,10 @@ const MAX_TICKS_PER_FRAME: u32 = 12;
 
 #[derive(Resource)]
 struct SimClock {
-    sim: Sim,
+    sim: TrackRun,
     scenario: Scenario,
+    /// The `.parble` track loaded over the bridge; when set it replaces `scenario`.
+    tracks: Tracks,
     /// Unsimulated wall time, seconds.
     acc: f64,
     /// Completed runs.
@@ -45,8 +49,9 @@ fn main() {
         .add_plugins(ParbleRenderPlugin)
         .add_plugins(AgentPlugin(opts.clone()))
         .insert_resource(SimClock {
-            sim: opts.scenario.build(),
+            sim: TrackRun::from_sim(opts.scenario.build()),
             scenario: opts.scenario,
+            tracks: Tracks::default(),
             acc: 0.0,
             runs: 0,
             last_run_hash: None,
@@ -107,7 +112,7 @@ fn advance_sim(time: Res<Time>, mut clock: ResMut<SimClock>, mut frame: ResMut<M
         if clock.sim.tick_count() >= u64::from(RAMP_10S_TICKS) {
             clock.last_run_hash = Some(clock.sim.trajectory_hash());
             clock.runs += 1;
-            clock.sim = clock.scenario.build();
+            clock.sim = clock.build_run();
             frame.curr = clock.sim.marbles();
         }
         let ticks = cap_to_run(ticks, clock.sim.tick_count());
@@ -129,11 +134,46 @@ fn announce_bridge() {
     });
 }
 
-/// Answers the commands the overlay posted and publishes this frame's tick and smoothed fps.
-fn pump_bridge(time: Res<Time>, clock: Res<SimClock>, mut fps: Local<f32>) {
+impl SimClock {
+    /// A fresh run of the loaded track, or of the scenario when none is loaded.
+    fn build_run(&self) -> TrackRun {
+        match &self.tracks.loaded {
+            Some(f) => TrackRun::new(&f.track),
+            None => TrackRun::from_sim(self.scenario.build()),
+        }
+    }
+
+    /// Start the live sim over at tick 0 of [`Self::build_run`].
+    fn restart(&mut self, frame: &mut MarbleFrame) {
+        self.sim = self.build_run();
+        self.acc = 0.0;
+        self.runs = 0;
+        self.last_run_hash = None;
+        let now = self.sim.marbles();
+        frame.prev = now.clone();
+        frame.curr = now;
+        frame.alpha = 0.0;
+    }
+}
+
+/// Answers the commands the overlay posted and publishes this frame's tick and smoothed fps. Runs
+/// after [`advance_sim`], so commands that replace the sim apply between ticks.
+fn pump_bridge(
+    time: Res<Time>,
+    mut clock: ResMut<SimClock>,
+    mut frame: ResMut<MarbleFrame>,
+    mut fps: Local<f32>,
+) {
     for cmd in bridge::take_commands() {
-        match cmd {
-            Command::Ping { id } => bridge::push_event(Event::Pong { id }),
+        if let Command::Ping { id } = cmd {
+            bridge::push_event(Event::Pong { id });
+            continue;
+        }
+        if let Some((event, after)) = clock.tracks.apply(cmd) {
+            if after == After::Restart {
+                clock.restart(&mut frame);
+            }
+            bridge::push_event(event);
         }
     }
     let dt = time.delta_secs();
@@ -154,6 +194,7 @@ fn pump_bridge(time: Res<Time>, clock: Res<SimClock>, mut fps: Local<f32>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use parble_sim::Sim;
 
     #[test]
     fn plan_ticks_keeps_the_sub_tick_remainder() {

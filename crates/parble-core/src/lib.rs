@@ -6,6 +6,7 @@
 pub mod catalog;
 pub mod contract;
 pub mod edit;
+pub mod file;
 pub mod grid;
 pub mod piece;
 pub mod port;
@@ -16,6 +17,7 @@ pub mod validate;
 pub use catalog::{MapCatalog, PieceCatalog};
 pub use contract::KIT_CONTRACT_VERSION;
 pub use edit::{EditCommand, EditError, Editor, Selection};
+pub use file::{FileError, MechanismState, Metadata, ParbleFile};
 pub use grid::{CellCoord, InvalidYaw, Mirror, Orientation, PortFace, Yaw4};
 pub use piece::{InvalidPieceId, PieceDef, PieceDefError, PieceId};
 pub use port::{InvalidLevel, Port, PortClass, PortError, PortFlow, PortLevel};

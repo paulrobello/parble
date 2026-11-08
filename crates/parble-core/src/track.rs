@@ -18,6 +18,7 @@ pub type MechConfig = BTreeMap<String, i64>;
 
 /// One piece placed on the grid: its anchor cell and orientation (contract §9 rule 1).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Placement {
     pub piece: PieceId,
     pub anchor: CellCoord,
@@ -66,16 +67,42 @@ pub enum MarbleSize {
 }
 
 /// How the hopper releases its queue. Intervals are in sim ticks (no wall-clock input).
+///
+/// Deserialized through [`RawRelease`]: serde's internally tagged unit variants ignore extra
+/// fields, and a `.parble` file must refuse `{"mode": "one", "ticks": 5}`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "mode", rename_all = "lowercase")]
+#[serde(tag = "mode", rename_all = "lowercase", try_from = "RawRelease")]
 pub enum ReleaseMode {
     One,
     All,
     Interval { ticks: u32 },
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawRelease {
+    mode: String,
+    ticks: Option<u32>,
+}
+
+impl TryFrom<RawRelease> for ReleaseMode {
+    type Error = String;
+
+    fn try_from(r: RawRelease) -> Result<Self, String> {
+        match (r.mode.as_str(), r.ticks) {
+            ("one", None) => Ok(Self::One),
+            ("all", None) => Ok(Self::All),
+            ("interval", Some(ticks)) => Ok(Self::Interval { ticks }),
+            ("one" | "all", Some(_)) => Err(format!("release mode {:?} takes no ticks", r.mode)),
+            ("interval", None) => Err("release mode \"interval\" needs ticks".into()),
+            (m, _) => Err(format!("unknown release mode {m:?}")),
+        }
+    }
+}
+
 /// Hopper configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct HopperConfig {
     /// Index into [`Track::placements`] of the hopper piece, if one is placed.
     pub placement: Option<u32>,

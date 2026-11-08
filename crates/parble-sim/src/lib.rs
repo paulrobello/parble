@@ -18,6 +18,7 @@
 pub mod golden;
 pub mod hash;
 pub mod scene;
+pub mod track_run;
 
 use hash::{Fnv1a64, POSITION_QUANTA_PER_M, VELOCITY_QUANTA_PER_M_PER_S, quantize};
 use rapier3d::prelude::*;

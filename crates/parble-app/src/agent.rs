@@ -194,6 +194,13 @@ struct MarbleDiag {
     linvel: [f32; 3],
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TrackRunDiag {
+    ticks: u32,
+    hash: String,
+}
+
 /// The `--dump-state` JSON and the `window.__parble` object.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -210,6 +217,10 @@ struct DiagState<'a> {
     last_run_hash: Option<String>,
     marbles: Vec<MarbleDiag>,
     scenario: &'static str,
+    /// Metadata name of the `.parble` track loaded over the bridge; it replaces the scenario.
+    track: Option<String>,
+    /// The last bridge `runTrack`: its tick count and trajectory hash.
+    track_run: Option<TrackRunDiag>,
     seed: u64,
     quality: &'static str,
     screenshot: &'a ShotState,
@@ -237,6 +248,15 @@ fn diag<'a>(clock: &SimClock, rt: &'a AgentRuntime, opts: &AgentOpts) -> DiagSta
             })
             .collect(),
         scenario: opts.scenario.name(),
+        track: clock
+            .tracks
+            .loaded
+            .as_ref()
+            .map(|f| f.metadata.name.clone()),
+        track_run: clock.tracks.last_run.map(|(ticks, hash)| TrackRunDiag {
+            ticks,
+            hash: format_hash(hash),
+        }),
         seed: opts.seed,
         quality: opts.quality.name(),
         screenshot: &rt.shot,

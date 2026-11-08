@@ -10,6 +10,7 @@ name = "parble"
 path = "src/main.rs"
 
 [dependencies]
+parble-core = { path = "../parble-core" }
 parble-render = { path = "../parble-render" }
 parble-sim = { path = "../parble-sim" }
 # `png`: --screenshot encodes the captured frame (a browser download on web).

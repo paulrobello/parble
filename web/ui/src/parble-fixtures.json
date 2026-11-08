@@ -1,0 +1,2868 @@
+{
+  "about": "Valid and rejected .parble files (schema v1). Checked by crates/parble-core/src/file.rs (cargo test) and web/ui/test/parble.test.ts (Vitest). runHash is the trajectory hash of a runTicks-tick run, checked natively by crates/parble-app/src/persist.rs and in the browser by e2e/tests/persistence.spec.mjs.",
+  "schema": 1,
+  "physics": 1,
+  "maxSafeInteger": 9007199254740991,
+  "runTicks": 2400,
+  "valid": [
+    {
+      "name": "demo",
+      "runHash": "52dce5e0877f1dd2",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "name": "empty",
+      "runHash": "34b5dc81860b762b",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 0,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [],
+          "release": {
+            "mode": "one"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Empty"
+        }
+      }
+    },
+    {
+      "name": "release-all",
+      "runHash": "a2a46781f1b51f86",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 9007199254740991,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [
+            "shooter",
+            "mini"
+          ],
+          "release": {
+            "mode": "all"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Release all at max seed"
+        }
+      }
+    }
+  ],
+  "rejected": [
+    {
+      "why": "format is not parble",
+      "file": {
+        "format": "marble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "format missing",
+      "file": {
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "schema newer than this build",
+      "file": {
+        "format": "parble",
+        "schema": 2,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "schema 0 has no migration",
+      "file": {
+        "format": "parble",
+        "schema": 0,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "schema is a string",
+      "file": {
+        "format": "parble",
+        "schema": "1",
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "unknown top-level field",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        },
+        "extra": true
+      }
+    },
+    {
+      "why": "metadata missing",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "why": "mechanisms missing",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "unknown placement field",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false,
+            "rot": 1
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "piece id outside the grammar",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "Hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "piece id longer than 48 characters",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "blk_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "yaw out of range",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 4,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "mirror not a bool",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": 0
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "anchor with two components",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "anchor not an integer",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              1.5,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "anchor beyond i32",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              2147483648,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "config value beyond 2^53 - 1",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 9007199254740992
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "negative seed",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": -1,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "seed beyond 2^53 - 1",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 9007199254740992,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "hopper placement out of range",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 5,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "unknown marble size",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "giant"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "release interval of 0 ticks",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 0
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "release one with an extra field",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "one",
+            "ticks": 5
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "unknown release mode",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "burst"
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "mechanism placement out of range",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 9,
+            "state": {}
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "mechanisms out of order",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 2,
+            "state": {}
+          },
+          {
+            "placement": 1,
+            "state": {}
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "mechanism state beyond 2^53 - 1",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": -9007199254740992
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "unknown metadata field",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "Round-trip demo",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble",
+          "rating": 5
+        }
+      }
+    },
+    {
+      "why": "name longer than 120 characters",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 7,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              4,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_toggle",
+            "anchor": [
+              1,
+              3,
+              0
+            ],
+            "yaw": 1,
+            "mirror": true,
+            "config": {
+              "start": 1
+            }
+          },
+          {
+            "piece": "blk_straight",
+            "anchor": [
+              2,
+              2,
+              0
+            ],
+            "yaw": 2,
+            "mirror": false
+          },
+          {
+            "piece": "rail_curve_90",
+            "anchor": [
+              -3,
+              0,
+              5
+            ],
+            "yaw": 3,
+            "mirror": false
+          },
+          {
+            "piece": "blk_finish",
+            "anchor": [
+              4,
+              0,
+              0
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "mini",
+            "shooter",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 120
+          }
+        },
+        "mechanisms": [
+          {
+            "placement": 1,
+            "state": {
+              "position": 1
+            }
+          }
+        ],
+        "metadata": {
+          "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+          "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+          "author": "parble"
+        }
+      }
+    },
+    {
+      "why": "top level is an array",
+      "file": [
+        {
+          "format": "parble",
+          "schema": 1,
+          "physics": 1,
+          "kit_contract": 1,
+          "seed": 7,
+          "placements": [
+            {
+              "piece": "mech_hopper",
+              "anchor": [
+                0,
+                4,
+                0
+              ],
+              "yaw": 0,
+              "mirror": false
+            },
+            {
+              "piece": "mech_toggle",
+              "anchor": [
+                1,
+                3,
+                0
+              ],
+              "yaw": 1,
+              "mirror": true,
+              "config": {
+                "start": 1
+              }
+            },
+            {
+              "piece": "blk_straight",
+              "anchor": [
+                2,
+                2,
+                0
+              ],
+              "yaw": 2,
+              "mirror": false
+            },
+            {
+              "piece": "rail_curve_90",
+              "anchor": [
+                -3,
+                0,
+                5
+              ],
+              "yaw": 3,
+              "mirror": false
+            },
+            {
+              "piece": "blk_finish",
+              "anchor": [
+                4,
+                0,
+                0
+              ],
+              "yaw": 0,
+              "mirror": false
+            }
+          ],
+          "hopper": {
+            "placement": 0,
+            "queue": [
+              "standard",
+              "mini",
+              "shooter",
+              "standard"
+            ],
+            "release": {
+              "mode": "interval",
+              "ticks": 120
+            }
+          },
+          "mechanisms": [
+            {
+              "placement": 1,
+              "state": {
+                "position": 1
+              }
+            }
+          ],
+          "metadata": {
+            "name": "Round-trip demo",
+            "description": "P3-T3 persistence fixture: four marbles on a 120-tick interval.",
+            "author": "parble"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -5,7 +5,9 @@
 //! `web/ui/src/bridge-fixtures.json` holds one example of every command and event, and both this
 //! module's tests and the Vitest suite check it, so either side drifting fails a gate.
 //!
-//! Commands are UI input only: nothing posted here reaches the sim.
+//! Commands are applied by `pump_bridge`, which runs after the frame's last sim tick, so a command
+//! that replaces or runs the sim always lands on a tick boundary. Track commands (P3-T3) are handled
+//! in [`crate::persist`].
 
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
@@ -27,16 +29,27 @@ const MAX_EVENTS: usize = 256;
 pub enum Command {
     /// Answered with [`Event::Pong`] carrying the same id on the next frame.
     Ping { id: u32 },
+    /// Load `.parble` text (any supported schema; migrated on load) and restart the live sim on it.
+    /// Answered with [`Event::TrackLoaded`] or [`Event::BridgeError`].
+    LoadTrack { json: String },
+    /// Run the loaded track headless from tick 0 for `ticks` ticks and restart the live sim on it.
+    /// Answered with [`Event::RunFinished`] or [`Event::BridgeError`].
+    RunTrack { ticks: u32 },
+    /// Answered with [`Event::TrackExported`] carrying the loaded track's canonical file text.
+    ExportTrack {},
 }
 
 #[cfg(test)]
 impl Command {
     /// Every wire tag, in declaration order.
-    pub const TAGS: &'static [&'static str] = &["ping"];
+    pub const TAGS: &'static [&'static str] = &["ping", "loadTrack", "runTrack", "exportTrack"];
 
     pub fn tag(&self) -> &'static str {
         match self {
             Command::Ping { .. } => "ping",
+            Command::LoadTrack { .. } => "loadTrack",
+            Command::RunTrack { .. } => "runTrack",
+            Command::ExportTrack {} => "exportTrack",
         }
     }
 }
@@ -61,18 +74,50 @@ pub enum Event {
     Pong {
         id: u32,
     },
+    TrackLoaded {
+        name: String,
+        schema: u32,
+        placements: u32,
+        marbles: u32,
+    },
+    /// `hash` is the trajectory hash as 16 lowercase hex digits (a u64 does not fit a JS number).
+    RunFinished {
+        ticks: u32,
+        hash: String,
+    },
+    TrackExported {
+        name: String,
+        json: String,
+    },
+    /// A command that could not be applied, with the command's wire tag.
+    BridgeError {
+        command: String,
+        message: String,
+    },
 }
 
 #[cfg(test)]
 impl Event {
     /// Every wire tag, in declaration order.
-    pub const TAGS: &'static [&'static str] = &["ready", "frame", "pong"];
+    pub const TAGS: &'static [&'static str] = &[
+        "ready",
+        "frame",
+        "pong",
+        "trackLoaded",
+        "runFinished",
+        "trackExported",
+        "bridgeError",
+    ];
 
     pub fn tag(&self) -> &'static str {
         match self {
             Event::Ready { .. } => "ready",
             Event::Frame { .. } => "frame",
             Event::Pong { .. } => "pong",
+            Event::TrackLoaded { .. } => "trackLoaded",
+            Event::RunFinished { .. } => "runFinished",
+            Event::TrackExported { .. } => "trackExported",
+            Event::BridgeError { .. } => "bridgeError",
         }
     }
 }

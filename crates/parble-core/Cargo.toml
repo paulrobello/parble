@@ -8,10 +8,11 @@ publish.workspace = true
 [dependencies]
 rand_chacha = { workspace = true }
 serde = { workspace = true }
+# .parble files: migrations rewrite the raw JSON value before typed deserialization.
+serde_json = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }
-serde_json = { workspace = true }
 
 [lints]
 workspace = true

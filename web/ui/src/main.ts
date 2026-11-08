@@ -1,5 +1,7 @@
 import { Bridge, type WasmBindings } from "./bridge";
+import { mountFiles } from "./files";
 import { applyEvents, emptyHud, formatHud, mountHud } from "./hud";
+import { Library } from "./library";
 
 declare global {
   interface Window {
@@ -10,10 +12,15 @@ declare global {
 function start(bindings: WasmBindings): void {
   const bridge = new Bridge(new bindings.Bridge());
   const el = mountHud(document);
+  const library = "indexedDB" in window ? Library.open({ indexedDB: window.indexedDB }) : null;
+  library?.catch((err) => console.warn("track library unavailable", err));
+  const files = mountFiles(document, (cmd) => bridge.post(cmd), library);
   let state = emptyHud();
   let shown = "";
   const frame = (): void => {
-    state = applyEvents(state, bridge.drain());
+    const events = bridge.drain();
+    state = applyEvents(state, events);
+    files.handle(events);
     const text = formatHud(state);
     if (text !== shown) el.textContent = shown = text;
     requestAnimationFrame(frame);
