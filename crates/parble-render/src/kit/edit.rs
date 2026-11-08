@@ -263,8 +263,19 @@ fn apply_edits(
                     }
                     // The parts' parent slices with the piece; its children inherit.
                     let mats = &tex.materials[p.piece];
-                    let root = (KitLayer(p.cell.y), visible(slice, p.cell.y));
-                    spawn_parts(c, &kept, mats, p.piece, p.cell, v, t, p.mirror, root);
+                    let shown = visible(slice, p.cell.y);
+                    spawn_parts(
+                        c,
+                        &kept,
+                        mats,
+                        p.piece,
+                        p.cell,
+                        v,
+                        t,
+                        p.mirror,
+                        shown,
+                        KitLayer(p.cell.y),
+                    );
                 }
             })
             .id();

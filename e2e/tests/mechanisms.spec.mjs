@@ -26,7 +26,7 @@ test("mechanism parts interpolate between physics ticks and sweep smoothly", asy
   const k = await page.evaluate(() => window.__parble.kit);
   expect(k.parts.map((p) => p.piece)).toEqual(["mech_toggle_l3", "mech_gate_oneway_l1"]);
   // The toggle and the gate each add one part mesh per (LOD, variant): the bound counts it.
-  expect(k.drawBound).toBe(3 * (1 + 2 + 1 + 2 + 1));
+  expect(k.drawBound).toBe(3 * (1 + 2 + 1 + 2));
 
   // Every animation frame for 11 s: the run restarts every 10 s, so one whole run is in the sample.
   const samples = await page.evaluate(

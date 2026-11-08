@@ -611,6 +611,7 @@ fn spawn_parts(
     variant: usize,
     t: Transform,
     mirror: bool,
+    visibility: Visibility,
     root: impl Bundle,
 ) {
     let (Some(kits), Some(ranges)) = (kept.parts.get(piece), kept.ranges.as_ref()) else {
@@ -619,26 +620,25 @@ fn spawn_parts(
     if kits.is_empty() {
         return;
     }
-    c.spawn((t, Visibility::Inherited, root))
-        .with_children(|c| {
-            for (slot, k) in kits.iter().enumerate() {
-                let meshes = if mirror { &k.mirrored } else { &k.lods };
-                for (lod, range) in ranges.iter().enumerate() {
-                    c.spawn((
-                        KitPart {
-                            cell,
-                            piece,
-                            slot,
-                            lod: lod as u8,
-                        },
-                        Mesh3d(meshes[lod].clone()),
-                        MeshMaterial3d(materials[lod][variant].clone()),
-                        Transform::from_matrix(k.rest[lod]),
-                        range.clone(),
-                    ));
-                }
+    c.spawn((t, visibility, root)).with_children(|c| {
+        for (slot, k) in kits.iter().enumerate() {
+            let meshes = if mirror { &k.mirrored } else { &k.lods };
+            for (lod, range) in ranges.iter().enumerate() {
+                c.spawn((
+                    KitPart {
+                        cell,
+                        piece,
+                        slot,
+                        lod: lod as u8,
+                    },
+                    Mesh3d(meshes[lod].clone()),
+                    MeshMaterial3d(materials[lod][variant].clone()),
+                    Transform::from_matrix(k.rest[lod]),
+                    range.clone(),
+                ));
             }
-        });
+        }
+    });
 }
 
 #[derive(Resource, Default)]
@@ -809,7 +809,18 @@ fn spawn_kit(
                         ));
                     }
                     let mats = &tex.materials[p.piece];
-                    spawn_parts(c, &kept, mats, p.piece, p.cell, v, t, false, ());
+                    spawn_parts(
+                        c,
+                        &kept,
+                        mats,
+                        p.piece,
+                        p.cell,
+                        v,
+                        t,
+                        false,
+                        Visibility::Inherited,
+                        (),
+                    );
                 }
             });
     }
