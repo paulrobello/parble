@@ -419,8 +419,9 @@ fn redirect_exit_seam_metrics() {
     // shaft, bounces three times on the landing and crosses the exit seam in flight (279 mm/s
     // up, kick 0.40 in the seam window, measured 2026-11-07): that is the landing, not the seam.
     // The seam itself is measured with a marble already rolling on the tunnel floor. Logged, not
-    // gated: measured 2026-11-08 after the port face fix, `L3` upward 108.42 mm/s, kick 104.16
-    // against 15.15 / 24.25, so the tunnel exit still bumps and is open work.
+    // gated: measured 2026-11-08, `L3` upward 111.24 mm/s, kick 105.41 (`L2` 110.03, 104.96)
+    // against 15.15 / 24.25. The redirect still carries its exit port cap (kitblocks.py
+    // `_open_port_faces`), so its tunnel exit bumps and is open work.
     for level in [3_u8, 2] {
         let (p_lim, k_lim) = limits(level);
         let (u, k) = redirect_exit(level);
