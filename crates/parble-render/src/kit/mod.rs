@@ -21,7 +21,8 @@ pub mod family;
 pub mod glb;
 
 use std::{
-    collections::{BTreeSet, HashSet},
+    borrow::Cow,
+    collections::{BTreeSet, HashMap, HashSet},
     sync::{Arc, Mutex},
 };
 
@@ -166,20 +167,52 @@ pub fn variant_of(cell: IVec3) -> usize {
     ((cell_hash(cell) >> 16) % WOOD_SETS.len() as u32) as usize
 }
 
+/// The URL the web build fetches for site path `path` (`assets/...`): `path?v=<hash>` with the
+/// content hash `scripts/web/version-dist.mjs` gave the file, or `path` unchanged when it has none.
+pub fn versioned_url<'a>(path: &'a str, versions: &HashMap<String, String>) -> Cow<'a, str> {
+    match versions.get(path) {
+        Some(v) => Cow::Owned(format!("{path}?v={v}")),
+        None => Cow::Borrowed(path),
+    }
+}
+
 /// Registers the [`ASSET_SOURCE`] source. Add it before `DefaultPlugins` (Bevy reads asset sources
 /// when `AssetPlugin` builds).
-pub struct KitAssetSourcePlugin;
+#[derive(Default)]
+pub struct KitAssetSourcePlugin {
+    /// Site path → content hash (`window.__PARBLE_HASHES` on the web, empty natively). The web reader
+    /// appends `?v=<hash>` to every fetch, like the rest of the versioned site.
+    pub versions: HashMap<String, String>,
+}
 
 impl Plugin for KitAssetSourcePlugin {
     fn build(&self, app: &mut App) {
         #[cfg(not(target_arch = "wasm32"))]
-        let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../../assets");
-        #[cfg(target_arch = "wasm32")]
-        let root = "assets";
         app.register_asset_source(
             ASSET_SOURCE,
-            AssetSourceBuilder::platform_default(root, None),
+            AssetSourceBuilder::platform_default(
+                concat!(env!("CARGO_MANIFEST_DIR"), "/../../assets"),
+                None,
+            ),
         );
+        #[cfg(target_arch = "wasm32")]
+        {
+            use bevy::asset::io::wasm::HttpWasmAssetReader;
+            let versions = Arc::new(self.versions.clone());
+            if versions.is_empty() {
+                warn!("kit: no window.__PARBLE_HASHES, asset fetches are unversioned");
+            }
+            app.register_asset_source(
+                ASSET_SOURCE,
+                AssetSourceBuilder::new(move || {
+                    let v = versions.clone();
+                    Box::new(
+                        HttpWasmAssetReader::new("assets")
+                            .with_request_mapper(move |p| versioned_url(p, &v)),
+                    )
+                }),
+            );
+        }
     }
 }
 
@@ -354,6 +387,8 @@ pub struct TextureDiag {
     pub state: &'static str,
     /// `wgpu::TextureFormat` of the loaded image.
     pub format: Option<String>,
+    /// The asset server's load error when `state` is `failed`.
+    pub error: Option<String>,
 }
 
 /// Kit renderer state for the agent diag (`kit` in `--dump-state` and `window.__parble`).
@@ -607,18 +642,25 @@ fn update_diag(
     diag.textures = tex
         .images
         .iter()
-        .map(|(path, kind, h)| TextureDiag {
-            path: path.clone(),
-            kind,
-            state: match server.load_state(h) {
-                bevy::asset::LoadState::NotLoaded => "notLoaded",
-                bevy::asset::LoadState::Loading => "loading",
-                bevy::asset::LoadState::Loaded => "loaded",
-                bevy::asset::LoadState::Failed(_) => "failed",
-            },
-            format: images
-                .get(h)
-                .map(|i| format!("{:?}", i.texture_descriptor.format)),
+        .map(|(path, kind, h)| {
+            let load = server.load_state(h);
+            TextureDiag {
+                path: path.clone(),
+                kind,
+                state: match load {
+                    bevy::asset::LoadState::NotLoaded => "notLoaded",
+                    bevy::asset::LoadState::Loading => "loading",
+                    bevy::asset::LoadState::Loaded => "loaded",
+                    bevy::asset::LoadState::Failed(_) => "failed",
+                },
+                error: match load {
+                    bevy::asset::LoadState::Failed(e) => Some(e.to_string()),
+                    _ => None,
+                },
+                format: images
+                    .get(h)
+                    .map(|i| format!("{:?}", i.texture_descriptor.format)),
+            }
         })
         .collect();
 }
@@ -889,6 +931,23 @@ mod tests {
         assert!(
             !html.contains("rel=\"copy-dir\" href=\"assets/"),
             "assets ship per file"
+        );
+    }
+
+    #[test]
+    fn versioned_url_appends_the_content_hash_only_when_known() {
+        let map: HashMap<String, String> = fetchable_paths()
+            .into_iter()
+            .map(|p| (format!("assets/{p}"), "0123456789".to_owned()))
+            .collect();
+        for p in fetchable_paths() {
+            let site = format!("assets/{p}");
+            assert_eq!(versioned_url(&site, &map), format!("{site}?v=0123456789"));
+        }
+        assert_eq!(versioned_url("assets/other.png", &map), "assets/other.png");
+        assert_eq!(
+            versioned_url("assets/other.png", &HashMap::new()),
+            "assets/other.png"
         );
     }
 

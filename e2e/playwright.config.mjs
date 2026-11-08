@@ -23,7 +23,8 @@ export default defineConfig({
     launchOptions: { args: GPU_ARGS },
   },
   webServer: {
-    command: "python3 -m http.server 5311 --bind 127.0.0.1 --directory ../dist",
+    // Not `python3 -m http.server`: its backlog of 5 resets kit2000's burst of texture fetches.
+    command: "python3 static-server.py 5311 ../dist",
     url: "http://127.0.0.1:5311/",
     reuseExistingServer: false,
     timeout: 15_000,

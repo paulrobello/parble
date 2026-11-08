@@ -62,7 +62,9 @@ fn main() {
             bevy::window::WindowResolution::new(1280, 720).with_scale_factor_override(1.0);
     }
     let exit = App::new()
-        .add_plugins(parble_render::kit::KitAssetSourcePlugin)
+        .add_plugins(parble_render::kit::KitAssetSourcePlugin {
+            versions: agent::asset_versions(),
+        })
         .add_plugins(
             DefaultPlugins
                 .set(WindowPlugin {

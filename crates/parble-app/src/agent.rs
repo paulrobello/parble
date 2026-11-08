@@ -518,6 +518,33 @@ pub fn read_opts() -> AgentOpts {
     }
 }
 
+/// The site's content-hash map (`window.__PARBLE_HASHES`, inlined by scripts/web/version-dist.mjs),
+/// site path → hash, for versioning the wasm's asset fetches. Empty natively or when absent.
+pub fn asset_versions() -> std::collections::HashMap<String, String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        std::collections::HashMap::new()
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        use js_sys::{Array, JsString, Object, Reflect};
+        use wasm_bindgen::JsCast;
+        let Ok(map) = Reflect::get(&js_sys::global(), &JsString::from("__PARBLE_HASHES")) else {
+            return Default::default();
+        };
+        let Some(map) = map.dyn_ref::<Object>() else {
+            return Default::default();
+        };
+        Object::entries(map)
+            .iter()
+            .filter_map(|e| {
+                let e: Array = e.into();
+                Some((e.get(0).as_string()?, e.get(1).as_string()?))
+            })
+            .collect()
+    }
+}
+
 pub struct AgentPlugin(pub AgentOpts);
 
 impl Plugin for AgentPlugin {

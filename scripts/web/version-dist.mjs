@@ -8,8 +8,9 @@
 //   hud.css's version. Trunk's own hashed outputs (`<name>-<16 hex>.js`, `_bg.wasm`) are left alone.
 // - The map (site path -> hash, every file but index.html, CNAME and Trunk's outputs) is inlined into
 //   index.html as `window.__PARBLE_HASHES`, the first script in <head>, so it is as fresh as the HTML and
-//   costs no request. Asset fetches from the wasm and the HUD (web/ui) are to version from it once
-//   they exist. index.html itself is never versioned and must not be long-cached.
+//   costs no request. The wasm versions its `parble://` asset fetches from it (KitAssetSourcePlugin
+//   in crates/parble-render/src/kit, checked by e2e/tests/kit.spec.mjs); HUD (web/ui) fetches are to
+//   version from it once they exist. index.html itself is never versioned and must not be long-cached.
 // - The build id hashes the map, Trunk's hashed names and index.html (with the map script left out),
 //   so it changes exactly when the site's bytes do. It is inlined beside the map as
 //   `window.__PARBLE_BUILD` and written to version.json (`{"id":"<id>"}`), for a HUD to poll and offer

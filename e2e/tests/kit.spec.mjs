@@ -32,6 +32,11 @@ mkdirSync(SHOTS, { recursive: true });
 for (const tex of [null, "astc", "png"]) {
   test(`kit2000 ${tex ?? "auto"} family draws within the bound`, async ({ page }) => {
     const errors = watchErrors(page);
+    const assetUrls = [];
+    page.on("request", (r) => {
+      const u = new URL(r.url());
+      if (u.pathname.startsWith("/assets/")) assetUrls.push(u);
+    });
     await page.goto(`/?scenario=kit2000&quality=high${tex ? `&tex=${tex}` : ""}`);
     await page.waitForFunction(() => window.__parble?.ready === true, null, { timeout: 60_000 });
     // Draw counts lag the first frames, and the textures load asynchronously.
@@ -46,6 +51,17 @@ for (const tex of [null, "astc", "png"]) {
     await page.waitForTimeout(2_000);
     const k = await page.evaluate(() => window.__parble.kit);
     console.log(`kit ${tex ?? "auto"}: ${JSON.stringify({ family: k.family, deviceBc: k.deviceBc, deviceAstc: k.deviceAstc, textures: k.textures, draws: k.draws, drawBound: k.drawBound, chunks: k.chunks, pieces: k.pieces })}`);
+    // Every kit asset the wasm fetched carries the version-dist content hash of its file
+    // (scripts/web/version-dist.mjs, inlined as window.__PARBLE_HASHES), so a cache never serves stale
+    // bytes for a changed texture.
+    // A texture that failed to load drops its (type, LOD) out of the draw count; report why first.
+    expect(k.textures.filter((t) => t.state !== "loaded"), errors.join("\n")).toEqual([]);
+    const hashes = await page.evaluate(() => window.__PARBLE_HASHES);
+    expect(assetUrls.length).toBeGreaterThanOrEqual(k.textures.length);
+    const unversioned = assetUrls
+      .filter((u) => u.searchParams.get("v") !== hashes[u.pathname.slice(1)])
+      .map((u) => `${u.pathname}${u.search} (want v=${hashes[u.pathname.slice(1)]})`);
+    expect(unversioned).toEqual([]);
     expect(k.pieces).toBe(2000);
     expect(k.chunks).toBe(14);
     expect(k.draws.mainViews).toBe(1);
