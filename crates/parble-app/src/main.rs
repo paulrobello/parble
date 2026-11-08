@@ -11,13 +11,18 @@ mod persist;
 use agent::{AgentOpts, AgentPlugin, Scenario};
 use bevy::prelude::*;
 use bridge::{Command, Event};
-use parble_render::{MarbleFrame, ParbleRenderPlugin};
-use parble_sim::{DT, golden::RAMP_10S_TICKS, scene, track_run::TrackRun};
+use parble_render::{
+    MarbleFrame, ParbleRenderPlugin,
+    camera::{self, DirectorClock, DirectorPlugin},
+};
+use parble_sim::{DT, golden::RAMP_10S_TICKS, track_run::TrackRun};
 use persist::{After, Tracks};
 
 /// At most this many ticks per frame (50 ms of sim time); a longer stall drops the backlog instead
 /// of spiralling.
 const MAX_TICKS_PER_FRAME: u32 = 12;
+/// Ticks per frame in lockstep (`--lockstep-after`): 1/60 s.
+pub const LOCKSTEP_TICKS: u32 = 4;
 
 #[derive(Resource)]
 struct SimClock {
@@ -35,12 +40,18 @@ struct SimClock {
 
 fn main() {
     let opts = agent::read_opts();
-    let window = Window {
+    let mut window = Window {
         title: "Parble".into(),
         canvas: Some("#parble".into()),
         fit_canvas_to_parent: true,
         ..default()
     };
+    // Native screenshots are 1280x720 physical on any display, like the web e2e viewport: the DoF
+    // circle of confusion is in pixels, so a Retina 2x window would show a different blur.
+    if cfg!(not(target_arch = "wasm32")) && opts.screenshot.is_some() {
+        window.resolution =
+            bevy::window::WindowResolution::new(1280, 720).with_scale_factor_override(1.0);
+    }
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(window),
@@ -48,6 +59,10 @@ fn main() {
         }))
         .add_plugins(ParbleRenderPlugin)
         .add_plugins(AgentPlugin(opts.clone()))
+        .add_plugins(DirectorPlugin {
+            mode: opts.camera.mode(),
+            cues: opts.camera.cues(opts.scenario),
+        })
         .insert_resource(SimClock {
             sim: TrackRun::from_sim(opts.scenario.build()),
             scenario: opts.scenario,
@@ -62,19 +77,7 @@ fn main() {
 }
 
 fn spawn_camera(mut commands: Commands, opts: Res<AgentOpts>) {
-    let len = scene::tray_length_m();
-    let target = Vec3::new(len * 0.5, scene::ramp_height_m() * 0.35, 0.0);
-    commands.spawn((
-        Camera3d::default(),
-        opts.quality.msaa(),
-        Projection::Perspective(PerspectiveProjection {
-            fov: 35f32.to_radians(),
-            near: 0.005,
-            ..default()
-        }),
-        // Near top-down (~80°): the 60 mm walls hide the 28 mm channel from shallower angles.
-        Transform::from_xyz(len * 0.5, 0.80, 0.13).looking_at(target, Vec3::Y),
-    ));
+    camera::spawn_main_camera(&mut commands, opts.quality, &opts.post);
 }
 
 fn publish_initial(clock: Res<SimClock>, mut frame: ResMut<MarbleFrame>) {
@@ -105,8 +108,27 @@ fn cap_to_run(ticks: u32, tick_count: u64) -> u32 {
     ticks.min(u32::try_from(left).unwrap_or(u32::MAX))
 }
 
-fn advance_sim(time: Res<Time>, mut clock: ResMut<SimClock>, mut frame: ResMut<MarbleFrame>) {
-    let (ticks, rest) = plan_ticks(clock.acc, time.delta_secs_f64());
+/// Lockstep ticks for this frame: none while holding for `after` real seconds, then a fixed count.
+fn lockstep_ticks(real_elapsed: f64, after: f64) -> u32 {
+    if real_elapsed < after {
+        0
+    } else {
+        LOCKSTEP_TICKS
+    }
+}
+
+fn advance_sim(
+    time: Res<Time>,
+    real: Res<Time<Real>>,
+    opts: Res<AgentOpts>,
+    mut clock: ResMut<SimClock>,
+    mut frame: ResMut<MarbleFrame>,
+    mut director: ResMut<DirectorClock>,
+) {
+    let (ticks, rest) = match opts.lockstep_after {
+        Some(after) => (lockstep_ticks(real.elapsed_secs_f64(), after), 0.0),
+        None => plan_ticks(clock.acc, time.delta_secs_f64()),
+    };
     clock.acc = rest;
     if ticks > 0 {
         if clock.sim.tick_count() >= u64::from(RAMP_10S_TICKS) {
@@ -125,7 +147,21 @@ fn advance_sim(time: Res<Time>, mut clock: ResMut<SimClock>, mut frame: ResMut<M
         clock.sim.tick(1);
         frame.curr = clock.sim.marbles();
     }
-    frame.alpha = (clock.acc / f64::from(DT)) as f32;
+    frame.alpha = if opts.lockstep_after.is_some() {
+        // Show the state at exactly the current tick.
+        1.0
+    } else {
+        (clock.acc / f64::from(DT)) as f32
+    };
+    *director = DirectorClock {
+        tick: clock.sim.tick_count(),
+        run: clock.runs,
+        dt: if opts.lockstep_after.is_some() {
+            ticks as f32 * DT
+        } else {
+            time.delta_secs()
+        },
+    };
 }
 
 fn announce_bridge() {
@@ -218,9 +254,35 @@ mod tests {
     }
 
     #[test]
+    fn lockstep_holds_then_steps_a_fixed_count() {
+        assert_eq!(lockstep_ticks(1.0, 3.0), 0);
+        assert_eq!(lockstep_ticks(3.0, 3.0), LOCKSTEP_TICKS);
+        // 2,400 ticks is a whole number of lockstep frames, so a run still ends on the golden hash.
+        assert_eq!(RAMP_10S_TICKS % LOCKSTEP_TICKS, 0);
+    }
+
+    #[test]
     fn plan_ticks_drops_a_stall_backlog() {
         let (ticks, rest) = plan_ticks(0.0, 1.0);
         assert_eq!(ticks, MAX_TICKS_PER_FRAME);
         assert_eq!(rest, 0.0);
+    }
+
+    #[test]
+    fn trackside_cue_catches_the_marble_at_speed() {
+        // Peak speed is at the ramp foot; the trackside cut must still see ≥ 90 % of it.
+        let cue = parble_render::camera::RAMP_TRACKSIDE_TICK;
+        let mut sim = Sim::ramp_scene();
+        let (mut peak, mut at_cue) = (0f32, 0f32);
+        while sim.tick_count() < cue + 60 {
+            sim.tick(LOCKSTEP_TICKS);
+            let v = sim.marbles()[0].linvel;
+            let s = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
+            peak = peak.max(s);
+            if sim.tick_count() >= cue && at_cue == 0.0 {
+                at_cue = s;
+            }
+        }
+        assert!(at_cue >= 0.9 * peak, "speed at cue {at_cue} vs peak {peak}");
     }
 }

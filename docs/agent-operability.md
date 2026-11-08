@@ -11,7 +11,11 @@ parble can be launched, observed and stopped from a script, on native and on the
 | `--exit-after <s>` | `exit-after=<s>` | off | Exit after `<s>` seconds of real time. If a screenshot is still pending, the app waits for it, up to 10 s longer. |
 | `--scenario <name>` | `scenario=<name>` | `ramp` | Scene to load. P0 has only `ramp`, the tray ramp with one standard marble, which restarts every 10 s. |
 | `--seed <u64>` | `seed=<u64>` | `0` | Recorded and reported. No P0 scenario uses it yet. Procedural tracks consume it from P3. |
-| `--quality <tier>` | `quality=<tier>` | `medium` | `low`: no shadows and no MSAA. `medium`: a 2048² shadow map and 4× MSAA. `high`: a 4096² shadow map and 4× MSAA. |
+| `--quality <tier>` | `quality=<tier>` | `medium` | `low`, `medium`, `high` or `ultra`. Per-tier AA (MSAA or TAA), SSAO, bloom, DoF and shadows are in `docs/adr/0001-post-stack-and-tiers.md`. |
+| `--camera <c>` | `camera=<c>` | `director` | `director`: the follow-marble director with the scenario's cued cuts. `orbit`: the editor orbit camera (left drag, wheel). `overview`: the fixed P0 top-down view. `C` toggles director and orbit. |
+| `--taa <0\|1>`, `--dof <0\|1>`, `--aperture <f>`, `--tonemap <name>` | same keys | tier | Look-dev and test overrides of the tier's post stack. `tonemap`: `tony`, `agx`, `aces`, `filmic`, `sbdt`, `reinhard`. |
+| `--lockstep-after <s>` | `lockstep-after=<s>` | off | Hold the sim at tick 0 for `<s>` real seconds, then advance exactly 4 ticks (1/60 s) per frame, so a frame shows the same state on every run. The run hash is unchanged. |
+| `--screenshot-tick <n>` | `screenshot-tick=<n>` | off | Capture on the first frame at or past sim tick `<n>` instead of by time, then exit as soon as the PNG is written. Native captures with `--screenshot` use a 1280x720 window at scale factor 1. |
 | `--dump-state` | `dump-state` (or `=1`) | off | At auto-exit, print the state JSON. Natively it goes to stdout as one line. On the web it is logged to the console as `parble state: {...}`. |
 
 Native flags accept both `--key value` and `--key=value`. An unknown flag or a bad value prints an error and exits with code 2. Unknown query keys are ignored on the web. A bad query value logs an error and the app falls back to the defaults.
@@ -61,6 +65,8 @@ The web build replaces `window.__parble` every frame. `--dump-state` prints the 
 - `track`: the metadata name of the `.parble` track loaded over the bridge (`loadTrack`), or `null`. A loaded track replaces the scenario in the live sim and its 10 s restarts.
 - `trackRun`: the last bridge `runTrack`, as `{ "ticks": 2400, "hash": "…" }`, or `null`. The run is headless from tick 0, so its hash does not depend on frame timing. `web/ui/src/parble-fixtures.json` records the expected `runHash` of every valid fixture track; `make web-e2e` checks it in the browser (`e2e/tests/persistence.spec.mjs`).
 - `screenshot`: `state` is one of `none`, `pending`, `capturing`, `done` (with `lit`, `colors` and `ok`), or `failed` (with `error`).
+- `camera`: the main camera this frame: `mode`, `shot`, `cuts`, `eye`, the marble's screen position over the last frames (`marblePx`, physical pixels, newest first), `marbleRadiusPx`, and `post`, which holds the post components the live camera carries (`msaa`, `taa`, `ssao`, `bloom`, `dof`, `aperture`, `focusM`, `tonemapping`).
+- `shotCamera`: the same object captured on the screenshot frame.
 - `exited`: set when auto-exit fires.
 
 All timing (screenshot, exit, fps) is real time in the app layer. The sim never receives wall-clock input, so none of these switches can change a trajectory hash.
@@ -71,6 +77,7 @@ All timing (screenshot, exit, fps) is real time in the app layer. The sim never 
 make run-shot                        # native: PNG to target/shots/run-shot.png, then exit (non-zero unless lit)
 make run-shot SHOT=docs/shots/x.png  # another path
 make run-diag                        # native: run 3 s, print the state JSON, exit
+make shots-p1t7                      # native: per-tier shots, TAA ghost check, DoF side-by-side (P1-T7)
 make web-e2e                         # release build, then the Playwright suites (smoke, persistence) in GPU Chromium on 5311
 make web-smoke                       # the P0-T5 single-script smoke (random port)
 ```

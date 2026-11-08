@@ -14,6 +14,9 @@ use bevy::{
 };
 use parble_sim::{MarbleState, scene};
 
+pub mod camera;
+pub mod post;
+
 /// Backdrop behind the scene (a dim warm room tone).
 pub const BACKDROP: Color = Color::srgb(0.11, 0.10, 0.09);
 
@@ -26,16 +29,19 @@ pub struct MarbleFrame {
     pub alpha: f32,
 }
 
-/// Render quality tier (`--quality`). Read once at startup.
+/// Render quality tier (`--quality`). Read once at startup. The post stack per tier is
+/// [`Quality::post`] (`post.rs`).
 #[derive(Resource, Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Quality {
-    /// No shadows, no MSAA.
+    /// No shadows, no AA, bloom only.
     Low,
-    /// 2048² shadow map, 4× MSAA.
+    /// 2048² shadow map, 4× MSAA, bloom, Gaussian DoF.
     #[default]
     Medium,
-    /// 4096² shadow map, 4× MSAA.
+    /// 4096² shadow map, TAA, SSAO, bloom, bokeh DoF.
     High,
+    /// High with higher SSAO quality and a wider aperture.
+    Ultra,
 }
 
 impl Quality {
@@ -44,6 +50,7 @@ impl Quality {
             "low" => Some(Self::Low),
             "medium" => Some(Self::Medium),
             "high" => Some(Self::High),
+            "ultra" => Some(Self::Ultra),
             _ => None,
         }
     }
@@ -53,13 +60,14 @@ impl Quality {
             Self::Low => "low",
             Self::Medium => "medium",
             Self::High => "high",
+            Self::Ultra => "ultra",
         }
     }
 
     pub fn msaa(self) -> Msaa {
-        match self {
-            Self::Low => Msaa::Off,
-            Self::Medium | Self::High => Msaa::Sample4,
+        match self.post().anti_alias {
+            post::AntiAlias::Msaa4 => Msaa::Sample4,
+            post::AntiAlias::None | post::AntiAlias::Taa => Msaa::Off,
         }
     }
 }
@@ -173,7 +181,7 @@ fn spawn_scene(
         }
         .build(),
     ));
-    if *quality == Quality::High {
+    if matches!(*quality, Quality::High | Quality::Ultra) {
         commands.insert_resource(DirectionalLightShadowMap { size: 4096 });
     }
     commands.insert_resource(GlobalAmbientLight {

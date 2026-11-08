@@ -128,6 +128,13 @@ run-shot:
 run-diag:
 	cargo run -p parble-app -- --exit-after 3 --dump-state
 
+# P1-T7 shots test (local only, needs numpy + Pillow): one lockstep frame per quality tier, the TAA
+# ghost check on a max-speed marble, and the DoF side-by-side with ref-01. Writes docs/shots/p1-t7-*.
+.PHONY: shots-p1t7
+shots-p1t7:
+	cargo build -p parble-app
+	python3 scripts/shots/p1t7.py
+
 # Trunk dev server on 127.0.0.1:$(DEV_PORT). No autoreload: Trunk injects its reload script after the
 # post_build hook hashed the inline scripts, so the page's CSP would block it (a console error).
 # ui-build first: Trunk refuses to serve while a [watch] ignore path (web/ui/dist) is missing.

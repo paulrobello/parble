@@ -1,0 +1,167 @@
+{
+  "tiers": {
+    "low": {
+      "png": "docs/shots/p1-t7-low.png",
+      "post": {
+        "msaa": 1,
+        "taa": false,
+        "ssao": null,
+        "bloom": 0.08,
+        "dof": null,
+        "aperture": null,
+        "focusM": null,
+        "tonemapping": "AcesFitted"
+      },
+      "shot": {
+        "kind": "follow"
+      },
+      "screenshot": {
+        "state": "done",
+        "lit": 0.57588977,
+        "colors": 150,
+        "ok": true
+      },
+      "errors": []
+    },
+    "medium": {
+      "png": "docs/shots/p1-t7-medium.png",
+      "post": {
+        "msaa": 4,
+        "taa": false,
+        "ssao": null,
+        "bloom": 0.08,
+        "dof": "gaussian",
+        "aperture": 4.0,
+        "focusM": 0.15106893,
+        "tonemapping": "AcesFitted"
+      },
+      "shot": {
+        "kind": "follow"
+      },
+      "screenshot": {
+        "state": "done",
+        "lit": 0.5627062,
+        "colors": 285,
+        "ok": true
+      },
+      "errors": []
+    },
+    "high": {
+      "png": "docs/shots/p1-t7-high.png",
+      "post": {
+        "msaa": 1,
+        "taa": true,
+        "ssao": "medium",
+        "bloom": 0.08,
+        "dof": "bokeh",
+        "aperture": 2.8,
+        "focusM": 0.15106893,
+        "tonemapping": "AcesFitted"
+      },
+      "shot": {
+        "kind": "follow"
+      },
+      "screenshot": {
+        "state": "done",
+        "lit": 0.5495182,
+        "colors": 308,
+        "ok": true
+      },
+      "errors": []
+    },
+    "ultra": {
+      "png": "docs/shots/p1-t7-ultra.png",
+      "post": {
+        "msaa": 1,
+        "taa": true,
+        "ssao": "high",
+        "bloom": 0.08,
+        "dof": "bokeh",
+        "aperture": 2.0,
+        "focusM": 0.15106893,
+        "tonemapping": "AcesFitted"
+      },
+      "shot": {
+        "kind": "follow"
+      },
+      "screenshot": {
+        "state": "done",
+        "lit": 0.5568414,
+        "colors": 313,
+        "ok": true
+      },
+      "errors": []
+    }
+  },
+  "ghost": {
+    "follow-peak": {
+      "tick": 100,
+      "speedMps": 1.204,
+      "shot": {
+        "kind": "follow"
+      },
+      "taa": {
+        "marbleRadiusPx": 57.93,
+        "trailTravelPx": 5.3,
+        "trailMaskPx": 648,
+        "trailDiffPx": 3,
+        "leadDiffPx": 5,
+        "netGhostPx": 0,
+        "netGhostDiscFraction": 0.0
+      },
+      "syntheticGhost": {
+        "marbleRadiusPx": 57.93,
+        "trailTravelPx": 5.3,
+        "trailMaskPx": 648,
+        "trailDiffPx": 22,
+        "leadDiffPx": 0,
+        "netGhostPx": 22,
+        "netGhostDiscFraction": 0.002
+      },
+      "pass": true,
+      "controlFires": null
+    },
+    "trackside-cross": {
+      "tick": 168,
+      "speedMps": 1.168,
+      "shot": {
+        "kind": "fixed",
+        "eye": [
+          0.5832,
+          0.25,
+          0.04
+        ],
+        "look": [
+          0.5832,
+          0.0,
+          0.0
+        ]
+      },
+      "taa": {
+        "marbleRadiusPx": 37.14,
+        "trailTravelPx": 633.6,
+        "trailMaskPx": 48773,
+        "trailDiffPx": 872,
+        "leadDiffPx": 10,
+        "netGhostPx": 862,
+        "netGhostDiscFraction": 0.199
+      },
+      "syntheticGhost": {
+        "marbleRadiusPx": 37.14,
+        "trailTravelPx": 633.6,
+        "trailMaskPx": 48773,
+        "trailDiffPx": 25384,
+        "leadDiffPx": 0,
+        "netGhostPx": 25384,
+        "netGhostDiscFraction": 5.856
+      },
+      "pass": true,
+      "controlFires": true
+    }
+  },
+  "thresholds": {
+    "ghostChannelDiff": 0.05,
+    "ghostMaxDiscFraction": 0.25
+  },
+  "pass": true
+}

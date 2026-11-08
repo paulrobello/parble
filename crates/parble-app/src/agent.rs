@@ -7,7 +7,11 @@ use bevy::{
     prelude::*,
     render::view::screenshot::{Screenshot, ScreenshotCaptured},
 };
-use parble_render::Quality;
+use parble_render::{
+    Quality,
+    camera::{CameraDiag, CameraMode, Cues},
+    post::{PostOverrides, parse_tonemapping},
+};
 use parble_sim::{Sim, hash::format_hash};
 use serde::Serialize;
 
@@ -51,6 +55,43 @@ impl Scenario {
     }
 }
 
+/// Camera at startup (`--camera`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CameraChoice {
+    /// The follow-marble director with the scenario's cues.
+    #[default]
+    Director,
+    /// The editor orbit camera.
+    Orbit,
+    /// One fixed overview of the whole tray (the P0 view).
+    Overview,
+}
+
+impl CameraChoice {
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "director" => Some(Self::Director),
+            "orbit" => Some(Self::Orbit),
+            "overview" => Some(Self::Overview),
+            _ => None,
+        }
+    }
+
+    pub fn mode(self) -> CameraMode {
+        match self {
+            Self::Orbit => CameraMode::Orbit,
+            Self::Director | Self::Overview => CameraMode::Director,
+        }
+    }
+
+    pub fn cues(self, scenario: Scenario) -> Cues {
+        match (self, scenario) {
+            (Self::Overview, _) => Cues::overview(),
+            (_, Scenario::Ramp) => Cues::ramp(),
+        }
+    }
+}
+
 /// Parsed agent switches. Native: `--key value` or `--key=value`; web: `?key=value&...`.
 #[derive(Resource, Debug, Clone, PartialEq)]
 pub struct AgentOpts {
@@ -62,6 +103,14 @@ pub struct AgentOpts {
     pub seed: u64,
     pub quality: Quality,
     pub dump_state: bool,
+    pub camera: CameraChoice,
+    /// Post overrides (`--taa`, `--dof`, `--aperture`, `--tonemap`) for look-dev and the shots test.
+    pub post: PostOverrides,
+    /// Lockstep: hold the sim at tick 0 for this many real seconds (pipelines compile), then advance
+    /// exactly [`crate::LOCKSTEP_TICKS`] per frame, so a frame index maps to one sim state.
+    pub lockstep_after: Option<f64>,
+    /// Capture the screenshot on the first frame at or past this sim tick (instead of by time).
+    pub screenshot_tick: Option<u64>,
 }
 
 impl Default for AgentOpts {
@@ -74,6 +123,10 @@ impl Default for AgentOpts {
             seed: 0,
             quality: Quality::Medium,
             dump_state: false,
+            camera: CameraChoice::Director,
+            post: PostOverrides::default(),
+            lockstep_after: None,
+            screenshot_tick: None,
         }
     }
 }
@@ -120,7 +173,38 @@ impl AgentOpts {
                 "quality" => {
                     let v = need(value)?;
                     o.quality = Quality::parse(&v)
-                        .ok_or_else(|| format!("quality: unknown {v:?} (low|medium|high)"))?;
+                        .ok_or_else(|| format!("quality: unknown {v:?} (low|medium|high|ultra)"))?;
+                }
+                "camera" => {
+                    let v = need(value)?;
+                    o.camera = CameraChoice::parse(&v).ok_or_else(|| {
+                        format!("camera: unknown {v:?} (director|orbit|overview)")
+                    })?;
+                }
+                "taa" => o.post.taa = Some(parse_bool(&key, value.as_deref())?),
+                "dof" => o.post.dof = Some(parse_bool(&key, value.as_deref())?),
+                "aperture" => {
+                    let v = need(value)?;
+                    o.post.aperture = Some(
+                        v.parse::<f32>()
+                            .ok()
+                            .filter(|f| f.is_finite() && *f > 0.0)
+                            .ok_or_else(|| format!("aperture: expected f-stops > 0, got {v:?}"))?,
+                    );
+                }
+                "tonemap" => {
+                    let v = need(value)?;
+                    o.post.tonemapping = Some(parse_tonemapping(&v).ok_or_else(|| {
+                        format!("tonemap: unknown {v:?} (tony|agx|aces|filmic|sbdt|reinhard)")
+                    })?);
+                }
+                "lockstep-after" => o.lockstep_after = Some(parse_seconds(&key, &need(value)?)?),
+                "screenshot-tick" => {
+                    let v = need(value)?;
+                    o.screenshot_tick = Some(
+                        v.parse()
+                            .map_err(|_| format!("screenshot-tick: expected a u64, got {v:?}"))?,
+                    );
                 }
                 "dump-state" => o.dump_state = parse_bool(&key, value.as_deref())?,
                 _ if strict => return Err(format!("unknown flag --{key}")),
@@ -183,6 +267,8 @@ struct AgentRuntime {
     frames: u64,
     fps: f32,
     shot: ShotState,
+    /// The camera state on the screenshot frame.
+    shot_camera: Option<CameraDiag>,
     exiting: bool,
 }
 
@@ -224,10 +310,17 @@ struct DiagState<'a> {
     seed: u64,
     quality: &'static str,
     screenshot: &'a ShotState,
+    camera: &'a CameraDiag,
+    shot_camera: Option<&'a CameraDiag>,
     exited: bool,
 }
 
-fn diag<'a>(clock: &SimClock, rt: &'a AgentRuntime, opts: &AgentOpts) -> DiagState<'a> {
+fn diag<'a>(
+    clock: &SimClock,
+    rt: &'a AgentRuntime,
+    opts: &AgentOpts,
+    camera: &'a CameraDiag,
+) -> DiagState<'a> {
     let tick = clock.sim.tick_count();
     DiagState {
         ready: tick > 0 && rt.frames >= READY_FRAMES,
@@ -260,6 +353,8 @@ fn diag<'a>(clock: &SimClock, rt: &'a AgentRuntime, opts: &AgentOpts) -> DiagSta
         seed: opts.seed,
         quality: opts.quality.name(),
         screenshot: &rt.shot,
+        camera,
+        shot_camera: rt.shot_camera.as_ref(),
         exited: rt.exiting,
     }
 }
@@ -313,6 +408,7 @@ impl Plugin for AgentPlugin {
             } else {
                 ShotState::None
             },
+            shot_camera: None,
             exiting: false,
         })
         .insert_resource(opts.quality)
@@ -341,12 +437,22 @@ fn request_shot(
     mut commands: Commands,
     time: Res<Time<Real>>,
     opts: Res<AgentOpts>,
+    clock: Res<SimClock>,
+    camera: Res<CameraDiag>,
     mut rt: ResMut<AgentRuntime>,
 ) {
-    if rt.shot != ShotState::Pending || time.elapsed_secs_f64() < opts.screenshot_after {
+    if rt.shot != ShotState::Pending {
+        return;
+    }
+    let due = match opts.screenshot_tick {
+        Some(t) => clock.sim.tick_count() >= t,
+        None => time.elapsed_secs_f64() >= opts.screenshot_after,
+    };
+    if !due {
         return;
     }
     rt.shot = ShotState::Capturing;
+    rt.shot_camera = Some(camera.clone());
     let mut shot = commands.spawn(Screenshot::primary_window());
     #[cfg(target_arch = "wasm32")]
     if let Some(path) = &opts.screenshot {
@@ -416,6 +522,7 @@ fn auto_exit(
     time: Res<Time<Real>>,
     opts: Res<AgentOpts>,
     clock: Res<SimClock>,
+    camera: Res<CameraDiag>,
     mut rt: ResMut<AgentRuntime>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -423,7 +530,10 @@ fn auto_exit(
         return;
     };
     let t = time.elapsed_secs_f64();
-    if rt.exiting || t < after {
+    // A tick-timed screenshot exits as soon as it is written.
+    let shot_settled = opts.screenshot_tick.is_some()
+        && matches!(rt.shot, ShotState::Done { .. } | ShotState::Failed { .. });
+    if rt.exiting || (t < after && !shot_settled) {
         return;
     }
     let waiting = matches!(rt.shot, ShotState::Pending | ShotState::Capturing);
@@ -447,7 +557,7 @@ fn auto_exit(
     };
     rt.exiting = true;
     if opts.dump_state {
-        let json = serde_json::to_string(&diag(&clock, &rt, &opts)).unwrap_or_default();
+        let json = serde_json::to_string(&diag(&clock, &rt, &opts, &camera)).unwrap_or_default();
         #[cfg(not(target_arch = "wasm32"))]
         println!("{json}");
         #[cfg(target_arch = "wasm32")]
@@ -457,9 +567,14 @@ fn auto_exit(
 }
 
 #[cfg(target_arch = "wasm32")]
-fn publish(clock: Res<SimClock>, rt: Res<AgentRuntime>, opts: Res<AgentOpts>) {
+fn publish(
+    clock: Res<SimClock>,
+    rt: Res<AgentRuntime>,
+    opts: Res<AgentOpts>,
+    camera: Res<CameraDiag>,
+) {
     use js_sys::{JSON, JsString, Reflect};
-    let Ok(json) = serde_json::to_string(&diag(&clock, &rt, &opts)) else {
+    let Ok(json) = serde_json::to_string(&diag(&clock, &rt, &opts, &camera)) else {
         return;
     };
     if let Ok(v) = JSON::parse(&json) {
@@ -502,12 +617,37 @@ mod tests {
     #[test]
     fn bad_flags_are_rejected() {
         assert!(args("--scenario loop").is_err());
-        assert!(args("--quality ultra").is_err());
+        assert!(args("--quality extreme").is_err());
+        assert!(args("--camera drone").is_err());
+        assert!(args("--aperture 0").is_err());
+        assert!(args("--tonemap neon").is_err());
         assert!(args("--seed -1").is_err());
         assert!(args("--exit-after -2").is_err());
         assert!(args("--exit-after").is_err());
         assert!(args("--frobnicate 1").is_err());
         assert!(args("stray").is_err());
+    }
+
+    #[test]
+    fn camera_post_and_lockstep_flags_parse() {
+        let o = args(
+            "--quality ultra --camera orbit --taa 0 --dof=1 --aperture 4 --tonemap agx \
+             --lockstep-after 3 --screenshot-tick 960",
+        )
+        .unwrap();
+        assert_eq!(o.quality, Quality::Ultra);
+        assert_eq!(o.camera, CameraChoice::Orbit);
+        assert_eq!(o.post.taa, Some(false));
+        assert_eq!(o.post.dof, Some(true));
+        assert_eq!(o.post.aperture, Some(4.0));
+        assert!(o.post.tonemapping.is_some());
+        assert_eq!(o.lockstep_after, Some(3.0));
+        assert_eq!(o.screenshot_tick, Some(960));
+        let q =
+            AgentOpts::from_query("?quality=ultra&camera=overview&taa=0", str::to_owned).unwrap();
+        assert_eq!(q.quality, Quality::Ultra);
+        assert_eq!(q.camera, CameraChoice::Overview);
+        assert_eq!(q.post.taa, Some(false));
     }
 
     #[test]

@@ -7,6 +7,7 @@ publish.workspace = true
 
 [dependencies]
 parble-sim = { path = "../parble-sim" }
+serde = { workspace = true }
 # hex-world's hex-render set without the UI and font features (the HUD is TypeScript, PRD §5.1).
 bevy = { workspace = true, features = [
     "3d_bevy_render",
