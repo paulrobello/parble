@@ -45,8 +45,8 @@ for i, entry in enumerate(IDS):
     fp = json.loads((runtime / pid / f"{pid}.kit.json").read_text())["footprint"]
     root.location.z -= min(c[1] for c in fp) * 0.06  # stand 2-tall pieces on the floor
     lod0 = next(o for o in new if o.name.startswith(f"{pid}_lod0"))
-    for o in new:
-        if o.type == "MESH" and o is not lod0:
+    for o in new:  # LOD0 and, on mechanism pieces, each animated part's LOD0 (P2-T3)
+        if o.type == "MESH" and o is not lod0 and not (o.name.startswith("anim_") and o.name.endswith("_lod0")):
             o.hide_render = True
     m = lod0.data.materials[0].copy()
     lod0.data.materials[0] = m

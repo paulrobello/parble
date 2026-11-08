@@ -17,6 +17,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import kitgeom as K  # noqa: E402
 import kitblocks as B  # noqa: E402
+import kitmech as M  # noqa: E402
 
 
 def tris(ob):
@@ -58,6 +59,17 @@ def check(runtime, pid):
             errs.append(f"port_{p['index']} at {tuple(got)} != {want}")
         if e.get("face") != p["face"] or e.get("level") != p.get("level"):
             errs.append(f"port_{p['index']} extras {dict(e.items())} do not match the sidecar")
+    for a in sc["animated_parts"]:  # P2-T3: part empty at the pivot, LOD meshes under it
+        e = objs.get(a["name"])
+        if e is None:
+            errs.append(f"{a['name']} missing")
+            continue
+        want = K.to_blender([c / 1000.0 for c in a["pivot_um"]])
+        if max(abs(e.matrix_world.translation[i] - want[i]) for i in range(3)) > 1e-6:
+            errs.append(f"{a['name']} at {tuple(e.matrix_world.translation)} != pivot {want}")
+        for lod in range(3):
+            if f"{a['name']}_lod{lod}" not in objs:
+                errs.append(f"{a['name']}_lod{lod} missing")
     print(f"[reimport] {pid}: tris {out}, collider {col and tris(col)}, sockets {len(sc['ports'])}: "
           + ("ok" if not errs else "FAIL"))
     for e in errs:
@@ -67,7 +79,7 @@ def check(runtime, pid):
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 runtime = pathlib.Path(argv[0]).resolve()
-ids = argv[1:] or list(B.BUILD)
+ids = argv[1:] or list(B.BUILD + M.BUILD)
 bad = [e for pid in ids for e in check(runtime, pid)]
 if bad:
     raise SystemExit(f"reimport gate: {len(bad)} failure(s)")

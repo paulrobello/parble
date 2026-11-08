@@ -24,6 +24,7 @@ REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 import kitgeom as K  # noqa: E402
 import kitblocks as B  # noqa: E402
+import kitmech as M  # noqa: E402
 
 SKIP_BAKE = os.environ.get("PARBLE_SKIP_BAKE") == "1"
 DEVICE = os.environ.get("PARBLE_BAKE_DEVICE", "GPU")
@@ -80,7 +81,7 @@ def texel_density(ob, px):
 
 
 def check_render_bounds(ob, pid):
-    lo, hi = B.bounds_mm(pid)  # contract frame mm; Blender (x, y, z) = contract (x, -z, y)
+    lo, hi = (M if M.handles(pid) else B).bounds_mm(pid)  # contract frame mm; Blender (x, y, z) = contract (x, -z, y)
     lo = [(c + K.INSET) * 0.001 - 1e-6 for c in lo]
     hi = [(c - K.INSET) * 0.001 + 1e-6 for c in hi]
     for v in ob.data.vertices:
@@ -93,7 +94,7 @@ def check_render_bounds(ob, pid):
 def map_size(pid, lod):
     """§12: 512² per 1-cell piece at LOD0; a multi-cell piece's atlas scales with its footprint
     (next power of two of 512 × sqrt(cells)), capped at 2,048²."""
-    n = B.cells(pid)
+    n = (M if M.handles(pid) else B).cells(pid)
     s = MAP_SIZE[lod]
     while s * s < MAP_SIZE[lod] ** 2 * n:
         s *= 2
@@ -165,8 +166,8 @@ def build_piece(pid, out):
     coll.objects.link(root)
 
     lods = {}
-    G = B if B.handles(pid) else K
-    ncells = B.cells(pid)
+    G = M if M.handles(pid) else B if B.handles(pid) else K
+    ncells = (M if M.handles(pid) else B).cells(pid)
     for lod, q in K.LODS.items():
         ob = G.build_render_object(pid, q, f"{pid}_lod{lod}", coll, mat)
         check_render_bounds(ob, pid)
@@ -184,6 +185,16 @@ def build_piece(pid, out):
     if ctris > K.COLLISION_TRIS_PER_CELL * ncells:
         raise RuntimeError(f"{pid} collider: {ctris} tris > {K.COLLISION_TRIS_PER_CELL * ncells}")
     G.build_socket_empties(pid, coll, parent=root)
+    part_tris = {}
+    if G is M:  # animated parts (P2-T3): §12 budget for all parts together, per LOD
+        for lod, obs in M.build_part_objects(pid, coll, root, mat).items():
+            part_tris[f"lod{lod}"] = {o.name: tri_count(o) for o in obs}
+            total = sum(part_tris[f"lod{lod}"].values())
+            print(f"[kit] {pid} parts LOD{lod}: {total} tris (budget {M.PART_BUDGET[lod]})")
+            if total > M.PART_BUDGET[lod]:
+                raise RuntimeError(f"{pid} parts LOD{lod}: {total} tris > {M.PART_BUDGET[lod]}")
+            for o in obs:
+                unwrap(o)
     for ob in lods.values():
         unwrap(ob)
     density = {f"lod{lod}": texel_density(ob, map_size(pid, lod)) for lod, ob in lods.items()}
@@ -234,10 +245,12 @@ def build_piece(pid, out):
         "texelDensityPxPerM": density,
         "mapSize": {f"lod{k}": map_size(pid, k) for k in MAP_SIZE},
         "generator": {"path": rel(__file__), "sha256": sha256(__file__)},
-        "generatorDeps": [{"path": rel(m.__file__), "sha256": sha256(m.__file__)} for m in (K, B)],
+        "generatorDeps": [{"path": rel(m.__file__), "sha256": sha256(m.__file__)} for m in (K, B, M)[:3 if G is M else 2]],
         "blender": bpy.app.version_string,
         "lodParams": {f"lod{k}": v for k, v in K.LODS.items()},
     }
+    if part_tris:
+        rep["partTris"] = part_tris
     (out / "export-report.json").write_text(json.dumps(rep, indent=2, sort_keys=True) + "\n")
     if not SKIP_BAKE:
         bpy.ops.wm.save_as_mainfile(filepath=str(out / f"{pid}_low.blend"), compress=True)
@@ -249,7 +262,7 @@ def main():
     if not argv:
         raise SystemExit("usage: generate.py -- <stage_dir> [piece_id ...]")
     stage = pathlib.Path(argv[0]).resolve()
-    for pid in argv[1:] or B.BUILD:
+    for pid in argv[1:] or B.BUILD + M.BUILD:
         out = stage / pid
         out.mkdir(parents=True, exist_ok=True)
         build_piece(pid, out)

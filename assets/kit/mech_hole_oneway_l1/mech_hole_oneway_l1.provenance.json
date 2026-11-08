@@ -1,0 +1,210 @@
+{
+  "schema": "parble-kit-provenance/1",
+  "pieceId": "mech_hole_oneway_l1",
+  "pieceVersion": 1,
+  "route": "scripted",
+  "card": "P2-T3",
+  "contract": {
+    "path": "docs/kit-contract.md",
+    "version": 1,
+    "sha256": "a13c69a3266ee63dea8295af3ec536aa93e4c358675b95e24628502ad217aaf1",
+    "approved": "Paul, 2026-11-07 (contract status line)"
+  },
+  "generator": {
+    "path": "blender/kit/generate.py",
+    "sha256": "7f8a9f772acf63a53ad23a67b316b76ee8ff068499bf4d74355c9fd7187b173c"
+  },
+  "generatorDeps": [
+    {
+      "path": "blender/kit/kitgeom.py",
+      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+    },
+    {
+      "path": "blender/kit/kitblocks.py",
+      "sha256": "4af584be5af2ea3827da638e45c13fbba52ecec08950720b05597f733c591e9e"
+    },
+    {
+      "path": "blender/kit/kitmech.py",
+      "sha256": "2ad8e089c960207ab1d476f108b694257dcf2cf875226f2b4563daf7f6579531"
+    }
+  ],
+  "authoringAgent": {
+    "harness": "claude-code",
+    "model": "claude-opus-5-5"
+  },
+  "blender": "5.2.2 LTS",
+  "toolVersions": {
+    "gltfTransform": "4.3.0",
+    "meshoptimizer": "0.25.0",
+    "gltfValidator": "2.0.0-dev.3.10",
+    "node": "v24.18.0"
+  },
+  "material": "placeholder (wood_placeholder, no maps, no emission); final tileable wood comes from P1-T1",
+  "bake": {
+    "device": "GPU",
+    "samples": 16,
+    "cageExtrusionM": 0.0005,
+    "maxRayDistanceM": 0.002,
+    "marginPx": 8,
+    "aoDistanceM": 0.02,
+    "channels": {
+      "mech_hole_oneway_l1_lod0_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "bba2806b01ebf4152b442444dea09748d8a521662640ef66b474d05292bc65d4",
+        "size": 512
+      },
+      "mech_hole_oneway_l1_lod0_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "a75f521956b431b11a5d35d4f233499af58f00b38860e34e24373200d1c6c171",
+        "size": 512
+      },
+      "mech_hole_oneway_l1_lod1_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "bc5e99711865984e4ed19710bf59d5658908beeb94b4ffbd8bdcc24fc9c6ce47",
+        "size": 256
+      },
+      "mech_hole_oneway_l1_lod1_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "e4b893e7d681f6330e102f3d68244c997ddcf777be6f5797b039d75b3fb6f441",
+        "size": 256
+      },
+      "mech_hole_oneway_l1_lod2_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "27ce134992aaa7f609071b5d9ac53158e3d4f3ebc3175e25a68a0c79a519c313",
+        "size": 128
+      },
+      "mech_hole_oneway_l1_lod2_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "8fb72ae1f1253f9cbeb018fb139119c5566ed2bda7ebf22aaf3a24b6424036f0",
+        "size": 128
+      }
+    }
+  },
+  "lods": [
+    {
+      "lod": "mech_hole_oneway_l1_lod0",
+      "tris": 829
+    },
+    {
+      "lod": "mech_hole_oneway_l1_lod1",
+      "tris": 297
+    },
+    {
+      "lod": "mech_hole_oneway_l1_lod2",
+      "tris": 157
+    }
+  ],
+  "collider": {
+    "node": "mech_hole_oneway_l1_collider",
+    "tris": 285
+  },
+  "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
+  "texelDensityPxPerM": {
+    "lod0": {
+      "max": 2844.7,
+      "median": 2781.3,
+      "min": 2161.5
+    },
+    "lod1": {
+      "max": 1368.7,
+      "median": 1345.2,
+      "min": 1040
+    },
+    "lod2": {
+      "max": 708.3,
+      "median": 701.3,
+      "min": 613.4
+    }
+  },
+  "compression": {
+    "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
+    "glbBytes": 62200,
+    "ktx2": "not produced in P1-T2 (maps ship as PNG)"
+  },
+  "derivedFiles": [
+    {
+      "path": "assets/kit/mech_hole_oneway_l1/mech_hole_oneway_l1.glb",
+      "sha256": "504039dc26a478058f15434d16a418202f43c5a63c90119a16d740f1136cfb71",
+      "bytes": 62200
+    },
+    {
+      "path": "assets/kit/mech_hole_oneway_l1/mech_hole_oneway_l1.kit.json",
+      "sha256": "5125dfbccddf70b7844cb72d698883bf7b592dc13ababdf08932d8a461665632",
+      "bytes": 23216
+    },
+    {
+      "path": "assets/kit/mech_hole_oneway_l1/mech_hole_oneway_l1_lod0_ao.png",
+      "sha256": "bba2806b01ebf4152b442444dea09748d8a521662640ef66b474d05292bc65d4",
+      "bytes": 66108
+    },
+    {
+      "path": "assets/kit/mech_hole_oneway_l1/mech_hole_oneway_l1_lod0_normal.png",
+      "sha256": "a75f521956b431b11a5d35d4f233499af58f00b38860e34e24373200d1c6c171",
+      "bytes": 56903
+    },
+    {
+      "path": "assets/kit/mech_hole_oneway_l1/mech_hole_oneway_l1_lod1_ao.png",
+      "sha256": "bc5e99711865984e4ed19710bf59d5658908beeb94b4ffbd8bdcc24fc9c6ce47",
+      "bytes": 22362
+    },
+    {
+      "path": "assets/kit/mech_hole_oneway_l1/mech_hole_oneway_l1_lod1_normal.png",
+      "sha256": "e4b893e7d681f6330e102f3d68244c997ddcf777be6f5797b039d75b3fb6f441",
+      "bytes": 24739
+    },
+    {
+      "path": "assets/kit/mech_hole_oneway_l1/mech_hole_oneway_l1_lod2_ao.png",
+      "sha256": "27ce134992aaa7f609071b5d9ac53158e3d4f3ebc3175e25a68a0c79a519c313",
+      "bytes": 6418
+    },
+    {
+      "path": "assets/kit/mech_hole_oneway_l1/mech_hole_oneway_l1_lod2_normal.png",
+      "sha256": "8fb72ae1f1253f9cbeb018fb139119c5566ed2bda7ebf22aaf3a24b6424036f0",
+      "bytes": 11327
+    },
+    {
+      "path": "assets-source/kit/mech_hole_oneway_l1/mech_hole_oneway_l1_high.blend",
+      "sha256": "119c7312780d65194b801747ed8d2ab48119ea9b8400ba8e8168c23f61ac7659",
+      "bytes": 179494
+    },
+    {
+      "path": "assets-source/kit/mech_hole_oneway_l1/mech_hole_oneway_l1_low.blend",
+      "sha256": "d1ad422db3e9113f226ee8c06cceed45aab3b28c2b3c41cc2aa34b88a9e2df07",
+      "bytes": 138026
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/reference/ref-02.webp",
+      "sha256": "4c4ed7650fef0b588fbbc58c293f948a3120733b62329af051e4c6d2c0ff3d27",
+      "role": "look reference (owner-supplied)"
+    },
+    {
+      "path": "docs/reference/ref-01.webp",
+      "sha256": "bce26129ad47abea4cb7d1b9915801c52fc79ef80f2d34daa189030f00498115",
+      "role": "look reference (owner-supplied)"
+    },
+    {
+      "path": "docs/reference/ref-06-rail-into-block-tower.png",
+      "sha256": "8d0bf3fb25233bceae74705473dd867a8a24358500ef1fa58219791bcb7360c0",
+      "role": "look reference (owner-supplied)"
+    }
+  ],
+  "license": "MIT (repository licence); geometry is generated by the repository's own generator",
+  "validation": {
+    "pass": true,
+    "checks": [
+      "kit-check contract 14.1-14.10",
+      "gltf-validator reimport (meshopt GLB)",
+      "blender reimport (meshopt GLB)"
+    ]
+  },
+  "approvals": [
+    {
+      "who": "Paul",
+      "gate": "piece look",
+      "status": "pending",
+      "notes": "P2-T3 mechanism piece; review sheet blender/kit/review/p2t3-mechanisms.png"
+    }
+  ]
+}

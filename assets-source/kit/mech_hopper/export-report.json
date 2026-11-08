@@ -1,0 +1,108 @@
+{
+  "blender": "5.2.2 LTS",
+  "colliderTris": 198,
+  "generator": {
+    "path": "blender/kit/generate.py",
+    "sha256": "7f8a9f772acf63a53ad23a67b316b76ee8ff068499bf4d74355c9fd7187b173c"
+  },
+  "generatorDeps": [
+    {
+      "path": "blender/kit/kitgeom.py",
+      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+    },
+    {
+      "path": "blender/kit/kitblocks.py",
+      "sha256": "4af584be5af2ea3827da638e45c13fbba52ecec08950720b05597f733c591e9e"
+    },
+    {
+      "path": "blender/kit/kitmech.py",
+      "sha256": "2ad8e089c960207ab1d476f108b694257dcf2cf875226f2b4563daf7f6579531"
+    }
+  ],
+  "lodParams": {
+    "lod0": {
+      "bevel_segs": 3,
+      "n_fillet": 6,
+      "n_round": 32,
+      "path": {
+        "curve90": 20,
+        "end": 16,
+        "slope_gentle": 16,
+        "straight": 1
+      }
+    },
+    "lod1": {
+      "bevel_segs": 1,
+      "n_fillet": 2,
+      "n_round": 12,
+      "path": {
+        "curve90": 8,
+        "end": 8,
+        "slope_gentle": 6,
+        "straight": 1
+      }
+    },
+    "lod2": {
+      "bevel_segs": 0,
+      "n_fillet": 1,
+      "n_round": 6,
+      "path": {
+        "curve90": 4,
+        "end": 4,
+        "slope_gentle": 3,
+        "straight": 1
+      }
+    }
+  },
+  "lodTris": {
+    "mech_hopper_lod0": 586,
+    "mech_hopper_lod1": 202,
+    "mech_hopper_lod2": 106
+  },
+  "mapSize": {
+    "lod0": 512,
+    "lod1": 256,
+    "lod2": 128
+  },
+  "nodes": [
+    "mech_hopper",
+    "anim_gate",
+    "anim_gate_lod0",
+    "anim_gate_lod1",
+    "anim_gate_lod2",
+    "mech_hopper_collider",
+    "mech_hopper_lod0",
+    "mech_hopper_lod1",
+    "mech_hopper_lod2",
+    "port_0"
+  ],
+  "partTris": {
+    "lod0": {
+      "anim_gate_lod0": 84
+    },
+    "lod1": {
+      "anim_gate_lod1": 44
+    },
+    "lod2": {
+      "anim_gate_lod2": 32
+    }
+  },
+  "pieceId": "mech_hopper",
+  "texelDensityPxPerM": {
+    "lod0": {
+      "max": 2908.5,
+      "median": 2822.9,
+      "min": 2207.6
+    },
+    "lod1": {
+      "max": 1549.6,
+      "median": 1336.1,
+      "min": 1254.1
+    },
+    "lod2": {
+      "max": 698.0,
+      "median": 680.9,
+      "min": 602.5
+    }
+  }
+}

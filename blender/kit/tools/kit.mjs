@@ -66,6 +66,14 @@ function allIntegers(v, where, errs) {
 const FACE = { "+x": [0, 1], "-x": [0, -1], "+z": [2, 1], "-z": [2, -1] };
 // Pieces whose look Paul approved (P1-T2, 2026-11-07); every other piece's look gate is pending.
 const P1_APPROVED = new Set(["blk_straight_l3", "blk_curve90_l3", "blk_slope_gentle_l3", "blk_end_l3"]);
+// P2-T3 mechanism pieces: the hinge parts each shape must ship (blender/kit/kitmech.py). The finish
+// cup and the checkpoint arch have no moving part. All parts of a piece share one budget (§12).
+const MECH_PARTS = {
+  hopper: ["anim_gate"], finish: [], splitter: ["anim_flap"], toggle: ["anim_rocker"], checkpoint: [],
+  gate_oneway: ["anim_flap"], hole_oneway: ["anim_trapdoor"],
+};
+const PART_BUDGET = [1500, 500, 120];
+const mechShape = (id) => id.replace(/^mech_/, "").replace(/_l[0-3]$/, "");
 
 function pieces(dir, ids) {
   return ids.length ? ids : fs.readdirSync(dir).filter((d) => ID_RE.test(d)).sort();
@@ -265,24 +273,66 @@ async function checkPiece(runtime, source, id, opts) {
   const names = new Set(doc.getRoot().listNodes().map((n) => n.getName()));
   const lodNames = [0, 1, 2].map((l) => `${id}_lod${l}`);
   for (const n of [...lodNames, `${id}_collider`, ...sc.ports.map((p) => `port_${p.index}`)]) if (!names.has(n)) errs.push(`${id}: GLB node ${n} missing`);
-  // 7. animated parts
+  const md = meshData(doc);
+  // 7. animated parts: required names per mechanism shape, hinge data, GLB node at the pivot in
+  // its rest pose, part LOD meshes, part collision
+  const partNames = sc.animated_parts.map((a) => a.name);
+  if (sc.family === "mech") {
+    const want = MECH_PARTS[mechShape(id)];
+    if (!want) errs.push(`${id}: no animated-part table entry for mechanism shape ${mechShape(id)}`);
+    else if (JSON.stringify([...partNames].sort()) !== JSON.stringify(want)) errs.push(`${id}: animated parts ${partNames} != required ${want}`);
+  } else if (partNames.length) errs.push(`${id}: animated parts on a non-mechanical piece`);
+  info.parts = [];
+  const partTris = [0, 0, 0];
   for (const a of sc.animated_parts) {
-    if (!names.has(a.name)) errs.push(`${id}: animated part node ${a.name} missing`);
-    if (!a.pivot_um || !a.axis) errs.push(`${id}: animated part ${a.name} lacks pivot or axis`);
+    const node = doc.getRoot().listNodes().find((n) => n.getName() === a.name);
+    if (!node) { errs.push(`${id}: animated part node ${a.name} missing`); continue; }
+    const intVec = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isInteger);
+    if (!/^anim_[a-z0-9_]+$/.test(a.name)) errs.push(`${id}: animated part name ${a.name} lacks the anim_ prefix`);
+    if (!intVec(a.pivot_um)) { errs.push(`${id}: animated part ${a.name} lacks pivot_um`); continue; }
+    if (!intVec(a.axis) || a.axis.reduce((s, x) => s + Math.abs(x), 0) !== 1) { errs.push(`${id}: animated part ${a.name} axis ${a.axis} is not an axis-aligned unit vector`); continue; }
+    const lim = a.limits_mdeg;
+    if (!Number.isInteger(a.rest_mdeg) || !Array.isArray(lim) || lim.length !== 2 || !(lim[0] <= a.rest_mdeg && a.rest_mdeg <= lim[1]) || lim[0] === lim[1])
+      errs.push(`${id}: animated part ${a.name} rest ${a.rest_mdeg} / limits ${lim} invalid`);
+    const t = node.getWorldTranslation();
+    if (a.pivot_um.some((c, k) => Math.abs(c * 1e-6 - t[k]) > 1e-6)) errs.push(`${id}: ${a.name} node at ${t} != pivot ${a.pivot_um} µm`);
+    const h = (a.rest_mdeg / 1000) * Math.PI / 360;
+    const q = [...a.axis.map((x) => x * Math.sin(h)), Math.cos(h)], r = node.getWorldRotation();
+    const dot = Math.abs(q.reduce((s, x, k) => s + x * r[k], 0));
+    if (1 - dot > 1e-6) errs.push(`${id}: ${a.name} node rotation ${r} != rest ${a.rest_mdeg} mdeg about ${a.axis}`);
+    let ptris = 0;
+    for (const g of a.collision ?? []) {
+      if (g.surface !== "wood_end_grain") errs.push(`${id}: ${a.name} collision surface ${g.surface}`);
+      if (!g.indices.length || g.indices.length % 3 || g.vertices_um.length % 3 || g.indices.some((x) => x < 0 || x * 3 >= g.vertices_um.length)) errs.push(`${id}: ${a.name} collision is empty or ragged`);
+      ptris += g.indices.length / 3;
+    }
+    if (!ptris) errs.push(`${id}: ${a.name} has no collision`);
+    for (let l = 0; l < 3; l++) {
+      const n = `${a.name}_lod${l}`;
+      if (!md[n]) { errs.push(`${id}: GLB node ${n} missing`); continue; }
+      partTris[l] += md[n].tris.length;
+      for (const p of md[n].pos) {
+        const c = cellOf(p, CELL);
+        const lo = [c[0] * CELL - CELL / 2, c[1] * CELL, c[2] * CELL - CELL / 2];
+        if (!fpKey.has(c.join(",")) || [0, 1, 2].some((k) => p[k] < lo[k] + INSET - 1e-6 || p[k] > lo[k] + CELL - INSET + 1e-6)) { errs.push(`${id}: ${n} vertex ${p.map((x) => x.toFixed(5))} outside the inset footprint at rest`); break; }
+      }
+    }
+    info.parts.push(`${a.name} pivot ${a.pivot_um} axis ${a.axis} rest ${a.rest_mdeg} limits ${lim} collider ${ptris}`);
   }
+  partTris.forEach((t, l) => { if (t > PART_BUDGET[l]) errs.push(`${id}: animated parts LOD${l} ${t} tris > ${PART_BUDGET[l]}`); });
+  info.partTris = partTris;
   // 10. emissive (GLB side)
   for (const m of json.materials ?? []) {
     if ((m.emissiveFactor ?? [0, 0, 0]).some((x) => x !== 0) || m.emissiveTexture || m.extensions?.KHR_materials_emissive_strength)
       if (sc.family !== "mech") errs.push(`${id}: emissive material ${m.name} on a non-mechanical piece (§5.6)`);
   }
-  const md = meshData(doc);
   // 6. LODs present, within budget, decreasing; tri counts match the export report
   info.lodTris = lodNames.map((n) => md[n]?.tris.length ?? -1);
   const report = JSON.parse(fs.readFileSync(path.join(source, id, "export-report.json"), "utf8"));
   info.lodTris.forEach((t, l) => {
     if (t < 0) return;
     // multi-cell block pieces get the 1-cell budget per footprint cell (P2-T2)
-    if (sc.family === "blk" && t > BUDGET_1CELL_BLOCK[l] * fp.length) errs.push(`${id}: LOD${l} ${t} tris > ${BUDGET_1CELL_BLOCK[l] * fp.length}`);
+    if ((sc.family === "blk" || sc.family === "mech") && t > BUDGET_1CELL_BLOCK[l] * fp.length) errs.push(`${id}: LOD${l} ${t} tris > ${BUDGET_1CELL_BLOCK[l] * fp.length}`);
     if (l > 0 && t >= info.lodTris[l - 1]) errs.push(`${id}: LOD${l} (${t}) not below LOD${l - 1}`);
     if (report.lodTris[lodNames[l]] !== t) errs.push(`${id}: LOD${l} ${t} tris != export report ${report.lodTris[lodNames[l]]}`);
   });
@@ -369,6 +419,7 @@ async function check(runtime, source, ids, opts) {
     const ports = info.ports.map((p) => `${p.lod}/p${p.port} floor ${p.floorErrMm} centre ${p.centreErrMm} width ${p.widthMm}`).join("; ");
     console.log(`${errs.length ? "FAIL" : "ok  "} ${id}: LOD tris ${info.lodTris.join("/")}, collider ${info.colliderTris}, overhead min ${info.overheadMinUm} µm, glb ${info.glbBytes} B, validator ${info.validator.errors}E/${info.validator.warnings}W`);
     console.log(`     render ports (mm): ${ports}`);
+    if (info.parts?.length) console.log(`     parts (tris ${info.partTris.join("/")}): ${info.parts.join("; ")}`);
     for (const e of errs) console.log(`  - ${e}`);
     bad += errs.length;
   }
@@ -391,7 +442,7 @@ async function provenance(runtime, source, ids, checks) {
       pieceId: id,
       pieceVersion: JSON.parse(fs.readFileSync(path.join(dir, `${id}.kit.json`), "utf8")).piece_version,
       route: "scripted",
-      card: P1_APPROVED.has(id) ? "P1-T2" : "P2-T2",
+      card: P1_APPROVED.has(id) ? "P1-T2" : id.startsWith("mech_") ? "P2-T3" : "P2-T2",
       contract: { path: "docs/kit-contract.md", version: CONTRACT_VERSION, sha256: sha256(path.join(REPO, "docs/kit-contract.md")), approved: "Paul, 2026-11-07 (contract status line)" },
       generator: exp.generator,
       generatorDeps: exp.generatorDeps,
@@ -414,7 +465,9 @@ async function provenance(runtime, source, ids, checks) {
       validation: { pass: true, checks },
       approvals: [P1_APPROVED.has(id)
         ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the four-piece look 2026-11-07 (blender/kit/review/pieces.png; also seen textured in the kit2000 and playroom scenes)" }
-        : { who: "Paul", gate: "piece look", status: "pending", notes: "P2-T2 piece; review sheet blender/kit/review/p2t2-pieces.png" }],
+        : id.startsWith("mech_")
+          ? { who: "Paul", gate: "piece look", status: "pending", notes: "P2-T3 mechanism piece; review sheet blender/kit/review/p2t3-mechanisms.png" }
+          : { who: "Paul", gate: "piece look", status: "pending", notes: "P2-T2 piece; review sheet blender/kit/review/p2t2-pieces.png" }],
     };
     fs.writeFileSync(path.join(dir, `${id}.provenance.json`), JSON.stringify(pv, null, 2) + "\n");
     console.log(`provenance ${id}`);

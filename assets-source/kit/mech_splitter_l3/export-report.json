@@ -1,0 +1,110 @@
+{
+  "blender": "5.2.2 LTS",
+  "colliderTris": 568,
+  "generator": {
+    "path": "blender/kit/generate.py",
+    "sha256": "7f8a9f772acf63a53ad23a67b316b76ee8ff068499bf4d74355c9fd7187b173c"
+  },
+  "generatorDeps": [
+    {
+      "path": "blender/kit/kitgeom.py",
+      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+    },
+    {
+      "path": "blender/kit/kitblocks.py",
+      "sha256": "4af584be5af2ea3827da638e45c13fbba52ecec08950720b05597f733c591e9e"
+    },
+    {
+      "path": "blender/kit/kitmech.py",
+      "sha256": "2ad8e089c960207ab1d476f108b694257dcf2cf875226f2b4563daf7f6579531"
+    }
+  ],
+  "lodParams": {
+    "lod0": {
+      "bevel_segs": 3,
+      "n_fillet": 6,
+      "n_round": 32,
+      "path": {
+        "curve90": 20,
+        "end": 16,
+        "slope_gentle": 16,
+        "straight": 1
+      }
+    },
+    "lod1": {
+      "bevel_segs": 1,
+      "n_fillet": 2,
+      "n_round": 12,
+      "path": {
+        "curve90": 8,
+        "end": 8,
+        "slope_gentle": 6,
+        "straight": 1
+      }
+    },
+    "lod2": {
+      "bevel_segs": 0,
+      "n_fillet": 1,
+      "n_round": 6,
+      "path": {
+        "curve90": 4,
+        "end": 4,
+        "slope_gentle": 3,
+        "straight": 1
+      }
+    }
+  },
+  "lodTris": {
+    "mech_splitter_l3_lod0": 2546,
+    "mech_splitter_l3_lod1": 464,
+    "mech_splitter_l3_lod2": 182
+  },
+  "mapSize": {
+    "lod0": 512,
+    "lod1": 256,
+    "lod2": 128
+  },
+  "nodes": [
+    "mech_splitter_l3",
+    "anim_flap",
+    "anim_flap_lod0",
+    "anim_flap_lod1",
+    "anim_flap_lod2",
+    "mech_splitter_l3_collider",
+    "mech_splitter_l3_lod0",
+    "mech_splitter_l3_lod1",
+    "mech_splitter_l3_lod2",
+    "port_0",
+    "port_1",
+    "port_2"
+  ],
+  "partTris": {
+    "lod0": {
+      "anim_flap_lod0": 24
+    },
+    "lod1": {
+      "anim_flap_lod1": 24
+    },
+    "lod2": {
+      "anim_flap_lod2": 24
+    }
+  },
+  "pieceId": "mech_splitter_l3",
+  "texelDensityPxPerM": {
+    "lod0": {
+      "max": 2860.0,
+      "median": 2729.1,
+      "min": 2173.1
+    },
+    "lod1": {
+      "max": 1450.4,
+      "median": 1394.2,
+      "min": 1102.1
+    },
+    "lod2": {
+      "max": 710.4,
+      "median": 697.2,
+      "min": 600.6
+    }
+  }
+}
