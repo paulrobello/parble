@@ -330,6 +330,25 @@ impl Orbit {
     }
 }
 
+/// Editor camera input (P3-T4). When `active`, the orbit camera leaves the left button to the
+/// editor tools: right drag orbits, middle drag or Shift + right drag pans along the ground, and
+/// the wheel zooms. `set` replaces the orbit once (the agent's `camera` action).
+#[derive(Resource, Debug, Default, Clone, Copy)]
+pub struct EditorCamera {
+    pub active: bool,
+    pub set: Option<Orbit>,
+}
+
+/// The orbit state in the state JSON (`camera.orbit`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrbitDiag {
+    pub target: [f32; 3],
+    pub yaw: f32,
+    pub pitch: f32,
+    pub radius: f32,
+}
+
 #[derive(Resource, Debug, Default)]
 struct DirectorState {
     cue: Option<(u32, usize)>,
@@ -363,6 +382,7 @@ pub struct CameraDiag {
     /// Marble radius in physical pixels.
     pub marble_radius_px: f32,
     pub post: post::LivePost,
+    pub orbit: OrbitDiag,
 }
 
 /// Critically damped spring towards `target` (Game Programming Gems 4, "Critically Damped Ease-In/
@@ -421,6 +441,7 @@ impl Plugin for DirectorPlugin {
             .init_resource::<DirectorClock>()
             .init_resource::<DirectorState>()
             .init_resource::<CameraDiag>()
+            .init_resource::<EditorCamera>()
             .add_systems(
                 Update,
                 (toggle_mode, fly_toggle, orbit_input, fly_input).chain(),
@@ -518,15 +539,61 @@ fn fly_input(
     }
 }
 
-/// Left drag orbits, the wheel zooms.
+/// Left drag orbits, the wheel zooms. With [`EditorCamera::active`] see its input scheme.
+#[allow(clippy::too_many_arguments)]
 fn orbit_input(
     mode: Res<CameraMode>,
     buttons: Option<Res<ButtonInput<MouseButton>>>,
+    keys: Option<Res<ButtonInput<KeyCode>>>,
     motion: Option<Res<AccumulatedMouseMotion>>,
     scroll: Option<Res<AccumulatedMouseScroll>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    mut editor: ResMut<EditorCamera>,
+    mut last_cursor: Local<Option<Vec2>>,
     mut st: ResMut<DirectorState>,
 ) {
+    if let Some(o) = editor.set.take() {
+        st.orbit = o;
+    }
     if *mode != CameraMode::Orbit {
+        *last_cursor = None;
+        return;
+    }
+    if editor.active {
+        // Cursor deltas: the browser reports them without pointer lock.
+        let cursor = windows.single().ok().and_then(Window::cursor_position);
+        let (right, middle) = buttons.as_ref().map_or((false, false), |b| {
+            (
+                b.pressed(MouseButton::Right),
+                b.pressed(MouseButton::Middle),
+            )
+        });
+        let shift = keys
+            .as_ref()
+            .is_some_and(|k| k.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]));
+        let dragging = right || middle;
+        if let (true, Some(now), Some(before)) = (dragging, cursor, *last_cursor) {
+            let d = now - before;
+            let o = &mut st.orbit;
+            if middle || shift {
+                let (sy, cy) = o.yaw.sin_cos();
+                let right_v = Vec3::new(cy, 0.0, -sy);
+                let fwd = Vec3::new(-sy, 0.0, -cy);
+                let k = o.radius * 0.0015;
+                o.target += (-right_v * d.x + fwd * d.y) * k;
+            } else {
+                o.yaw -= d.x * 0.005;
+                o.pitch = (o.pitch + d.y * 0.005).clamp(0.05, 1.5);
+            }
+        }
+        *last_cursor = if dragging { cursor } else { None };
+        if let Some(s) = scroll {
+            let lines = match s.unit {
+                bevy::input::mouse::MouseScrollUnit::Line => s.delta.y,
+                bevy::input::mouse::MouseScrollUnit::Pixel => s.delta.y / 40.0,
+            };
+            st.orbit.radius = (st.orbit.radius * (1.0 - lines * 0.1)).clamp(0.08, 8.0);
+        }
         return;
     }
     let o = &mut st.orbit;
@@ -568,7 +635,10 @@ fn direct(
     let Ok((camera, mut tf, dof, mut taa, (msaa, ssao, bloom, tm))) = cams.single_mut() else {
         return;
     };
-    let Some((p, v)) = lerp_marble(&frame) else {
+    // The editor's empty track has no marble: orbit and fly still frame, the director waits.
+    let Some((p, v)) = lerp_marble(&frame)
+        .or_else(|| (*mode != CameraMode::Director).then_some((st.orbit.target, Vec3::ZERO)))
+    else {
         return;
     };
     let has_taa = taa.is_some();
@@ -673,6 +743,12 @@ fn direct(
     diag.eye = eye.to_array();
     diag.forward = forward.to_array();
     diag.fly_speed = st.fly.speed;
+    diag.orbit = OrbitDiag {
+        target: st.orbit.target.to_array(),
+        yaw: st.orbit.yaw,
+        pitch: st.orbit.pitch,
+        radius: st.orbit.radius,
+    };
     diag.marble_px = st.trail.iter().copied().collect();
     diag.post = post::live_post((msaa, None, ssao, bloom, dof.as_deref(), tm));
     diag.post.taa = has_taa;

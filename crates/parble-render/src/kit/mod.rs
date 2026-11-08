@@ -18,6 +18,7 @@
 //!   the render device exists (on the web it arrives after `Startup`). Baked maps are PNG only.
 //! - The draw counts in [`KitDiag`] are read from the render world's binned phases ([`count_draws`]).
 
+pub mod edit;
 pub mod family;
 pub mod glb;
 
@@ -227,13 +228,16 @@ pub enum KitScene {
     /// The playroom marble run ([`parble_sim::playroom_run::RUN`]), the same placements the sim
     /// runs as chunk colliders.
     Playroom,
+    /// The editor (P3-T4): no fixed layout. The app places pieces chunk by chunk through
+    /// [`edit::KitEdits`].
+    Editor,
 }
 
 impl KitScene {
     /// The placements this scene draws.
     pub fn layout(self) -> Vec<Placement> {
         match self {
-            Self::None => Vec::new(),
+            Self::None | Self::Editor => Vec::new(),
             Self::Stress2000 => stress_layout(),
             Self::Playroom => playroom_layout(),
         }
@@ -483,6 +487,16 @@ pub struct KitDiag {
     pub device_astc: Option<bool>,
     pub textures: Vec<TextureDiag>,
     pub draws: KitDraws,
+    /// Editor-placed pieces ([`KitScene::Editor`] only).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub edit: Option<edit::KitEditStats>,
+}
+
+/// Per-piece LOD meshes and their visibility ranges, kept for pieces spawned after startup.
+#[derive(Resource, Default)]
+struct KitMeshes {
+    lods: Vec<[Handle<Mesh>; LODS]>,
+    ranges: Option<[VisibilityRange; LODS]>,
 }
 
 #[derive(Resource, Default)]
@@ -503,7 +517,9 @@ impl Plugin for KitPlugin {
             .init_resource::<TextureCap>()
             .init_resource::<KitDiag>()
             .init_resource::<KitTextures>()
+            .init_resource::<KitMeshes>()
             .insert_resource(shared.clone())
+            .add_plugins(edit::KitEditPlugin)
             .add_systems(Startup, spawn_kit)
             .add_systems(Update, (load_textures, update_diag).chain());
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
@@ -521,6 +537,7 @@ fn spawn_kit(
     shared: Res<KitShared>,
     mut diag: ResMut<KitDiag>,
     mut tex: ResMut<KitTextures>,
+    mut kept: ResMut<KitMeshes>,
     quality: Option<Res<crate::Quality>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<KitWoodMaterial>>,
@@ -571,6 +588,8 @@ fn spawn_kit(
     let mut variant_pieces = vec![0; WOOD_SETS.len()];
 
     let ranges = lod_ranges(crate::camera::FOV_DEG.to_radians());
+    kept.lods = handles.clone();
+    kept.ranges = Some(ranges.clone());
     let (chunks, bound) = chunk_stats(&layout);
     let mut by_chunk: std::collections::BTreeMap<[i32; 3], Vec<&Placement>> = Default::default();
     for p in &layout {

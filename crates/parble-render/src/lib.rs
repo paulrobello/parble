@@ -160,6 +160,11 @@ fn spawn_scene(
             min = min.min(a - Vec2::splat(0.6));
             max = max.max(b + Vec2::splat(0.6));
         }
+        if *kit_scene == kit::KitScene::Editor {
+            let (a, b) = kit::edit::EDITOR_FLOOR_M;
+            min = min.min(Vec2::from_array(a));
+            max = max.max(Vec2::from_array(b));
+        }
         let (size, centre) = (max - min, (min + max) / 2.0);
         commands.spawn((
             Mesh3d(meshes.add(Plane3d::default().mesh().size(size.x, size.y))),
