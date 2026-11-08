@@ -321,7 +321,8 @@ def _flap(px, f0, segs):
 FORK_PIVOT_X = -2.0
 BLADE_LEN = 24.0
 BLADE_TOP = 14.0
-BLADE_UNDER = [(-2.0, 6.0), (-10.0, 1.8), (-18.0, 1.0), (-26.0, 4.0)]
+BLADE_UNDER = [(-2.0, 6.0), (-10.0, 1.9), (-18.0, 1.0), (-26.0, 4.0)]
+HUB_BASE = 8.2   # the ridge between the troughs reaches 7.7 mm within the hub radius
 FORK_LIMIT = 25000
 
 
@@ -332,7 +333,7 @@ def _switch_blade(shape, f0, segs):
     tip = FORK_PIVOT_X - BLADE_LEN
     outline = [(x, f0 + y) for x, y in BLADE_UNDER] + [(tip, f0 + BLADE_TOP), (FORK_PIVOT_X, f0 + BLADE_TOP)]
     blade = _solid_prism(outline, "z", -half, half)
-    y0, y1 = f0 + BLADE_UNDER[0][1], f0 + BLADE_TOP
+    y0, y1 = f0 + HUB_BASE, f0 + BLADE_TOP
     if shape == "splitter":
         hub = _solid_box((FORK_PIVOT_X - 1.5, y0, -1.5), (FORK_PIVOT_X + 1.5, y1, 1.5))
         name, rest = "anim_flap", FORK_LIMIT

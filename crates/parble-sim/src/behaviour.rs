@@ -15,13 +15,13 @@
 //! | `mech_finish` | `cup` | — | counts each marble once and keeps its arrival tick |
 //! | `mech_splitter_l3` | `entry` | `anim_flap` | the flap is set to a seeded side before each marble arrives |
 //! | `mech_toggle_l3` | `entry` | `anim_rocker` | the rocker flips to the other side after each marble |
+//! | `mech_checkpoint_l1` | `gate` | — | split tick and a camera cue per pass |
+//! | `mech_gate_oneway_l1` | `approach`, `exit` | `anim_flap` | opens for marbles that reach `approach` first; the closed flap blocks the others |
+//! | `mech_hole_oneway_l1` | `trap`, `over` | `anim_trapdoor` | opens under marbles that reach `trap` first; marbles from `over` roll across the shut door |
 //!
 //! Both fork parts are a switch blade hinged about +Y with its tip upstream; at its ±25° limits
 //! the tip is 10.1 mm off the channel centre, so the marble meets the blade's face and is steered
 //! to the open branch. The behaviours drive the part to its limits ([`fork_angle`]).
-//! | `mech_checkpoint_l1` | `gate` | — | split tick and a camera cue per pass |
-//! | `mech_gate_oneway_l1` | `approach`, `exit` | `anim_flap` | opens for marbles that reach `approach` first; the closed flap blocks the others |
-//! | `mech_hole_oneway_l1` | `trap`, `over` | `anim_trapdoor` | opens under marbles that reach `trap` first; marbles from `over` roll across the shut door |
 
 use std::collections::BTreeMap;
 
