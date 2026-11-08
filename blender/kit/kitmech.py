@@ -23,7 +23,10 @@ PIECE_VERSION = 1
 # Pieces whose geometry changed since version 1 (contract §10: the id stays, the version bumps).
 # 2026-11-08: mech_hole_oneway_l1 2, bore-filling 90° trapdoor and open port faces;
 # mech_gate_oneway_l1 2, open port faces.
-PIECE_VERSIONS = {"mech_gate_oneway_l1": 2, "mech_hole_oneway_l1": 2}
+# 2026-11-08: mech_finish, mech_hopper, mech_splitter_l3, mech_toggle_l3, mech_checkpoint_l1 2,
+# open port faces.
+PIECE_VERSIONS = {"mech_gate_oneway_l1": 2, "mech_hole_oneway_l1": 2, "mech_finish": 2, "mech_hopper": 2,
+                  "mech_splitter_l3": 2, "mech_toggle_l3": 2, "mech_checkpoint_l1": 2}
 BUILD = ("mech_finish", "mech_hopper", "mech_splitter_l3", "mech_toggle_l3", "mech_checkpoint_l1",
          "mech_gate_oneway_l1", "mech_hole_oneway_l1")
 
@@ -279,10 +282,9 @@ def collision_mesh(piece_id):
 # Pieces whose channel port faces are left open in the collision mesh (§5.4), as kitblocks does for
 # the P2-T2 blocks. The boolean's cap on a port face meets the mating straight's floor at the port
 # ring as a convex 90° edge: crossing a straight -> mech_hole seam threw a 0.42 m/s marble 0.24 m/s
-# up, and the hops that followed stalled it on the closed trapdoor (measured 2026-11-08). The gate
-# is opened too: in the all-pieces track it feeds the hole, and its capped face kicked marbles there.
-# The other mech pieces still carry the caps.
-OPEN_PORT_FACES = ("mech_gate_oneway_l1", "mech_hole_oneway_l1")
+# up, and the hops that followed stalled it on the closed trapdoor (measured 2026-11-08). At 0.3 m/s
+# the caps threw marbles 115-147 mm/s up at the finish, hopper, fork and checkpoint seams.
+OPEN_PORT_FACES = BUILD
 
 
 def open_port_faces(piece_id, verts, tris):

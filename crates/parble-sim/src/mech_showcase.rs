@@ -46,7 +46,7 @@ pub const SHOWCASE_TICKS: u32 = crate::golden::RAMP_10S_TICKS;
 /// The `shots-test` capture ticks, multiples of the app's 4-tick lockstep frame: the toggle's
 /// rocker part-way through its swing to side 0, and the gate's flap fully open with the marble
 /// under it. The tests below pin both against the sim.
-pub const TOGGLE_FLIP_SHOT_TICK: u64 = 68;
+pub const TOGGLE_FLIP_SHOT_TICK: u64 = 60;
 pub const GATE_OPEN_SHOT_TICK: u64 = 64;
 
 /// The showcase as kit placements.

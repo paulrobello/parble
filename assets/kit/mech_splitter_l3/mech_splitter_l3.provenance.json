@@ -1,7 +1,7 @@
 {
   "schema": "parble-kit-provenance/1",
   "pieceId": "mech_splitter_l3",
-  "pieceVersion": 1,
+  "pieceVersion": 2,
   "route": "scripted",
   "card": "P2-T3",
   "contract": {
@@ -25,7 +25,7 @@
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "2fca23c55376256b9249a0681252069234688a846cd4e4b44d21c8e600d3dba9"
+      "sha256": "2c48f62102a112f0cf58e01301cf1ae46bcb3319a912dcba4494dd0aac63ad3c"
     }
   ],
   "authoringAgent": {
@@ -96,7 +96,7 @@
   ],
   "collider": {
     "node": "mech_splitter_l3_collider",
-    "tris": 568
+    "tris": 505
   },
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
@@ -118,19 +118,19 @@
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 113692,
+    "glbBytes": 113064,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/mech_splitter_l3/mech_splitter_l3.glb",
-      "sha256": "a92686123e8bde63367983aa5b3e6ff9d5e1cc4473f799e60a1e37f72f787493",
-      "bytes": 113692
+      "sha256": "52d2cc4f6f7f8b0b459eff36b7d9470f5f918a74b5c311ffbd35888b7b670cfa",
+      "bytes": 113064
     },
     {
       "path": "assets/kit/mech_splitter_l3/mech_splitter_l3.kit.json",
-      "sha256": "f7655877c816d7ddac375fe9ae6a110a3dda92e8188193b7bde984f1224ba9bc",
-      "bytes": 38618
+      "sha256": "9633f64a44cbb63ee71948ae4405f1dac61c8b3cf3d160e576a8b694f4f8e4fd",
+      "bytes": 36350
     },
     {
       "path": "assets/kit/mech_splitter_l3/mech_splitter_l3_lod0_ao.png",
@@ -164,13 +164,13 @@
     },
     {
       "path": "assets-source/kit/mech_splitter_l3/mech_splitter_l3_high.blend",
-      "sha256": "d6959dae1eacced0ded39b44fd8208f92c83f912149a9e4c29c161c9e987d90c",
-      "bytes": 374465
+      "sha256": "c99e9cd2f45cff0a4ac53414189e9c1f956d2fbce15974ffcf7745eba16f68ae",
+      "bytes": 373048
     },
     {
       "path": "assets-source/kit/mech_splitter_l3/mech_splitter_l3_low.blend",
-      "sha256": "abe479d3afb05b0403c3494682c2c85f6cafb86b25b336aba959d340dee59ae0",
-      "bytes": 190573
+      "sha256": "2ac65db5f6b4ef9dcf5228aa0415898e6941cf9c4195f7fadffb46bb04306104",
+      "bytes": 189553
     }
   ],
   "references": [

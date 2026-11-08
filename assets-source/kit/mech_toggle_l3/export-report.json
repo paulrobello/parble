@@ -1,6 +1,6 @@
 {
   "blender": "5.2.2 LTS",
-  "colliderTris": 568,
+  "colliderTris": 505,
   "generator": {
     "path": "blender/kit/generate.py",
     "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
@@ -16,7 +16,7 @@
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "2fca23c55376256b9249a0681252069234688a846cd4e4b44d21c8e600d3dba9"
+      "sha256": "2c48f62102a112f0cf58e01301cf1ae46bcb3319a912dcba4494dd0aac63ad3c"
     }
   ],
   "lodParams": {

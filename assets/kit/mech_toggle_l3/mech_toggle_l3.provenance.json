@@ -1,7 +1,7 @@
 {
   "schema": "parble-kit-provenance/1",
   "pieceId": "mech_toggle_l3",
-  "pieceVersion": 1,
+  "pieceVersion": 2,
   "route": "scripted",
   "card": "P2-T3",
   "contract": {
@@ -25,7 +25,7 @@
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "2fca23c55376256b9249a0681252069234688a846cd4e4b44d21c8e600d3dba9"
+      "sha256": "2c48f62102a112f0cf58e01301cf1ae46bcb3319a912dcba4494dd0aac63ad3c"
     }
   ],
   "authoringAgent": {
@@ -96,7 +96,7 @@
   ],
   "collider": {
     "node": "mech_toggle_l3_collider",
-    "tris": 568
+    "tris": 505
   },
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
@@ -118,19 +118,19 @@
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 118296,
+    "glbBytes": 117672,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/mech_toggle_l3/mech_toggle_l3.glb",
-      "sha256": "04337959d5bd8df5f0fe20a73e5ab442dcd27f5c7cc57425caec037d68b0ad7b",
-      "bytes": 118296
+      "sha256": "a9607a77149ec4791ed62a9d06df64a28fa4460a9e7029fab3671aabc4f283a8",
+      "bytes": 117672
     },
     {
       "path": "assets/kit/mech_toggle_l3/mech_toggle_l3.kit.json",
-      "sha256": "b23364d03b080ebc69821a9ad8b24f927943db54793eaa63eabef3c13114e68d",
-      "bytes": 42245
+      "sha256": "380112f33a0ac27fb395d1bb6c191548477b401de9f728ce2af6ee6b1ad3da09",
+      "bytes": 39977
     },
     {
       "path": "assets/kit/mech_toggle_l3/mech_toggle_l3_lod0_ao.png",
@@ -164,13 +164,13 @@
     },
     {
       "path": "assets-source/kit/mech_toggle_l3/mech_toggle_l3_high.blend",
-      "sha256": "aceb9a94838f23abf6dc84b0801d6430285543d5bb4fa8ae919899895abade80",
-      "bytes": 379327
+      "sha256": "d80cd31f295f8c5c7e6641c01f5d23f70cd3ffdb3b8e817325dfbad30591d379",
+      "bytes": 377733
     },
     {
       "path": "assets-source/kit/mech_toggle_l3/mech_toggle_l3_low.blend",
-      "sha256": "a7fa4ebc74449316e94ea33c6330785874ccde0f584ea3acdf4e6094d01179bf",
-      "bytes": 195199
+      "sha256": "fb9a0066de50e7becbd4ec43b4c6498863feb2fd41e4c60af229da56d02cb16d",
+      "bytes": 194447
     }
   ],
   "references": [

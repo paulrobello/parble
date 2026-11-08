@@ -1,7 +1,7 @@
 {
   "schema": "parble-kit-provenance/1",
   "pieceId": "mech_hopper",
-  "pieceVersion": 1,
+  "pieceVersion": 2,
   "route": "scripted",
   "card": "P2-T3",
   "contract": {
@@ -25,7 +25,7 @@
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "0a6bfab6b2f828b0527f490e4a1c1e9009927b2b538f2d10c05a96b7af2f3af6"
+      "sha256": "2c48f62102a112f0cf58e01301cf1ae46bcb3319a912dcba4494dd0aac63ad3c"
     }
   ],
   "authoringAgent": {
@@ -96,7 +96,7 @@
   ],
   "collider": {
     "node": "mech_hopper_collider",
-    "tris": 198
+    "tris": 177
   },
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
@@ -118,19 +118,19 @@
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 50948,
+    "glbBytes": 50724,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/mech_hopper/mech_hopper.glb",
-      "sha256": "4ef84a968455439f86a2d1d8ebc9c99e70e265d45dec60de7d379834e26defca",
-      "bytes": 50948
+      "sha256": "d9be36e1352cbfed2a31e48165f6a5b71f1582083d58f4274c71fc1cdb9b7615",
+      "bytes": 50724
     },
     {
       "path": "assets/kit/mech_hopper/mech_hopper.kit.json",
-      "sha256": "abcd62df4855577796f07009f4c560dc2905271eb9de143df348b96f2a502741",
-      "bytes": 16930
+      "sha256": "eadbca6ff3507f3956cff888e131c9f79091fc150c8adaaa5725f211f2840aba",
+      "bytes": 16198
     },
     {
       "path": "assets/kit/mech_hopper/mech_hopper_lod0_ao.png",
@@ -164,13 +164,13 @@
     },
     {
       "path": "assets-source/kit/mech_hopper/mech_hopper_high.blend",
-      "sha256": "5bcd0bbeb88c052b4fca1e60470bd1cd7768a2c6fb4d71560f0c1955ec9577bc",
-      "bytes": 155411
+      "sha256": "a2b8f2a4a29c115a676bfc3d1aad944da18e492de9fc7e45e29442dabc4b7c58",
+      "bytes": 155059
     },
     {
       "path": "assets-source/kit/mech_hopper/mech_hopper_low.blend",
-      "sha256": "3b0b6bf667127267d5498918a6897d1ad93c91bfd68a030cfb0eb49126ada014",
-      "bytes": 124360
+      "sha256": "d0c062ece396d1ec9126df453fdc5216d4fd1caf3ad865c5cfcf43199ff23e06",
+      "bytes": 124036
     }
   ],
   "references": [

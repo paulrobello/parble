@@ -1,18 +1,18 @@
 {
   "schema": "parble-kit-provenance/1",
   "pieceId": "mech_checkpoint_l1",
-  "pieceVersion": 1,
+  "pieceVersion": 2,
   "route": "scripted",
   "card": "P2-T3",
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "598168abc009ce13b7e42cfeb7194a4e1bb9939ee13669d3bb565ede5d7dd841",
+    "sha256": "7c2251a18e1a4fb4279da9a2ce54c0b676213eaa9f42e44ae9c4809dcaed3d03",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "7f8a9f772acf63a53ad23a67b316b76ee8ff068499bf4d74355c9fd7187b173c"
+    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
   },
   "generatorDeps": [
     {
@@ -21,11 +21,11 @@
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "4af584be5af2ea3827da638e45c13fbba52ecec08950720b05597f733c591e9e"
+      "sha256": "fe82520ff25b453ef318332b3b462d271b293e5a33b24e98e217add8ea311a52"
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "2ad8e089c960207ab1d476f108b694257dcf2cf875226f2b4563daf7f6579531"
+      "sha256": "2c48f62102a112f0cf58e01301cf1ae46bcb3319a912dcba4494dd0aac63ad3c"
     }
   ],
   "authoringAgent": {
@@ -96,7 +96,7 @@
   ],
   "collider": {
     "node": "mech_checkpoint_l1_collider",
-    "tris": 152
+    "tris": 76
   },
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
@@ -118,19 +118,19 @@
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 28256,
+    "glbBytes": 27540,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/mech_checkpoint_l1/mech_checkpoint_l1.glb",
-      "sha256": "3f2d6a6bf9b6322642f5c2249230538095c003c5751b6496bf330bf8246b41d3",
-      "bytes": 28256
+      "sha256": "768b815b292e5737542023b1aa21fcfe2f4328799c45f8b06749eabe55dfb56c",
+      "bytes": 27540
     },
     {
       "path": "assets/kit/mech_checkpoint_l1/mech_checkpoint_l1.kit.json",
-      "sha256": "49667e9caf2f717aa511712b163e52ed93a5a57680fd041addd9d56a6621028d",
-      "bytes": 9781
+      "sha256": "1a90e3b9761b9461a4df1954db38fb044684740b4c6d6b486feb36b0644a10a9",
+      "bytes": 7133
     },
     {
       "path": "assets/kit/mech_checkpoint_l1/mech_checkpoint_l1_lod0_ao.png",
@@ -164,13 +164,13 @@
     },
     {
       "path": "assets-source/kit/mech_checkpoint_l1/mech_checkpoint_l1_high.blend",
-      "sha256": "4e17637ad085a272eb113a4a79ea901d28bfea5c3e495ed1e2055c00577a9bbc",
-      "bytes": 138040
+      "sha256": "2b027a89cba8c93e6cd5cb50f028c4851ac69f14d848047f0c2ba177f48e7ca6",
+      "bytes": 136965
     },
     {
       "path": "assets-source/kit/mech_checkpoint_l1/mech_checkpoint_l1_low.blend",
-      "sha256": "c33f45bc3d124ff2add3bcbc96e5228d0bfc33774c58537acc061e2393442b67",
-      "bytes": 111705
+      "sha256": "7ec1498f345a54570d21180092abbcecee5bc7cc47e0939a0cf59fa2572230d9",
+      "bytes": 110753
     }
   ],
   "references": [

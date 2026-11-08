@@ -1,7 +1,7 @@
 {
   "schema": "parble-kit-provenance/1",
   "pieceId": "mech_finish",
-  "pieceVersion": 1,
+  "pieceVersion": 2,
   "route": "scripted",
   "card": "P2-T3",
   "contract": {
@@ -25,7 +25,7 @@
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "d185ddce86903ebf4766a411fa37f5ebcb43f15b8d65ad3c2dc9d7b2b6c2c392"
+      "sha256": "2c48f62102a112f0cf58e01301cf1ae46bcb3319a912dcba4494dd0aac63ad3c"
     }
   ],
   "authoringAgent": {
@@ -96,7 +96,7 @@
   ],
   "collider": {
     "node": "mech_finish_collider",
-    "tris": 182
+    "tris": 161
   },
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
@@ -118,19 +118,19 @@
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 40636,
+    "glbBytes": 40496,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/mech_finish/mech_finish.glb",
-      "sha256": "a89a4d2d670b7a179afd6284f0387d0f1f29a70c154db7437ef03c5834f190f7",
-      "bytes": 40636
+      "sha256": "e17cce8f1f066d69d9783587cc855d193af027c661381d4080477306aa7f140b",
+      "bytes": 40496
     },
     {
       "path": "assets/kit/mech_finish/mech_finish.kit.json",
-      "sha256": "197a30f72f90f250d3f66f44aa71cf3a744d08174e19abe992f369dbd73fe4e7",
-      "bytes": 11427
+      "sha256": "bf2e86f575318f072157379a6902e7a21dcee5669b5bf5978d288910bfe48af0",
+      "bytes": 10700
     },
     {
       "path": "assets/kit/mech_finish/mech_finish_lod0_ao.png",
@@ -164,13 +164,13 @@
     },
     {
       "path": "assets-source/kit/mech_finish/mech_finish_high.blend",
-      "sha256": "5cff2e477ea11c02f55bccbf39a46785f1f5ce49291dca6225724a679e7e1353",
-      "bytes": 149323
+      "sha256": "a44f00ec5072a032de81450645774a8d493ea48eede72b2b656a748b3a479936",
+      "bytes": 148956
     },
     {
       "path": "assets-source/kit/mech_finish/mech_finish_low.blend",
-      "sha256": "81856839c79045960139bf533ab86f95e780ff28ba4ba14cacfb3a074b573a8d",
-      "bytes": 117886
+      "sha256": "80a4fe2491c42a0e002546892b9a15f02486de1dea9d744f2ae4702a04c5ee76",
+      "bytes": 117581
     }
   ],
   "references": [
