@@ -2,15 +2,22 @@
 // 50 pieces with the real mouse: 40 on the ground and 10 stacked on top by picking existing pieces,
 // with the ghost preview checked before every click. Then ghost validity and port hints, height
 // slicing (state, picking and pixels), box select by mouse drag and by cell box, a move-group drag,
-// undo/redo and the delete tool. Actions and pixel projections go through
+// undo/redo and the delete tool. One piece of each family (block, mechanism, rail) from the full
+// palette places and renders. Actions and pixel projections go through
 // window.wasmBindings.parbleEdit; state comes from window.__parble.editor.
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
 const FIXTURES = JSON.parse(readFileSync(new URL("../../web/ui/src/parble-fixtures.json", import.meta.url), "utf8"));
 
 const BAD_TEXT = (t) => /%cERROR%c|\bERROR\b/.test(t) || /uncaptured|invalid|validation|panicked/i.test(t);
-const PALETTE = ["blk_straight_l3", "blk_curve90_l3", "blk_slope_gentle_l3", "blk_end_l3"];
+// The palette is every builtin kit piece (a sidecar in assets/kit/), in id order.
+const KIT = new URL("../../assets/kit/", import.meta.url);
+const PALETTE = readdirSync(KIT)
+  .filter((d) => existsSync(new URL(`${d}/${d}.kit.json`, KIT)))
+  .sort();
+// The four one-cell P1-T4 blocks the scripted placement cycles through.
+const SHOWCASE = ["blk_straight_l3", "blk_curve90_l3", "blk_slope_gentle_l3", "blk_end_l3"];
 // Rows of ten on the ground behind the tray: cells x 0..9, z −5..−8.
 const ground = Array.from({ length: 40 }, (_, i) => [i % 10, 0, -5 - Math.floor(i / 10)]);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -90,7 +97,7 @@ test("editor: ghost, picking, slicing, box select and move drag over 50 placed p
   const groundPx = await project(page, box, ground);
   for (let i = 0; i < ground.length; i++) {
     if (i % 10 === 0) {
-      await edit(page, { op: "brush", piece: PALETTE[(i / 10) % 4], yaw: 0 });
+      await edit(page, { op: "brush", piece: SHOWCASE[(i / 10) % 4], yaw: 0 });
     }
     const [x, y] = groundPx[i].floor;
     expect(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.id, [x, y])).toBe("parble");
@@ -398,4 +405,72 @@ test("editor: loadTrack and runTrack start the editor over on the loaded track",
   expect(s.dirtyColliderChunks).toBe(0);
   expect(await panel.getAttribute("data-error")).toBe("");
   expect(errors).toEqual([]);
+});
+
+test("editor: a block, a mechanism and a rail from the full palette place and render", async ({ page }) => {
+  const { errors, box } = await openEditor(page);
+  const requestErrors = [];
+  page.on("requestfailed", (r) => requestErrors.push(`request failed: ${r.url()}`));
+  expect((await state(page)).palette).toEqual(PALETTE);
+  // Each family, multi-cell footprints included: the redirect drops a level (cells y 0..1, anchored
+  // on the upper one), the S-rail spans 3 × 2 cells and the toggle draws its rocker at rest.
+  const cases = [
+    { piece: "blk_redirect_l3", cell: [4, 1, -6], cells: [[4, 1, -6], [4, 0, -6]] },
+    { piece: "mech_toggle_l3", cell: [8, 0, -6], cells: [[8, 0, -6]] },
+    { piece: "rail_s_1x3_l2", cell: [11, 0, -6], cells: [[11, 0, -6], [13, 0, -7]] },
+  ];
+  await edit(page, { op: "camera", target: [0.48, 0.02, -0.38], yaw: 0.3, pitch: 0.95, radius: 0.75 });
+  await page.mouse.move(box.x + 5, box.y + 5);
+  await frames(page, 3);
+  const kit = () => page.evaluate(() => window.__parble.kit);
+  const settled = async () => {
+    await page.waitForFunction(
+      () => {
+        const k = window.__parble.kit;
+        return window.__parble.editor.dirtyColliderChunks === 0 && k.textures.every((t) => t.state === "loaded");
+      },
+      null,
+      { timeout: 30_000 },
+    );
+    await frames(page, 6);
+  };
+  for (const c of cases) {
+    const px = await project(page, box, c.cells);
+    const xs = px.flatMap((p) => [p.centre[0], p.floor[0]]);
+    const ys = px.flatMap((p) => [p.centre[1], p.floor[1]]);
+    // Pad by a cell's projected size, so the clip holds the whole piece.
+    const pad = Math.max(24, Math.hypot(px[0].centre[0] - px[0].floor[0], px[0].centre[1] - px[0].floor[1]) * 2);
+    const clip = {
+      x: Math.min(...xs) - pad,
+      y: Math.min(...ys) - pad,
+      width: Math.max(...xs) - Math.min(...xs) + 2 * pad,
+      height: Math.max(...ys) - Math.min(...ys) + 2 * pad,
+    };
+    await settled();
+    const before = await kit();
+    const empty = await page.screenshot({ clip });
+    const last = await edit(page, { op: "place", piece: c.piece, cell: c.cell, yaw: 0 });
+    expect(last.ok, `${c.piece}: ${last.error}`).toBe(true);
+    await settled();
+    const after = await kit();
+    const placed = await page.screenshot({ clip });
+    writeFileSync(test.info().outputPath(`${c.piece}.png`), placed);
+    const diff = await compare(page, placed, empty);
+    const baked = after.textures.filter((t) => t.kind === "baked" && t.path.includes(`/${c.piece}/`));
+    console.log(
+      `${c.piece}: pieceTypes ${before.pieceTypes} -> ${after.pieceTypes}, draws.main ${before.draws.main} -> ` +
+        `${after.draws.main}, baked ${baked.length} loaded, pixel diff ${diff.diff.toFixed(1)}`,
+    );
+    // A new type: one more type, more main-pass draws, its six baked maps loaded, and pixels.
+    expect(after.pieceTypes).toBe(before.pieceTypes + 1);
+    expect(after.draws.main).toBeGreaterThan(before.draws.main);
+    expect(baked).toHaveLength(6);
+    expect(baked.every((t) => t.state === "loaded")).toBe(true);
+    expect(diff.diff).toBeGreaterThan(10);
+  }
+  writeFileSync(test.info().outputPath("families.png"), await page.locator("canvas#parble").screenshot());
+  const s = await state(page);
+  expect(s.pieces).toBe(cases.length);
+  expect(errors).toEqual([]);
+  expect(requestErrors).toEqual([]);
 });
