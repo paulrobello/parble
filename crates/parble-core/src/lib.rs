@@ -26,4 +26,4 @@ pub use track::{
     HopperConfig, MarbleSize, MechConfig, PHYSICS_VERSION, Placement, ReleaseMode, SCHEMA_VERSION,
     Track,
 };
-pub use validate::{Issue, IssueKind, LinkFault, is_finish, is_hopper, validate_track};
+pub use validate::{Issue, IssueKind, LinkFault, is_finish, is_hopper, link_fault, validate_track};

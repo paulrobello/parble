@@ -267,6 +267,16 @@ impl Editor {
         Ok(())
     }
 
+    /// Whether `cmd` would apply, without changing the track, the stacks or the selection (the
+    /// editor's ghost preview).
+    pub fn check<C: PieceCatalog + ?Sized>(
+        &self,
+        catalog: &C,
+        cmd: EditCommand,
+    ) -> Result<(), EditError> {
+        self.plan(catalog, cmd).map(|_| ())
+    }
+
     /// Reverts the most recent command. Returns `false` when there is nothing to undo.
     pub fn undo(&mut self) -> bool {
         let Some(changes) = self.undo.pop() else {

@@ -398,7 +398,7 @@ pub fn validate_track(track: &Track, catalog: &impl PieceCatalog) -> Vec<Issue> 
 }
 
 /// Why `a` and `b`, which sit on the two sides of one face, do not link; `None` if they do.
-fn link_fault(a: &Port, b: &Port) -> Option<LinkFault> {
+pub fn link_fault(a: &Port, b: &Port) -> Option<LinkFault> {
     if let (Some(fa), Some(fb)) = (floor_um(a), floor_um(b))
         && fa != fb
     {

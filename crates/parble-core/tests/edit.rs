@@ -646,3 +646,25 @@ fn editor_accepts_a_trait_object_catalog() {
         sel(&[0])
     );
 }
+
+#[test]
+fn check_matches_apply_and_changes_nothing() {
+    let (mut ed, cat) = editor_with(vec![place(CURVE, c(0, 0, 0), 0, Mirror::Off)]);
+    ed.undo();
+    let before = (bytes(ed.track()), ed.can_undo(), ed.can_redo());
+    assert_eq!(
+        ed.check(&cat, place(STRAIGHT, c(5, 0, 0), 0, Mirror::Off)),
+        Ok(())
+    );
+    ed.redo();
+    let after_redo = bytes(ed.track());
+    ed.undo();
+    assert_eq!((bytes(ed.track()), ed.can_undo(), ed.can_redo()), before);
+    ed.redo();
+    assert_eq!(bytes(ed.track()), after_redo);
+    assert_eq!(
+        ed.check(&cat, place(STRAIGHT, c(1, 0, 1), 0, Mirror::Off)),
+        Err(EditError::Collision(c(1, 0, 1)))
+    );
+    assert!(ed.can_undo() && !ed.can_redo());
+}
