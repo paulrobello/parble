@@ -44,8 +44,8 @@ pub enum Scenario {
     /// the tray: [`parble_sim::playroom_run`], drawn by the kit renderer and simulated on chunk
     /// colliders, with its own committed hash. Ignores `--marble`.
     Playroom,
-    /// The P1-T4 kit stress wall: 2,000 instanced pieces beside the ramp. Render-only, so the sim
-    /// and its golden hash are the ramp's.
+    /// The P1-T4 kit showcase: 2,000 instanced pieces in one flat, raised grid with half-cell gaps
+    /// beside the ramp. Render-only, so the sim and its golden hash are the ramp's.
     Kit2000,
     /// Marble lineup (P5-T1): every type side by side at rest on the floor in front of the tray,
     /// with a mini and a shooter at the ends ([`marble::LINEUP`]). Ignores `--marble`.

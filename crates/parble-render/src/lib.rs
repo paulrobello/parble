@@ -125,6 +125,7 @@ fn spawn_scene(
     mut commands: Commands,
     quality: Res<Quality>,
     env: Res<Environment>,
+    kit_scene: Res<kit::KitScene>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -149,10 +150,21 @@ fn spawn_scene(
     });
     let len = scene::tray_length_m();
     if plain {
+        let (mut min, mut max) = (
+            Vec2::new(-1.5 * len, -2.0 * len),
+            Vec2::new(2.5 * len, 2.0 * len),
+        );
+        // The kit2000 showcase grid is far wider than the tray floor: floor under all of it.
+        if *kit_scene == kit::KitScene::Stress2000 {
+            let (a, b) = kit::grid_footprint_m();
+            min = min.min(a - Vec2::splat(0.6));
+            max = max.max(b + Vec2::splat(0.6));
+        }
+        let (size, centre) = (max - min, (min + max) / 2.0);
         commands.spawn((
-            Mesh3d(meshes.add(Plane3d::default().mesh().size(4.0 * len, 4.0 * len))),
+            Mesh3d(meshes.add(Plane3d::default().mesh().size(size.x, size.y))),
             MeshMaterial3d(floor),
-            Transform::from_xyz(len / 2.0, -0.0005, 0.0),
+            Transform::from_xyz(centre.x, -0.0005, centre.y),
         ));
     }
 

@@ -169,20 +169,23 @@ impl Cues {
         ])
     }
 
-    /// One fixed overview of the whole tray (`--camera overview`).
-    /// The kit stress wall (P1-T4) from its near end: the near pieces draw LOD0 and the far end
-    /// LOD2, with both crossfade bands in frame.
+    /// The kit showcase grid (P1-T4) in a high three-quarter view from its near corner across the
+    /// diagonal: the near pieces draw LOD0 with their half-cell gaps and the far corner LOD2, with
+    /// both crossfade bands in frame.
     pub fn kit() -> Self {
+        let eye = Vec3::from_array(KIT_EYE);
+        let look = Vec3::from_array(KIT_LOOK);
         Self(vec![(
             0,
             Shot::Set {
-                eye: [-0.45, 0.55, -0.25],
-                look: [1.6, 0.22, -0.87],
-                focus_m: 1.5,
+                eye: KIT_EYE,
+                look: KIT_LOOK,
+                focus_m: eye.distance(look),
             },
         )])
     }
 
+    /// One fixed overview of the whole tray (`--camera overview`).
     pub fn overview() -> Self {
         let len = scene::tray_length_m();
         Self(vec![(
@@ -194,6 +197,12 @@ impl Cues {
         )])
     }
 }
+
+/// The kit2000 set shot's eye and look point (metres): beside the grid's near corner, so every
+/// type and wood variant has LOD0 pieces in frame while the rest of the grid, and its LOD2 far
+/// side, still fits (`e2e/tests/kit.spec.mjs` asserts both).
+pub const KIT_EYE: [f32; 3] = [-2.40, 0.50, -0.10];
+pub const KIT_LOOK: [f32; 3] = [-1.04, 0.12, -1.01];
 
 /// Tick of the playroom run's cut to the finish shot (2.5 s, just before the lead marble arrives).
 pub const PLAYROOM_FINISH_TICK: u64 = 600;

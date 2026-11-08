@@ -1,4 +1,4 @@
-// P1-T4 instanced chunked kit renderer in GPU Chromium: the 2,000-piece `kit2000` wall draws within
+// P1-T4 instanced chunked kit renderer in GPU Chromium: the 2,000-piece `kit2000` grid draws within
 // one draw per (type × LOD × chunk), as one draw per (type, LOD, wood variant), every LOD is in frame
 // with crossfading ranges, the three wood variants load in the device's texture family (BC7, else
 // ASTC, else PNG) and every piece's baked AO and normal PNGs load, with no console errors or WebGPU
@@ -63,7 +63,9 @@ for (const tex of [null, "astc", "png"]) {
       .map((u) => `${u.pathname}${u.search} (want v=${hashes[u.pathname.slice(1)]})`);
     expect(unversioned).toEqual([]);
     expect(k.pieces).toBe(2000);
-    expect(k.chunks).toBe(14);
+    // One flat 50 × 40 grid at a 1.5-cell pitch: 10 × 8 chunks, 317 occupied (type, chunk) pairs.
+    expect(k.chunks).toBe(80);
+    expect(k.drawBound).toBe(317 * 3);
     expect(k.draws.mainViews).toBe(1);
     expect(k.draws.main).toBeGreaterThan(0);
     expect(k.draws.main).toBeLessThanOrEqual(k.drawBound);

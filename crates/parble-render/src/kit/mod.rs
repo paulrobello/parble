@@ -3,13 +3,14 @@
 //! - Instancing: one [`Mesh`] per (piece type, LOD) and one [`KitWoodMaterial`] per (piece type,
 //!   LOD, wood variant), so Bevy's GPU preprocessing bins every instance of a (type, LOD, variant)
 //!   into one indirect draw per view, below the P1-T4 bound of one per (type × LOD × chunk).
-//!   Instances are grouped under one [`KitChunk`] entity per 8×8×8-cell chunk (kit contract §2).
+//!   Instances are grouped under one [`KitChunk`] entity per 8×8×8-cell chunk (kit contract §2) of
+//!   their world-space origin.
 //! - LOD: each piece spawns all three LODs with contiguous [`VisibilityRange`]s from the §12
 //!   thresholds (one cell 160 px / 48 px tall at 1440p) and a ±15 % margin. Bevy draws both LODs in
 //!   the margin with complementary screen-space dither (`VISIBILITY_RANGE_DITHER`, main pass and
 //!   prepass/shadows), so there is no hard cut. The fade is measured from each piece's origin, which
 //!   is finer than §12's per-chunk nearest point.
-//! - Wood (§12): each piece picks one of [`WOOD_SETS`] by a hash of its anchor cell
+//! - Wood (§12): each piece picks one of [`WOOD_SETS`] by a hash of its layout key
 //!   ([`variant_of`]). `wood.wesl` projects the tileable wood in world space, triplanar, at one
 //!   1,024² repeat per [`WOOD_TILE_M`] (4,096 texels per metre; Low samples mip 1, 2,048), and the
 //!   StandardMaterial half applies the piece's baked AO and bevel normal maps at UV0.
@@ -161,8 +162,8 @@ impl MaterialExtension for KitWoodExt {
 
 pub type KitWoodMaterial = ExtendedMaterial<StandardMaterial, KitWoodExt>;
 
-/// Wood variant of the piece anchored at `cell`: hash bits disjoint from the stress layout's piece
-/// type (`h % 4`) and yaw (`h >> 8`), so variants do not correlate with either.
+/// Wood variant of the piece keyed by `cell` ([`Placement::cell`]): hash bits disjoint from the
+/// stress layout's piece type (`h % 4`) and yaw (`h >> 8`), so variants do not correlate with either.
 pub fn variant_of(cell: IVec3) -> usize {
     ((cell_hash(cell) >> 16) % WOOD_SETS.len() as u32) as usize
 }
@@ -221,7 +222,7 @@ impl Plugin for KitAssetSourcePlugin {
 pub enum KitScene {
     #[default]
     None,
-    /// 2,000 pieces in a 50 × 10 × 4-cell wall beside the tray.
+    /// 2,000 pieces in one flat, raised 50 × 40 showcase grid with half-cell gaps, beside the tray.
     Stress2000,
     /// The playroom marble run ([`parble_sim::playroom_run::RUN`]), the same placements the sim
     /// runs as chunk colliders.
@@ -243,17 +244,29 @@ impl KitScene {
 #[derive(Resource, Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct TextureCap(pub Option<TextureFamily>);
 
-/// One placed piece: index into [`PIECES`], anchor cell and yaw in quarter turns.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// One placed piece: index into [`PIECES`], hash key, world origin and yaw in quarter turns.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Placement {
     pub piece: usize,
+    /// The anchor cell of a cell-grid layout, or the (column, 0, row) index of a showcase grid
+    /// piece. Keys the type, yaw and wood variant hashes.
     pub cell: IVec3,
+    /// World position of the piece-local origin (bottom-face centre, kit contract §1).
+    pub origin: Vec3,
     pub yaw: u8,
 }
 
-/// Stress wall size in cells, and its first cell.
-pub const STRESS_DIMS: IVec3 = IVec3::new(50, 10, 4);
-pub const STRESS_ORIGIN: IVec3 = IVec3::new(0, 0, -16);
+/// Showcase grid: columns along +x, rows along −z, one flat layer.
+pub const GRID_COLS: i32 = 50;
+pub const GRID_ROWS: i32 = 40;
+/// Neighbour spacing: one 1-cell piece plus a half-cell gap.
+pub const GRID_PITCH_M: f32 = 1.5 * CELL_M;
+/// Height of every grid piece's bottom face above the floor (y = 0).
+pub const GRID_RAISE_M: f32 = 2.0 * CELL_M;
+/// Origin of grid piece (0, 0). The near row stands 0.13 m behind the tray (−z) and the columns
+/// straddle its length. No origin lands on a chunk boundary (0.48 m multiples), so chunking is
+/// not at the mercy of float rounding.
+pub const GRID_ORIGIN_M: Vec3 = Vec3::new(-1.88, GRID_RAISE_M, -0.16);
 
 fn cell_hash(c: IVec3) -> u32 {
     let mut h = (c.x as u32).wrapping_mul(0x8da6_b343)
@@ -264,23 +277,39 @@ fn cell_hash(c: IVec3) -> u32 {
     h ^ (h >> 12)
 }
 
-/// The 2,000-piece layout: every cell of [`STRESS_DIMS`], piece type and yaw from a hash of the cell.
+/// World origin of showcase grid piece (`col`, `row`).
+pub fn grid_origin(col: i32, row: i32) -> Vec3 {
+    GRID_ORIGIN_M + Vec3::new(col as f32 * GRID_PITCH_M, 0.0, -(row as f32) * GRID_PITCH_M)
+}
+
+/// The 2,000-piece showcase: a [`GRID_COLS`] × [`GRID_ROWS`] grid at [`GRID_PITCH_M`], raised
+/// [`GRID_RAISE_M`], piece type and yaw from a hash of the grid index.
 pub fn stress_layout() -> Vec<Placement> {
-    let mut out = Vec::with_capacity((STRESS_DIMS.x * STRESS_DIMS.y * STRESS_DIMS.z) as usize);
-    for y in 0..STRESS_DIMS.y {
-        for z in 0..STRESS_DIMS.z {
-            for x in 0..STRESS_DIMS.x {
-                let cell = STRESS_ORIGIN + IVec3::new(x, y, z);
-                let h = cell_hash(cell);
-                out.push(Placement {
-                    piece: (h % PIECES.len() as u32) as usize,
-                    cell,
-                    yaw: ((h >> 8) % 4) as u8,
-                });
-            }
+    let mut out = Vec::with_capacity((GRID_COLS * GRID_ROWS) as usize);
+    for row in 0..GRID_ROWS {
+        for col in 0..GRID_COLS {
+            let cell = IVec3::new(col, 0, row);
+            let h = cell_hash(cell);
+            out.push(Placement {
+                piece: (h % PIECES.len() as u32) as usize,
+                cell,
+                origin: grid_origin(col, row),
+                yaw: ((h >> 8) % 4) as u8,
+            });
         }
     }
     out
+}
+
+/// The showcase grid's floor-plan footprint, min and max corners in (x, z) metres.
+pub fn grid_footprint_m() -> (Vec2, Vec2) {
+    let half = CELL_M / 2.0;
+    let a = grid_origin(0, 0);
+    let b = grid_origin(GRID_COLS - 1, GRID_ROWS - 1);
+    (
+        Vec2::new(a.x.min(b.x) - half, a.z.min(b.z) - half),
+        Vec2::new(a.x.max(b.x) + half, a.z.max(b.z) + half),
+    )
 }
 
 /// The playroom run's placements, from the sim's own list so the drawn and simulated runs agree.
@@ -293,13 +322,22 @@ pub fn playroom_layout() -> Vec<Placement> {
                 .position(|(p, _)| *p == id)
                 .unwrap_or_else(|| panic!("playroom run piece {id} has no GLB")),
             cell: IVec3::from_array(cell),
+            origin: cell_origin(IVec3::from_array(cell)),
             yaw,
         })
         .collect()
 }
 
-pub fn chunk_of(cell: IVec3) -> IVec3 {
-    cell.div_euclid(IVec3::splat(CHUNK_CELLS))
+/// Cell edge in integer µm (kit contract §2).
+const CELL_UM: i32 = 60_000;
+
+/// Chunk of a world-space piece origin. Rounded to integer µm first, so a cell-grid origin on a
+/// chunk boundary lands in the chunk it starts, as `cell.div_euclid(CHUNK_CELLS)` would.
+pub fn chunk_of(origin: Vec3) -> IVec3 {
+    (origin * 1.0e6)
+        .round()
+        .as_ivec3()
+        .div_euclid(IVec3::splat(CHUNK_CELLS * CELL_UM))
 }
 
 /// World position of a cell's piece-local origin (bottom-face centre, kit contract §1).
@@ -308,17 +346,20 @@ pub fn cell_origin(cell: IVec3) -> Vec3 {
 }
 
 pub fn placement_transform(p: &Placement) -> Transform {
-    Transform::from_translation(cell_origin(p.cell)).with_rotation(Quat::from_rotation_y(
+    Transform::from_translation(p.origin).with_rotation(Quat::from_rotation_y(
         f32::from(p.yaw) * std::f32::consts::FRAC_PI_2,
     ))
 }
 
 /// Occupied chunks and the contract bound of `LODS` draws per occupied (type, chunk).
 pub fn chunk_stats(layout: &[Placement]) -> (usize, usize) {
-    let chunks: BTreeSet<_> = layout.iter().map(|p| chunk_of(p.cell).to_array()).collect();
+    let chunks: BTreeSet<_> = layout
+        .iter()
+        .map(|p| chunk_of(p.origin).to_array())
+        .collect();
     let pairs: BTreeSet<_> = layout
         .iter()
-        .map(|p| (p.piece, chunk_of(p.cell).to_array()))
+        .map(|p| (p.piece, chunk_of(p.origin).to_array()))
         .collect();
     (chunks.len(), pairs.len() * LODS)
 }
@@ -534,7 +575,7 @@ fn spawn_kit(
     let mut by_chunk: std::collections::BTreeMap<[i32; 3], Vec<&Placement>> = Default::default();
     for p in &layout {
         by_chunk
-            .entry(chunk_of(p.cell).to_array())
+            .entry(chunk_of(p.origin).to_array())
             .or_default()
             .push(p);
     }
@@ -881,18 +922,51 @@ mod tests {
     }
 
     #[test]
-    fn stress_layout_is_2000_pieces_in_chunks() {
+    fn stress_layout_is_a_flat_raised_2000_piece_grid_with_half_cell_gaps() {
         let layout = stress_layout();
         assert_eq!(layout.len(), 2_000);
-        let cells: HashSet<_> = layout.iter().map(|p| p.cell.to_array()).collect();
-        assert_eq!(cells.len(), 2_000, "one piece per cell");
+        assert_eq!((GRID_COLS * GRID_ROWS) as usize, layout.len());
+        let keys: HashSet<_> = layout.iter().map(|p| p.cell.to_array()).collect();
+        assert_eq!(keys.len(), 2_000, "one piece per grid slot");
         for t in 0..PIECES.len() {
             assert!(layout.iter().any(|p| p.piece == t), "type {t} unused");
         }
+        // One flat layer, every bottom face at the raise height.
+        // The undersides clear the floor by at least a cell.
+        assert!(
+            layout
+                .iter()
+                .all(|p| p.origin.y == GRID_RAISE_M && p.origin.y >= CELL_M)
+        );
+        // Neighbours on both axes are 1.5 cells apart, so the 1-cell pieces leave half a cell of
+        // gap on every side (a quarter-turn yaw about the bottom-face centre keeps the footprint).
+        let pitch = 1.5 * CELL_M;
+        for row in 0..GRID_ROWS {
+            for col in 0..GRID_COLS {
+                let o = grid_origin(col, row);
+                if col + 1 < GRID_COLS {
+                    let d = grid_origin(col + 1, row) - o;
+                    assert!((d.x - pitch).abs() < 1e-5 && d.z.abs() < 1e-5, "{d}");
+                }
+                if row + 1 < GRID_ROWS {
+                    let d = grid_origin(col, row + 1) - o;
+                    assert!((d.z + pitch).abs() < 1e-5 && d.x.abs() < 1e-5, "{d}");
+                }
+            }
+        }
+        for p in &layout {
+            assert_eq!(p.origin, grid_origin(p.cell.x, p.cell.z));
+        }
+        // The grid stays clear of the tray and ramp (x 0 .. tray length, z within ±5 cm).
+        let (min, max) = grid_footprint_m();
+        assert!(max.y < -0.10, "grid near edge {} overlaps the tray", max.y);
+        assert!(min.x < 0.0 && max.x > parble_sim::scene::tray_length_m());
         let (chunks, bound) = chunk_stats(&layout);
-        // 50 × 10 × 4 cells from x 0, y 0, z −16: 7 × 2 × 1 chunks.
-        assert_eq!(chunks, 14);
-        assert_eq!(bound, 14 * PIECES.len() * LODS);
+        // Origins span x −1.88 .. 2.53 m and z −3.67 .. −0.16 m in one y layer: 10 × 8 chunks.
+        assert_eq!(chunks, 80);
+        // 317 occupied (type, chunk) pairs: three thin edge chunks lack one piece type.
+        assert_eq!(bound, 317 * LODS);
+        assert!(bound <= chunks * PIECES.len() * LODS);
         assert_eq!(stress_layout(), layout, "deterministic");
     }
 
@@ -1006,9 +1080,19 @@ mod tests {
     }
 
     #[test]
-    fn chunks_floor_negative_cells() {
-        assert_eq!(chunk_of(IVec3::new(-1, 0, -8)), IVec3::new(-1, 0, -1));
-        assert_eq!(chunk_of(IVec3::new(7, 8, -9)), IVec3::new(0, 1, -2));
+    fn chunks_floor_negative_origins_and_keep_cell_boundaries() {
+        let at = |x, y, z| chunk_of(cell_origin(IVec3::new(x, y, z)));
+        assert_eq!(at(-1, 0, -8), IVec3::new(-1, 0, -1));
+        assert_eq!(at(7, 8, -9), IVec3::new(0, 1, -2));
+        // Every cell origin chunks as its cell does, boundaries included.
+        for c in -40..40 {
+            let cell = IVec3::new(c, c / 2, -c);
+            assert_eq!(
+                chunk_of(cell_origin(cell)),
+                cell.div_euclid(IVec3::splat(CHUNK_CELLS))
+            );
+        }
+        assert!((CELL_M * 1.0e6 - CELL_UM as f32).abs() < 1e-2);
     }
 
     #[test]
