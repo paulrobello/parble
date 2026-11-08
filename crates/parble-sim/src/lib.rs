@@ -15,11 +15,15 @@
 //! allow 5 mm of penetration, more than half a standard marble's radius. At 0.06 they are
 //! 0.3 mm, 1.2 mm and 0.18 m/s. All other integration parameters are Rapier 0.36.1 defaults.
 
+pub mod chunk;
 pub mod golden;
 pub mod hash;
 pub mod marble;
 pub mod scene;
 pub mod track_run;
+
+#[cfg(test)]
+mod seam_test;
 
 use hash::{Fnv1a64, POSITION_QUANTA_PER_M, VELOCITY_QUANTA_PER_M_PER_S, quantize};
 use rapier3d::prelude::*;
@@ -51,6 +55,8 @@ pub struct MarbleState {
 /// A deterministic sim world advanced in whole ticks.
 pub struct Sim {
     world: PhysicsWorld,
+    /// Placed kit pieces and their merged chunk colliders (P1-T3).
+    pieces: chunk::ChunkColliders,
     marbles: Vec<RigidBodyHandle>,
     tick: u64,
     hasher: Fnv1a64,
@@ -65,6 +71,7 @@ impl Sim {
         world.integration_parameters.length_unit = length_unit();
         Self {
             world,
+            pieces: chunk::ChunkColliders::new(),
             marbles: Vec::new(),
             tick: 0,
             hasher: Fnv1a64::default(),
@@ -110,12 +117,47 @@ impl Sim {
     /// [`HASH_SAMPLE_TICKS`].
     pub fn tick(&mut self, n: u32) {
         for _ in 0..n {
-            self.world.step();
+            if self.pieces.chunks().next().is_some() {
+                // The chunk colliders carry the seam contact hook ([`chunk::ChunkColliders`]).
+                self.world.step_with_events(&self.pieces, &());
+            } else {
+                self.world.step();
+            }
             self.tick += 1;
             if self.tick.is_multiple_of(HASH_SAMPLE_TICKS) {
                 self.sample();
             }
         }
+    }
+
+    /// Place a kit piece. Takes effect at the next [`Sim::rebuild_chunks`].
+    pub fn place_piece(
+        &mut self,
+        kit: &parble_kit::KitCatalog,
+        p: parble_core::Placement,
+    ) -> Result<(), chunk::ChunkError> {
+        self.pieces.insert(kit, p)
+    }
+
+    /// Remove the piece anchored at `anchor`. Takes effect at the next [`Sim::rebuild_chunks`].
+    pub fn remove_piece(
+        &mut self,
+        anchor: parble_core::CellCoord,
+    ) -> Result<parble_core::Placement, chunk::ChunkError> {
+        self.pieces.remove(anchor)
+    }
+
+    /// Rebuild the colliders of every chunk touched since the last rebuild.
+    pub fn rebuild_chunks(
+        &mut self,
+        kit: &parble_kit::KitCatalog,
+    ) -> Result<(), chunk::ChunkError> {
+        let result = self.pieces.rebuild(kit, &mut self.world);
+        // Contact clustering merges per-triangle manifolds before the seam hook runs, which would
+        // hide the triangle a contact came from. It stays on for piece-free worlds (the golden).
+        self.world.integration_parameters.contact_clustering =
+            self.pieces.chunks().next().is_none();
+        result
     }
 
     /// Ticks advanced since construction.

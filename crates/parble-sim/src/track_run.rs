@@ -1,9 +1,11 @@
 //! Running a loaded [`Track`] (P3-T3).
 //!
-//! Piece colliders arrive with the kit loader and chunk merge (P1-T3). Until then a track runs in
-//! the P0 tray: the parts of the track the sim can consume are its hopper queue and release mode,
-//! which decide which marbles enter and on which tick. Placements, mechanisms and the seed do not
-//! reach physics yet.
+//! A track still runs in the P0 tray: the parts of the track the sim consumes are its hopper
+//! queue and release mode, which decide which marbles enter and on which tick. Placements,
+//! mechanisms and the seed do not reach physics yet. The kit loader and chunk merge exist since
+//! P1-T3 ([`crate::chunk`], [`Sim::place_piece`]), but the tracks saved so far use catalogue ids
+//! that are not in the kit and marbles spawn on the tray ramp rather than at a hopper, so wiring
+//! placements in waits for the hopper and finish pieces (P2).
 //!
 //! Releases happen between steps, on whole ticks, so a run is a pure function of the track and the
 //! tick count.
