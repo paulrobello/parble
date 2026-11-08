@@ -67,7 +67,9 @@ def spec(piece_id):
     shape = piece_id[len("mech_"):].rsplit("_l", 1)[0] if piece_id[-3:-1] == "_l" else piece_id[len("mech_"):]
     if shape == "hopper":      # bowl holding the queue, release gate on the exit channel
         level, ports = 1, [_side(0, "+x", 1, "out")]
-        sensors = [_box_sensor("release", (21000, 27500, 0), (5000, 12500, 14000))]
+        # The gate's 34 mm sweep reaches 16 mm past the +x face, so `release` does too: a marble
+        # leaves it (centre 8 mm past the box, at x >= 48 mm) only once it is clear of the closing gate.
+        sensors = [_box_sensor("release", (28000, 27500, 0), (12000, 12500, 14000))]
     elif shape == "finish":    # channel into a deep collector cup
         level, ports = 3, [_side(0, "-x", 3, "in")]
         # up to the cell top: the cup holds 10 standard marbles, the top ones with centres 47-53 mm up

@@ -7,12 +7,12 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "598168abc009ce13b7e42cfeb7194a4e1bb9939ee13669d3bb565ede5d7dd841",
+    "sha256": "7c2251a18e1a4fb4279da9a2ce54c0b676213eaa9f42e44ae9c4809dcaed3d03",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "7f8a9f772acf63a53ad23a67b316b76ee8ff068499bf4d74355c9fd7187b173c"
+    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
   },
   "generatorDeps": [
     {
@@ -21,11 +21,11 @@
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "4af584be5af2ea3827da638e45c13fbba52ecec08950720b05597f733c591e9e"
+      "sha256": "fe82520ff25b453ef318332b3b462d271b293e5a33b24e98e217add8ea311a52"
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "2ad8e089c960207ab1d476f108b694257dcf2cf875226f2b4563daf7f6579531"
+      "sha256": "0a6bfab6b2f828b0527f490e4a1c1e9009927b2b538f2d10c05a96b7af2f3af6"
     }
   ],
   "authoringAgent": {
@@ -129,8 +129,8 @@
     },
     {
       "path": "assets/kit/mech_hopper/mech_hopper.kit.json",
-      "sha256": "766f4ce6983dd509732ed76dfdf026124a28b369153be27b20b14cd4b5f35652",
-      "bytes": 16929
+      "sha256": "abcd62df4855577796f07009f4c560dc2905271eb9de143df348b96f2a502741",
+      "bytes": 16930
     },
     {
       "path": "assets/kit/mech_hopper/mech_hopper_lod0_ao.png",
@@ -164,13 +164,13 @@
     },
     {
       "path": "assets-source/kit/mech_hopper/mech_hopper_high.blend",
-      "sha256": "52e8c36045a0a2979ec805289da16aab82644b5cc0a367e219da1a30f3af7c61",
-      "bytes": 155472
+      "sha256": "5bcd0bbeb88c052b4fca1e60470bd1cd7768a2c6fb4d71560f0c1955ec9577bc",
+      "bytes": 155411
     },
     {
       "path": "assets-source/kit/mech_hopper/mech_hopper_low.blend",
-      "sha256": "f0ac446a446c36760f8598c6960b52a28b3718e8305c9678c43b61a427c501e1",
-      "bytes": 124398
+      "sha256": "3b0b6bf667127267d5498918a6897d1ad93c91bfd68a030cfb0eb49126ada014",
+      "bytes": 124360
     }
   ],
   "references": [

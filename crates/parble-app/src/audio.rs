@@ -856,9 +856,9 @@ mod tests {
         );
     }
 
-    /// A marble the hopper releases rolls over an `L1` block onto two `L1` rail straights (where it
-    /// comes to rest): the coalesced audio frames report `wood` while it is over the block and
-    /// `rail` over the rails, on the wire too.
+    /// A marble the hopper releases rolls over an `L1` block and two `L1` rail straights, then off
+    /// the rails' open end onto the floor: the coalesced audio frames report `wood` while it is over
+    /// the block and `rail` over the rails, on the wire too.
     #[test]
     fn a_marble_on_rails_reports_rail_and_on_a_block_wood() {
         use parble_core::{HopperConfig, MarbleSize, PieceId, Placement, ReleaseMode, Yaw4};
@@ -903,8 +903,12 @@ mod tests {
             for r in &f.rolls {
                 let x = r.position[0];
                 max_x = max_x.max(x);
-                // Away from the seams, where the marble may touch both pieces.
-                if (((x + 0.03) / 0.06).fract() - 0.5).abs() > 0.3 || !r.contact {
+                // Away from the seams, where the marble may touch both pieces, and on the track:
+                // its centre rides 23 mm up on the block and the rails, 8 mm up on the floor.
+                if (((x + 0.03) / 0.06).fract() - 0.5).abs() > 0.3
+                    || !r.contact
+                    || r.position[1] < 0.015
+                {
                     continue;
                 }
                 match cell_x(x) {

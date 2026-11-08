@@ -464,8 +464,11 @@ fn hopper_releases_one_all_and_interval() {
         for (e, r) in exits.iter().zip(&rel) {
             assert_eq!(e.0 - r.0, lag, "{release:?}");
         }
-        assert_eq!(signals(&ev, "gate_open").len(), 3, "{release:?}");
-        assert_eq!(signals(&ev, "gate_close").len(), 3, "{release:?}");
+        // All releases every 48 ticks, before a marble has cleared the gate's sweep (it leaves
+        // `release` 16 mm past the cell), so the gate stays open for the whole queue.
+        let cycles = if release == ReleaseMode::All { 1 } else { 3 };
+        assert_eq!(signals(&ev, "gate_open").len(), cycles, "{release:?}");
+        assert_eq!(signals(&ev, "gate_close").len(), cycles, "{release:?}");
         // Out of the hopper and along the run-out, in queue order.
         let xs: Vec<f32> = run.marbles().iter().map(|m| m.position[0]).collect();
         assert!(xs.iter().all(|&x| x > 0.39), "{release:?}: {xs:?}");
@@ -612,3 +615,57 @@ fn finish_counts_ten_marbles_in_one_cup() {
         );
     }
 }
+
+/// Ten hopper releases into a flat L1 run all roll out near the kick speed. The gate's 34 mm
+/// sweep reaches past the cell, and closing as soon as a marble left the old 26 mm `release` box
+/// caught it 13 mm past the port; the next opening flicked it out at up to 1.5 m/s.
+#[test]
+fn hopper_releases_ten_into_a_flat_straight_without_a_stall() {
+    for release in [
+        ReleaseMode::Interval { ticks: 480 },
+        ReleaseMode::Interval { ticks: 240 },
+        ReleaseMode::All,
+    ] {
+        let mut t = Track::new(3);
+        t.placements = vec![place(HOPPER, 0, 0, -5, 0)];
+        for x in 1..=8 {
+            t.placements.push(place("blk_straight_l1", x, 0, -5, 0));
+        }
+        t.hopper = HopperConfig {
+            placement: Some(0),
+            queue: vec![MarbleSize::Standard; 10],
+            release,
+        };
+        let mut run = TrackRun::new(&t).unwrap();
+        // Lowest and highest +X speed of each marble in the first straight's cell.
+        let mut speed = [(f32::MAX, 0.0f32); 10];
+        for _ in 0..5_000 {
+            run.tick(1);
+            for (m, s) in run.marbles().iter().enumerate() {
+                if (CELL / 2.0..1.5 * CELL).contains(&s.position[0]) {
+                    speed[m].0 = speed[m].0.min(s.linvel[0]);
+                    speed[m].1 = speed[m].1.max(s.linvel[0]);
+                }
+            }
+        }
+        assert_eq!(run.marbles().len(), 10, "{release:?}");
+        for (m, &(lo, hi)) in speed.iter().enumerate() {
+            assert!(
+                lo > 0.15 && hi < 0.35,
+                "{release:?}: marble {m} at {lo}..{hi} m/s past the gate"
+            );
+        }
+        assert!(
+            run.marbles().iter().all(|s| s.position[0] > 4.0 * CELL),
+            "{release:?}: a marble stayed near the hopper"
+        );
+        let v = &run.mechanisms()[0];
+        assert_eq!(
+            (v.state["released"], v.state["passed"]),
+            (10, 10),
+            "{release:?}"
+        );
+        assert_eq!(v.part_angles, [0], "{release:?}");
+    }
+}
+

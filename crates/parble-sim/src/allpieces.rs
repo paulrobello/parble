@@ -24,10 +24,9 @@
 //!
 //! # Measured limits that shaped the layout
 //!
-//! - Hopper gate on flat `L1`: the gate closes 24 ticks after a marble leaves its `release`
-//!   sensor and its tip catches a marble rolling at the 0.3 m/s kick about 13 mm past the port,
-//!   which stops it; the next release's opening gate then flicks it out at about 1.55 m/s. The
-//!   hopper's exit is therefore a transfer: the marble falls clear of the gate's sweep at once.
+//! - Hopper exit: the track was laid out when the closing gate caught a marble on flat `L1` 13 mm
+//!   past the port (its `release` sensor now reaches past the gate's sweep, and flat runs are
+//!   fine), so the hopper's exit is a transfer: the marble falls clear of the gate at once.
 //! - Finish cup capacity: one cup holds and counts 10 standard marbles (the top ones stack with
 //!   their centres 47–53 mm above the cup's cell floor, inside the `cup` sensor, which reaches the
 //!   cell top). The last toggle still sends the marbles to two cups, 5 each.
