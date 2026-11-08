@@ -41,7 +41,8 @@ function stats(ms) {
     p95Ms: q(0.95),
     p99Ms: q(0.99),
     maxMs: s[s.length - 1],
-    over16_7: s.filter((v) => v > BUDGET_MS).length,
+    // Frames longer than 1.5 budgets: a missed vsync (16.8 ms is rAF jitter at 60 Hz, not a drop).
+    dropped: s.filter((v) => v > 1.5 * BUDGET_MS).length,
   };
 }
 
@@ -55,8 +56,11 @@ async function waitForLoad() {
 
 test("editing a 2,000-piece track keeps the chunk rebuild inside one frame", async ({ page }) => {
   mkdirSync(new URL(".", OUT), { recursive: true });
-  const loadBefore = await waitForLoad();
-  if (loadBefore > LOAD_MAX) {
+  // PARBLE_PERF_DIAG=1 runs once without waiting for the load; the result is still marked not
+  // taken unless the load was within LOAD_MAX before and after.
+  const diagRun = process.env.PARBLE_PERF_DIAG === "1";
+  const loadBefore = diagRun ? loadavg()[0] : await waitForLoad();
+  if (loadBefore > LOAD_MAX && !diagRun) {
     const result = { taken: false, reason: `1-min load ${loadBefore.toFixed(2)} > ${LOAD_MAX}`, loadBefore };
     writeFileSync(OUT, `${JSON.stringify(result, null, 2)}\n`);
     console.log(`NOT TAKEN: ${result.reason}`);
@@ -124,7 +128,7 @@ test("editing a 2,000-piece track keeps the chunk rebuild inside one frame", asy
   const worst = (k) => Math.max(...perEdit.map((e) => e[k]));
   const mean = (k) => perEdit.reduce((s, e) => s + e[k], 0) / perEdit.length;
   const result = {
-    taken: loadAfter <= LOAD_MAX,
+    taken: loadBefore <= LOAD_MAX && loadAfter <= LOAD_MAX,
     loadBefore,
     loadAfter,
     userAgent: await page.evaluate(() => navigator.userAgent),
@@ -162,5 +166,7 @@ test("editing a 2,000-piece track keeps the chunk rebuild inside one frame", asy
   expect(errors).toEqual([]);
   expect(result.pieces).toBe(2000);
   expect(result.worstFrameRebuildMs).toBeLessThan(BUDGET_MS);
-  if (!result.taken) console.log(`NOT TAKEN: load after ${loadAfter.toFixed(2)} > ${LOAD_MAX}`);
+  if (!result.taken) {
+    console.log(`NOT TAKEN: load ${loadBefore.toFixed(2)} before, ${loadAfter.toFixed(2)} after (max ${LOAD_MAX})`);
+  }
 });
