@@ -88,6 +88,21 @@ The web build replaces `window.__parble` every frame. `--dump-state` prints the 
 
 All timing (screenshot, exit, fps) is real time in the app layer. The sim never receives wall-clock input, so none of these switches can change a trajectory hash.
 
+## Audio and `window.__parbleAudio`
+
+The Web Audio engine (P4-T4, `web/ui/src/audio`) runs in the HUD bundle, not in the wasm, so its state is on its own global: `window.__parble` is replaced by the wasm every frame and would drop anything added to it. Browsers only start audio after a user gesture, so the engine creates and resumes its `AudioContext` on the first pointer down, key press or touch on the page. Until then `state` is `locked` and audio frames are skipped. The SFX it plays are Paul's approved P4-T2 picks for the roll, impact, clack and gate-swing cues, staged into `web/ui/audio/` by `scripts/web/stage-audio.mjs` (run by `make ui-build`). Only the Ogg Opus files are fetched where the browser plays them, else the AAC fallback.
+
+`window.__parbleAudio.stats()` returns:
+
+- `state`: `locked`, `starting`, `running`, `suspended`, `closed` or `unsupported` (no Web Audio).
+- `format` (`ogg` or `m4a`), `cues`, `files` (variants in the catalog), `fetched`, `decoded` and `loadErrors`.
+- `activeVoices` (roll loops plus one-shots sounding now, never above `cap.total`), `rollVoices`, `oneShotVoices` and `peakVoices`. `cap` is `{ total: 24, rolls: 10 }`.
+- `started` one-shots, `dropped` (refused: every slot held a louder voice), `stolen` (a louder one-shot took the slot), `rollsCulled` (rolls left silent per frame by the roll budget), `crossfades` (surface changes), `resets` (tick regressions: run restarts and loaded tracks).
+- `frames`, `contacts`, `skippedFrames` (frames before the context ran), `missingBuffers`, `buffers`, `errors` and `lastError` (engine failures; the engine never throws into the HUD loop).
+- `injected`: whether `inject` was used.
+
+`window.__parbleAudio.inject(event)` is a test hook: it decodes `event` like a bridge event and feeds it to the engine if it is an `audioFrame`, returning `false` otherwise. After the first injected frame, live bridge frames are ignored, so a driver can stress the engine with more marbles than any scenario has. `make web-e2e` runs both (`e2e/tests/audio.spec.mjs`).
+
 ## Camera controls
 
 Every scenario, `kit2000` and `lineup` included, has a free-fly camera (`Fly` in `crates/parble-render/src/camera.rs`). It works the same natively and on the web. On the web, click the scene first so the canvas has keyboard focus.

@@ -35,7 +35,7 @@ PRD: `PRD.md` §5.7, §6 P4. Phase goal: physics-reactive SFX and ambient music 
 - Depends on: P2-T1, P0-T7.
 
 ### P4-T4 — Web Audio engine
-- `web/audio` (TS):
+- `web/ui/src/audio` (TS, in the HUD bundle so it shares the web/ui Vite, Biome, tsc and Vitest legs):
   - roll loop voices per marble with pitch/gain/low-pass mapped from speed
   - surface crossfade
   - impact one-shots selected by impulse band with random variation and pitch jitter

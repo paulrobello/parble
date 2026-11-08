@@ -70,7 +70,7 @@ The MVP is a sandbox ("build, release, watch"). The roadmap adds procedural gene
 | Physics | `rapier3d` 0.36.1 used directly (not `bevy_rapier3d`), features `enhanced-determinism`, no `parallel` |
 | Math in the sim | `libm` for every trig/transcendental call in gameplay and sim code |
 | UI overlay | TypeScript in `web/ui` (Vite build, Biome lint, Vitest), talking to wasm through a typed bridge |
-| Audio | TypeScript Web Audio engine in `web/audio`, fed by a per-frame event buffer from Rust. Bevy audio stays off. |
+| Audio | TypeScript Web Audio engine in `web/ui/src/audio` (shipped in the HUD bundle), fed by a per-frame event buffer from Rust. Bevy audio stays off. |
 | Assets | Blender 5.2 headless generators in `blender/`, KTX-Software 4.4.2, meshopt GLB |
 | Persistence | IndexedDB track library + `.parble` JSON file export/import |
 | Hosting | GitHub Pages at `parble.pardev.net` |
