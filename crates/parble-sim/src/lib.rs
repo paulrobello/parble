@@ -72,12 +72,15 @@ pub struct ChunkGeometry {
     /// The collider's active contact hooks (`ActiveHooks` bits).
     pub active_hooks: u32,
     /// Contact-hook tags ([`chunk::ChunkMesh::stitched`], `bends`, `bend_of`, `slopes`,
-    /// `slope_of`) installed with the collider.
+    /// `slope_of`, `arcs`, `arc_of`) installed with the collider.
     pub stitched: Vec<u8>,
     pub bends: Vec<chunk::ChannelBend>,
     pub bend_of: Vec<u32>,
     pub slopes: Vec<chunk::ChannelSlope>,
     pub slope_of: Vec<Vec<u32>>,
+    /// Rail arcs and per-triangle arc tags ([`chunk::ChunkMesh::arc_of`]).
+    pub arcs: Vec<rail_arc::ChannelArc>,
+    pub arc_of: Vec<u32>,
 }
 
 /// A deterministic sim world advanced in whole ticks.
@@ -265,7 +268,7 @@ impl Sim {
                     .shape()
                     .as_trimesh()
                     .expect("chunk colliders are trimeshes");
-                let (stitched, (bends, bend_of), (slopes, slope_of)) = self
+                let (stitched, (bends, bend_of), (slopes, slope_of), (arcs, arc_of)) = self
                     .pieces
                     .hook_tags(h)
                     .expect("every chunk collider has its hook tags");
@@ -280,6 +283,8 @@ impl Sim {
                     bend_of: bend_of.clone(),
                     slopes: slopes.clone(),
                     slope_of: slope_of.clone(),
+                    arcs: arcs.clone(),
+                    arc_of: arc_of.clone(),
                 }
             })
             .collect()

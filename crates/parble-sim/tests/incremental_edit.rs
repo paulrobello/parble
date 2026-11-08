@@ -1,16 +1,19 @@
 //! P3-T4: editing a run's pieces in place, one changed placement at a time with only the touched
 //! chunks rebuilt, leaves exactly the colliders a fresh build of the final track has: the same
-//! trimeshes, active hooks and contact-hook tags (stitched edges, channel bends, channel slopes).
+//! trimeshes, active hooks and contact-hook tags (stitched edges, channel bends, channel slopes,
+//! rail arcs).
 
 use parble_core::{CellCoord, Mirror, PieceId, Placement, Track, Yaw4};
 use parble_sim::track_run::TrackRun;
 use std::collections::BTreeMap;
 
-const IDS: [&str; 4] = [
+const IDS: [&str; 6] = [
     "blk_straight_l3",
     "blk_curve90_l3",
     "blk_slope_gentle_l3",
     "blk_end_l3",
+    "rail_straight_l2",
+    "rail_curve90_r90_l2",
 ];
 
 struct Lcg(u64);
@@ -64,9 +67,10 @@ fn incremental_edits_match_a_fresh_build() {
         if let Some(_old) = placed.remove(&cell) {
             run.remove_piece(cell).unwrap();
         } else {
-            let id = IDS[rng.next(4) as usize];
-            // The chiral curve is mirrored half the time.
-            let mirror = if id == "blk_curve90_l3" && rng.next(2) == 1 {
+            let id = IDS[rng.next(IDS.len() as u64) as usize];
+            let chiral = kit.piece(&PieceId::new(id).unwrap()).unwrap().def.chiral;
+            // Chiral pieces are mirrored half the time.
+            let mirror = if chiral && rng.next(2) == 1 {
                 Mirror::On
             } else {
                 Mirror::Off
@@ -77,8 +81,10 @@ fn incremental_edits_match_a_fresh_build() {
                 Yaw4::new(rng.next(4) as u8),
                 mirror,
             );
-            run.place_piece(kit, p.clone()).unwrap();
-            placed.insert(cell, p);
+            // A multi-cell rail may not fit among the pieces already placed.
+            if run.place_piece(kit, p.clone()).is_ok() {
+                placed.insert(cell, p);
+            }
         }
         // Sometimes several edits share one rebuild, as a frame with a group edit does.
         if step % 3 == 0 {
@@ -105,6 +111,7 @@ fn incremental_edits_match_a_fresh_build() {
     assert!(a.iter().any(|g| g.stitched.iter().any(|&m| m != 0)));
     assert!(a.iter().any(|g| g.bend_of.iter().any(|&t| t != 0)));
     assert!(a.iter().any(|g| g.slope_of.iter().any(|k| !k.is_empty())));
+    assert!(a.iter().any(|g| g.arc_of.iter().any(|&t| t != 0)));
     assert!(a.iter().any(|g| g.active_hooks != 0));
     for (x, y) in a.iter().zip(&b) {
         let at = format!("chunk {:?}", x.chunk);
@@ -121,6 +128,11 @@ fn incremental_edits_match_a_fresh_build() {
             (&x.slopes, &x.slope_of),
             (&y.slopes, &y.slope_of),
             "{at} slope tags"
+        );
+        assert_eq!(
+            (&x.arcs, &x.arc_of),
+            (&y.arcs, &y.arc_of),
+            "{at} rail arc tags"
         );
     }
     assert_eq!(a, b);

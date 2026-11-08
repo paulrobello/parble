@@ -788,6 +788,9 @@ pub type SlopeTags = (Vec<ChannelSlope>, Vec<Vec<u32>>);
 /// A chunk collider's bends and per-triangle bend tags ([`ChunkMesh::bend_of`]).
 pub type BendTags = (Vec<ChannelBend>, Vec<u32>);
 
+/// A chunk collider's curved rails and per-triangle arc tags ([`ChunkMesh::arc_of`]).
+pub type ArcTags = (Vec<ChannelArc>, Vec<u32>);
+
 /// Placements grouped by chunk, with one merged collider per non-empty chunk.
 #[derive(Debug, Default)]
 pub struct ChunkColliders {
@@ -946,15 +949,16 @@ impl ChunkColliders {
         self.handles.iter().map(|(&c, &h)| (c, h))
     }
 
-    /// The contact-hook tags installed with a chunk collider: stitched-edge masks, bends and
-    /// per-triangle bend tags, slopes and per-triangle slope tags. For tests that compare an
-    /// edited world with a fresh one.
-    pub fn hook_tags(&self, h: ColliderHandle) -> Option<(&[u8], &BendTags, &SlopeTags)> {
+    /// The contact-hook tags installed with a chunk collider: stitched-edge masks, then the
+    /// bends, slopes and rail arcs with their per-triangle tags. For tests that compare an edited
+    /// world with a fresh one.
+    pub fn hook_tags(&self, h: ColliderHandle) -> Option<(&[u8], &BendTags, &SlopeTags, &ArcTags)> {
         let k = h.into_raw_parts();
         Some((
             self.stitched.get(&k)?,
             self.bends.get(&k)?,
             self.slopes.get(&k)?,
+            self.arcs.get(&k)?,
         ))
     }
 
