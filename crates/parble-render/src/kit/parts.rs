@@ -1,5 +1,6 @@
 //! Animated mechanism parts (P2-T6): each `anim_<name>` part is its own instanced mesh per (piece
-//! type, LOD), drawn with the piece's material and posed every frame from the sim's part angles.
+//! type, LOD), drawn with the piece's wood under the [`super::PART_STAIN`] tint and posed every frame
+//! from the sim's part angles.
 //!
 //! - The app writes the part angles of the last two physics ticks to [`PartFrame`] wherever it
 //!   writes [`crate::MarbleFrame`]; parts interpolate with the marbles' `alpha` ([`interpolated_mdeg`]).

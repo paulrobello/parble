@@ -262,7 +262,7 @@ fn apply_edits(
                         ));
                     }
                     // The parts' parent slices with the piece; its children inherit.
-                    let mats = &tex.materials[p.piece];
+                    let mats = &tex.part_materials[p.piece];
                     let shown = visible(slice, p.cell.y);
                     spawn_parts(
                         c,

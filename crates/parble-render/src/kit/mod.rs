@@ -18,8 +18,9 @@
 //!   the render device exists (on the web it arrives after `Startup`). Baked maps are PNG only.
 //! - The draw counts in [`KitDiag`] are read from the render world's binned phases ([`count_draws`]).
 //! - Mechanism parts (P2-T6, [`parts`]): each animated part is its own mesh per (type, LOD), drawn
-//!   with the piece's material and posed from the sim each frame, so a mechanism type adds one bin
-//!   per part per (LOD, variant) next to its body's.
+//!   with the piece's wood stained by [`PART_STAIN`] (its own material per (type, LOD, variant)) and
+//!   posed from the sim each frame, so a mechanism type adds one bin per part per (LOD, variant) next
+//!   to its body's.
 
 pub mod edit;
 pub mod family;
@@ -117,6 +118,12 @@ pub const ASSET_SOURCE: &str = "parble";
 /// from each. The sets' own normal maps are not loaded: the bevel normal is the piece's baked map.
 pub const WOOD_SETS: [&str; 3] = ["wood_warm_a", "wood_warm_b", "wood_warm_c"];
 pub const WOOD_MAPS: [&str; 2] = ["base_color", "orm"];
+/// Linear tint on the wood of every mechanism part (flaps, rockers, trapdoors, gates): a medium
+/// stain darker than the body (PRD §6 P2 Look). Blue and green drop more than red so it reads as
+/// stained wood, not grey.
+pub const PART_STAIN: Color = Color::linear_rgb(0.55, 0.40, 0.28);
+/// The pre-load placeholder of the parts: the body's flat placeholder under [`PART_STAIN`].
+const PART_PLACEHOLDER: Color = Color::linear_rgb(0.3424 * 0.55, 0.1329 * 0.40, 0.0397 * 0.28);
 /// One wood repeat in metres (`assets/materials/provenance.json` `contract.tileM`).
 pub const WOOD_TILE_M: f32 = 0.25;
 /// Per-piece, per-LOD baked maps (P1-T2), PNG only, sampled at UV0.
@@ -649,6 +656,8 @@ fn spawn_parts(
 struct KitTextures {
     /// `materials[piece][lod][variant]`.
     materials: Vec<[[Handle<KitWoodMaterial>; 3]; LODS]>,
+    /// [`Self::materials`] stained with [`PART_STAIN`], for the animated parts.
+    part_materials: Vec<[[Handle<KitWoodMaterial>; 3]; LODS]>,
     images: Vec<(String, &'static str, Handle<Image>)>,
     /// Each [`WOOD_SETS`] variant's [`WOOD_MAPS`], once the family is known.
     wood: Vec<[Handle<Image>; 2]>,
@@ -749,30 +758,34 @@ fn spawn_kit(
     shared.0.lock().expect("kit shared").meshes = ids;
 
     // Until the maps load: the GLB placeholder wood colour, flat.
-    tex.materials = (0..PIECES.len())
-        .map(|_| {
-            std::array::from_fn(|_| {
+    let mut set = |color: Color| -> Vec<[[Handle<KitWoodMaterial>; 3]; LODS]> {
+        (0..PIECES.len())
+            .map(|_| {
                 std::array::from_fn(|_| {
-                    materials.add(KitWoodMaterial {
-                        base: StandardMaterial {
-                            base_color: Color::srgb(0.62, 0.40, 0.22),
-                            perceptual_roughness: 0.55,
-                            ..default()
-                        },
-                        extension: KitWoodExt {
-                            params: KitWoodParams {
-                                inv_tile_m: 1.0 / WOOD_TILE_M,
-                                enabled: 0.0,
-                                mip_bias: if low { 1.0 } else { 0.0 },
-                                pad: 0.0,
+                    std::array::from_fn(|_| {
+                        materials.add(KitWoodMaterial {
+                            base: StandardMaterial {
+                                base_color: color,
+                                perceptual_roughness: 0.55,
+                                ..default()
                             },
-                            ..default()
-                        },
+                            extension: KitWoodExt {
+                                params: KitWoodParams {
+                                    inv_tile_m: 1.0 / WOOD_TILE_M,
+                                    enabled: 0.0,
+                                    mip_bias: if low { 1.0 } else { 0.0 },
+                                    pad: 0.0,
+                                },
+                                ..default()
+                            },
+                        })
                     })
                 })
             })
-        })
-        .collect();
+            .collect()
+    };
+    tex.materials = set(Color::srgb(0.62, 0.40, 0.22));
+    tex.part_materials = set(PART_PLACEHOLDER);
     tex.wanted.extend(layout.iter().map(|p| p.piece));
     let mut variant_pieces = vec![0; WOOD_SETS.len()];
 
@@ -812,7 +825,7 @@ fn spawn_kit(
                             range.clone(),
                         ));
                     }
-                    let mats = &tex.materials[p.piece];
+                    let mats = &tex.part_materials[p.piece];
                     spawn_parts(
                         c,
                         &kept,
@@ -923,15 +936,20 @@ fn load_textures(
             let [ao, normal] =
                 BAKED_MAPS.map(|map| load(baked_path(piece, lod, map), "baked", false, false));
             for (v, [base, orm]) in tex.wood.iter().enumerate() {
-                let Some(mut m) = materials.get_mut(&tex.materials[p][lod][v]) else {
-                    continue;
-                };
-                m.base.base_color = Color::WHITE;
-                m.base.occlusion_texture = Some(ao.clone());
-                m.base.normal_map_texture = Some(normal.clone());
-                m.extension.base = Some(base.clone());
-                m.extension.orm = Some(orm.clone());
-                m.extension.params.enabled = 1.0;
+                for (set, tint) in [
+                    (&tex.materials, Color::WHITE),
+                    (&tex.part_materials, PART_STAIN),
+                ] {
+                    let Some(mut m) = materials.get_mut(&set[p][lod][v]) else {
+                        continue;
+                    };
+                    m.base.base_color = tint;
+                    m.base.occlusion_texture = Some(ao.clone());
+                    m.base.normal_map_texture = Some(normal.clone());
+                    m.extension.base = Some(base.clone());
+                    m.extension.orm = Some(orm.clone());
+                    m.extension.params.enabled = 1.0;
+                }
             }
         }
         tex.baked.insert(p);
