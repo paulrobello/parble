@@ -3,7 +3,8 @@
 // Ogg Opus and AAC files of every picked stem of a cue the engine plays into <out>/sfx/, checks each
 // copy against the manifest's SHA-256, and writes <out>/sfx.json, the catalog the engine fetches.
 // Only picked stems ship: the manifest also holds rejected takes. The rug cues are left out because
-// no wire surface maps to them yet (the audio stream carries kit surfaces and `marble`).
+// no wire surface maps to them: the sim has no rug collider (the tray and the open floor are wood
+// slabs and report `wood`), so the audio stream carries only kit surfaces and `marble`.
 // Runs from `make ui-build` (Trunk's pre_build hook) after Vite, into web/ui/dist/audio.
 // Usage: node scripts/web/stage-audio.mjs <out-dir>
 import { createHash } from "node:crypto";
@@ -13,10 +14,24 @@ import { fileURLToPath } from "node:url";
 
 export const SCHEMA = "parble.sfx-runtime/1";
 
+/** The mechanism signal cues (web/ui/src/audio/mapping.ts `SIGNAL_CUE_IDS`). */
+export const MECHANISM_CUES = [
+  "checkpoint_tick",
+  "drop_hole_glass",
+  "drop_hole_solid",
+  "drop_hole_steel",
+  "finish_cup_chime",
+  "hopper_release",
+  "one_way_gate_swing",
+  "splitter_tick",
+  "toggle_flap_clack",
+  "trapdoor_drop",
+];
+
 /** Cue ids the engine selects (web/ui/src/audio/mapping.ts). */
 export function isRuntimeCue(id) {
   if (id.includes("_rug")) return false;
-  return /^(roll|impact|clack)_/.test(id) || id === "one_way_gate_swing";
+  return /^(roll|impact|clack)_/.test(id) || MECHANISM_CUES.includes(id);
 }
 
 /** The runtime catalog for `picks` over `manifest`: cue id -> { loop, variants }. Throws on a picked stem the manifest lacks. */

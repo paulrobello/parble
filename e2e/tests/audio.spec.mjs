@@ -3,7 +3,8 @@
 // pile up and clack into each other. Over 12 s the engine must start voices, record no engine,
 // load or console errors, and never sound more voices than its cap. A second test feeds 64 rolling
 // marbles and 64 contacts a frame through window.__parbleAudio.inject (decoded like a bridge event)
-// to show the cap binds: voices are dropped or stolen, never added past it.
+// to show the cap binds: voices are dropped or stolen, never added past it. A third injects one signal
+// per mapped mechanism cue and checks each one starts a voice from a staged, decoded buffer.
 import { expect, test } from "@playwright/test";
 
 const BAD_TEXT = (t) => /%cERROR%c|\bERROR\b/.test(t) || /uncaptured|invalid|validation|panicked/i.test(t);
@@ -107,9 +108,11 @@ test("injected 64-marble frames hit the voice cap without exceeding it", async (
         let max = 0;
         const step = () => {
           tick += 4;
+          const sizes = ["mini", "standard", "shooter"];
           const rolls = Array.from({ length: n }, (_, i) => ({
             marble: i,
             kind: i % 3 === 0 ? "steel" : i % 3 === 1 ? "glazed" : "cats-eye",
+            size: sizes[i % 3],
             speed: 0.2 + (i % 8) * 0.15,
             surface: i % 2 ? "rail" : "wood",
             contact: true,
@@ -118,6 +121,7 @@ test("injected 64-marble frames hit the voice cap without exceeding it", async (
           const contacts = Array.from({ length: n }, (_, i) => ({
             marble: i,
             kind: "cats-eye",
+            size: sizes[(i + 1) % 3],
             surface: i % 4 === 0 ? "marble" : "wood",
             otherKind: i % 4 === 0 ? "steel" : null,
             impulse: 0.0004 + ((i * 7 + frames) % 30) * 0.0003,
@@ -151,4 +155,45 @@ test("injected 64-marble frames hit the voice cap without exceeding it", async (
   expect(s.rollVoices).toBe(s.cap.rolls);
   expect(s.dropped + s.stolen).toBeGreaterThan(0);
   expect(s.rollsCulled).toBeGreaterThan(0);
+});
+
+test("every mapped mechanism signal plays its staged cue", async ({ page }) => {
+  const { errors } = watch(page);
+  await unlock(page);
+  const signals = [
+    ["mech_hopper", "release"],
+    ["mech_finish", "finish"],
+    ["mech_checkpoint_l1", "split"],
+    ["mech_splitter_l3", "set"],
+    ["mech_toggle_l3", "set"],
+    ["mech_gate_oneway_l1", "open"],
+    ["mech_hole_oneway_l1", "open"],
+    ["mech_hole_oneway_l1", "drop"],
+  ];
+  const r = await page.evaluate((signals) => {
+    const before = window.__parbleAudio.stats();
+    const ok = window.__parbleAudio.inject({
+      type: "audioFrame",
+      tick: 2_000_000,
+      contacts: [],
+      rolls: [],
+      mechanisms: signals.map(([piece, name], i) => ({
+        kind: "signal",
+        tick: 2_000_000,
+        instance: [i, 0, 0],
+        piece,
+        name,
+        value: 0,
+      })),
+      camera: { position: [0, 0.3, 0.6], forward: [0, -0.4, -0.9], up: [0, 1, 0] },
+    });
+    return { ok, before, after: window.__parbleAudio.stats() };
+  }, signals);
+  console.log(`audio mechanisms: ${JSON.stringify({ ok: r.ok, after: r.after })}`);
+  expect(r.ok).toBe(true);
+  expect(errors).toEqual([]);
+  expect(r.after.errors, r.after.lastError ?? "").toBe(0);
+  expect(r.after.started - r.before.started).toBe(signals.length);
+  expect(r.after.missingBuffers - r.before.missingBuffers).toBe(0);
+  expect(r.after.dropped - r.before.dropped).toBe(0);
 });

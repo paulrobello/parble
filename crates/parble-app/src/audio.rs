@@ -8,12 +8,14 @@
 //!   latest touching surface, and whether any sample touched ([`AudioRoll::fold`]). A frame with no
 //!   sample tick (1–3 ticks at 120 Hz and up) has no rolls; the engine holds the last one.
 //!
-//! Positions are the marble centres at the frame's last tick. The stream is read-only telemetry:
-//! recording and draining never change a run.
+//! Positions are the marble centres at the frame's last tick. Contacts and rolls carry the marble's
+//! size and mechanism events their piece id, so the engine can band impacts by real mass and pick a
+//! mechanism's cue. The stream is read-only telemetry: recording and draining never change a run.
 
-use parble_sim::marble::MarbleKind;
+use parble_sim::Sim;
+use parble_sim::marble::{MarbleKind, MarbleSize};
 use parble_sim::mechanism::{
-    ContactOther, MechEventKind, MechanismEvent, RollSample, SimEvent, SurfaceId,
+    ContactOther, InstanceId, MechEventKind, MechanismEvent, RollSample, SimEvent, SurfaceId,
 };
 use serde::{Deserialize, Serialize};
 
@@ -45,6 +47,38 @@ impl From<MarbleKind> for WireMarble {
     }
 }
 
+/// Marble size on the audio wire: [`MarbleSize::name`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WireSize {
+    Mini,
+    #[default]
+    Standard,
+    Shooter,
+}
+
+impl From<MarbleSize> for WireSize {
+    fn from(s: MarbleSize) -> Self {
+        match s {
+            MarbleSize::Mini => Self::Mini,
+            MarbleSize::Standard => Self::Standard,
+            MarbleSize::Shooter => Self::Shooter,
+        }
+    }
+}
+
+/// The size whose radius is nearest `radius_m` (a marble's collider radius).
+pub fn size_of_radius(radius_m: f32) -> MarbleSize {
+    MarbleSize::ALL
+        .into_iter()
+        .min_by(|a, b| {
+            (a.radius_m() - radius_m)
+                .abs()
+                .total_cmp(&(b.radius_m() - radius_m).abs())
+        })
+        .unwrap_or_default()
+}
+
 /// Contact surface on the audio wire: a kit surface by its sidecar name, or `marble` for another
 /// marble.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -74,6 +108,7 @@ impl From<SurfaceId> for WireSurface {
 pub struct AudioContact {
     pub marble: u32,
     pub kind: WireMarble,
+    pub size: WireSize,
     /// The strongest contact's surface.
     pub surface: WireSurface,
     /// The other marble's type when `surface` is `marble`.
@@ -92,6 +127,7 @@ pub struct AudioContact {
 pub struct AudioRoll {
     pub marble: u32,
     pub kind: WireMarble,
+    pub size: WireSize,
     /// The latest sample's speed, m/s.
     pub speed: f32,
     /// The latest touching sample's carrying surface; `null` when no sample touched.
@@ -101,7 +137,8 @@ pub struct AudioRoll {
     pub position: [f32; 3],
 }
 
-/// A mechanism event with its instance's anchor cell.
+/// A mechanism event with its instance's anchor cell and piece id (empty when the instance is
+/// gone by the time the frame is coalesced).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(
     tag = "kind",
@@ -113,18 +150,21 @@ pub enum AudioMechanism {
     SensorEnter {
         tick: u64,
         instance: [i32; 3],
+        piece: String,
         sensor: u32,
         marble: u32,
     },
     SensorExit {
         tick: u64,
         instance: [i32; 3],
+        piece: String,
         sensor: u32,
         marble: u32,
     },
     Signal {
         tick: u64,
         instance: [i32; 3],
+        piece: String,
         name: String,
         value: i64,
     },
@@ -220,11 +260,27 @@ fn fold_by_marble<T: Copy>(
     acc
 }
 
-/// One marble as the coalescer sees it: type and centre at the frame's last tick.
+/// One marble as the coalescer sees it: type, size and centre at the frame's last tick.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct MarbleAt {
     pub kind: MarbleKind,
+    pub size: MarbleSize,
     pub position: [f32; 3],
+}
+
+/// `sim`'s marbles in spawn order: the type from `kinds` (a cat's eye past its end), the size from
+/// the collider radius.
+pub fn marbles_at(sim: &Sim, kinds: &[MarbleKind]) -> Vec<MarbleAt> {
+    sim.marbles()
+        .iter()
+        .zip(sim.marble_radii())
+        .enumerate()
+        .map(|(i, (m, r))| MarbleAt {
+            kind: kinds.get(i).copied().unwrap_or_default(),
+            size: size_of_radius(r),
+            position: m.position,
+        })
+        .collect()
 }
 
 fn index(i: usize) -> u32 {
@@ -232,9 +288,14 @@ fn index(i: usize) -> u32 {
 }
 
 /// Coalesce one frame's drained `events` (in sim order) into an [`AudioFrame`] at `tick`, with no
-/// camera. `marbles` is indexed by sim marble index; a marble missing from it reads as a cat's eye
-/// at the origin.
-pub fn coalesce(events: &[SimEvent], marbles: &[MarbleAt], tick: u64) -> AudioFrame {
+/// camera. `marbles` is indexed by sim marble index; a marble missing from it reads as a standard
+/// cat's eye at the origin. `piece` names a mechanism instance's piece ([`Sim::mechanism_piece`]).
+pub fn coalesce(
+    events: &[SimEvent],
+    marbles: &[MarbleAt],
+    piece: impl Fn(InstanceId) -> Option<String>,
+    tick: u64,
+) -> AudioFrame {
     let at = |i: usize| marbles.get(i).copied().unwrap_or_default();
     let mut contacts = Vec::new();
     let mut rolls = Vec::new();
@@ -250,6 +311,7 @@ pub fn coalesce(events: &[SimEvent], marbles: &[MarbleAt], tick: u64) -> AudioFr
                 contacts.push(AudioContact {
                     marble: index(c.marble),
                     kind: m.kind.into(),
+                    size: m.size.into(),
                     surface: c.surface.into(),
                     other_kind,
                     impulse: c.impulse,
@@ -267,13 +329,16 @@ pub fn coalesce(events: &[SimEvent], marbles: &[MarbleAt], tick: u64) -> AudioFr
                 rolls.push(AudioRoll {
                     marble: index(*marble),
                     kind: m.kind.into(),
+                    size: m.size.into(),
                     speed: *speed,
                     surface: surface.map(WireSurface::from),
                     contact: surface.is_some(),
                     position: m.position,
                 });
             }
-            SimEvent::Mechanism(m) => mechanisms.push(mechanism(m)),
+            SimEvent::Mechanism(m) => {
+                mechanisms.push(mechanism(m, piece(m.instance).unwrap_or_default()));
+            }
         }
     }
     mechanisms.drain(..mechanisms.len().saturating_sub(MAX_AUDIO_MECHANISMS));
@@ -286,25 +351,28 @@ pub fn coalesce(events: &[SimEvent], marbles: &[MarbleAt], tick: u64) -> AudioFr
     }
 }
 
-fn mechanism(m: &MechanismEvent) -> AudioMechanism {
+fn mechanism(m: &MechanismEvent, piece: String) -> AudioMechanism {
     let c = m.instance.0;
     let instance = [c.x, c.y, c.z];
     match &m.kind {
         MechEventKind::SensorEnter { sensor, marble } => AudioMechanism::SensorEnter {
             tick: m.tick,
             instance,
+            piece,
             sensor: index(*sensor),
             marble: index(*marble),
         },
         MechEventKind::SensorExit { sensor, marble } => AudioMechanism::SensorExit {
             tick: m.tick,
             instance,
+            piece,
             sensor: index(*sensor),
             marble: index(*marble),
         },
         MechEventKind::Signal { name, value } => AudioMechanism::Signal {
             tick: m.tick,
             instance,
+            piece,
             name: (*name).to_owned(),
             value: *value,
         },
@@ -346,14 +414,20 @@ mod tests {
         })
     }
 
+    fn no_piece(_: InstanceId) -> Option<String> {
+        None
+    }
+
     fn two_marbles() -> Vec<MarbleAt> {
         vec![
             MarbleAt {
                 kind: MarbleKind::Steel,
+                size: MarbleSize::Shooter,
                 position: [0.5, 0.25, 0.0],
             },
             MarbleAt {
                 kind: MarbleKind::Glazed,
+                size: MarbleSize::Mini,
                 position: [1.0, 0.0, -0.5],
             },
         ]
@@ -368,7 +442,7 @@ mod tests {
             contact(11, 0, ContactOther::Static, RAIL, 0.003),
             contact(12, 1, ContactOther::Static, RAIL, 0.001),
         ];
-        let f = coalesce(&events, &two_marbles(), 12);
+        let f = coalesce(&events, &two_marbles(), no_piece, 12);
         assert_eq!(f.tick, 12);
         assert_eq!(
             f.contacts,
@@ -376,6 +450,7 @@ mod tests {
                 AudioContact {
                     marble: 0,
                     kind: WireMarble::Steel,
+                    size: WireSize::Shooter,
                     surface: WireSurface::Marble,
                     other_kind: Some(WireMarble::Glazed),
                     impulse: 0.009,
@@ -385,6 +460,7 @@ mod tests {
                 AudioContact {
                     marble: 1,
                     kind: WireMarble::Glazed,
+                    size: WireSize::Mini,
                     surface: WireSurface::Wood,
                     other_kind: None,
                     impulse: 0.004,
@@ -401,7 +477,7 @@ mod tests {
             contact(1, 0, ContactOther::Static, RAIL, 0.5),
             contact(2, 0, ContactOther::Static, WOOD, 0.5),
         ];
-        let f = coalesce(&events, &two_marbles(), 2);
+        let f = coalesce(&events, &two_marbles(), no_piece, 2);
         assert_eq!(f.contacts[0].surface, WireSurface::Rail);
         assert_eq!(f.contacts[0].count, 2);
     }
@@ -415,13 +491,14 @@ mod tests {
             roll(8, 1, 1.5, None),
             roll(12, 0, 1.25, None),
         ];
-        let f = coalesce(&events, &two_marbles(), 12);
+        let f = coalesce(&events, &two_marbles(), no_piece, 12);
         assert_eq!(
             f.rolls,
             vec![
                 AudioRoll {
                     marble: 0,
                     kind: WireMarble::Steel,
+                    size: WireSize::Shooter,
                     speed: 1.25,
                     surface: Some(WireSurface::Rail),
                     contact: true,
@@ -430,6 +507,7 @@ mod tests {
                 AudioRoll {
                     marble: 1,
                     kind: WireMarble::Glazed,
+                    size: WireSize::Mini,
                     speed: 1.5,
                     surface: None,
                     contact: false,
@@ -460,19 +538,22 @@ mod tests {
                 },
             }),
         ];
-        let f = coalesce(&events, &two_marbles(), 6);
+        let piece = |id: InstanceId| (id == instance).then(|| "mech_gate_oneway_l1".to_owned());
+        let f = coalesce(&events, &two_marbles(), piece, 6);
         assert_eq!(
             f.mechanisms,
             vec![
                 AudioMechanism::SensorEnter {
                     tick: 5,
                     instance: [1, -2, 3],
+                    piece: "mech_gate_oneway_l1".into(),
                     sensor: 0,
                     marble: 1,
                 },
                 AudioMechanism::Signal {
                     tick: 6,
                     instance: [1, -2, 3],
+                    piece: "mech_gate_oneway_l1".into(),
                     name: "swing".into(),
                     value: 1,
                 },
@@ -482,7 +563,7 @@ mod tests {
 
     #[test]
     fn a_frame_with_no_events_is_empty() {
-        let f = coalesce(&[], &two_marbles(), 40);
+        let f = coalesce(&[], &two_marbles(), no_piece, 40);
         assert_eq!(
             f,
             AudioFrame {
@@ -501,11 +582,13 @@ mod tests {
                 roll(4, 0, 0.5, Some(WOOD)),
             ],
             &marbles,
+            no_piece,
             4,
         );
         let b = coalesce(
             &[contact(5, 0, ContactOther::Static, RAIL, 0.25)],
             &marbles,
+            no_piece,
             8,
         );
         assert_eq!(a.contacts.len(), 1);
@@ -530,6 +613,7 @@ mod tests {
                 roll(4, 0, 0.5, Some(WOOD)),
             ],
             &marbles,
+            no_piece,
             4,
         );
         older.camera = Some(camera);
@@ -540,6 +624,7 @@ mod tests {
                 roll(8, 1, 2.0, None),
             ],
             &marbles,
+            no_piece,
             8,
         );
         newer.absorb_older(older);
@@ -563,6 +648,7 @@ mod tests {
         let ev = |tick: u64| AudioMechanism::Signal {
             tick,
             instance: [0, 0, 0],
+            piece: String::new(),
             name: "swing".into(),
             value: 0,
         };
@@ -594,8 +680,9 @@ mod tests {
         sim.marbles()
             .iter()
             .zip(playroom_run::MARBLES)
-            .map(|(m, (kind, _))| MarbleAt {
+            .map(|(m, (kind, size))| MarbleAt {
                 kind,
+                size,
                 position: m.position,
             })
             .collect()
@@ -619,7 +706,7 @@ mod tests {
             let start = sim.tick_count();
             sim.tick(n);
             let events = sim.drain_events();
-            let f = coalesce(&events, &playroom_marbles(&sim), sim.tick_count());
+            let f = coalesce(&events, &playroom_marbles(&sim), no_piece, sim.tick_count());
             let raw: Vec<_> = events
                 .iter()
                 .filter_map(|e| match e {
@@ -699,6 +786,76 @@ mod tests {
         }
     }
 
+    #[test]
+    fn each_size_radius_maps_back_to_its_size() {
+        for s in MarbleSize::ALL {
+            assert_eq!(size_of_radius(s.radius_m()), s);
+            assert_eq!(serde_json::to_value(WireSize::from(s)).unwrap(), s.name());
+        }
+        assert_eq!(size_of_radius(0.0), MarbleSize::Mini);
+        assert_eq!(size_of_radius(1.0), MarbleSize::Shooter);
+    }
+
+    /// A loaded track's hopper releases a mini, a standard and a shooter: the audio frames carry
+    /// each marble's size, and the hopper's signals name its piece.
+    #[test]
+    fn a_loaded_track_reports_marble_sizes_and_mechanism_pieces() {
+        use parble_core::{HopperConfig, PieceId, Placement, ReleaseMode, Yaw4};
+        let mut track = parble_core::Track::new(3);
+        track.placements = vec![Placement::new(
+            PieceId::new(parble_sim::behaviour::HOPPER).unwrap(),
+            CellCoord::new(6, 0, 0),
+            Yaw4::new(0),
+            false.into(),
+        )];
+        track.hopper = HopperConfig {
+            placement: Some(0),
+            queue: vec![
+                parble_core::MarbleSize::Mini,
+                parble_core::MarbleSize::Standard,
+                parble_core::MarbleSize::Shooter,
+            ],
+            release: ReleaseMode::All,
+        };
+        let mut run = parble_sim::track_run::TrackRun::new(&track).unwrap();
+        run.set_event_recording(true);
+        let (mut sizes, mut signals) = (Vec::new(), Vec::new());
+        for _ in 0..600 / 4 {
+            run.tick(4);
+            let events = run.drain_events();
+            let marbles = marbles_at(&run, &[]);
+            let piece = |id| run.mechanism_piece(id).map(|p| p.as_str().to_owned());
+            let f = coalesce(&events, &marbles, piece, run.tick_count());
+            for r in &f.rolls {
+                if sizes.len() <= r.marble as usize {
+                    sizes.resize(r.marble as usize + 1, None);
+                }
+                sizes[r.marble as usize] = Some(r.size);
+            }
+            for m in f.mechanisms {
+                if let AudioMechanism::Signal { piece, name, .. } = m {
+                    signals.push((piece, name));
+                }
+            }
+        }
+        assert_eq!(
+            sizes,
+            vec![
+                Some(WireSize::Mini),
+                Some(WireSize::Standard),
+                Some(WireSize::Shooter)
+            ]
+        );
+        let releases = signals.iter().filter(|(_, n)| n == "release").count();
+        assert_eq!(releases, 3, "{signals:?}");
+        assert!(
+            signals
+                .iter()
+                .all(|(p, _)| p == parble_sim::behaviour::HOPPER),
+            "{signals:?}"
+        );
+    }
+
     /// A marble the hopper releases rolls over an `L1` block onto two `L1` rail straights (where it
     /// comes to rest): the coalesced audio frames report `wood` while it is over the block and
     /// `rail` over the rails, on the wire too.
@@ -738,10 +895,11 @@ mod tests {
                 .iter()
                 .map(|m| MarbleAt {
                     kind: MarbleKind::CatsEye,
+                    size: parble_sim::marble::MarbleSize::Standard,
                     position: m.position,
                 })
                 .collect();
-            let f = coalesce(&run.drain_events(), &marbles, run.tick_count());
+            let f = coalesce(&run.drain_events(), &marbles, no_piece, run.tick_count());
             for r in &f.rolls {
                 let x = r.position[0];
                 max_x = max_x.max(x);

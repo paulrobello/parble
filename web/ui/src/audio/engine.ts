@@ -1,8 +1,10 @@
 // The Web Audio engine (P4-T4): consumes one bridge AudioFrame per HUD frame and drives
 // - a roll loop voice per marble, its pitch, gain and low-pass mapped from speed, crossfading between
 //   surface loops when the marble changes surface;
-// - impact one-shots per coalesced contact, the cue picked by impulse band, the variant at random
-//   (seeded) with pitch jitter;
+// - impact one-shots per coalesced contact, the cue picked by the band of the velocity change the
+//   impulse gives the marble's real mass, the variant at random (seeded) with pitch jitter on top of
+//   the marble size's pitch offset (rolls get the same offset);
+// - mechanism one-shots per signal, the cue picked by piece and signal name;
 // - PannerNode spatialisation against an AudioListener placed at the camera;
 // - a voice budget where the loudest heard voices (gain × distance gain) win.
 // Buses: sfx and music into master, master through a compressor into the destination.
@@ -15,6 +17,7 @@ import {
   distanceGain,
   impactFor,
   jitterRate,
+  materialOf,
   PANNER,
   rollCueId,
   rollParams,
@@ -221,7 +224,7 @@ export class AudioEngine {
     this.#impacts(frame.contacts, now);
     for (const e of frame.mechanisms) {
       if (e.kind !== "signal") continue;
-      const cue = signalCueId(e.name);
+      const cue = signalCueId(e.piece, e.name, materialOf(this.#held.get(e.value)?.roll.kind ?? "cats-eye"));
       const at: Vec3 = [e.instance[0] * CELL_M, (e.instance[1] + 0.5) * CELL_M, e.instance[2] * CELL_M];
       if (cue) this.#playOneShot(cue, 0.7, 1, at, now);
     }
@@ -256,7 +259,7 @@ export class AudioEngine {
       const r = held.roll;
       const cue = rollCueId(r.kind, r.surface) ?? this.#rolls.get(marble)?.layer?.cue ?? null;
       if (cue === null || !this.#catalog.cues[cue]) continue;
-      const p = rollParams(r.speed);
+      const p = rollParams(r.speed, r.size);
       if (p.gain <= 0) continue;
       const gain = r.contact ? p.gain : 0;
       cands.push({
@@ -279,7 +282,7 @@ export class AudioEngine {
         this.#rolls.set(c.id, v);
       }
       this.#setSurface(v, c.cue, now);
-      const p = rollParams(c.held.roll.speed);
+      const p = rollParams(c.held.roll.speed, c.held.roll.size);
       v.gain.gain.setTargetAtTime(c.gain * ROLL_LEVEL, now, SMOOTH_TC);
       v.filter.frequency.setTargetAtTime(p.cutoffHz, now, SMOOTH_TC);
       v.layer?.src.playbackRate.setTargetAtTime(p.rate, now, SMOOTH_TC);
@@ -367,10 +370,11 @@ export class AudioEngine {
       }
     }
     hits.sort((a, b) => b.priority - a.priority);
-    for (const h of hits) this.#playOneShot(h.choice.cue, h.choice.gain, h.priority, h.c.position, now);
+    for (const h of hits) this.#playOneShot(h.choice.cue, h.choice.gain, h.priority, h.c.position, now, h.choice.rate);
   }
 
-  #playOneShot(cue: string, gainValue: number, priority: number, at: Vec3, now: number): void {
+  /** Start `cue` at `at`; `rate` is a pitch offset (a marble's size) under the random jitter. */
+  #playOneShot(cue: string, gainValue: number, priority: number, at: Vec3, now: number, rate = 1): void {
     const active: Ranked[] = [];
     for (const o of this.#oneShots.values()) {
       active.push({ id: o.id, priority: oneShotPriority(o.base, o.start, o.duration, now) });
@@ -389,8 +393,8 @@ export class AudioEngine {
     }
     const src = this.#ctx.createBufferSource();
     src.buffer = buffer;
-    const rate = jitterRate(this.#rng(), JITTER_SEMITONES);
-    src.playbackRate.value = rate;
+    const playbackRate = rate * jitterRate(this.#rng(), JITTER_SEMITONES);
+    src.playbackRate.value = playbackRate;
     const gain = this.#ctx.createGain();
     gain.gain.value = gainValue * IMPACT_LEVEL;
     const panner = this.#panner();
@@ -409,7 +413,7 @@ export class AudioEngine {
       panner,
       base: priority,
       start: now,
-      duration: buffer.duration / rate,
+      duration: buffer.duration / playbackRate,
     });
     this.#stats.started++;
   }

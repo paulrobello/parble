@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { buildCatalog, isRuntimeCue, stage } from "./stage-audio.mjs";
+import { buildCatalog, isRuntimeCue, MECHANISM_CUES, stage } from "./stage-audio.mjs";
 
 const sha = (s) => createHash("sha256").update(s).digest("hex");
 
@@ -42,14 +42,15 @@ const PICKS = {
   ui_click: ["ui_click_v01"],
 };
 
-test("runtime cues are rolls, impacts, clacks and the gate swing, never rug", () => {
+test("runtime cues are rolls, impacts, clacks and the mechanism signal cues, never rug", () => {
   assert.ok(isRuntimeCue("roll_steel_rail"));
   assert.ok(isRuntimeCue("impact_glass_block_light"));
   assert.ok(isRuntimeCue("clack_glass_steel_medium"));
-  assert.ok(isRuntimeCue("one_way_gate_swing"));
+  for (const id of MECHANISM_CUES) assert.ok(isRuntimeCue(id), id);
   assert.ok(!isRuntimeCue("roll_glass_rug"));
   assert.ok(!isRuntimeCue("impact_solid_rug_heavy"));
   assert.ok(!isRuntimeCue("ui_click"));
+  assert.ok(!isRuntimeCue("tunnel_rumble"));
 });
 
 test("the catalog holds only picked stems of runtime cues", () => {
@@ -96,11 +97,12 @@ test("the real picks resolve against the real manifest", () => {
   const picks = JSON.parse(readFileSync(new URL("docs/audio/audition-picks.json", root), "utf8"));
   const manifest = JSON.parse(readFileSync(new URL("audition/sfx/manifest.json", root), "utf8"));
   const c = buildCatalog(picks, manifest);
-  // 6 roll loops (3 materials x block, rail), 18 impact sets, 18 clack sets and the gate swing.
+  // 6 roll loops (3 materials x block, rail), 18 impact sets, 18 clack sets and the 10 mechanism cues.
   const ids = Object.keys(c.cues);
   assert.equal(ids.filter((id) => id.startsWith("roll_")).length, 6);
   assert.equal(ids.filter((id) => id.startsWith("impact_")).length, 18);
   assert.equal(ids.filter((id) => id.startsWith("clack_")).length, 18);
-  assert.ok(ids.includes("one_way_gate_swing"));
+  for (const id of MECHANISM_CUES) assert.ok(ids.includes(id), id);
+  assert.equal(ids.length, 6 + 18 + 18 + MECHANISM_CUES.length);
   assert.ok(ids.every((id) => c.cues[id].variants.length > 0));
 });

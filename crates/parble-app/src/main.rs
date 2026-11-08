@@ -307,17 +307,10 @@ fn pump_audio(
         (None, Some(look)) => &look.0,
         _ => &[],
     };
-    let marbles: Vec<audio::MarbleAt> = clock
-        .sim
-        .marbles()
-        .iter()
-        .enumerate()
-        .map(|(i, m)| audio::MarbleAt {
-            kind: kinds.get(i).map(|l| l.0).unwrap_or_default(),
-            position: m.position,
-        })
-        .collect();
-    let mut frame = audio::coalesce(&events, &marbles, clock.sim.tick_count());
+    let kinds: Vec<MarbleKind> = kinds.iter().map(|l| l.0).collect();
+    let marbles = audio::marbles_at(&clock.sim, &kinds);
+    let piece = |id| clock.sim.mechanism_piece(id).map(|p| p.as_str().to_owned());
+    let mut frame = audio::coalesce(&events, &marbles, piece, clock.sim.tick_count());
     frame.camera = cameras.single().ok().map(|t| audio::AudioCamera {
         position: t.translation().to_array(),
         forward: t.forward().to_array(),

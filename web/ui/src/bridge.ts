@@ -2,7 +2,7 @@
 // hand. bridge-fixtures.json holds an example of every command and event plus events both sides
 // refuse; the Rust tests and test/bridge.test.ts both check it.
 
-export const PROTOCOL = 1;
+export const PROTOCOL = 2;
 
 export type BridgeCommand =
   | { type: "ping"; id: number }
@@ -24,6 +24,10 @@ export type BridgeEvent =
 export const MARBLE_KINDS = ["cats-eye", "glazed", "steel", "swirl", "onionskin", "opal", "glow"] as const;
 export type MarbleKind = (typeof MARBLE_KINDS)[number];
 
+/** Marble size (crates/parble-sim `MarbleSize::name`): 10, 16 and 25 mm. */
+export const MARBLE_SIZES = ["mini", "standard", "shooter"] as const;
+export type MarbleSize = (typeof MARBLE_SIZES)[number];
+
 /** Contact surface: a kit surface, or `marble` for another marble. */
 export const SURFACES = ["wood", "rail", "wood_end_grain", "marble"] as const;
 export type Surface = (typeof SURFACES)[number];
@@ -34,6 +38,7 @@ export type Vec3 = [number, number, number];
 export interface AudioContact {
   marble: number;
   kind: MarbleKind;
+  size: MarbleSize;
   surface: Surface;
   /** The other marble's type when `surface` is `marble`. */
   otherKind: MarbleKind | null;
@@ -48,16 +53,18 @@ export interface AudioContact {
 export interface AudioRoll {
   marble: number;
   kind: MarbleKind;
+  size: MarbleSize;
   speed: number;
   surface: Surface | null;
   contact: boolean;
   position: Vec3;
 }
 
+/** A mechanism event at its instance's anchor cell; `piece` is the kit piece id ("" when unknown). */
 export type AudioMechanism =
-  | { kind: "sensorEnter"; tick: number; instance: Vec3; sensor: number; marble: number }
-  | { kind: "sensorExit"; tick: number; instance: Vec3; sensor: number; marble: number }
-  | { kind: "signal"; tick: number; instance: Vec3; name: string; value: number };
+  | { kind: "sensorEnter"; tick: number; instance: Vec3; piece: string; sensor: number; marble: number }
+  | { kind: "sensorExit"; tick: number; instance: Vec3; piece: string; sensor: number; marble: number }
+  | { kind: "signal"; tick: number; instance: Vec3; piece: string; name: string; value: number };
 
 export interface AudioCamera {
   position: Vec3;
@@ -118,6 +125,7 @@ const isI64 = (v: unknown): v is number => Number.isSafeInteger(v);
 const isVec3 = (v: unknown, el: (x: unknown) => boolean = isNum): v is Vec3 =>
   Array.isArray(v) && v.length === 3 && v.every(el);
 const isKind = (v: unknown): v is MarbleKind => (MARBLE_KINDS as readonly unknown[]).includes(v);
+const isSize = (v: unknown): v is MarbleSize => (MARBLE_SIZES as readonly unknown[]).includes(v);
 const isSurface = (v: unknown): v is Surface => (SURFACES as readonly unknown[]).includes(v);
 const isListOf = <T>(v: unknown, decode: (x: unknown) => T | null): T[] | null => {
   if (!Array.isArray(v)) return null;
@@ -131,10 +139,12 @@ const isListOf = <T>(v: unknown, decode: (x: unknown) => T | null): T[] | null =
 };
 
 function decodeContact(v: unknown): AudioContact | null {
-  if (!isObj(v) || !hasOnly(v, ["marble", "kind", "surface", "otherKind", "impulse", "count", "position"])) return null;
+  if (!isObj(v) || !hasOnly(v, ["marble", "kind", "size", "surface", "otherKind", "impulse", "count", "position"]))
+    return null;
   const otherKind = v.otherKind ?? null;
   return isU32(v.marble) &&
     isKind(v.kind) &&
+    isSize(v.size) &&
     isSurface(v.surface) &&
     (otherKind === null || isKind(otherKind)) &&
     isNum(v.impulse) &&
@@ -143,6 +153,7 @@ function decodeContact(v: unknown): AudioContact | null {
     ? {
         marble: v.marble,
         kind: v.kind,
+        size: v.size,
         surface: v.surface,
         otherKind,
         impulse: v.impulse,
@@ -153,31 +164,40 @@ function decodeContact(v: unknown): AudioContact | null {
 }
 
 function decodeRoll(v: unknown): AudioRoll | null {
-  if (!isObj(v) || !hasOnly(v, ["marble", "kind", "speed", "surface", "contact", "position"])) return null;
+  if (!isObj(v) || !hasOnly(v, ["marble", "kind", "size", "speed", "surface", "contact", "position"])) return null;
   const surface = v.surface ?? null;
   return isU32(v.marble) &&
     isKind(v.kind) &&
+    isSize(v.size) &&
     isNum(v.speed) &&
     (surface === null || isSurface(surface)) &&
     typeof v.contact === "boolean" &&
     isVec3(v.position)
-    ? { marble: v.marble, kind: v.kind, speed: v.speed, surface, contact: v.contact, position: [...v.position] }
+    ? {
+        marble: v.marble,
+        kind: v.kind,
+        size: v.size,
+        speed: v.speed,
+        surface,
+        contact: v.contact,
+        position: [...v.position],
+      }
     : null;
 }
 
 function decodeMechanism(v: unknown): AudioMechanism | null {
-  if (!isObj(v) || !isU64(v.tick) || !isVec3(v.instance, isI32)) return null;
-  const { tick } = v;
+  if (!isObj(v) || !isU64(v.tick) || !isVec3(v.instance, isI32) || !isStr(v.piece)) return null;
+  const { tick, piece } = v;
   const instance: Vec3 = [...v.instance];
   switch (v.kind) {
     case "sensorEnter":
     case "sensorExit":
-      return hasOnly(v, ["kind", "tick", "instance", "sensor", "marble"]) && isU32(v.sensor) && isU32(v.marble)
-        ? { kind: v.kind, tick, instance, sensor: v.sensor, marble: v.marble }
+      return hasOnly(v, ["kind", "tick", "instance", "piece", "sensor", "marble"]) && isU32(v.sensor) && isU32(v.marble)
+        ? { kind: v.kind, tick, instance, piece, sensor: v.sensor, marble: v.marble }
         : null;
     case "signal":
-      return hasOnly(v, ["kind", "tick", "instance", "name", "value"]) && isStr(v.name) && isI64(v.value)
-        ? { kind: "signal", tick, instance, name: v.name, value: v.value }
+      return hasOnly(v, ["kind", "tick", "instance", "piece", "name", "value"]) && isStr(v.name) && isI64(v.value)
+        ? { kind: "signal", tick, instance, piece, name: v.name, value: v.value }
         : null;
     default:
       return null;

@@ -885,6 +885,20 @@ impl Sim {
             .collect()
     }
 
+    /// The piece of the instance anchored at `id`, if there is one. Cheaper than
+    /// [`Sim::mechanisms`], which saves every instance's state.
+    pub fn mechanism_piece(&self, id: InstanceId) -> Option<&PieceId> {
+        self.mechanisms.instances.get(&id).map(|inst| &inst.piece)
+    }
+
+    /// Every marble's radius in spawn order (its ball collider), metres.
+    pub fn marble_radii(&self) -> Vec<f32> {
+        self.marbles
+            .iter()
+            .map(|&h| marble_ball(&self.world, h).2)
+            .collect()
+    }
+
     /// FNV-1a 64 over every instance's state, sampled on each multiple of
     /// [`crate::HASH_SAMPLE_TICKS`] while any instance exists. Separate from
     /// [`Sim::trajectory_hash`], which stays marble-only.

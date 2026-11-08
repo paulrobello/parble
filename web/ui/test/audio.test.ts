@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { AudioContact, AudioFrame, AudioRoll, MarbleKind, Surface, Vec3 } from "../src/bridge";
+import picks from "../../../docs/audio/audition-picks.json";
+import type { AudioContact, AudioFrame, AudioMechanism, AudioRoll, MarbleKind, Surface, Vec3 } from "../src/bridge";
 import { type Catalog, decodeCatalog, VariantPicker } from "../src/audio/catalog";
 import { AudioEngine, JITTER_SEMITONES, STALE_TICKS } from "../src/audio/engine";
 import {
@@ -11,6 +12,7 @@ import {
   impactFor,
   impactGain,
   jitterRate,
+  massKg,
   PANNER,
   ROLL_CUTOFF_RANGE_HZ,
   ROLL_MIN_SPEED,
@@ -18,7 +20,12 @@ import {
   ROLL_REF_SPEED,
   rollCueId,
   rollParams,
+  SIGNAL_CUE_IDS,
+  SIGNAL_CUES,
+  SIZE_PITCH_EXPONENT,
   STANDARD_MASS_KG,
+  signalCueId,
+  sizeRate,
 } from "../src/audio/mapping";
 import { admit, oneShotPriority, seededRng, selectTop } from "../src/audio/voices";
 
@@ -67,9 +74,40 @@ describe("roll loop mapping from speed", () => {
   });
 });
 
+describe("marble size", () => {
+  it("weighs each size by density × its own volume", () => {
+    expect(massKg("cats-eye")).toBeCloseTo(STANDARD_MASS_KG.glass, 15);
+    expect(massKg("steel", "mini") / massKg("steel")).toBeCloseTo((10 / 16) ** 3, 10);
+    expect(massKg("glazed", "shooter") / massKg("glazed")).toBeCloseTo((25 / 16) ** 3, 10);
+    expect(massKg("swirl", "shooter")).toBeCloseTo(massKg("cats-eye", "shooter"), 15);
+  });
+
+  it("offsets pitch up for a mini and down for a shooter", () => {
+    expect(SIZE_PITCH_EXPONENT).toBe(0.5);
+    expect(sizeRate("standard")).toBe(1);
+    expect(sizeRate("mini")).toBeCloseTo(Math.sqrt(1.6), 10);
+    expect(sizeRate("shooter")).toBeCloseTo(Math.sqrt(0.64), 10);
+    const semitones = (r: number) => 12 * Math.log2(r);
+    expect(semitones(sizeRate("mini"))).toBeCloseTo(4.07, 2);
+    expect(semitones(sizeRate("shooter"))).toBeCloseTo(-3.86, 2);
+  });
+
+  it("applies the roll size offset on top of the speed clamp", () => {
+    for (const size of ["mini", "standard", "shooter"] as const) {
+      expect(rollParams(ROLL_REF_SPEED, size).rate).toBeCloseTo(sizeRate(size), 10);
+      expect(rollParams(10, size).rate).toBeCloseTo(ROLL_RATE_RANGE[1] * sizeRate(size), 10);
+      expect(rollParams(0.6, size).gain).toBe(rollParams(0.6).gain);
+      expect(rollParams(0.6, size).cutoffHz).toBe(rollParams(0.6).cutoffHz);
+    }
+    expect(rollParams(10, "mini").rate).toBeGreaterThan(ROLL_RATE_RANGE[1]);
+    expect(rollParams(0.03, "shooter").rate).toBeLessThan(ROLL_RATE_RANGE[0]);
+  });
+});
+
 const contact = (o: Partial<AudioContact> = {}): AudioContact => ({
   marble: 0,
   kind: "cats-eye",
+  size: "standard",
   surface: "wood",
   otherKind: null,
   impulse: 0.003,
@@ -83,6 +121,19 @@ describe("impact mapping from impulse", () => {
     expect(impactDeltaV(STANDARD_MASS_KG.glass, "swirl")).toBeCloseTo(1, 10);
     expect(impactDeltaV(0.003, "steel")).toBeLessThan(impactDeltaV(0.003, "cats-eye"));
     expect(impactDeltaV(Number.NaN, "steel")).toBe(0);
+  });
+
+  it("bands an impact by the real mass of the marble's size and carries its pitch offset", () => {
+    const impulse = STANDARD_MASS_KG.glass * 0.5;
+    expect(impactDeltaV(impulse, "cats-eye", "mini")).toBeCloseTo(0.5 * (16 / 10) ** 3, 10);
+    expect(impactDeltaV(impulse, "cats-eye", "shooter")).toBeCloseTo(0.5 * (16 / 25) ** 3, 10);
+    const at = (size: AudioContact["size"]) => impactFor(contact({ size, impulse }));
+    expect(at("standard")).toMatchObject({ cue: "impact_glass_block_medium", rate: 1 });
+    expect(at("mini")).toMatchObject({ cue: "impact_glass_block_heavy", rate: sizeRate("mini") });
+    expect(at("shooter")).toMatchObject({ cue: "impact_glass_block_light", rate: sizeRate("shooter") });
+    const clack = impactFor(contact({ kind: "steel", size: "mini", surface: "marble", otherKind: "glazed", impulse }));
+    expect(clack?.dv).toBeCloseTo(impulse / massKg("steel", "mini"), 10);
+    expect(clack?.rate).toBe(sizeRate("mini"));
   });
 
   it("selects the band by velocity change", () => {
@@ -180,7 +231,7 @@ describe("voice allocation", () => {
 // Every cue id the engine can ask for, 3 variants each.
 function testCatalog(): Catalog {
   const mats = ["glass", "solid", "steel"];
-  const ids: [string, boolean][] = [["one_way_gate_swing", false]];
+  const ids: [string, boolean][] = SIGNAL_CUE_IDS.map((id) => [id, false]);
   for (const m of mats) {
     for (const f of ["block", "rail"]) {
       ids.push([`roll_${m}_${f}`, true]);
@@ -211,7 +262,7 @@ function testCatalog(): Catalog {
 
 describe("catalog and variants", () => {
   it("decodes the staged catalog shape and refuses others", () => {
-    expect(Object.keys(testCatalog().cues)).toHaveLength(1 + 6 + 18 + 18);
+    expect(Object.keys(testCatalog().cues)).toHaveLength(SIGNAL_CUE_IDS.length + 6 + 18 + 18);
     expect(decodeCatalog({ schema: "other", cues: {} })).toBeNull();
     expect(decodeCatalog({ schema: "parble.sfx-runtime/1", cues: { a: { loop: 1, variants: [] } } })).toBeNull();
   });
@@ -304,6 +355,7 @@ function engine(seed = 1) {
 const roll = (marble: number, o: Partial<AudioRoll> = {}): AudioRoll => ({
   marble,
   kind: "cats-eye" as MarbleKind,
+  size: "standard",
   speed: 0.6,
   surface: "wood" as Surface,
   contact: true,
@@ -418,7 +470,9 @@ describe("engine voice budget", () => {
     e.consume(
       frame(4, {
         camera: { position: [1, 2, 3], forward: [0, 0, -1], up: [0, 1, 0] },
-        mechanisms: [{ kind: "signal", tick: 4, instance: [1, 0, 2], name: "swing", value: 40_000 }],
+        mechanisms: [
+          { kind: "signal", tick: 4, instance: [1, 0, 2], piece: "mech_gate_oneway_l1", name: "open", value: 1 },
+        ],
       }),
     );
     expect([ctx.listener.positionX?.value, ctx.listener.positionY?.value, ctx.listener.positionZ?.value]).toEqual([
@@ -426,5 +480,85 @@ describe("engine voice budget", () => {
     ]);
     expect(ctx.listener.forwardZ?.value).toBe(-1);
     expect(ctx.sources.at(-1)?.buffer?.stem).toMatch(/^one_way_gate_swing_v0[123]$/);
+  });
+
+  it("pitches impacts and rolls by marble size, with the jitter on top", () => {
+    const { ctx, e } = engine();
+    const lo = 2 ** (-JITTER_SEMITONES / 12);
+    const hi = 2 ** (JITTER_SEMITONES / 12);
+    for (const [i, size] of (["mini", "standard", "shooter"] as const).entries()) {
+      ctx.currentTime += 1;
+      e.consume(frame(4 + i * 4, { contacts: [contact({ marble: i, size, impulse: 0.002 })] }));
+      const r = (ctx.sources.at(-1)?.playbackRate.value ?? 0) / sizeRate(size);
+      expect(r).toBeGreaterThanOrEqual(lo);
+      expect(r).toBeLessThanOrEqual(hi);
+    }
+    const { ctx: c2, e: e2 } = engine();
+    e2.consume(frame(4, { rolls: [roll(0, { size: "mini", speed: ROLL_REF_SPEED })] }));
+    expect(c2.sources.at(-1)?.playbackRate.value).toBeCloseTo(sizeRate("mini"), 10);
+  });
+
+  it("plays the matching cue for every mapped mechanism signal, and nothing for the rest", () => {
+    const signal = (piece: string, name: string, value = 0): AudioMechanism => ({
+      kind: "signal",
+      tick: 4,
+      instance: [0, 0, 0],
+      piece,
+      name,
+      value,
+    });
+    const played = (mechanisms: AudioMechanism[], rolls: AudioRoll[] = []) => {
+      const { ctx, e } = engine();
+      e.consume(frame(4, { mechanisms, rolls }));
+      expect(e.stats().errors).toBe(0);
+      return ctx.sources.filter((s) => !s.loop).map((s) => s.buffer?.stem.replace(/_v0\d$/, ""));
+    };
+    const want: [string, string, string][] = [
+      ["mech_hopper", "release", "hopper_release"],
+      ["mech_finish", "finish", "finish_cup_chime"],
+      ["mech_checkpoint_l1", "split", "checkpoint_tick"],
+      ["mech_splitter_l3", "set", "splitter_tick"],
+      ["mech_toggle_l3", "set", "toggle_flap_clack"],
+      ["mech_gate_oneway_l1", "open", "one_way_gate_swing"],
+      ["mech_hole_oneway_l1", "open", "trapdoor_drop"],
+      ["mech_hole_oneway_l1", "drop", "drop_hole_glass"],
+    ];
+    for (const [piece, name, cue] of want) expect(played([signal(piece, name)]), `${piece} ${name}`).toEqual([cue]);
+    const mapped = [...SIGNAL_CUES].flatMap(([piece, m]) => [...m.keys()].map((n) => `${piece} ${n}`));
+    expect(mapped.sort()).toEqual(want.map(([p, n]) => `${p} ${n}`).sort());
+
+    // The drop takes the dropping marble's material from its held roll.
+    const steel = roll(3, { kind: "steel", contact: false, surface: null });
+    expect(played([signal("mech_hole_oneway_l1", "drop", 3)], [steel])).toEqual(["drop_hole_steel"]);
+    expect(signalCueId("mech_hole_oneway_l1", "drop", "solid")).toBe("drop_hole_solid");
+
+    const silent: AudioMechanism[] = [
+      ...[
+        ["mech_hopper", "gate_open"],
+        ["mech_hopper", "gate_close"],
+        ["mech_finish", "finish_count"],
+        ["mech_checkpoint_l1", "camera_cue"],
+        ["mech_splitter_l3", "pass"],
+        ["mech_toggle_l3", "pass"],
+        ["mech_gate_oneway_l1", "forward"],
+        ["mech_gate_oneway_l1", "reverse"],
+        ["mech_gate_oneway_l1", "close"],
+        ["mech_hole_oneway_l1", "over"],
+        ["mech_hole_oneway_l1", "close"],
+        ["", "open"],
+        ["mech_mystery", "release"],
+        ["toString", "name"],
+        ["fixture_swing_flap", "swing"],
+      ].map(([p, n]) => signal(p as string, n as string)),
+      { kind: "sensorEnter", tick: 4, instance: [0, 0, 0], piece: "mech_gate_oneway_l1", sensor: 0, marble: 0 },
+      { kind: "sensorExit", tick: 4, instance: [0, 0, 0], piece: "mech_hopper", sensor: 0, marble: 0 },
+    ];
+    expect(played(silent)).toEqual([]);
+  });
+
+  it("maps mechanism signals only to approved, staged cue ids", () => {
+    const approved = new Set(Object.keys(picks).filter((k) => Array.isArray((picks as Record<string, unknown>)[k])));
+    expect(SIGNAL_CUE_IDS.filter((id) => !approved.has(id))).toEqual([]);
+    expect(SIGNAL_CUE_IDS).toHaveLength(10);
   });
 });

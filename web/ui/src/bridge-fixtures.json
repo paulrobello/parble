@@ -1,6 +1,6 @@
 {
   "about": "One example of every bridge command and event, in declaration order. Checked by crates/parble-app/src/bridge.rs (cargo test) and web/ui/test/bridge.test.ts (Vitest); a variant added on one side only fails both.",
-  "protocol": 1,
+  "protocol": 2,
   "commands": [
     {
       "type": "ping",
@@ -21,7 +21,7 @@
   "events": [
     {
       "type": "ready",
-      "protocol": 1
+      "protocol": 2
     },
     {
       "type": "frame",
@@ -61,6 +61,7 @@
         {
           "marble": 0,
           "kind": "steel",
+          "size": "shooter",
           "surface": "marble",
           "otherKind": "cats-eye",
           "impulse": 0.0078125,
@@ -70,6 +71,7 @@
         {
           "marble": 1,
           "kind": "cats-eye",
+          "size": "mini",
           "surface": "wood_end_grain",
           "otherKind": null,
           "impulse": 0.001953125,
@@ -81,6 +83,7 @@
         {
           "marble": 0,
           "kind": "steel",
+          "size": "shooter",
           "speed": 0.75,
           "surface": "rail",
           "contact": true,
@@ -89,6 +92,7 @@
         {
           "marble": 1,
           "kind": "glazed",
+          "size": "standard",
           "speed": 1.5,
           "surface": null,
           "contact": false,
@@ -100,6 +104,7 @@
           "kind": "sensorEnter",
           "tick": 2398,
           "instance": [2, 0, -1],
+          "piece": "mech_gate_oneway_l1",
           "sensor": 0,
           "marble": 1
         },
@@ -107,6 +112,7 @@
           "kind": "sensorExit",
           "tick": 2399,
           "instance": [2, 0, -1],
+          "piece": "mech_gate_oneway_l1",
           "sensor": 0,
           "marble": 1
         },
@@ -114,8 +120,9 @@
           "kind": "signal",
           "tick": 2400,
           "instance": [2, 0, -1],
-          "name": "swing",
-          "value": -3
+          "piece": "mech_gate_oneway_l1",
+          "name": "open",
+          "value": 1
         }
       ],
       "camera": {
@@ -165,6 +172,7 @@
         {
           "marble": 0,
           "kind": "marble",
+          "size": "standard",
           "surface": "wood",
           "otherKind": null,
           "impulse": 0.5,
@@ -183,6 +191,7 @@
         {
           "marble": 0,
           "kind": "steel",
+          "size": "standard",
           "surface": "rug",
           "otherKind": null,
           "impulse": 0.5,
@@ -201,6 +210,7 @@
         {
           "marble": 0,
           "kind": "steel",
+          "size": "standard",
           "surface": null,
           "otherKind": null,
           "impulse": 0.5,
@@ -219,6 +229,7 @@
         {
           "marble": 0,
           "kind": "steel",
+          "size": "standard",
           "surface": "wood",
           "otherKind": null,
           "impulse": 0.5,
@@ -238,6 +249,7 @@
         {
           "marble": 0,
           "kind": "steel",
+          "size": "standard",
           "speed": "fast",
           "surface": null,
           "contact": false,
@@ -255,6 +267,7 @@
         {
           "marble": 0,
           "kind": "steel",
+          "size": "standard",
           "speed": 1,
           "surface": null,
           "contact": 0,
@@ -288,6 +301,7 @@
           "kind": "signal",
           "tick": 1,
           "instance": [0, 0, 0],
+          "piece": "mech_gate_oneway_l1",
           "name": "swing",
           "value": 1.5
         }
@@ -304,6 +318,7 @@
           "kind": "sensorEnter",
           "tick": 1,
           "instance": [0, 0, 0],
+          "piece": "mech_gate_oneway_l1",
           "sensor": 0,
           "marble": 0,
           "name": "swing"
@@ -321,6 +336,127 @@
         "position": [0, 0, 0],
         "forward": [0, 0, -1]
       }
+    },
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "contacts": [
+        {
+          "marble": 0,
+          "kind": "steel",
+          "size": "huge",
+          "surface": "wood",
+          "otherKind": null,
+          "impulse": 0.5,
+          "count": 1,
+          "position": [0, 0, 0]
+        }
+      ],
+      "rolls": [],
+      "mechanisms": [],
+      "camera": null
+    },
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "contacts": [
+        {
+          "marble": 0,
+          "kind": "steel",
+          "surface": "wood",
+          "otherKind": null,
+          "impulse": 0.5,
+          "count": 1,
+          "position": [0, 0, 0]
+        }
+      ],
+      "rolls": [],
+      "mechanisms": [],
+      "camera": null
+    },
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "contacts": [],
+      "rolls": [
+        {
+          "marble": 0,
+          "kind": "steel",
+          "size": 16,
+          "speed": 1,
+          "surface": null,
+          "contact": true,
+          "position": [0, 0, 0]
+        }
+      ],
+      "mechanisms": [],
+      "camera": null
+    },
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "contacts": [],
+      "rolls": [
+        {
+          "marble": 0,
+          "kind": "steel",
+          "speed": 1,
+          "surface": null,
+          "contact": true,
+          "position": [0, 0, 0]
+        }
+      ],
+      "mechanisms": [],
+      "camera": null
+    },
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "contacts": [],
+      "rolls": [],
+      "mechanisms": [
+        {
+          "kind": "signal",
+          "tick": 1,
+          "instance": [0, 0, 0],
+          "name": "release",
+          "value": 0
+        }
+      ],
+      "camera": null
+    },
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "contacts": [],
+      "rolls": [],
+      "mechanisms": [
+        {
+          "kind": "signal",
+          "tick": 1,
+          "instance": [0, 0, 0],
+          "piece": 7,
+          "name": "release",
+          "value": 0
+        }
+      ],
+      "camera": null
+    },
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "contacts": [],
+      "rolls": [],
+      "mechanisms": [
+        {
+          "kind": "sensorEnter",
+          "tick": 1,
+          "instance": [0, 0, 0],
+          "sensor": 0,
+          "marble": 0
+        }
+      ],
+      "camera": null
     }
   ],
   "rejectedCommands": [

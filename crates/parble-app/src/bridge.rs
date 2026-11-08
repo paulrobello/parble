@@ -16,7 +16,7 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 
 /// Bumped on any incompatible change to [`Command`] or [`Event`].
-pub const PROTOCOL: u32 = 1;
+pub const PROTOCOL: u32 = 2;
 
 /// Outbound bound: with no drainer (the native build, a hidden tab) the oldest events are dropped.
 const MAX_EVENTS: usize = 256;
@@ -267,6 +267,7 @@ mod tests {
             contacts: vec![crate::audio::AudioContact {
                 marble,
                 kind: crate::audio::WireMarble::Steel,
+                size: crate::audio::WireSize::Standard,
                 surface: crate::audio::WireSurface::Wood,
                 other_kind: None,
                 impulse,
@@ -277,7 +278,8 @@ mod tests {
                 .map(|t| crate::audio::AudioMechanism::Signal {
                     tick: tick * 100 + t,
                     instance: [0; 3],
-                    name: "swing".into(),
+                    piece: "mech_hopper".into(),
+                    name: "release".into(),
                     value: 1,
                 })
                 .collect(),
