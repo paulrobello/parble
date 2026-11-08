@@ -30,8 +30,9 @@ pub const KIT_ALIASES: &[(&str, &str)] = &[
     ("blk_finish", "blk_end_l3"),
 ];
 
-/// Piece ids that are valid in a track but have no static kit collider yet, with the reason.
-/// They take no part in the run.
+/// Piece ids that are valid in a track but take no part in the run yet, with the reason. This list
+/// wins over the kit: the mechanism pieces ship sidecars (P2-T3), but placing their colliders would
+/// move every saved track's golden before their behaviours land (P2-T5).
 pub const NO_COLLIDER: &[(&str, &str)] = &[
     ("mech_hopper", "mechanisms reach the sim in P2"),
     ("mech_finish", "mechanisms reach the sim in P2"),
@@ -53,22 +54,22 @@ pub enum KitBinding {
     NoCollider { reason: &'static str },
 }
 
-/// Resolves a placement id against `kit`: a kit id, then [`KIT_ALIASES`], then [`NO_COLLIDER`].
+/// Resolves a placement id against `kit`: [`NO_COLLIDER`], then a kit id, then [`KIT_ALIASES`].
 /// Any other id is `None`.
 pub fn kit_binding(kit: &KitCatalog, id: &PieceId) -> Option<KitBinding> {
+    let name = id.as_str();
+    if let Some(&(_, reason)) = NO_COLLIDER.iter().find(|(from, _)| *from == name) {
+        return Some(KitBinding::NoCollider { reason });
+    }
     if kit.piece(id).is_some() {
         return Some(KitBinding::Kit(id.clone()));
     }
-    let name = id.as_str();
-    if let Some(&(_, to)) = KIT_ALIASES.iter().find(|(from, _)| *from == name) {
-        return Some(KitBinding::Kit(
-            PieceId::new(to).expect("alias targets follow the id grammar"),
-        ));
-    }
-    NO_COLLIDER
+    KIT_ALIASES
         .iter()
         .find(|(from, _)| *from == name)
-        .map(|&(_, reason)| KitBinding::NoCollider { reason })
+        .map(|&(_, to)| {
+            KitBinding::Kit(PieceId::new(to).expect("alias targets follow the id grammar"))
+        })
 }
 
 /// Why a track cannot run.
@@ -387,13 +388,20 @@ mod tests {
             assert_eq!(kit_binding(kit, &id(from)), Some(KitBinding::Kit(id(to))));
         }
         for &(from, _) in NO_COLLIDER {
-            assert!(kit.piece(&id(from)).is_none(), "{from} has a kit piece");
+            // Mechanism pieces ship sidecars (P2-T3) but stay out of the run until P2-T5.
+            assert!(
+                kit.piece(&id(from)).is_none() || from.starts_with("mech_"),
+                "{from} has a kit piece"
+            );
             assert!(matches!(
                 kit_binding(kit, &id(from)),
                 Some(KitBinding::NoCollider { .. })
             ));
         }
-        for p in kit.iter() {
+        for p in kit
+            .iter()
+            .filter(|p| !NO_COLLIDER.iter().any(|(f, _)| *f == p.def.id.as_str()))
+        {
             assert_eq!(
                 kit_binding(kit, &p.def.id),
                 Some(KitBinding::Kit(p.def.id.clone()))

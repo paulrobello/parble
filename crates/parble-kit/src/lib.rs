@@ -19,7 +19,7 @@ use serde::Deserialize;
 pub const SIDECAR_SCHEMA: u32 = 1;
 
 /// Sidecars shipped in `assets/kit/`, in id order.
-const BUILTIN_SIDECARS: [&str; 17] = [
+const BUILTIN_SIDECARS: [&str; 24] = [
     include_str!("../../../assets/kit/blk_curve90_l2/blk_curve90_l2.kit.json"),
     include_str!("../../../assets/kit/blk_curve90_l3/blk_curve90_l3.kit.json"),
     include_str!("../../../assets/kit/blk_drop_l2/blk_drop_l2.kit.json"),
@@ -37,6 +37,13 @@ const BUILTIN_SIDECARS: [&str; 17] = [
     include_str!("../../../assets/kit/blk_straight_l2/blk_straight_l2.kit.json"),
     include_str!("../../../assets/kit/blk_straight_l3/blk_straight_l3.kit.json"),
     include_str!("../../../assets/kit/blk_tower_socket_l1/blk_tower_socket_l1.kit.json"),
+    include_str!("../../../assets/kit/mech_checkpoint_l1/mech_checkpoint_l1.kit.json"),
+    include_str!("../../../assets/kit/mech_finish/mech_finish.kit.json"),
+    include_str!("../../../assets/kit/mech_gate_oneway_l1/mech_gate_oneway_l1.kit.json"),
+    include_str!("../../../assets/kit/mech_hole_oneway_l1/mech_hole_oneway_l1.kit.json"),
+    include_str!("../../../assets/kit/mech_hopper/mech_hopper.kit.json"),
+    include_str!("../../../assets/kit/mech_splitter_l3/mech_splitter_l3.kit.json"),
+    include_str!("../../../assets/kit/mech_toggle_l3/mech_toggle_l3.kit.json"),
 ];
 
 /// [`BUILTIN_SIDECARS`] index of `blk_straight_l3`, the tests' reference sidecar.
@@ -446,7 +453,14 @@ mod tests {
                 "blk_straight_l1",
                 "blk_straight_l2",
                 "blk_straight_l3",
-                "blk_tower_socket_l1"
+                "blk_tower_socket_l1",
+                "mech_checkpoint_l1",
+                "mech_finish",
+                "mech_gate_oneway_l1",
+                "mech_hole_oneway_l1",
+                "mech_hopper",
+                "mech_splitter_l3",
+                "mech_toggle_l3"
             ]
         );
         assert!(kit.get(&id("blk_join_l3")).unwrap().chiral);
@@ -463,6 +477,77 @@ mod tests {
         }
         assert!(kit.get(&id("blk_curve90_l3")).unwrap().chiral);
         assert!(!kit.get(&id("blk_straight_l3")).unwrap().chiral);
+    }
+
+    #[test]
+    fn mechanism_pieces_carry_their_hinge_parts() {
+        // P2-T3 (blender/kit/kitmech.py): part name, pivot µm, axis, rest and limits mdeg. The
+        // finish cup and the checkpoint arch have no moving part.
+        type Part = (&'static str, [i32; 3], [i32; 3], i32, [i32; 2]);
+        let want: [(&str, &[Part]); 7] = [
+            ("mech_checkpoint_l1", &[]),
+            ("mech_finish", &[]),
+            (
+                "mech_gate_oneway_l1",
+                &[("anim_flap", [0, 51_000, 0], [0, 0, 1], 0, [0, 85_000])],
+            ),
+            (
+                "mech_hole_oneway_l1",
+                &[(
+                    "anim_trapdoor",
+                    [14_000, 13_500, 0],
+                    [0, 0, 1],
+                    0,
+                    [0, 60_000],
+                )],
+            ),
+            (
+                "mech_hopper",
+                &[("anim_gate", [12_000, 51_000, 0], [0, 0, 1], 0, [0, 85_000])],
+            ),
+            (
+                "mech_splitter_l3",
+                &[(
+                    "anim_flap",
+                    [-8_000, 45_000, 0],
+                    [0, 1, 0],
+                    20_000,
+                    [-20_000, 20_000],
+                )],
+            ),
+            (
+                "mech_toggle_l3",
+                &[(
+                    "anim_rocker",
+                    [-16_000, 49_000, 0],
+                    [1, 0, 0],
+                    -12_000,
+                    [-12_000, 12_000],
+                )],
+            ),
+        ];
+        for (pid, parts) in want {
+            let p = builtin().piece(&id(pid)).unwrap();
+            assert_eq!(p.family, "mech");
+            assert!(!p.sensors.is_empty(), "{pid}");
+            assert_eq!(p.animated_parts.len(), parts.len(), "{pid}");
+            for (a, w) in p.animated_parts.iter().zip(parts) {
+                assert_eq!(
+                    (
+                        a.name.as_str(),
+                        a.pivot_um,
+                        a.axis,
+                        a.rest_mdeg,
+                        a.limits_mdeg
+                    ),
+                    *w,
+                    "{pid}"
+                );
+                assert_eq!(a.collision.len(), 1, "{pid}");
+                assert_eq!(a.collision[0].surface, Surface::WoodEndGrain);
+                assert!(!a.collision[0].triangles.is_empty(), "{pid}");
+            }
+        }
     }
 
     #[test]
