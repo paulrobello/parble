@@ -18,11 +18,22 @@ use parble_sim::{
     Sim,
     hash::format_hash,
     marble::{self, MarbleKind, MarbleSize},
+    track_run::TrackRun,
 };
 use serde::Serialize;
 
 use crate::SimClock;
 use crate::editor::EditorDiag;
+
+/// Looks of the all-pieces marbles in release order, repeated: glass types only, since the run
+/// releases glass marbles.
+const ALLPIECES_LOOKS: [MarbleKind; 5] = [
+    MarbleKind::Swirl,
+    MarbleKind::Opal,
+    MarbleKind::Onionskin,
+    MarbleKind::CatsEye,
+    MarbleKind::Glow,
+];
 
 /// `window.__parble.ready` turns true once the sim has ticked and this many frames have run.
 const READY_FRAMES: u64 = 3;
@@ -57,6 +68,10 @@ pub enum Scenario {
     /// Mechanism showcase (P2-T6): a toggle lane and a one-way gate lane behind the tray, one cat's
     /// eye each, the parts drawn at the sim's angles ([`parble_sim::mech_showcase`]).
     Mechanisms,
+    /// All-pieces test track (P2-T7): every PRD P2 kit item behind the tray, 10 marbles released
+    /// from the hopper into two finish cups ([`parble_sim::allpieces`]), with its own committed
+    /// hash. Ignores `--marble`.
+    AllPieces,
 }
 
 impl Scenario {
@@ -69,6 +84,7 @@ impl Scenario {
             "lineup" => Some(Self::Lineup),
             "editor" => Some(Self::Editor),
             "mechanisms" => Some(Self::Mechanisms),
+            "allpieces" => Some(Self::AllPieces),
             _ => None,
         }
     }
@@ -82,22 +98,27 @@ impl Scenario {
             Self::Lineup => "lineup",
             Self::Editor => "editor",
             Self::Mechanisms => "mechanisms",
+            Self::AllPieces => "allpieces",
         }
     }
 
-    /// The scenario's sim. No `--marble` at the standard size keeps the P0 legacy marble, so `ramp`
-    /// and `playroom` stay the golden run; otherwise the type's physical table (P1-T6) at the
-    /// chosen size (P5-T1, [`marble::spec_for`]).
-    pub fn build(self, marble: Option<MarbleKind>, size: MarbleSize) -> Sim {
+    /// The scenario's run. No `--marble` at the standard size keeps the P0 legacy marble, so
+    /// `ramp` and `playroom` stay the golden run; otherwise the type's physical table (P1-T6) at
+    /// the chosen size (P5-T1, [`marble::spec_for`]). `allpieces` is a track run whose hopper
+    /// releases its marbles as it goes.
+    pub fn build(self, marble: Option<MarbleKind>, size: MarbleSize) -> TrackRun {
         let spec = marble::spec_for(marble, size);
-        match self {
+        TrackRun::from_sim(match self {
             Self::Ramp | Self::Kit2000 => Sim::ramp_scene_with(spec),
             Self::Playroom => Sim::playroom_scene(),
             Self::Closeup => Sim::closeup_scene(spec),
             Self::Lineup => Sim::lineup_scene(),
             Self::Editor => Sim::tray_scene(),
             Self::Mechanisms => Sim::mech_showcase_scene(),
-        }
+            Self::AllPieces => {
+                return parble_sim::allpieces::run().expect("the all-pieces track runs");
+            }
+        })
     }
 
     /// The marble looks in sim spawn order: the lineup's list, or the one chosen marble (the legacy
@@ -115,6 +136,12 @@ impl Scenario {
             Self::Mechanisms => {
                 vec![(MarbleKind::CatsEye, parble_sim::marble::CATS_EYE.radius_m); 2]
             }
+            Self::AllPieces => ALLPIECES_LOOKS
+                .iter()
+                .cycle()
+                .take(parble_sim::allpieces::MARBLES)
+                .map(|&k| (k, MarbleSize::Standard.radius_m()))
+                .collect(),
             _ => vec![(
                 marble.unwrap_or_default(),
                 marble::spec_for(marble, size).radius_m,
@@ -129,7 +156,8 @@ impl Scenario {
             | Self::Kit2000
             | Self::Lineup
             | Self::Editor
-            | Self::Mechanisms => Environment::Plain,
+            | Self::Mechanisms
+            | Self::AllPieces => Environment::Plain,
             Self::Playroom => Environment::Playroom,
         }
     }
@@ -140,14 +168,17 @@ impl Scenario {
             Self::Playroom => KitScene::Playroom,
             Self::Editor => KitScene::Editor,
             Self::Mechanisms => KitScene::Mechanisms,
+            Self::AllPieces => KitScene::AllPieces,
             _ => KitScene::None,
         }
     }
 
-    /// Ticks in one run before the scenario restarts: 10 s, or the playroom run's 4 s.
+    /// Ticks in one run before the scenario restarts: 10 s, the playroom run's 4 s, or the
+    /// all-pieces run's 30 s.
     pub fn run_ticks(self) -> u32 {
         match self {
             Self::Playroom => parble_sim::playroom_run::PLAYROOM_TICKS,
+            Self::AllPieces => parble_sim::allpieces::RUN_TICKS,
             Self::Editor => u32::MAX,
             _ => parble_sim::golden::RAMP_10S_TICKS,
         }
@@ -195,6 +226,7 @@ impl CameraChoice {
             (_, Scenario::Closeup, _) => Cues::closeup(),
             (_, Scenario::Lineup, _) => Cues::lineup(),
             (_, Scenario::Mechanisms, _) => Cues::mechanisms(),
+            (_, Scenario::AllPieces, _) => Cues::allpieces(),
         }
     }
 }
@@ -286,7 +318,7 @@ impl AgentOpts {
                 "scenario" => {
                     let v = need(value)?;
                     o.scenario = Scenario::parse(&v).ok_or_else(|| {
-                        format!("scenario: unknown {v:?} (known: ramp, closeup, playroom, kit2000, lineup, editor)")
+                        format!("scenario: unknown {v:?} (known: ramp, closeup, playroom, kit2000, lineup, editor, mechanisms, allpieces)")
                     })?;
                 }
                 "seed" => {
@@ -542,6 +574,7 @@ fn diag<'a>(
             (Scenario::Lineup, ..) => "lineup",
             (Scenario::Playroom, ..) => "playroom",
             (Scenario::Mechanisms, ..) => "mechanisms",
+            (Scenario::AllPieces, ..) => "allpieces",
             (_, None, MarbleSize::Standard) => "legacy",
             (_, m, _) => m.unwrap_or_default().name(),
         },
@@ -951,6 +984,28 @@ mod tests {
         assert_eq!(looks.len(), sim.marbles().len());
         let kinds: Vec<_> = sim.mechanisms().iter().map(|m| m.kind).collect();
         assert_eq!(kinds, ["toggle", "gate_oneway"]);
+    }
+
+    #[test]
+    fn allpieces_scenario_parses_and_runs_the_golden_track() {
+        let o = args("--scenario allpieces").unwrap();
+        assert_eq!(o.scenario, Scenario::AllPieces);
+        assert_eq!(
+            Scenario::parse(o.scenario.name()),
+            Some(Scenario::AllPieces)
+        );
+        let q = AgentOpts::from_query("?scenario=allpieces", str::to_owned).unwrap();
+        assert_eq!(q.scenario, Scenario::AllPieces);
+        assert_eq!(o.scenario.kit(), KitScene::AllPieces);
+        assert_eq!(o.scenario.environment(), Environment::Plain);
+        assert_eq!(o.camera.cues(o.scenario, None), Cues::allpieces());
+        let looks = o.scenario.looks(None, MarbleSize::Standard);
+        assert_eq!(looks.len(), parble_sim::allpieces::MARBLES);
+        let mut sim = o.scenario.build(None, MarbleSize::Standard);
+        sim.tick(o.scenario.run_ticks());
+        assert_eq!(sim.marbles().len(), parble_sim::allpieces::MARBLES);
+        let golden = include_str!("../../parble-sim/tests/golden/allpieces_30s.hash");
+        assert_eq!(format!("{:016x}", sim.trajectory_hash()), golden.trim());
     }
 
     #[test]

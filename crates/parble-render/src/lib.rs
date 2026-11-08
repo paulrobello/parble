@@ -215,11 +215,17 @@ fn lerp_state(a: &MarbleState, b: &MarbleState, t: f32) -> Transform {
     Transform::from_translation(pa.lerp(pb, t)).with_rotation(qa.slerp(qb, t))
 }
 
-fn sync_marbles(frame: Res<MarbleFrame>, mut marbles: Query<(&MarbleVisual, &mut Transform)>) {
-    for (MarbleVisual(i), mut transform) in &mut marbles {
+/// A visual with no sim marble yet (a hopper track releases its marbles over the run) is hidden.
+fn sync_marbles(
+    frame: Res<MarbleFrame>,
+    mut marbles: Query<(&MarbleVisual, &mut Transform, &mut Visibility)>,
+) {
+    for (MarbleVisual(i), mut transform, mut visibility) in &mut marbles {
         let Some(curr) = frame.curr.get(*i) else {
+            visibility.set_if_neq(Visibility::Hidden);
             continue;
         };
+        visibility.set_if_neq(Visibility::Inherited);
         let prev = frame.prev.get(*i).unwrap_or(curr);
         *transform = lerp_state(prev, curr, frame.alpha);
     }

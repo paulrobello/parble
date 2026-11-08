@@ -95,9 +95,7 @@ fn main() {
             fill: opts.editor_fill,
         })
         .insert_resource(SimClock {
-            sim: recording(TrackRun::from_sim(
-                opts.scenario.build(opts.marble, opts.marble_size),
-            )),
+            sim: recording(opts.scenario.build(opts.marble, opts.marble_size)),
             scenario: opts.scenario,
             tracks: Tracks::default(),
             marble: opts.marble,
@@ -256,7 +254,7 @@ impl SimClock {
     fn build_run(&self) -> TrackRun {
         recording(match &self.tracks.loaded {
             Some(f) => TrackRun::new(&f.track).expect("loadTrack refuses tracks that cannot run"),
-            None => TrackRun::from_sim(self.scenario.build(self.marble, self.marble_size)),
+            None => self.scenario.build(self.marble, self.marble_size),
         })
     }
 
@@ -386,6 +384,7 @@ mod tests {
         // 2,400 ticks is a whole number of lockstep frames, so a run still ends on the golden hash.
         assert_eq!(RAMP_10S_TICKS % LOCKSTEP_TICKS, 0);
         assert_eq!(Scenario::Playroom.run_ticks() % LOCKSTEP_TICKS, 0);
+        assert_eq!(Scenario::AllPieces.run_ticks() % LOCKSTEP_TICKS, 0);
     }
 
     #[test]

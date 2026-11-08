@@ -260,6 +260,9 @@ pub enum KitScene {
     /// The P2-T6 mechanism showcase ([`parble_sim::mech_showcase`]): a toggle and a one-way gate
     /// lane, the same placements the sim runs with their behaviours.
     Mechanisms,
+    /// The P2-T7 all-pieces test track ([`parble_sim::allpieces`]): every PRD P2 kit item, the
+    /// same placements the sim runs.
+    AllPieces,
 }
 
 impl KitScene {
@@ -270,6 +273,7 @@ impl KitScene {
             Self::Stress2000 => stress_layout(),
             Self::Playroom => playroom_layout(),
             Self::Mechanisms => run_layout(&parble_sim::mech_showcase::LAYOUT),
+            Self::AllPieces => run_layout(&parble_sim::allpieces::LAYOUT),
         }
     }
 }
@@ -1330,6 +1334,27 @@ mod tests {
         // No parts, no change: the P1-T4 bounds stay.
         for l in [playroom_layout(), stress_layout()] {
             assert!(l.iter().all(|p| piece_parts(p.piece) == 0));
+        }
+    }
+
+    #[test]
+    fn allpieces_layout_draws_the_sim_track_at_the_sim_poses() {
+        let kit = parble_kit::builtin();
+        let layout = KitScene::AllPieces.layout();
+        let sim = parble_sim::allpieces::placements();
+        assert_eq!(layout.len(), sim.len());
+        for (r, p) in layout.iter().zip(&sim) {
+            assert_eq!(PIECES[r.piece].0, p.piece.as_str());
+            assert_eq!(r.cell.to_array(), [p.anchor.x, p.anchor.y, p.anchor.z]);
+            let t = placement_transform(r);
+            for port in &kit.piece(&p.piece).unwrap().def.ports {
+                let n = port.face.normal();
+                let local = [n.x * 30_000, 0, n.z * 30_000];
+                let w = parble_sim::chunk::place_point_um(p.orientation(), p.anchor, local);
+                let want = Vec3::new(w[0] as f32, w[1] as f32, w[2] as f32) * 1e-6;
+                let got = t.transform_point(Vec3::from_array(local.map(|v| v as f32 * 1e-6)));
+                assert!(got.distance(want) < 1e-6, "{}: {got} vs {want}", p.piece);
+            }
         }
     }
 

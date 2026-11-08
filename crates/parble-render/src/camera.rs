@@ -154,6 +154,21 @@ impl Cues {
         )])
     }
 
+    /// All-pieces track (P2-T7 `--scenario allpieces`): one set shot from in front of and above the
+    /// whole track, focused on its middle.
+    pub fn allpieces() -> Self {
+        let look = Vec3::new(0.72, 0.18, -0.36);
+        let eye = look + Vec3::new(0.0, 0.95, 1.70);
+        Self(vec![(
+            0,
+            Shot::Set {
+                eye: eye.to_array(),
+                look: look.to_array(),
+                focus_m: eye.distance(look),
+            },
+        )])
+    }
+
     /// One playroom set shot (`--scenario playroom --view rug|blocks`).
     pub fn playroom(view: crate::PlayroomView) -> Self {
         let (eye, look) = view.eye_target();
