@@ -594,8 +594,21 @@ impl ChunkMesh {
             .collect();
     }
 
+    /// Tag every triangle on one of [`Self::arcs`]' rail tubes.
+    fn mark_arcs(&mut self) {
+        self.arc_of = rail_arc::tag(&self.arcs, &self.vertices_um, &self.triangles);
+    }
+
     /// The static wood collider: vertices relative to `origin_um`, collider placed at the origin.
     pub fn collider(&self, origin_um: [i64; 3]) -> Result<Collider, TriMeshBuilderError> {
+        Ok(Self::collider_of(self.trimesh(origin_um)?, origin_um))
+    }
+
+    /// [`Self::collider`]'s first half: the trimesh and its BVH, without the `FIX_INTERNAL_EDGES`
+    /// data. Parry builds the BVH last in `TriMesh::with_flags`, from the triangles, which its
+    /// duplicate-vertex merge leaves in place, so building it first gives the same trimesh. The
+    /// editor's staged rebuild runs the halves in separate steps (P3-T4).
+    fn trimesh(&self, origin_um: [i64; 3]) -> Result<TriMesh, TriMeshBuilderError> {
         let m = |v: i64| v as f32 * 1.0e-6;
         let vertices = self
             .vertices_um
@@ -608,19 +621,23 @@ impl ChunkMesh {
                 )
             })
             .collect();
-        Ok(ColliderBuilder::trimesh_with_flags(
-            vertices,
-            self.triangles.clone(),
-            TriMeshFlags::FIX_INTERNAL_EDGES,
-        )?
-        .translation(Vector::new(
-            m(origin_um[0]),
-            m(origin_um[1]),
-            m(origin_um[2]),
-        ))
-        .friction(scene::WOOD_FRICTION)
-        .restitution(scene::WOOD_RESTITUTION)
-        .build())
+        TriMesh::with_flags(vertices, self.triangles.clone(), TriMeshFlags::empty())
+    }
+
+    /// [`Self::collider`]'s second half: the `FIX_INTERNAL_EDGES` data, then the collider.
+    fn collider_of(mut trimesh: TriMesh, origin_um: [i64; 3]) -> Collider {
+        let m = |v: i64| v as f32 * 1.0e-6;
+        // `TriMesh::with_flags` ignores this result too: no topology is requested.
+        let _ = trimesh.set_flags(TriMeshFlags::FIX_INTERNAL_EDGES);
+        ColliderBuilder::new(SharedShape::new(trimesh))
+            .translation(Vector::new(
+                m(origin_um[0]),
+                m(origin_um[1]),
+                m(origin_um[2]),
+            ))
+            .friction(scene::WOOD_FRICTION)
+            .restitution(scene::WOOD_RESTITUTION)
+            .build()
     }
 }
 
@@ -913,14 +930,35 @@ struct InFlight {
     mesh: ChunkMesh,
     /// The gathered mesh's welded geometry, the key of [`ChunkColliders::simplified`].
     gathered: Option<Geometry>,
+    /// The weld map while gathering.
+    weld: BTreeMap<[i64; 3], u32>,
+    /// The built trimesh (none for an empty chunk), between [`Stage::Build`] and [`Stage::Hook`].
+    trimesh: Option<TriMesh>,
+    /// The built collider (none for an empty chunk), between [`Stage::Hook`] and
+    /// [`Stage::Install`].
+    collider: Option<Collider>,
 }
 
+/// The stages of [`ChunkColliders::rebuild_step`], each a part of [`ChunkColliders::chunk_mesh`]
+/// and [`ChunkColliders::install`] in their order.
 #[derive(Debug)]
 enum Stage {
+    /// Gather the chunk's placements from this index on, [`GATHER_STEP_PIECES`] per step.
+    Gather(usize),
     Simplify(Option<Box<FlatSimplify>>),
-    Mark,
+    MarkStitched,
+    MarkBends,
+    MarkSlopes,
+    MarkArcs,
+    /// The trimesh and its BVH ([`ChunkMesh::trimesh`]).
+    Build,
+    /// Its `FIX_INTERNAL_EDGES` data, then the collider with its active hooks.
+    Hook,
     Install,
 }
+
+/// Placements gathered per staged gather step (a chunk holds up to 64 on one layer).
+const GATHER_STEP_PIECES: usize = 16;
 
 /// A mesh's welded vertices (µm) and triangles.
 type Geometry = (Vec<[i64; 3]>, Vec<[u32; 3]>);
@@ -1046,28 +1084,45 @@ impl ChunkColliders {
     /// [`Self::chunk_mesh`]'s first stage: the welded, culled triangles, bends and slopes.
     fn gathered(&self, kit: &KitCatalog, chunk: CellCoord) -> ChunkMesh {
         let mut mesh = ChunkMesh::default();
-        let mut weld = BTreeMap::new();
+        self.gather(kit, chunk, &mut mesh, &mut BTreeMap::new(), 0, usize::MAX);
+        mesh
+    }
+
+    /// Gather up to `count` of `chunk`'s placements from index `from` on into `mesh`, then (once
+    /// every placement is in) the test triangles. Returns whether every placement is in.
+    fn gather(
+        &self,
+        kit: &KitCatalog,
+        chunk: CellCoord,
+        mesh: &mut ChunkMesh,
+        weld: &mut BTreeMap<[i64; 3], u32>,
+        from: usize,
+        count: usize,
+    ) -> bool {
         let Some(members) = self.by_chunk.get(&chunk) else {
-            return mesh;
+            return true;
         };
-        for (anchor, id) in members {
+        for (anchor, id) in members.iter().skip(from).take(count) {
             let placed = &self.placed[anchor];
             let Some(piece) = kit.piece(id) else { continue };
             let tris: Vec<[[i64; 3]; 3]> = placed_triangles(piece, &placed.placement)
                 .into_iter()
                 .filter(|t| !self.culled(placed, t))
                 .collect();
-            mesh.push_welded(&mut weld, &tris);
+            mesh.push_welded(weld, &tris);
             mesh.bends.extend(ChannelBend::of(piece, &placed.placement));
             mesh.slopes
                 .extend(ChannelSlope::of(piece, &placed.placement));
             mesh.arcs.extend(ChannelArc::of(piece, &placed.placement));
         }
+        if from.saturating_add(count) < members.len() {
+            return false;
+        }
         #[cfg(test)]
         if chunk == CellCoord::new(0, 0, 0) {
-            mesh.push_welded(&mut weld, &self.extra_triangles);
+            mesh.push_welded(weld, &self.extra_triangles);
         }
-        mesh
+        true
     }
 
     /// [`Self::chunk_mesh`]'s last stage, after [`ChunkMesh::simplify_flat`]: the stitched-edge,
@@ -1076,7 +1131,7 @@ impl ChunkColliders {
         self.mark_stitched(mesh, chunk);
         mesh.mark_bends();
         mesh.mark_slopes();
-        mesh.arc_of = rail_arc::tag(&mesh.arcs, &mesh.vertices_um, &mesh.triangles);
+        mesh.mark_arcs();
     }
 
     /// Mark open edges that lie in a cell-face plane with a placement from another chunk across.
@@ -1200,33 +1255,51 @@ impl ChunkColliders {
             let Some(chunk) = self.dirty.first().copied() else {
                 return Ok(None);
             };
-            let mut mesh = self.gathered(kit, chunk);
-            let mut gathered = None;
-            let stage = match self.simplified.get(&chunk) {
-                Some((key, done)) if key.0 == mesh.vertices_um && key.1 == mesh.triangles => {
-                    mesh.vertices_um.clone_from(&done.0);
-                    mesh.triangles.clone_from(&done.1);
-                    #[cfg(test)]
-                    {
-                        self.simplify_reused += 1;
-                    }
-                    Stage::Mark
-                }
-                _ => {
-                    gathered = Some((mesh.vertices_um.clone(), mesh.triangles.clone()));
-                    Stage::Simplify(None)
-                }
-            };
             self.in_flight = Some(InFlight {
                 chunk,
-                stage,
-                mesh,
-                gathered,
+                stage: Stage::Gather(0),
+                mesh: ChunkMesh::default(),
+                gathered: None,
+                weld: BTreeMap::new(),
+                trimesh: None,
+                collider: None,
             });
-            return Ok(Some((chunk, false)));
+            return self.rebuild_step(kit, world);
         };
         let chunk = f.chunk;
         match &mut f.stage {
+            Stage::Gather(from) => {
+                let all = self.gather(
+                    kit,
+                    chunk,
+                    &mut f.mesh,
+                    &mut f.weld,
+                    *from,
+                    GATHER_STEP_PIECES,
+                );
+                *from += GATHER_STEP_PIECES;
+                if all {
+                    f.weld = BTreeMap::new();
+                    f.stage = match self.simplified.get(&chunk) {
+                        Some((key, done))
+                            if key.0 == f.mesh.vertices_um && key.1 == f.mesh.triangles =>
+                        {
+                            f.mesh.vertices_um.clone_from(&done.0);
+                            f.mesh.triangles.clone_from(&done.1);
+                            #[cfg(test)]
+                            {
+                                self.simplify_reused += 1;
+                            }
+                            Stage::MarkStitched
+                        }
+                        _ => {
+                            f.gathered =
+                                Some((f.mesh.vertices_um.clone(), f.mesh.triangles.clone()));
+                            Stage::Simplify(None)
+                        }
+                    };
+                }
+            }
             Stage::Simplify(state) => {
                 let s = state.get_or_insert_with(|| Box::new(FlatSimplify::new(&f.mesh)));
                 #[cfg(test)]
@@ -1239,15 +1312,42 @@ impl ChunkColliders {
                         let done = (f.mesh.vertices_um.clone(), f.mesh.triangles.clone());
                         self.simplified.insert(chunk, (key, done));
                     }
-                    f.stage = Stage::Mark;
+                    f.stage = Stage::MarkStitched;
                 }
             }
-            Stage::Mark => {
-                self.marked(&mut f.mesh, chunk);
+            Stage::MarkStitched => {
+                self.mark_stitched(&mut f.mesh, chunk);
+                f.stage = Stage::MarkBends;
+            }
+            Stage::MarkBends => {
+                f.mesh.mark_bends();
+                f.stage = Stage::MarkSlopes;
+            }
+            Stage::MarkSlopes => {
+                f.mesh.mark_slopes();
+                f.stage = Stage::MarkArcs;
+            }
+            Stage::MarkArcs => {
+                f.mesh.mark_arcs();
+                f.stage = Stage::Build;
+            }
+            Stage::Build => {
+                match Self::trimesh_of(&f.mesh, chunk) {
+                    Ok(t) => f.trimesh = t,
+                    Err(e) => {
+                        // As in [`Self::install`]: the old collider is gone, the chunk stays dirty.
+                        self.remove_installed(world, chunk);
+                        return Err(e);
+                    }
+                }
+                f.stage = Stage::Hook;
+            }
+            Stage::Hook => {
+                f.collider = f.trimesh.take().map(|t| Self::hooked(&f.mesh, chunk, t));
                 f.stage = Stage::Install;
             }
             Stage::Install => {
-                self.install(world, chunk, f.mesh)?;
+                self.swap_in(world, chunk, f.mesh, f.collider);
                 return Ok(Some((chunk, true)));
             }
         }
@@ -1296,6 +1396,14 @@ impl ChunkColliders {
         chunk: CellCoord,
         mesh: ChunkMesh,
     ) -> Result<(), ChunkError> {
+        self.remove_installed(world, chunk);
+        let collider = Self::built(&mesh, chunk)?;
+        self.swap_in(world, chunk, mesh, collider);
+        Ok(())
+    }
+
+    /// Drop `chunk`'s collider and its contact-hook tags, if it has one.
+    fn remove_installed(&mut self, world: &mut PhysicsWorld, chunk: CellCoord) {
         if let Some(h) = self.handles.remove(&chunk) {
             world.remove_collider(h);
             self.stitched.remove(&h.into_raw_parts());
@@ -1303,21 +1411,50 @@ impl ChunkColliders {
             self.slopes.remove(&h.into_raw_parts());
             self.arcs.remove(&h.into_raw_parts());
         }
-        if !mesh.triangles.is_empty() {
-            let mut collider = mesh
-                .collider(chunk_origin_um(chunk))
-                .map_err(|e| ChunkError::TriMesh(chunk, format!("{e:?}")))?;
-            if mesh.slope_of.iter().any(|k| !k.is_empty())
-                || mesh.bend_of.iter().any(|&b| b != 0)
-                || mesh.arc_of.iter().any(|&a| a != 0)
-            {
-                collider.set_active_hooks(
-                    ActiveHooks::MODIFY_SOLVER_CONTACTS | ActiveHooks::FILTER_CONTACT_PAIRS,
-                );
-            } else if mesh.stitched.iter().any(|&b| b != 0) || mesh.bend_of.iter().any(|&b| b != 0)
-            {
-                collider.set_active_hooks(ActiveHooks::MODIFY_SOLVER_CONTACTS);
-            }
+    }
+
+    /// The collider of a tagged chunk mesh with its active hooks (none when empty).
+    fn built(mesh: &ChunkMesh, chunk: CellCoord) -> Result<Option<Collider>, ChunkError> {
+        Ok(Self::trimesh_of(mesh, chunk)?.map(|t| Self::hooked(mesh, chunk, t)))
+    }
+
+    /// [`Self::built`]'s first half ([`ChunkMesh::trimesh`]), none for an empty chunk.
+    fn trimesh_of(mesh: &ChunkMesh, chunk: CellCoord) -> Result<Option<TriMesh>, ChunkError> {
+        if mesh.triangles.is_empty() {
+            return Ok(None);
+        }
+        mesh.trimesh(chunk_origin_um(chunk))
+            .map(Some)
+            .map_err(|e| ChunkError::TriMesh(chunk, format!("{e:?}")))
+    }
+
+    /// [`Self::built`]'s second half: the collider of `trimesh` with `mesh`'s active hooks.
+    fn hooked(mesh: &ChunkMesh, chunk: CellCoord, trimesh: TriMesh) -> Collider {
+        let mut collider = ChunkMesh::collider_of(trimesh, chunk_origin_um(chunk));
+        if mesh.slope_of.iter().any(|k| !k.is_empty())
+            || mesh.bend_of.iter().any(|&b| b != 0)
+            || mesh.arc_of.iter().any(|&a| a != 0)
+        {
+            collider.set_active_hooks(
+                ActiveHooks::MODIFY_SOLVER_CONTACTS | ActiveHooks::FILTER_CONTACT_PAIRS,
+            );
+        } else if mesh.stitched.iter().any(|&b| b != 0) || mesh.bend_of.iter().any(|&b| b != 0) {
+            collider.set_active_hooks(ActiveHooks::MODIFY_SOLVER_CONTACTS);
+        }
+        collider
+    }
+
+    /// Install `collider` (built from `mesh`) as `chunk`'s, replacing the old one, with `mesh`'s
+    /// contact-hook tags, and clear the chunk's dirty mark.
+    fn swap_in(
+        &mut self,
+        world: &mut PhysicsWorld,
+        chunk: CellCoord,
+        mesh: ChunkMesh,
+        collider: Option<Collider>,
+    ) {
+        self.remove_installed(world, chunk);
+        if let Some(collider) = collider {
             let h = world.colliders.insert(collider);
             self.handles.insert(chunk, h);
             self.stitched.insert(h.into_raw_parts(), mesh.stitched);
@@ -1329,7 +1466,6 @@ impl ChunkColliders {
                 .insert(h.into_raw_parts(), (mesh.arcs, mesh.arc_of));
         }
         self.dirty.remove(&chunk);
-        Ok(())
     }
 }
 
