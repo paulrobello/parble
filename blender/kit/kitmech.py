@@ -70,7 +70,8 @@ def spec(piece_id):
         sensors = [_box_sensor("release", (21000, 27500, 0), (5000, 12500, 14000))]
     elif shape == "finish":    # channel into a deep collector cup
         level, ports = 3, [_side(0, "-x", 3, "in")]
-        sensors = [_box_sensor("cup", (6000, 26000, 0), (14000, 12000, 14000))]
+        # up to the cell top: the cup holds 10 standard marbles, the top ones with centres 47-53 mm up
+        sensors = [_box_sensor("cup", (6000, 37000, 0), (14000, 23000, 14000))]
     elif shape in ("splitter", "toggle"):   # fork: in at -x, out at +z and -z
         level = 3
         ports = [_side(0, "-x", 3, "in"), _side(1, "+z", 3, "out"), _side(2, "-z", 3, "out")]

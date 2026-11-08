@@ -582,3 +582,33 @@ fn shipped_fork_parts_route_slow_and_off_centre_marbles() {
     }
     assert!(bad.is_empty(), "missed the commanded branch: {bad:?}");
 }
+
+// ---------------------------------------------------------------------------------------------
+// Capacity and throughput (defects found building the P2-T7 all-pieces track)
+// ---------------------------------------------------------------------------------------------
+
+/// The cup holds 10 standard marbles and its sensor reaches the cell top, so it counts all of
+/// them (the old 38 mm sensor top missed the highest ones, centres 47–53 mm up).
+#[test]
+fn finish_counts_ten_marbles_in_one_cup() {
+    let layout = [
+        place("blk_straight_l3", 0, 0, 0, 0),
+        place(FINISH, 1, 0, 0, 0),
+    ];
+    let mut sim = rig(&layout, 1);
+    let (mut tr, mut ev) = (Vec::new(), Vec::new());
+    for i in 0..10 {
+        let v = 0.3 + 0.03 * i as f32;
+        launch(&mut sim, Vector::new(-0.02, rest(3), 0.0), Vector::X * v);
+        run(&mut sim, 240, &mut tr, &mut ev);
+    }
+    run(&mut sim, 960, &mut tr, &mut ev);
+    assert_eq!(state(&sim)["count"], 10);
+    for (m, st) in sim.marbles().iter().enumerate() {
+        let p = st.position;
+        assert!(
+            libm::fabsf(p[0] - CELL - 0.006) < 0.021 && p[1] > 0.0 && p[1] < CELL,
+            "marble {m} not in the cup: {p:?}"
+        );
+    }
+}

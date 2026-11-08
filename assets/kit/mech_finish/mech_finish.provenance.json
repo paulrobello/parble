@@ -7,12 +7,12 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "598168abc009ce13b7e42cfeb7194a4e1bb9939ee13669d3bb565ede5d7dd841",
+    "sha256": "7c2251a18e1a4fb4279da9a2ce54c0b676213eaa9f42e44ae9c4809dcaed3d03",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "7f8a9f772acf63a53ad23a67b316b76ee8ff068499bf4d74355c9fd7187b173c"
+    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
   },
   "generatorDeps": [
     {
@@ -21,11 +21,11 @@
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "4af584be5af2ea3827da638e45c13fbba52ecec08950720b05597f733c591e9e"
+      "sha256": "fe82520ff25b453ef318332b3b462d271b293e5a33b24e98e217add8ea311a52"
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "2ad8e089c960207ab1d476f108b694257dcf2cf875226f2b4563daf7f6579531"
+      "sha256": "d185ddce86903ebf4766a411fa37f5ebcb43f15b8d65ad3c2dc9d7b2b6c2c392"
     }
   ],
   "authoringAgent": {
@@ -129,7 +129,7 @@
     },
     {
       "path": "assets/kit/mech_finish/mech_finish.kit.json",
-      "sha256": "79993fd57f900f2d8eb1742187c5e38632bc734ca7507e3c5e0434eb29abbd4f",
+      "sha256": "197a30f72f90f250d3f66f44aa71cf3a744d08174e19abe992f369dbd73fe4e7",
       "bytes": 11427
     },
     {
@@ -164,13 +164,13 @@
     },
     {
       "path": "assets-source/kit/mech_finish/mech_finish_high.blend",
-      "sha256": "eebc6686565030e6ec076fb7f1aa6b0a48ca2a4697aca1e36c633feede07a814",
-      "bytes": 149285
+      "sha256": "5cff2e477ea11c02f55bccbf39a46785f1f5ce49291dca6225724a679e7e1353",
+      "bytes": 149323
     },
     {
       "path": "assets-source/kit/mech_finish/mech_finish_low.blend",
-      "sha256": "d48f9bee0f0f3a5204727fb063a9ad3202a1bc1e52e67b10d43465e41c344f8a",
-      "bytes": 117849
+      "sha256": "81856839c79045960139bf533ab86f95e780ff28ba4ba14cacfb3a074b573a8d",
+      "bytes": 117886
     }
   ],
   "references": [

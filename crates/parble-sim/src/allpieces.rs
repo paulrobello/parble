@@ -28,9 +28,9 @@
 //!   sensor and its tip catches a marble rolling at the 0.3 m/s kick about 13 mm past the port,
 //!   which stops it; the next release's opening gate then flicks it out at about 1.55 m/s. The
 //!   hopper's exit is therefore a transfer: the marble falls clear of the gate's sweep at once.
-//! - Finish cup capacity: one cup counts about 7 standard marbles. Later ones stack with their
-//!   centres 47–53 mm above the cup's cell floor, clear of the top of the `cup` sensor (38 mm),
-//!   and are never counted. The last toggle sends the marbles to two cups, 5 each.
+//! - Finish cup capacity: one cup holds and counts 10 standard marbles (the top ones stack with
+//!   their centres 47–53 mm above the cup's cell floor, inside the `cup` sensor, which reaches the
+//!   cell top). The last toggle still sends the marbles to two cups, 5 each.
 //! - One-way hole from the trap side: with a 32 mm bore in the cell below (pillar, redirect), the
 //!   open 60° trapdoor hangs about 11 mm into that cell and the marble wedges between door and
 //!   bore; with an empty cell below, neither a redirect nor a cup two layers down keeps the
@@ -326,7 +326,7 @@ mod tests {
         assert_eq!(run.marbles().len(), MARBLES, "the hopper released them all");
         let counts = finish_counts(&run);
         assert_eq!(counts.iter().sum::<usize>(), MARBLES, "cups {counts:?}");
-        assert!(counts.iter().all(|&c| c > 0 && c <= 7), "cups {counts:?}");
+        assert!(counts.iter().all(|&c| c > 0), "cups {counts:?}");
         eprintln!(
             "all {MARBLES} marbles in a cup by tick {}, cups {counts:?}",
             done_at.unwrap()
