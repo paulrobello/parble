@@ -1,6 +1,6 @@
 # parble SFX cue sheet
 
-Status: P4-T1 draft for Paul's approval. Scope comes from `plans/phase-4-audio.md` P4-T1 and PRD §5.7. No audio has been generated. Generation, processing and provenance belong to P4-T2.
+Status: P4-T1 draft for Paul's approval. Scope comes from `plans/phase-4-audio.md` P4-T1 and PRD §5.7. Generation, processing and provenance belong to P4-T2; the generated takes, their audition verdicts and prompt revision 2 are recorded below and in `assets-source/audio/sfx/provenance-group-*.json`.
 
 ## Conventions
 
@@ -13,6 +13,41 @@ Status: P4-T1 draft for Paul's approval. Scope comes from `plans/phase-4-audio.m
 - **Surfaces.** `block` is the carved hardwood block channel (all block pieces and mechanism bodies). `rail` is the round hardwood rail trough (rail family). `rug` is the floor rug for marbles that leave the track.
 - **Impulse bands.** `light`, `medium` and `heavy` are chosen by the engine from contact impulse, with thresholds set in P4-T4. Each band keeps its natural level difference in the file, so the engine's per-hit gain only fine-tunes it.
 - **Marble-on-marble pairs** are unordered: `clack_glass_steel` serves both glass-hits-steel and steel-hits-glass.
+
+## Prompt revision 2 (2026-11-07)
+
+Paul auditioned the P4-T2 takes on the audition board on 2026-11-07 and rejected three groups:
+
+- All 12 rug cues (`impact_{glass,solid,steel}_rug_{light,medium,heavy}`, `roll_{glass,solid,steel}_rug`): "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material". Each revision 1 rug prompt named the marble material and appended its timbre descriptor ("bright, glassy, slightly ringing", "heavy, metallic, hard and sharp", "duller, denser"), and the model rendered that as the marble ringing.
+- `one_way_gate_swing`: "sounds like the marble not the gate". The revision 1 prompt led with "pushed up by a rolling marble".
+- `drop_hole_glass_v02` only. Its prompt is unchanged and v01, v03 and v04 stand.
+
+Revision 2 changes only the prompts of those 13 cues. Durations, variation counts and loudness targets are unchanged.
+
+- **Rug.** The carpet is the subject. Impacts describe a soft, dull, padded thump of a small hard ball on a thick wool carpet. Rolls describe the soft fibrous hush and rustle of the carpet pile. Every rug prompt ends with explicit negatives: no ring, no click, no glassy or metallic tone, no wood knock. The marble is "a small light / dense / heavy hard ball", so material only shades weight (lighter for glass, heavier and deeper for steel). It never names glass, ceramic or steel, and "over a wooden floor" is dropped because it invited a wood knock.
+- **Gate.** The wooden flap mechanism is the subject. The hinge creaks, the flap swings and then taps shut against its wooden frame in one continuous motion, with no marble rolling and no glass. The first test take used two separate events and came back as two taps 950 ms apart with no audible creak, so the prompt now asks for one continuous motion within half a second.
+
+The replacements are new versions (impacts v05–v08, rolls v04–v06, gate v05–v08), recorded in `assets-source/audio/sfx/provenance-group-d.json`. The rejected originals stay on disk for provenance and carry `"status": "rejected"` in their provenance rows. `scripts/audio/process.py` skips those rows and lists them under the manifest's `rejected` key, so the audition page shows only the new candidates. Approved picks are in `docs/audio/audition-picks.json`.
+
+Medians of rejected originals and revision 2 takes, measured on the raw provider files. Centroid and the share above 4 kHz use energy above 150 Hz. Decay is the time from the loudest 5 ms window until the envelope stays 20 dB below it. Tonal peak is the largest spectral line above the local median between 50 Hz and 8 kHz, where a high value means a ringing partial.
+
+Each line is centroid (Hz) · share above 4 kHz · 20 dB decay (ms) · tonal peak (dB), old → new. Loops have no decay.
+
+- `impact_glass_rug_light`: 866.5 → 1000 · 0.05 % → 0.05 % · 427.5 → 100 · 36.45 → 10.55
+- `impact_glass_rug_medium`: 572.5 → 897 · 0.55 % → 0 % · 765 → 102.5 · 18.75 → 8.95
+- `impact_glass_rug_heavy`: 3907 → 521.5 · 49 % → 0 % · 212.5 → 155 · 21.65 → 13.65
+- `impact_solid_rug_light`: 1186.5 → 765 · 0.05 % → 0 % · 185 → 80 · 32.2 → 17.5
+- `impact_solid_rug_medium`: 273 → 345 · 0.2 % → 0.95 % · 427.5 → 180 · 22.3 → 15.8
+- `impact_solid_rug_heavy`: 3456 → 664 · 22.85 % → 0 % · 235 → 250 · 17.9 → 16.95
+- `impact_steel_rug_light`: 705 → 340.5 · 0 % → 0.1 % · 167.5 → 122.5 · 22.05 → 14
+- `impact_steel_rug_medium`: 336 → 320 · 0 % → 0.05 % · 352.5 → 92.5 · 19.3 → 13.3
+- `impact_steel_rug_heavy`: 492 → 295.5 · 0 % → 0 % · 142.5 → 150 · 15.5 → 21.1
+- `roll_glass_rug`: 3398 → 353 · 37.4 % → 0 % · decay n/a (loop) · 16.3 → 5.7
+- `roll_solid_rug`: 1220 → 327 · 0.4 % → 0 % · decay n/a (loop) · 8.9 → 7.6
+- `roll_steel_rug`: 468 → 309 · 0.9 % → 0 % · decay n/a (loop) · 6.1 → 7.6
+- `one_way_gate_swing`: 2018.5 → 1971 · 6.45 % → 12.7 % · 580 → 140 · 8.5 → 9.35
+
+For the rug rolls, the centroid fell from 468–3398 Hz to 309–353 Hz and the band above 4 kHz went to 0 %. Their tonal peak fell for glass (16.3 → 5.7 dB) and solid (8.9 → 7.6 dB) and rose a little for steel (6.1 → 7.6 dB), so all three now sit low. For the rug impacts, the tonal peak went down in 8 of 9 cues and the 20 dB decay got shorter in 7 of 9. The centroid fell in 6 of 9 and rose for `impact_glass_rug_light`, `impact_glass_rug_medium` and `impact_solid_rug_medium`, all of which stay under 1 kHz with no energy above 4 kHz. `impact_steel_rug_heavy` is the exception on tonal peak (15.5 → 21.1 dB). Two of its originals peaked near 2.6 kHz, a metallic ring. Three of the four new takes peak at 59–105 Hz, a low thud resonance, and v05 peaks at 1.2 kHz. The gate is not darker, because a wooden creak and tap are brighter than a rolling marble. Its 20 dB decay fell from 580 ms to 140 ms. None of these numbers can show whether a take sounds like carpet or like a gate, so Paul still judges that on the audition board.
 
 ## ElevenLabs request settings
 
@@ -152,7 +187,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - variations to generate: 3
 - loudness: -24 LUFS integrated ±1, true peak ≤ -6 dBTP
 - output: `roll_glass_rug_vNN.ogg` (Opus, 48 kHz mono) and `roll_glass_rug_vNN.m4a` (AAC fallback)
-- ElevenLabs prompt: "A 16 mm clear glass marble rolling steadily at constant medium speed along a low-pile woven wool rug laid over a wooden floor, soft muffled rolling rustle over woven fibres, very little resonance, bright, glassy, slightly ringing character, continuous with no start or stop, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 2): "A small light hard ball rolling steadily at constant medium speed across a thick soft wool carpet, only the soft fibrous hush and gentle rustle of carpet pile brushing past, very light and airy, muffled and dark, continuous with no start or stop, no ring, no click, no glassy or metallic tone, no wood knock, close mic, dry room, real recording, no music, no reverb"
 
 ### `roll_solid_block`
 
@@ -188,7 +223,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - variations to generate: 3
 - loudness: -24 LUFS integrated ±1, true peak ≤ -6 dBTP
 - output: `roll_solid_rug_vNN.ogg` (Opus, 48 kHz mono) and `roll_solid_rug_vNN.m4a` (AAC fallback)
-- ElevenLabs prompt: "A 16 mm opaque solid-colour glazed ceramic marble rolling steadily at constant medium speed along a low-pile woven wool rug laid over a wooden floor, soft muffled rolling rustle over woven fibres, very little resonance, duller, denser, less ring than glass character, continuous with no start or stop, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 2): "A small dense hard ball rolling steadily at constant medium speed across a thick soft wool carpet, only the soft fibrous hush and gentle rustle of carpet pile brushing past, soft with a little more body, muffled and dark, continuous with no start or stop, no ring, no click, no glassy or metallic tone, no wood knock, close mic, dry room, real recording, no music, no reverb"
 
 ### `roll_steel_block`
 
@@ -224,7 +259,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - variations to generate: 3
 - loudness: -24 LUFS integrated ±1, true peak ≤ -6 dBTP
 - output: `roll_steel_rug_vNN.ogg` (Opus, 48 kHz mono) and `roll_steel_rug_vNN.m4a` (AAC fallback)
-- ElevenLabs prompt: "A 16 mm polished chrome steel ball bearing rolling steadily at constant medium speed along a low-pile woven wool rug laid over a wooden floor, soft muffled rolling rustle over woven fibres, very little resonance, heavy, metallic, hard and sharp character, continuous with no start or stop, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 2): "A small heavy hard ball rolling steadily at constant medium speed across a thick soft wool carpet, only the soft fibrous hush and gentle rustle of carpet pile brushing past, slightly heavier and deeper, pressing into the pile, muffled and dark, continuous with no start or stop, no ring, no click, no glassy or metallic tone, no wood knock, close mic, dry room, real recording, no music, no reverb"
 
 ## Family `impact`: impacts (marble × surface × band) and marble-on-marble clacks (6 pairings × band)
 
@@ -310,7 +345,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - variations to generate: 4
 - loudness: -30 LUFS (active region) ±2, true peak ≤ -12 dBTP
 - output: `impact_glass_rug_light_vNN.ogg` (Opus, 48 kHz mono) and `impact_glass_rug_light_vNN.m4a` (AAC fallback)
-- ElevenLabs prompt: "A light glancing tap of a 16 mm clear glass marble onto a low-pile woven wool rug over a wooden floor, one single hit, short muffled thud, almost no ring, bright, glassy, slightly ringing, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 2): "A light soft drop of a small light hard ball onto a thick soft wool carpet, the deep carpet pile swallows the hit: one single light, small, soft thump, muffled and dark, no ring, no click, no glassy or metallic tone, no wood knock, no bounce, close mic, dry room, real recording, no music, no reverb"
 
 ### `impact_glass_rug_medium`
 
@@ -322,7 +357,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - variations to generate: 4
 - loudness: -24 LUFS (active region) ±2, true peak ≤ -6 dBTP
 - output: `impact_glass_rug_medium_vNN.ogg` (Opus, 48 kHz mono) and `impact_glass_rug_medium_vNN.m4a` (AAC fallback)
-- ElevenLabs prompt: "A firm single knock of a 16 mm clear glass marble onto a low-pile woven wool rug over a wooden floor, one single hit, short muffled thud, almost no ring, bright, glassy, slightly ringing, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 2): "A firm drop of a small light hard ball onto a thick soft wool carpet, the deep carpet pile swallows the hit: one single light, small, soft thump, muffled and dark, no ring, no click, no glassy or metallic tone, no wood knock, no bounce, close mic, dry room, real recording, no music, no reverb"
 
 ### `impact_glass_rug_heavy`
 
@@ -334,7 +369,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - variations to generate: 4
 - loudness: -18 LUFS (active region) ±2, true peak ≤ -1 dBTP
 - output: `impact_glass_rug_heavy_vNN.ogg` (Opus, 48 kHz mono) and `impact_glass_rug_heavy_vNN.m4a` (AAC fallback)
-- ElevenLabs prompt: "A hard drop from about 30 cm of a 16 mm clear glass marble onto a low-pile woven wool rug over a wooden floor, one single hit, short muffled thud, almost no ring, bright, glassy, slightly ringing, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 2): "A hard drop from about 30 cm of a small light hard ball onto a thick soft wool carpet, the deep carpet pile swallows the hit: one single light, small, soft thump, muffled and dark, no ring, no click, no glassy or metallic tone, no wood knock, no bounce, close mic, dry room, real recording, no music, no reverb"
 
 ### `impact_solid_block_light`
 
@@ -418,7 +453,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - variations to generate: 4
 - loudness: -30 LUFS (active region) ±2, true peak ≤ -12 dBTP
 - output: `impact_solid_rug_light_vNN.ogg` (Opus, 48 kHz mono) and `impact_solid_rug_light_vNN.m4a` (AAC fallback)
-- ElevenLabs prompt: "A light glancing tap of a 16 mm opaque solid-colour glazed ceramic marble onto a low-pile woven wool rug over a wooden floor, one single hit, short muffled thud, almost no ring, duller, denser, less ring than glass, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 2): "A light soft drop of a small dense hard ball onto a thick soft wool carpet, the deep carpet pile swallows the hit: one single soft, dull, padded thump, muffled and dark, no ring, no click, no glassy or metallic tone, no wood knock, no bounce, close mic, dry room, real recording, no music, no reverb"
 
 ### `impact_solid_rug_medium`
 
@@ -430,7 +465,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - variations to generate: 4
 - loudness: -24 LUFS (active region) ±2, true peak ≤ -6 dBTP
 - output: `impact_solid_rug_medium_vNN.ogg` (Opus, 48 kHz mono) and `impact_solid_rug_medium_vNN.m4a` (AAC fallback)
-- ElevenLabs prompt: "A firm single knock of a 16 mm opaque solid-colour glazed ceramic marble onto a low-pile woven wool rug over a wooden floor, one single hit, short muffled thud, almost no ring, duller, denser, less ring than glass, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 2): "A firm drop of a small dense hard ball onto a thick soft wool carpet, the deep carpet pile swallows the hit: one single soft, dull, padded thump, muffled and dark, no ring, no click, no glassy or metallic tone, no wood knock, no bounce, close mic, dry room, real recording, no music, no reverb"
 
 ### `impact_solid_rug_heavy`
 
@@ -442,7 +477,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - variations to generate: 4
 - loudness: -18 LUFS (active region) ±2, true peak ≤ -1 dBTP
 - output: `impact_solid_rug_heavy_vNN.ogg` (Opus, 48 kHz mono) and `impact_solid_rug_heavy_vNN.m4a` (AAC fallback)
-- ElevenLabs prompt: "A hard drop from about 30 cm of a 16 mm opaque solid-colour glazed ceramic marble onto a low-pile woven wool rug over a wooden floor, one single hit, short muffled thud, almost no ring, duller, denser, less ring than glass, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 2): "A hard drop from about 30 cm of a small dense hard ball onto a thick soft wool carpet, the deep carpet pile swallows the hit: one single soft, dull, padded thump, muffled and dark, no ring, no click, no glassy or metallic tone, no wood knock, no bounce, close mic, dry room, real recording, no music, no reverb"
 
 ### `impact_steel_block_light`
 
@@ -526,7 +561,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - variations to generate: 4
 - loudness: -30 LUFS (active region) ±2, true peak ≤ -12 dBTP
 - output: `impact_steel_rug_light_vNN.ogg` (Opus, 48 kHz mono) and `impact_steel_rug_light_vNN.m4a` (AAC fallback)
-- ElevenLabs prompt: "A light glancing tap of a 16 mm polished chrome steel ball bearing onto a low-pile woven wool rug over a wooden floor, one single hit, short muffled thud, almost no ring, heavy, metallic, hard and sharp, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 2): "A light soft drop of a small heavy hard ball onto a thick soft wool carpet, the deep carpet pile swallows the hit: one single heavier, deeper, padded thud, muffled and dark, no ring, no click, no glassy or metallic tone, no wood knock, no bounce, close mic, dry room, real recording, no music, no reverb"
 
 ### `impact_steel_rug_medium`
 
@@ -538,7 +573,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - variations to generate: 4
 - loudness: -24 LUFS (active region) ±2, true peak ≤ -6 dBTP
 - output: `impact_steel_rug_medium_vNN.ogg` (Opus, 48 kHz mono) and `impact_steel_rug_medium_vNN.m4a` (AAC fallback)
-- ElevenLabs prompt: "A firm single knock of a 16 mm polished chrome steel ball bearing onto a low-pile woven wool rug over a wooden floor, one single hit, short muffled thud, almost no ring, heavy, metallic, hard and sharp, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 2): "A firm drop of a small heavy hard ball onto a thick soft wool carpet, the deep carpet pile swallows the hit: one single heavier, deeper, padded thud, muffled and dark, no ring, no click, no glassy or metallic tone, no wood knock, no bounce, close mic, dry room, real recording, no music, no reverb"
 
 ### `impact_steel_rug_heavy`
 
@@ -550,7 +585,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - variations to generate: 4
 - loudness: -18 LUFS (active region) ±2, true peak ≤ -1 dBTP
 - output: `impact_steel_rug_heavy_vNN.ogg` (Opus, 48 kHz mono) and `impact_steel_rug_heavy_vNN.m4a` (AAC fallback)
-- ElevenLabs prompt: "A hard drop from about 30 cm of a 16 mm polished chrome steel ball bearing onto a low-pile woven wool rug over a wooden floor, one single hit, short muffled thud, almost no ring, heavy, metallic, hard and sharp, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 2): "A hard drop from about 30 cm of a small heavy hard ball onto a thick soft wool carpet, the deep carpet pile swallows the hit: one single heavier, deeper, padded thud, muffled and dark, no ring, no click, no glassy or metallic tone, no wood knock, no bounce, close mic, dry room, real recording, no music, no reverb"
 
 ### `clack_glass_glass_light`
 
@@ -854,7 +889,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - variations to generate: 4
 - loudness: -24 LUFS (active region) ±2, true peak ≤ -6 dBTP
 - output: `one_way_gate_swing_vNN.ogg` (Opus, 48 kHz mono) and `one_way_gate_swing_vNN.m4a` (AAC fallback)
-- ElevenLabs prompt: "A small hinged wooden flap on a toy marble track pushed up by a rolling marble, a faint creak of the wooden hinge and a soft knock as it falls back closed, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 2): "A small light wooden flap on a toy wooden hinge swings up and falls straight back: a short soft creak of the wooden hinge, then one soft wooden tap as the flap closes against its wooden frame, all within half a second, one continuous motion, no marble rolling, no ball, no glass, no metal, close mic, dry room, real recording, no music, no reverb"
 
 ### `trapdoor_drop`
 

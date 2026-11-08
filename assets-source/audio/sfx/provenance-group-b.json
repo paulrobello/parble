@@ -434,7 +434,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:51:31Z",
-      "attempt": 1
+      "attempt": 1,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_glass_rug_light",
@@ -451,7 +455,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:51:33Z",
-      "attempt": 2
+      "attempt": 2,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_glass_rug_medium",
@@ -468,7 +476,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:51:43Z",
-      "attempt": 1
+      "attempt": 1,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_glass_rug_medium",
@@ -485,7 +497,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:51:45Z",
-      "attempt": 2
+      "attempt": 2,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_glass_rug_medium",
@@ -502,7 +518,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:51:48Z",
-      "attempt": 3
+      "attempt": 3,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_glass_rug_medium",
@@ -519,7 +539,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:51:50Z",
-      "attempt": 4
+      "attempt": 4,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_glass_rug_heavy",
@@ -536,7 +560,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:51:52Z",
-      "attempt": 1
+      "attempt": 1,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_glass_rug_heavy",
@@ -553,7 +581,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:51:54Z",
-      "attempt": 2
+      "attempt": 2,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_glass_rug_heavy",
@@ -570,7 +602,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:51:57Z",
-      "attempt": 3
+      "attempt": 3,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_glass_rug_heavy",
@@ -587,7 +623,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:51:59Z",
-      "attempt": 4
+      "attempt": 4,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_solid_block_light",
@@ -995,7 +1035,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:53:02Z",
-      "attempt": 1
+      "attempt": 1,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_solid_rug_light",
@@ -1012,7 +1056,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:53:05Z",
-      "attempt": 2
+      "attempt": 2,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_solid_rug_light",
@@ -1029,7 +1077,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:53:08Z",
-      "attempt": 3
+      "attempt": 3,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_solid_rug_light",
@@ -1046,7 +1098,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:53:10Z",
-      "attempt": 4
+      "attempt": 4,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_solid_rug_medium",
@@ -1063,7 +1119,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:53:13Z",
-      "attempt": 1
+      "attempt": 1,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_solid_rug_medium",
@@ -1080,7 +1140,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:53:15Z",
-      "attempt": 2
+      "attempt": 2,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_solid_rug_medium",
@@ -1097,7 +1161,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:53:18Z",
-      "attempt": 3
+      "attempt": 3,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_solid_rug_medium",
@@ -1114,7 +1182,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:53:21Z",
-      "attempt": 4
+      "attempt": 4,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_solid_rug_heavy",
@@ -1131,7 +1203,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:53:24Z",
-      "attempt": 1
+      "attempt": 1,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_solid_rug_heavy",
@@ -1148,7 +1224,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:53:27Z",
-      "attempt": 2
+      "attempt": 2,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_solid_rug_heavy",
@@ -1165,7 +1245,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:53:30Z",
-      "attempt": 3
+      "attempt": 3,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_steel_block_light",
@@ -1573,7 +1657,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:54:41Z",
-      "attempt": 1
+      "attempt": 1,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_steel_rug_light",
@@ -1590,7 +1678,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:54:43Z",
-      "attempt": 2
+      "attempt": 2,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_steel_rug_light",
@@ -1607,7 +1699,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:54:46Z",
-      "attempt": 3
+      "attempt": 3,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_steel_rug_medium",
@@ -1624,7 +1720,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:54:51Z",
-      "attempt": 1
+      "attempt": 1,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_steel_rug_medium",
@@ -1641,7 +1741,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:54:53Z",
-      "attempt": 2
+      "attempt": 2,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_steel_rug_medium",
@@ -1658,7 +1762,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:54:57Z",
-      "attempt": 3
+      "attempt": 3,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_steel_rug_medium",
@@ -1675,7 +1783,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:55:00Z",
-      "attempt": 4
+      "attempt": 4,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_steel_rug_heavy",
@@ -1692,7 +1804,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:55:03Z",
-      "attempt": 1
+      "attempt": 1,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_steel_rug_heavy",
@@ -1709,7 +1825,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:55:05Z",
-      "attempt": 2
+      "attempt": 2,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_steel_rug_heavy",
@@ -1726,7 +1846,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:55:08Z",
-      "attempt": 3
+      "attempt": 3,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_steel_rug_heavy",
@@ -1743,7 +1867,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:55:10Z",
-      "attempt": 4
+      "attempt": 4,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_glass_block_light",
@@ -1845,7 +1973,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:56:29Z",
-      "attempt": 5
+      "attempt": 5,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_steel_rail_light",
@@ -1879,7 +2011,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:56:42Z",
-      "attempt": 5
+      "attempt": 5,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_glass_rail_light",
@@ -1930,7 +2066,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:57:11Z",
-      "attempt": 7
+      "attempt": 7,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_solid_rail_medium",
@@ -1964,7 +2104,11 @@
       "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
       "output_format": "mp3_44100_128",
       "generated_at": "2026-11-07T20:57:16Z",
-      "attempt": 6
+      "attempt": 6,
+      "status": "rejected",
+      "rejected_by": "Paul",
+      "rejected_on": "2026-11-07",
+      "rejected_reason": "all the rug sounds are too glass / metallic sounding, carpet should sound like carpet not the marble material"
     },
     {
       "cue_id": "impact_glass_block_medium",

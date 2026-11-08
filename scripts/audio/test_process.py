@@ -66,6 +66,17 @@ class PipelineTest(unittest.TestCase):
                 rows.append({"cue_id": cue, "family": fam, "loop": loop,
                              "file": str(out.relative_to(cls.root)), "sha256": sha(out),
                              "prompt": f"fixture {cue}"})
+        # An owner-rejected take: its source exists, and a derivative from an earlier run is
+        # already on disk; the pipeline must skip the take and remove the derivative.
+        rej = src / "ui" / "ui_click_v03.mp3"
+        rej.write_bytes((src / "ui" / "ui_click_v01.mp3").read_bytes())
+        rows.append({"cue_id": "ui_click", "family": "ui", "loop": False,
+                     "file": str(rej.relative_to(cls.root)), "sha256": sha(rej), "prompt": "fixture",
+                     "status": "rejected", "rejected_by": "Paul", "rejected_on": "2026-11-07",
+                     "rejected_reason": "fixture reason"})
+        for name in ("out1", "out2"):
+            (cls.root / name / "ui").mkdir(parents=True)
+            (cls.root / name / "ui" / "ui_click_v03.ogg").write_bytes(b"stale")
         (cls.root / "provenance-group-z.json").write_text(
             json.dumps({"provider": "fixture", "files": rows}))
         cls.run_pipeline("out1")
@@ -96,6 +107,17 @@ class PipelineTest(unittest.TestCase):
             for ext in ("ogg", "m4a"):
                 self.assertTrue((self.root / "out1" / i["files"][ext]["path"]).is_file())
             self.assertEqual(i["source"]["sha256"], i["source"]["sha256_recorded"])
+
+    def test_rejected_take_skipped(self) -> None:
+        self.assertNotIn("ui_click_v03", [i["stem"] for i in self.manifest["items"]])
+        rejected = self.manifest["rejected"]
+        self.assertEqual([r["stem"] for r in rejected], ["ui_click_v03"])
+        self.assertEqual(rejected[0]["reason"], "fixture reason")
+        self.assertEqual(rejected[0]["rejected_by"], "Paul")
+        for ext in ("ogg", "m4a"):
+            self.assertFalse((self.root / "out1/ui" / f"ui_click_v03.{ext}").exists())
+        report = (self.root / "out1/processing-report.md").read_text()
+        self.assertIn("`ui_click_v03` | Paul 2026-11-07 | fixture reason", report)
 
     def test_one_shot_leading_silence_and_duration(self) -> None:
         for cue in ("impact_glass_block_heavy", "ui_click", "finish_cup_chime"):

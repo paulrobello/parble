@@ -18,6 +18,10 @@ Targets (LUFS, tolerance, true-peak ceiling, duration range) are parsed from the
 One-shot loudness is the "active region" rule: the trimmed file tiled end to end with aloop
 and measured by ebur128, which is the K-weighted loudness of the active region itself.
 
+Rows whose provenance record carries "status": "rejected" (an owner verdict from the audition
+board) are not processed: they go to the manifest's "rejected" list with the recorded reason
+and their old derivatives are removed, so the audition page shows only live candidates.
+
 Writes <out>/manifest.json and <out>/processing-report.md. Output is deterministic: no
 timestamps, bitexact muxers, sorted items. Usage:
 
@@ -169,6 +173,13 @@ def _provider(data: Any, row: dict[str, Any]) -> dict[str, Any]:
     top = data if isinstance(data, dict) else {}
     keys = ("provider", "model", "endpoint", "output_format", "tier")
     return {k: row.get(k, top.get(k)) for k in keys if row.get(k, top.get(k)) is not None}
+
+
+def rejected_entry(row: dict[str, Any], repo: str) -> dict[str, Any]:
+    return {"cue_id": row["cue_id"], "family": row.get("family"), "stem": Path(row["file"]).stem,
+            "file": row["file"], "provenance": os.path.relpath(row["_provenance"], repo),
+            "reason": row.get("rejected_reason"), "rejected_by": row.get("rejected_by"),
+            "rejected_on": row.get("rejected_on")}
 
 
 def resolve_source(row: dict[str, Any], repo: Path) -> Path | None:
@@ -671,6 +682,14 @@ def write_report(manifest: dict[str, Any], path: Path) -> None:
         lines += [f"| `{i['stem']}` | {'; '.join(i['warnings'])} |" for i in warn]
     else:
         lines.append("None.")
+    rejected = manifest.get("rejected", [])
+    lines += ["", "## Rejected by owner (not processed)", ""]
+    if rejected:
+        lines += ["| stem | rejected | reason |", "| --- | --- | --- |"]
+        lines += [f"| `{r['stem']}` | {r.get('rejected_by') or ''} {r.get('rejected_on') or ''} | "
+                  f"{r.get('reason') or ''} |" for r in rejected]
+    else:
+        lines.append("None.")
     path.write_text("\n".join(lines) + "\n")
 
 
@@ -701,7 +720,10 @@ def main() -> int:
 
     tools = preflight(args)
     targets = parse_cue_sheet(Path(args.cue_sheet))
-    rows = load_provenance(args.provenance_glob)
+    all_rows = load_provenance(args.provenance_glob)
+    rows = [r for r in all_rows if r.get("status") != "rejected"]
+    rejected = sorted((rejected_entry(r, args.repo) for r in all_rows if r.get("status") == "rejected"),
+                      key=lambda r: (r.get("family") or "", r["cue_id"], r["stem"]))
     out.mkdir(parents=True, exist_ok=True)
     with ProcessPoolExecutor(max_workers=args.jobs) as pool:
         futures = [pool.submit(process_item, r, targets.get(r["cue_id"]), args) for r in rows]
@@ -732,13 +754,14 @@ def main() -> int:
                        "tail_db": TAIL_DB, "tp_margin_db": TP_MARGIN_DB,
                        "loop_crossfades_s": list(LOOP_FADES_S)},
         "items": items,
+        "rejected": rejected,
     }
     (out / "manifest.json").write_text(json.dumps(manifest, indent=1, sort_keys=False) + "\n")
     write_report(manifest, out / "processing-report.md")
     bad = sum(1 for i in items if i["issues"])
     errors = sum(1 for i in items if any("error" in s or "not found" in s for s in i["issues"]))
     print(f"processed {len(items)} variation(s): {len(items) - bad} in target, {bad} flagged, "
-          f"{errors} error(s) -> {out}/manifest.json")
+          f"{errors} error(s), {len(rejected)} rejected skipped -> {out}/manifest.json")
     if errors:
         return 2
     return 1 if (args.strict and bad) else 0
