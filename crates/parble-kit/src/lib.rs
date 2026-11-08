@@ -19,7 +19,7 @@ use serde::Deserialize;
 pub const SIDECAR_SCHEMA: u32 = 1;
 
 /// Sidecars shipped in `assets/kit/`, in id order.
-const BUILTIN_SIDECARS: [&str; 24] = [
+const BUILTIN_SIDECARS: [&str; 29] = [
     include_str!("../../../assets/kit/blk_curve90_l2/blk_curve90_l2.kit.json"),
     include_str!("../../../assets/kit/blk_curve90_l3/blk_curve90_l3.kit.json"),
     include_str!("../../../assets/kit/blk_drop_l2/blk_drop_l2.kit.json"),
@@ -44,6 +44,11 @@ const BUILTIN_SIDECARS: [&str; 24] = [
     include_str!("../../../assets/kit/mech_hopper/mech_hopper.kit.json"),
     include_str!("../../../assets/kit/mech_splitter_l3/mech_splitter_l3.kit.json"),
     include_str!("../../../assets/kit/mech_toggle_l3/mech_toggle_l3.kit.json"),
+    include_str!("../../../assets/kit/rail_curve90_r90_l2/rail_curve90_r90_l2.kit.json"),
+    include_str!("../../../assets/kit/rail_joint_l1/rail_joint_l1.kit.json"),
+    include_str!("../../../assets/kit/rail_s_1x3_l2/rail_s_1x3_l2.kit.json"),
+    include_str!("../../../assets/kit/rail_straight_l1/rail_straight_l1.kit.json"),
+    include_str!("../../../assets/kit/rail_straight_l2/rail_straight_l2.kit.json"),
 ];
 
 /// [`BUILTIN_SIDECARS`] index of `blk_straight_l3`, the tests' reference sidecar.
@@ -78,6 +83,21 @@ pub struct KitPiece {
     pub sensors: Vec<SensorDef>,
     /// Kinematic parts, in sidecar order.
     pub animated_parts: Vec<AnimatedPart>,
+    /// The rail end that may leave the footprint into a socket (contract §5.5, §9 rule 3).
+    pub spigot: Option<Cylinder>,
+    /// The socket volume a spigot enters (contract §5.5).
+    pub receptacle: Option<Cylinder>,
+}
+
+/// A cylinder volume in the piece-local frame (contract §11 `spigot` / `receptacle`): the centre of
+/// its base, an axis-aligned unit axis, and its length and radius in integer µm.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Cylinder {
+    pub axis: [i32; 3],
+    pub center_um: [i32; 3],
+    pub length_um: i32,
+    pub radius_um: i32,
 }
 
 /// A mechanism trigger volume in the piece-local frame (contract §11 `sensors`).
@@ -147,6 +167,8 @@ pub enum KitError {
     /// angle, a name without the `anim_` prefix, or a name an earlier part already uses. Errors in
     /// its collision groups use [`KitError::Ragged`] and [`KitError::IndexOutOfRange`].
     BadPart(usize),
+    /// A `spigot` or `receptacle` volume with a non-unit axis or a non-positive length or radius.
+    BadCylinder,
 }
 
 impl core::fmt::Display for KitError {
@@ -177,6 +199,10 @@ struct RawSidecar {
     collision: Vec<RawCollision>,
     sensors: Vec<RawSensor>,
     animated_parts: Vec<RawPart>,
+    #[serde(default)]
+    spigot: Option<Cylinder>,
+    #[serde(default)]
+    receptacle: Option<Cylinder>,
 }
 
 #[derive(Deserialize, PartialEq, Eq)]
@@ -292,6 +318,17 @@ pub fn parse_sidecar(text: &str) -> Result<KitPiece, KitError> {
     let collision = collision_groups(raw.collision)?;
     let sensors = sensors(raw.sensors)?;
     let animated_parts = animated_parts(raw.animated_parts)?;
+    let well_formed = |c: &Cylinder| {
+        c.axis.iter().map(|a| a.abs()).sum::<i32>() == 1 && c.length_um > 0 && c.radius_um > 0
+    };
+    if raw
+        .spigot
+        .iter()
+        .chain(&raw.receptacle)
+        .any(|c| !well_formed(c))
+    {
+        return Err(KitError::BadCylinder);
+    }
 
     Ok(KitPiece {
         def,
@@ -300,6 +337,8 @@ pub fn parse_sidecar(text: &str) -> Result<KitPiece, KitError> {
         collision,
         sensors,
         animated_parts,
+        spigot: raw.spigot,
+        receptacle: raw.receptacle,
     })
 }
 
@@ -460,7 +499,12 @@ mod tests {
                 "mech_hole_oneway_l1",
                 "mech_hopper",
                 "mech_splitter_l3",
-                "mech_toggle_l3"
+                "mech_toggle_l3",
+                "rail_curve90_r90_l2",
+                "rail_joint_l1",
+                "rail_s_1x3_l2",
+                "rail_straight_l1",
+                "rail_straight_l2"
             ]
         );
         assert!(kit.get(&id("blk_join_l3")).unwrap().chiral);
@@ -472,7 +516,12 @@ mod tests {
         assert_eq!(redirect.ports[1].cell, CellCoord::new(0, -1, 0));
         for p in kit.iter() {
             assert_eq!(p.collision.len(), 1, "{}", p.def.id);
-            assert_eq!(p.collision[0].surface, Surface::Wood);
+            let want = if p.family == "rail" {
+                Surface::Rail
+            } else {
+                Surface::Wood
+            };
+            assert_eq!(p.collision[0].surface, want, "{}", p.def.id);
             assert!(!p.collision[0].triangles.is_empty());
         }
         assert!(kit.get(&id("blk_curve90_l3")).unwrap().chiral);
@@ -578,6 +627,112 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn rail_pieces_carry_rail_rings_ports_and_the_joint_spigot() {
+        // P2-T4 (blender/kit/kitrails.py): each port plane holds the canonical half-round with
+        // the wall tops at floor + 18 mm (contract §5.3, §5.4); the joint's spigot port plane is
+        // 10 mm past its +x face (§5.5), where the tower socket's channel starts.
+        // (id, floor µm, per port: (plane axis 0 x / 2 z, plane µm, centre µm on the other axis,
+        // spigot), footprint cells, chiral)
+        type Rail = (&'static str, i32, [(usize, i32, i32, bool); 2], usize, bool);
+        let want: [Rail; 5] = [
+            (
+                "rail_straight_l1",
+                15_000,
+                [(0, -30_000, 0, false), (0, 30_000, 0, false)],
+                1,
+                false,
+            ),
+            (
+                "rail_straight_l2",
+                30_000,
+                [(0, -30_000, 0, false), (0, 30_000, 0, false)],
+                1,
+                false,
+            ),
+            (
+                "rail_curve90_r90_l2",
+                30_000,
+                [(0, -30_000, 0, false), (2, -90_000, 60_000, false)],
+                4,
+                true,
+            ),
+            (
+                "rail_s_1x3_l2",
+                30_000,
+                [(0, -30_000, 0, false), (0, 150_000, -60_000, false)],
+                6,
+                true,
+            ),
+            (
+                "rail_joint_l1",
+                15_000,
+                [(0, -30_000, 0, false), (0, 40_000, 0, true)],
+                1,
+                false,
+            ),
+        ];
+        for (pid, floor, ports, cells, chiral) in want {
+            let p = builtin().piece(&id(pid)).unwrap();
+            assert_eq!(p.family, "rail");
+            assert_eq!(p.def.footprint.len(), cells, "{pid}");
+            assert_eq!(p.def.chiral, chiral, "{pid}");
+            let verts = &p.collision[0].vertices_um;
+            for (i, &(axis, plane, centre, spigot)) in ports.iter().enumerate() {
+                let port = &p.def.ports[i];
+                let want_port = if spigot {
+                    (PortClass::Spigot, 10_000)
+                } else {
+                    (PortClass::Channel, 0)
+                };
+                assert_eq!((port.class, port.inset_um), want_port, "{pid}");
+                for &(u, dv) in &CANONICAL_RING_UM {
+                    // The block ring's wall tops sit at the cell top; a rail's at floor + 18 mm.
+                    let dv = if u.abs() == 14_000 && dv > 14_000 {
+                        18_000
+                    } else {
+                        dv
+                    };
+                    let v = if axis == 0 {
+                        [plane, floor + dv, centre + u]
+                    } else {
+                        [centre + u, floor + dv, plane]
+                    };
+                    assert!(
+                        verts.contains(&v),
+                        "{pid} port {i}: missing ring vertex {v:?}"
+                    );
+                }
+            }
+        }
+        let joint = builtin().piece(&id("rail_joint_l1")).unwrap();
+        assert_eq!(
+            joint.spigot,
+            Some(Cylinder {
+                axis: [1, 0, 0],
+                center_um: [30_000, 29_000, 0],
+                length_um: 10_000,
+                radius_um: 18_440
+            })
+        );
+        assert!(builtin().iter().all(|p| p.receptacle.is_none()));
+        assert!(
+            builtin()
+                .iter()
+                .filter(|p| p.def.id.as_str() != "rail_joint_l1")
+                .all(|p| p.spigot.is_none())
+        );
+
+        let mut v: serde_json::Value = serde_json::from_str(BUILTIN_SIDECARS[STRAIGHT_L3]).unwrap();
+        v["spigot"] = serde_json::json!({
+            "axis": [1, 1, 0], "center_um": [30000, 29000, 0], "length_um": 10000, "radius_um": 18440
+        });
+        assert!(matches!(
+            parse_sidecar(&v.to_string()),
+            Err(KitError::BadCylinder)
+        ));
     }
 
     #[test]
