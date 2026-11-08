@@ -5,6 +5,10 @@
 //! The follow shot is a low, close tracking shot behind the marble, a critically damped spring on
 //! the eye and the look point. The DoF focus is the marble's view-space depth every frame. A cut
 //! snaps the spring and resets the TAA history so the previous shot never ghosts into the next.
+//!
+//! `F` switches to a free-fly camera from the current view ([`Fly`], `docs/agent-operability.md`)
+//! and `F` or `Esc` hands back to the camera it replaced. It moves only on input, so agent runs with
+//! no input frame exactly as before.
 
 use std::collections::VecDeque;
 
@@ -14,6 +18,7 @@ use bevy::{
     post_process::dof::DepthOfField,
     prelude::*,
     transform::TransformSystems,
+    window::PrimaryWindow,
 };
 use parble_sim::{MarbleState, scene};
 use serde::Serialize;
@@ -205,13 +210,83 @@ pub struct DirectorClock {
     pub dt: f32,
 }
 
-/// Director (cued shots) or orbit (editor). `C` toggles.
+/// Director (cued shots) or orbit (editor). `C` toggles. `F` enters fly, and `F` or `Esc` leaves it.
 #[derive(Resource, Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum CameraMode {
     #[default]
     Director,
     Orbit,
+    /// Free-fly ([`Fly`]).
+    Fly,
+}
+
+/// Free-fly speed at entry (m/s), its wheel range, and the factor per wheel line.
+pub const FLY_SPEED_M_S: f32 = 0.3;
+pub const FLY_SPEED_RANGE: (f32, f32) = (0.02, 5.0);
+const FLY_WHEEL_STEP: f32 = 1.25;
+/// Look sensitivity, radians per pixel of drag.
+const FLY_LOOK_RAD_PER_PX: f32 = 0.004;
+
+/// Free-fly camera state: eye, yaw about +Y (0 looks down −Z) and pitch (positive looks up).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Fly {
+    pub eye: Vec3,
+    pub yaw: f32,
+    pub pitch: f32,
+    pub speed: f32,
+    /// The mode `F` or `Esc` returns to.
+    pub back: CameraMode,
+}
+
+impl Default for Fly {
+    fn default() -> Self {
+        Self {
+            eye: Vec3::ZERO,
+            yaw: 0.0,
+            pitch: 0.0,
+            speed: FLY_SPEED_M_S,
+            back: CameraMode::Director,
+        }
+    }
+}
+
+impl Fly {
+    /// A fly camera at `eye` looking along `forward`.
+    pub fn from_view(eye: Vec3, forward: Vec3, back: CameraMode) -> Self {
+        let f = forward.normalize_or(Vec3::NEG_Z);
+        Self {
+            eye,
+            yaw: (-f.x).atan2(-f.z),
+            pitch: f.y.clamp(-1.0, 1.0).asin(),
+            back,
+            ..default()
+        }
+    }
+
+    pub fn rotation(&self) -> Quat {
+        Quat::from_euler(EulerRot::YXZ, self.yaw, self.pitch, 0.0)
+    }
+
+    /// Move by `axes` (x right, y up, z forward, each in −1..1) for `dt` seconds. Forward and right
+    /// follow the view; up is world +Y.
+    pub fn step(&mut self, axes: Vec3, dt: f32) {
+        let r = self.rotation();
+        let v = r * Vec3::X * axes.x + Vec3::Y * axes.y + r * Vec3::NEG_Z * axes.z;
+        self.eye += v.clamp_length_max(1.0) * self.speed * dt;
+    }
+
+    /// Turn by a drag of `px` pixels.
+    pub fn look(&mut self, px: Vec2) {
+        self.yaw -= px.x * FLY_LOOK_RAD_PER_PX;
+        self.pitch = (self.pitch - px.y * FLY_LOOK_RAD_PER_PX).clamp(-1.5, 1.5);
+    }
+
+    /// Scale the speed by `lines` wheel lines (up is faster).
+    pub fn wheel(&mut self, lines: f32) {
+        self.speed =
+            (self.speed * FLY_WHEEL_STEP.powf(lines)).clamp(FLY_SPEED_RANGE.0, FLY_SPEED_RANGE.1);
+    }
 }
 
 /// Marks the main camera.
@@ -255,7 +330,10 @@ struct DirectorState {
     look_vel: Vec3,
     dir: Vec3,
     orbit: Orbit,
+    fly: Fly,
     trail: VecDeque<[f32; 2]>,
+    /// The mode last framed, to reset TAA when the mode changes.
+    framed: Option<CameraMode>,
 }
 
 /// The camera's state for the state JSON (`camera`).
@@ -267,6 +345,10 @@ pub struct CameraDiag {
     /// Cuts since start.
     pub cuts: u32,
     pub eye: [f32; 3],
+    /// Unit view direction.
+    pub forward: [f32; 3],
+    /// Free-fly speed (m/s); it applies once `mode` is `fly`.
+    pub fly_speed: f32,
     /// Marble centre in physical pixels, newest first, up to [`TRAIL_FRAMES`].
     pub marble_px: Vec<[f32; 2]>,
     /// Marble radius in physical pixels.
@@ -330,7 +412,10 @@ impl Plugin for DirectorPlugin {
             .init_resource::<DirectorClock>()
             .init_resource::<DirectorState>()
             .init_resource::<CameraDiag>()
-            .add_systems(Update, (toggle_mode, orbit_input))
+            .add_systems(
+                Update,
+                (toggle_mode, fly_toggle, orbit_input, fly_input).chain(),
+            )
             .add_systems(PostUpdate, direct.before(TransformSystems::Propagate));
     }
 }
@@ -340,7 +425,87 @@ fn toggle_mode(keys: Option<Res<ButtonInput<KeyCode>>>, mut mode: ResMut<CameraM
         *mode = match *mode {
             CameraMode::Director => CameraMode::Orbit,
             CameraMode::Orbit => CameraMode::Director,
+            CameraMode::Fly => CameraMode::Fly,
         };
+    }
+}
+
+/// `F` enters fly from the current view; `F` or `Esc` returns to the mode it replaced.
+fn fly_toggle(
+    keys: Option<Res<ButtonInput<KeyCode>>>,
+    mut mode: ResMut<CameraMode>,
+    mut st: ResMut<DirectorState>,
+    cams: Query<&Transform, With<MainCamera>>,
+) {
+    let Some(keys) = keys else {
+        return;
+    };
+    if *mode == CameraMode::Fly {
+        if keys.any_just_pressed([KeyCode::KeyF, KeyCode::Escape]) {
+            *mode = st.fly.back;
+            // Re-enter the director's current cue as a cut.
+            st.cue = None;
+        }
+    } else if keys.just_pressed(KeyCode::KeyF)
+        && let Ok(tf) = cams.single()
+    {
+        let speed = st.fly.speed;
+        st.fly = Fly {
+            speed,
+            ..Fly::from_view(tf.translation, tf.forward().as_vec3(), *mode)
+        };
+        *mode = CameraMode::Fly;
+    }
+}
+
+/// Fly input: WASD, Q/E or Shift/Space down and up, left or right drag to look, wheel for speed.
+/// Real time, so lockstep's held sim does not freeze the camera.
+#[allow(clippy::too_many_arguments)]
+fn fly_input(
+    mode: Res<CameraMode>,
+    time: Res<Time<Real>>,
+    keys: Option<Res<ButtonInput<KeyCode>>>,
+    buttons: Option<Res<ButtonInput<MouseButton>>>,
+    scroll: Option<Res<AccumulatedMouseScroll>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    mut last_cursor: Local<Option<Vec2>>,
+    mut st: ResMut<DirectorState>,
+) {
+    if *mode != CameraMode::Fly {
+        *last_cursor = None;
+        return;
+    }
+    let dt = time.delta_secs().min(0.1);
+    if let Some(k) = keys {
+        let axis = |pos: &[KeyCode], neg: &[KeyCode]| {
+            f32::from(u8::from(k.any_pressed(pos.iter().copied())))
+                - f32::from(u8::from(k.any_pressed(neg.iter().copied())))
+        };
+        let axes = Vec3::new(
+            axis(&[KeyCode::KeyD], &[KeyCode::KeyA]),
+            axis(
+                &[KeyCode::KeyE, KeyCode::Space],
+                &[KeyCode::KeyQ, KeyCode::ShiftLeft, KeyCode::ShiftRight],
+            ),
+            axis(&[KeyCode::KeyW], &[KeyCode::KeyS]),
+        );
+        st.fly.step(axes, dt);
+    }
+    // Cursor deltas rather than raw mouse motion: the browser reports them without pointer lock.
+    let cursor = windows.single().ok().and_then(Window::cursor_position);
+    let dragging = buttons.is_some_and(|b| b.any_pressed([MouseButton::Left, MouseButton::Right]));
+    if let (true, Some(now), Some(before)) = (dragging, cursor, *last_cursor) {
+        st.fly.look(now - before);
+    }
+    *last_cursor = if dragging { cursor } else { None };
+    if let Some(s) = scroll {
+        let lines = match s.unit {
+            bevy::input::mouse::MouseScrollUnit::Line => s.delta.y,
+            bevy::input::mouse::MouseScrollUnit::Pixel => s.delta.y / 40.0,
+        };
+        if lines != 0.0 {
+            st.fly.wheel(lines);
+        }
     }
 }
 
@@ -391,7 +556,7 @@ fn direct(
         With<MainCamera>,
     >,
 ) {
-    let Ok((camera, mut tf, dof, taa, (msaa, ssao, bloom, tm))) = cams.single_mut() else {
+    let Ok((camera, mut tf, dof, mut taa, (msaa, ssao, bloom, tm))) = cams.single_mut() else {
         return;
     };
     let Some((p, v)) = lerp_marble(&frame) else {
@@ -414,7 +579,7 @@ fn direct(
     }
 
     let (cut, shot) = match *mode {
-        CameraMode::Orbit => (false, None),
+        CameraMode::Orbit | CameraMode::Fly => (false, None),
         CameraMode::Director => {
             let Some((idx, shot)) = cues.at(clock.tick) else {
                 return;
@@ -425,11 +590,20 @@ fn direct(
             (cut, Some(shot))
         }
     };
-    if *mode == CameraMode::Orbit {
+    if *mode != CameraMode::Director {
         st.cue = None;
+    }
+    let mode_changed = st.framed.is_some_and(|m| m != *mode);
+    st.framed = Some(*mode);
+    if mode_changed && let Some(t) = taa.as_deref_mut() {
+        t.reset = true;
     }
 
     let (eye, look) = match shot {
+        None if *mode == CameraMode::Fly => {
+            let f = st.fly;
+            (f.eye, f.eye + f.rotation() * Vec3::NEG_Z)
+        }
         None => (st.orbit.eye(), st.orbit.target),
         Some(Shot::Fixed { eye, look } | Shot::Set { eye, look, .. }) => {
             (Vec3::from_array(eye), Vec3::from_array(look))
@@ -488,6 +662,8 @@ fn direct(
     diag.mode = Some(*mode);
     diag.shot = shot;
     diag.eye = eye.to_array();
+    diag.forward = forward.to_array();
+    diag.fly_speed = st.fly.speed;
     diag.marble_px = st.trail.iter().copied().collect();
     diag.post = post::live_post((msaa, None, ssao, bloom, dof.as_deref(), tm));
     diag.post.taa = has_taa;
@@ -539,6 +715,30 @@ mod tests {
             assert_eq!((eye, look), (e.to_array(), l.to_array()));
             assert!(focus_m > 0.2 && focus_m < 3.0, "{v:?}: focus {focus_m}");
         }
+    }
+
+    #[test]
+    fn fly_round_trips_a_view_and_moves_along_it() {
+        let eye = Vec3::new(0.1, 0.2, 0.3);
+        for fwd in [Vec3::NEG_Z, Vec3::X, Vec3::new(0.3, -0.4, -0.8).normalize()] {
+            let f = Fly::from_view(eye, fwd, CameraMode::Director);
+            assert!((f.rotation() * Vec3::NEG_Z).distance(fwd) < 1e-5, "{fwd}");
+            let mut g = f;
+            g.step(Vec3::Z, 1.0);
+            assert!((g.eye - eye).distance(fwd * FLY_SPEED_M_S) < 1e-5);
+            let mut h = f;
+            h.step(Vec3::Y, 0.5);
+            assert!((h.eye - eye).distance(Vec3::Y * FLY_SPEED_M_S * 0.5) < 1e-5);
+        }
+        let mut f = Fly::default();
+        f.look(Vec2::new(100.0, 0.0));
+        assert!(f.yaw < 0.0, "dragging right turns right");
+        f.look(Vec2::new(0.0, 1.0e5));
+        assert_eq!(f.pitch, -1.5);
+        f.wheel(1.0);
+        assert!(f.speed > FLY_SPEED_M_S);
+        f.wheel(-100.0);
+        assert_eq!(f.speed, FLY_SPEED_RANGE.0);
     }
 
     #[test]

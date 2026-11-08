@@ -16,7 +16,7 @@ parble can be launched, observed and stopped from a script, on native and on the
 | `--tex <family>` | `tex=<family>` | device | Caps the kit wood texture family: `bc7`, `astc` or `png`. The renderer picks BC7 KTX2 when the device has BC compression, else ASTC KTX2, else PNG (`crates/parble-render/src/kit/family.rs`). The cap only steps down that order, so `png` always forces the PNG fallback. Only `kit2000` and `playroom` load the wood maps. |
 | `--seed <u64>` | `seed=<u64>` | `0` | Recorded and reported. No P0 scenario uses it yet. Procedural tracks consume it from P3. |
 | `--quality <tier>` | `quality=<tier>` | `medium` | `low`, `medium`, `high` or `ultra`. Per-tier AA (MSAA or TAA), SSAO, bloom, DoF and shadows are in `docs/adr/0001-post-stack-and-tiers.md`. The glass marbles (cat's eye, swirl, onionskin, opal, glow) use fallback shaders on `low` and `medium` (the vane march takes 16 and 32 steps), and screen-space specular transmission on `high` and `ultra`. Shadow-casting lights are capped per tier: 0 on Low, 1 on Medium, 3 on High and Ultra. |
-| `--camera <c>` | `camera=<c>` | `director` | `director`: the follow-marble director with the scenario's cued cuts. `orbit`: the editor orbit camera (left drag, wheel). `overview`: the fixed P0 top-down view. `C` toggles director and orbit. |
+| `--camera <c>` | `camera=<c>` | `director` | `director`: the follow-marble director with the scenario's cued cuts. `orbit`: the editor orbit camera (left drag, wheel). `overview`: the fixed P0 top-down view. `C` toggles director and orbit. `F` enters the free-fly camera in every scenario ([Camera controls](#camera-controls)). |
 | `--taa <0\|1>`, `--dof <0\|1>`, `--bloom <0\|1>`, `--aperture <f>`, `--tonemap <name>` | same keys | tier | Look-dev and test overrides of the tier's post stack. `bloom` (P5-T1) exists for the glow marble's bloom check. `tonemap`: `tony`, `agx`, `aces`, `filmic`, `sbdt`, `reinhard`. |
 | `--lockstep-after <s>` | `lockstep-after=<s>` | off | Hold the sim at tick 0 for `<s>` real seconds, then advance exactly 4 ticks (1/60 s) per frame, so a frame shows the same state on every run. The run hash is unchanged. |
 | `--screenshot-tick <n>` | `screenshot-tick=<n>` | off | Capture on the first frame at or past sim tick `<n>` instead of by time, then exit as soon as the PNG is written. Native captures with `--screenshot` use a 1280x720 window at scale factor 1. |
@@ -79,11 +79,27 @@ The web build replaces `window.__parble` every frame. `--dump-state` prints the 
 - `view`: the playroom `--view` framing, or `null` when none was given.
 - `kit` (only with `--scenario kit2000` or `playroom`): the P1-T4 renderer. `pieces`, `chunks`, `pieceTypes` and `drawBound` (one draw per occupied (type × chunk) × 3 LODs). `variants` is the number of wood variants and `variantPieces` the pieces using each (picked by a hash of the anchor cell). Each (type, LOD, variant) is one material, so the wall draws as `pieceTypes` × 3 × `variants` bins. `lodTriangles` per piece type and `lodBandsM`, the camera distances of the two crossfade bands. `family` and `textures` (`path`, `kind`, `state`, the loaded `format`, and the asset server's `error` when `state` is `failed`): `kind` is `wood` for each variant's base_color and orm in the device's family, or `baked` for a piece's per-LOD AO and normal PNG. `draws` is read from the render world each frame: `main` is the main opaque pass's kit draws (one indirect draw per (pipeline, material, mesh) bin) over `mainViews` views, `mainInstances` the LOD instances in those bins and `ditheredInstances` the ones drawn with the crossfade dither pipeline. With GPU culling Bevy keeps its multidraw bins private, so `main` rebuilds them from the view's visible kit instances. `prepass` and `shadow` are `null` when that pass's bins cannot be rebuilt (shadow cascades). `multidrawSets` counts the main pass's multidraw batch sets.
 - `screenshot`: `state` is one of `none`, `pending`, `capturing`, `done` (with `lit`, `colors` and `ok`), or `failed` (with `error`).
-- `camera`: the main camera this frame: `mode`, `shot`, `cuts`, `eye`, the marble's screen position over the last frames (`marblePx`, physical pixels, newest first), `marbleRadiusPx`, and `post`, which holds the post components the live camera carries (`msaa`, `taa`, `ssao`, `bloom`, `dof`, `aperture`, `focusM`, `tonemapping`).
+- `camera`: the main camera this frame: `mode` (`director`, `orbit` or `fly`), `shot`, `cuts`, `eye`, `forward` (unit view direction), `flySpeed` (m/s), the marble's screen position over the last frames (`marblePx`, physical pixels, newest first), `marbleRadiusPx`, and `post`, which holds the post components the live camera carries (`msaa`, `taa`, `ssao`, `bloom`, `dof`, `aperture`, `focusM`, `tonemapping`).
 - `shotCamera`: the same object captured on the screenshot frame.
 - `exited`: set when auto-exit fires.
 
 All timing (screenshot, exit, fps) is real time in the app layer. The sim never receives wall-clock input, so none of these switches can change a trajectory hash.
+
+## Camera controls
+
+Every scenario, `kit2000` and `lineup` included, has a free-fly camera (`Fly` in `crates/parble-render/src/camera.rs`). It works the same natively and on the web. On the web, click the scene first so the canvas has keyboard focus.
+
+| Input | Effect |
+|---|---|
+| `F` | Enter fly from the current view. In fly, `F` returns to the camera it replaced. |
+| `Esc` | Leave fly, back to the director (or orbit). The director cuts straight back to its current cue. |
+| `W` `A` `S` `D` | Forward, left, back, right along the view. |
+| `E` or `Space`, `Q` or `Shift` | Up, down (world Y). |
+| Left or right drag | Look (yaw and pitch). It uses cursor movement, so no pointer lock is needed. |
+| Wheel | Fly speed, ×1.25 per line, 0.02 to 5 m/s (starts at 0.3 m/s). |
+| `C` | Director and orbit toggle (ignored while flying). |
+
+The camera moves only on input and uses real time, so it keeps working while `--lockstep-after` holds the sim. With no input it never leaves the director, so `--screenshot`, `--exit-after`, `?screenshot=` and `window.__parble` runs frame exactly as before. Keys typed into the HUD (the Import, Export, Run and Save controls) stay there, because the browser only delivers keys to the canvas while it has focus. The HUD shows the controls in its bottom-left line. `make web-e2e` drives the fly camera with the keyboard and mouse in GPU Chromium (`e2e/tests/flycam.spec.mjs`).
 
 ## Make targets
 
@@ -94,7 +110,7 @@ make run-diag                        # native: run 3 s, print the state JSON, ex
 make playroom-shots                  # native High shots of both playroom views into target/shots/
 make shots-p1t7                      # native: per-tier shots, TAA ghost check, DoF side-by-side (P1-T7)
 make marble-shots                    # native: closeup PNG per marble type and tier, two sizes, the lineup per tier and the glow bloom check, to target/shots/marbles (P1-T6, P5-T1)
-make web-e2e                         # release build, then the Playwright suites (smoke, persistence, marbles) in GPU Chromium on 5311
+make web-e2e                         # release build, then the Playwright suites (smoke, persistence, marbles, kit, flycam) in GPU Chromium on 5311
 make web-marbles                     # the marbles spec alone against an existing dist/ (P1-T6)
 make web-smoke                       # the P0-T5 single-script smoke (random port)
 ```

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyEvents, emptyHud, formatHud } from "../src/hud";
+import { CONTROLS_HINT, applyEvents, emptyHud, formatHud } from "../src/hud";
 
 describe("HUD", () => {
   it("shows placeholders before the first frame", () => {
@@ -19,5 +19,10 @@ describe("HUD", () => {
   it("keeps the last state when no frame arrives", () => {
     const state = { fps: 50, tick: 7 };
     expect(applyEvents(state, [])).toBe(state);
+  });
+
+  it("names the fly camera's enter and exit keys", () => {
+    expect(CONTROLS_HINT).toMatch(/F: fly camera/);
+    expect(CONTROLS_HINT).toMatch(/F\/Esc back/);
   });
 });

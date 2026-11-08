@@ -45,3 +45,30 @@ export function mountHud(doc: Document): HTMLElement {
   doc.body.append(el);
   return el;
 }
+
+/** Camera controls (crates/parble-render/src/camera.rs); keys reach the game only while the canvas has focus. */
+export const CONTROLS_HINT =
+  "click the scene, then F: fly camera  WASD move  Q/E down/up  drag look  wheel speed  F/Esc back";
+
+/** A fixed, non-interactive controls line in the bottom-left corner, apart from the readout. */
+export function mountControlsHint(doc: Document): HTMLElement {
+  const el = doc.createElement("div");
+  el.id = "parble-controls";
+  Object.assign(el.style, {
+    position: "fixed",
+    bottom: "8px",
+    left: "8px",
+    padding: "4px 8px",
+    borderRadius: "4px",
+    background: "rgba(28, 26, 23, 0.6)",
+    color: "#ece4d8",
+    font: "11px/1.4 ui-monospace, Menlo, monospace",
+    whiteSpace: "pre",
+    pointerEvents: "none",
+    userSelect: "none",
+    zIndex: "10",
+  });
+  el.textContent = CONTROLS_HINT;
+  doc.body.append(el);
+  return el;
+}

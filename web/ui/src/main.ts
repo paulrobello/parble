@@ -1,6 +1,6 @@
 import { Bridge, type WasmBindings } from "./bridge";
 import { mountFiles } from "./files";
-import { applyEvents, emptyHud, formatHud, mountHud } from "./hud";
+import { applyEvents, emptyHud, formatHud, mountControlsHint, mountHud } from "./hud";
 import { Library } from "./library";
 
 declare global {
@@ -12,6 +12,7 @@ declare global {
 function start(bindings: WasmBindings): void {
   const bridge = new Bridge(new bindings.Bridge());
   const el = mountHud(document);
+  mountControlsHint(document);
   const library = "indexedDB" in window ? Library.open({ indexedDB: window.indexedDB }) : null;
   library?.catch((err) => console.warn("track library unavailable", err));
   const files = mountFiles(document, (cmd) => bridge.post(cmd), library);
