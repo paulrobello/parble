@@ -33,6 +33,19 @@ fn rebuild_all(run: &mut TrackRun) -> usize {
     n
 }
 
+/// Up to `steps` stages of the staged rebuild, as one editor frame runs.
+fn rebuild_steps(run: &mut TrackRun, steps: usize) -> usize {
+    let kit = parble_kit::builtin();
+    let mut installed = 0;
+    for _ in 0..steps {
+        match run.rebuild_step_chunk(kit).unwrap() {
+            Some((_, done)) => installed += usize::from(done),
+            None => break,
+        }
+    }
+    installed
+}
+
 #[test]
 fn incremental_edits_match_a_fresh_build() {
     let kit = parble_kit::builtin();
@@ -62,9 +75,12 @@ fn incremental_edits_match_a_fresh_build() {
         // Sometimes several edits share one rebuild, as a frame with a group edit does.
         if step % 3 == 0 {
             rebuilt += rebuild_all(&mut run);
+        } else if step % 3 == 1 {
+            // A staged rebuild part way through when the next edit lands.
+            rebuilt += rebuild_steps(&mut run, 5);
         }
     }
-    rebuilt += rebuild_all(&mut run);
+    rebuilt += rebuild_steps(&mut run, usize::MAX);
     assert!(rebuilt > 0);
     let mut track = Track::new(0);
     track.placements = placed.into_values().collect();

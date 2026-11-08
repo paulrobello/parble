@@ -136,6 +136,15 @@ impl Sim {
 
     /// Look-dev close-up (P1-T6): the tray with one marble of the given spec resting on the flat
     /// floor at [`scene::closeup_marble_m`], so a fixed close camera can frame it.
+    /// The P0 tray and no marble: the editor's world (P3-T4), with kit pieces placed and removed
+    /// in place.
+    pub fn tray_scene() -> Self {
+        let mut sim = Self::empty();
+        sim.world.colliders.insert(scene::tray_collider());
+        sim.sample();
+        sim
+    }
+
     pub fn closeup_scene(spec: marble::MarbleSpec) -> Self {
         let mut sim = Self::empty();
         sim.world.colliders.insert(scene::tray_collider());
@@ -206,6 +215,18 @@ impl Sim {
         kit: &parble_kit::KitCatalog,
     ) -> Result<Option<parble_core::CellCoord>, chunk::ChunkError> {
         let result = self.pieces.rebuild_next(kit, &mut self.world);
+        self.world.integration_parameters.contact_clustering =
+            self.pieces.chunks().next().is_none();
+        result
+    }
+
+    /// One stage of a staged chunk rebuild ([`chunk::ChunkColliders::rebuild_step`]): the chunk,
+    /// and whether its collider was installed by this step.
+    pub fn rebuild_step_chunk(
+        &mut self,
+        kit: &parble_kit::KitCatalog,
+    ) -> Result<Option<(parble_core::CellCoord, bool)>, chunk::ChunkError> {
+        let result = self.pieces.rebuild_step(kit, &mut self.world);
         self.world.integration_parameters.contact_clustering =
             self.pieces.chunks().next().is_none();
         result

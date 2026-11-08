@@ -306,6 +306,14 @@ impl TrackRun {
     ) -> Result<Option<parble_core::CellCoord>, ChunkError> {
         self.sim.rebuild_next_chunk(kit)
     }
+
+    /// [`Sim::rebuild_step_chunk`].
+    pub fn rebuild_step_chunk(
+        &mut self,
+        kit: &KitCatalog,
+    ) -> Result<Option<(parble_core::CellCoord, bool)>, ChunkError> {
+        self.sim.rebuild_step_chunk(kit)
+    }
 }
 
 impl core::ops::Deref for TrackRun {

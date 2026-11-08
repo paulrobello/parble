@@ -811,6 +811,23 @@ pub struct ChunkColliders {
     #[cfg(test)]
     pub(crate) bend_contact_at_step_start: bool,
     dirty: BTreeSet<CellCoord>,
+    /// The chunk [`Self::rebuild_step`] is part way through, and its mesh so far.
+    in_flight: Option<InFlight>,
+}
+
+/// A staged chunk rebuild ([`ChunkColliders::rebuild_step`]).
+#[derive(Debug)]
+struct InFlight {
+    chunk: CellCoord,
+    stage: Stage,
+    mesh: ChunkMesh,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Stage {
+    Simplify,
+    Mark,
+    Install,
 }
 
 impl ChunkColliders {
@@ -877,12 +894,19 @@ impl ChunkColliders {
         let Some(placed) = self.placed.get(&anchor) else {
             return;
         };
-        self.dirty.insert(chunk_of(anchor));
+        let mut touched = vec![chunk_of(anchor)];
         for &c in &placed.cells {
             for face in PortFace::ALL {
                 if let Some(&other) = self.occupancy.get(&(c + face.normal())) {
-                    self.dirty.insert(chunk_of(other));
+                    touched.push(chunk_of(other));
                 }
+            }
+        }
+        for chunk in touched {
+            self.dirty.insert(chunk);
+            // A staged rebuild of a chunk that changed again starts over.
+            if self.in_flight.as_ref().is_some_and(|f| f.chunk == chunk) {
+                self.in_flight = None;
             }
         }
     }
@@ -899,6 +923,14 @@ impl ChunkColliders {
 
     /// The merged mesh of one chunk from the current placements.
     pub fn chunk_mesh(&self, kit: &KitCatalog, chunk: CellCoord) -> ChunkMesh {
+        let mut mesh = self.gathered(kit, chunk);
+        mesh.simplify_flat();
+        self.marked(&mut mesh, chunk);
+        mesh
+    }
+
+    /// [`Self::chunk_mesh`]'s first stage: the welded, culled triangles, bends and slopes.
+    fn gathered(&self, kit: &KitCatalog, chunk: CellCoord) -> ChunkMesh {
         let mut mesh = ChunkMesh::default();
         let mut weld = BTreeMap::new();
         let Some(members) = self.by_chunk.get(&chunk) else {
@@ -916,11 +948,15 @@ impl ChunkColliders {
             mesh.slopes
                 .extend(ChannelSlope::of(piece, &placed.placement));
         }
-        mesh.simplify_flat();
-        self.mark_stitched(&mut mesh, chunk);
+        mesh
+    }
+
+    /// [`Self::chunk_mesh`]'s last stage, after [`ChunkMesh::simplify_flat`]: the stitched-edge,
+    /// bend and slope tags.
+    fn marked(&self, mesh: &mut ChunkMesh, chunk: CellCoord) {
+        self.mark_stitched(mesh, chunk);
         mesh.mark_bends();
         mesh.mark_slopes();
-        mesh
     }
 
     /// Mark open edges that lie in a cell-face plane with a placement from another chunk across.
@@ -1025,8 +1061,49 @@ impl ChunkColliders {
         kit: &KitCatalog,
         world: &mut PhysicsWorld,
     ) -> Result<(), ChunkError> {
+        self.in_flight = None;
         while self.rebuild_next(kit, world)?.is_some() {}
         Ok(())
+    }
+
+    /// One stage of a staged rebuild of the first dirty chunk: gather, simplify, tag, install.
+    /// Each stage is a part of [`Self::chunk_mesh`] in its order, so the installed collider is the
+    /// one [`Self::rebuild_next`] builds; a chunk dirtied again mid-way starts over. Returns the
+    /// chunk and whether this step installed it, or `None` when nothing is dirty. The editor
+    /// (P3-T4) spreads a dense chunk's rebuild over frames with it.
+    pub fn rebuild_step(
+        &mut self,
+        kit: &KitCatalog,
+        world: &mut PhysicsWorld,
+    ) -> Result<Option<(CellCoord, bool)>, ChunkError> {
+        let Some(mut f) = self.in_flight.take() else {
+            let Some(chunk) = self.dirty.first().copied() else {
+                return Ok(None);
+            };
+            self.in_flight = Some(InFlight {
+                chunk,
+                stage: Stage::Simplify,
+                mesh: self.gathered(kit, chunk),
+            });
+            return Ok(Some((chunk, false)));
+        };
+        let chunk = f.chunk;
+        match f.stage {
+            Stage::Simplify => {
+                f.mesh.simplify_flat();
+                f.stage = Stage::Mark;
+            }
+            Stage::Mark => {
+                self.marked(&mut f.mesh, chunk);
+                f.stage = Stage::Install;
+            }
+            Stage::Install => {
+                self.install(world, chunk, f.mesh)?;
+                return Ok(Some((chunk, true)));
+            }
+        }
+        self.in_flight = Some(f);
+        Ok(Some((chunk, false)))
     }
 
     /// Rebuild the first dirty chunk only, as [`Self::rebuild`] does for each, and return it
@@ -1040,13 +1117,27 @@ impl ChunkColliders {
         let Some(chunk) = self.dirty.first().copied() else {
             return Ok(None);
         };
+        if self.in_flight.as_ref().is_some_and(|f| f.chunk == chunk) {
+            self.in_flight = None;
+        }
+        let mesh = self.chunk_mesh(kit, chunk);
+        self.install(world, chunk, mesh)?;
+        Ok(Some(chunk))
+    }
+
+    /// Replace `chunk`'s collider with `mesh` (none when empty) and clear its dirty mark.
+    fn install(
+        &mut self,
+        world: &mut PhysicsWorld,
+        chunk: CellCoord,
+        mesh: ChunkMesh,
+    ) -> Result<(), ChunkError> {
         if let Some(h) = self.handles.remove(&chunk) {
             world.remove_collider(h);
             self.stitched.remove(&h.into_raw_parts());
             self.bends.remove(&h.into_raw_parts());
             self.slopes.remove(&h.into_raw_parts());
         }
-        let mesh = self.chunk_mesh(kit, chunk);
         if !mesh.triangles.is_empty() {
             let mut collider = mesh
                 .collider(chunk_origin_um(chunk))
@@ -1068,7 +1159,7 @@ impl ChunkColliders {
                 .insert(h.into_raw_parts(), (mesh.slopes, mesh.slope_of));
         }
         self.dirty.remove(&chunk);
-        Ok(Some(chunk))
+        Ok(())
     }
 }
 
