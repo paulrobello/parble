@@ -119,6 +119,7 @@ parble-sim-wasm ──► parble-procgen, parble-sim   (wasm-bindgen worker buil
 
 - Instanced rendering per piece type in 8×8×8-cell chunks from the first scene (hex-world lesson).
 - Lighting: Blender-baked AO per piece, a baked room environment probe, clustered lights for lanterns and the lamp, at most 3 shadow-casting lights on High, SSAO, TAA, bloom, bokeh DoF focused on the followed marble.
+- Light colour (decided 2026-11-08): the references mix warm yellow light with a pale blue, and that contrast carries the mood. Scenes use a warm key with pale blue fill or rim, and lights and glow inlays come in warm amber and pale blue.
 - Glass marbles use Bevy specular transmission with inner vane geometry. Low and Medium tiers use a fallback shader that fakes the inner volume.
 - Quality tiers Low / Medium / High / Ultra, auto-selected at first launch and changeable in settings.
 - Safari runs through the hex-world `wgsl-compat.js` shim. Every Bevy upgrade needs a Safari smoke test.
@@ -126,7 +127,9 @@ parble-sim-wasm ──► parble-procgen, parble-sim   (wasm-bindgen worker buil
 ### 5.6 Cameras
 
 - **Editor:** orbit / pan / zoom around a pivot, plus height slicing.
-- **Run:** follow-marble cinematic. A low, close tracking shot with focus pulled to the marble, cutting on checkpoint passes and when the followed marble changes.
+- **Run:** a camera director (decided 2026-11-08). The default shot is a low, close tracking shot with focus pulled to the marble. Every change of shot is a smooth blend (eased position, aim, field of view and focus), never a hard cut.
+- **Camera zones:** a zone is a trigger volume with a shot rule. When the followed marble enters it, the director blends to the zone's shot and blends back when it leaves. Shot rules include follow (distance, height, lead), pull back and frame a target, orbit a point, and fixed. The target can be the marble, a point, or a vertical line (for example a helix or spiral axis: the camera pulls back and frames the axis while the marble winds around it). Zones have a priority and blend times.
+- **Where zones come from:** pieces carry default camera hints (a helix frames its axis, a tower frames its drop, a checkpoint pass is a cue), and tracks can carry authored zones that the editor places and edits like pieces. A debug overlay draws zones and the active shot.
 
 ### 5.7 Audio
 
