@@ -221,6 +221,16 @@ fn shipped_fork_parts_steer_the_marble_into_a_branch() {
 
 /// L1 straight, `piece` at cell (1, 0, 0), L1 straight; one marble from `dir` (+1: from −X).
 fn one_way(piece: &str, dir: f32) -> (Sim, Vec<Vec<MarbleState>>, Vec<SimEvent>) {
+    let (sim, tr, _, ev) = one_way_at(piece, dir, 0.3);
+    (sim, tr, ev)
+}
+
+/// [`one_way`] at launch speed `speed` (m/s), also returning the part angle after every tick.
+fn one_way_at(
+    piece: &str,
+    dir: f32,
+    speed: f32,
+) -> (Sim, Vec<Vec<MarbleState>>, Vec<i32>, Vec<SimEvent>) {
     let layout = [
         place("blk_straight_l1", 0, 0, 0, 0),
         place(piece, 1, 0, 0, 0),
@@ -231,44 +241,135 @@ fn one_way(piece: &str, dir: f32) -> (Sim, Vec<Vec<MarbleState>>, Vec<SimEvent>)
     launch(
         &mut sim,
         Vector::new(x0, rest(1), 0.0),
-        Vector::X * 0.3 * dir,
+        Vector::X * speed * dir,
     );
-    let (mut tr, mut ev) = (Vec::new(), Vec::new());
-    run(&mut sim, 600, &mut tr, &mut ev);
-    (sim, tr, ev)
+    let (mut tr, mut angles) = (Vec::new(), Vec::new());
+    for _ in 0..600 {
+        sim.tick(1);
+        tr.push(sim.marbles());
+        angles.push(sim.mechanisms()[0].part_angles[0]);
+    }
+    let ev = sim.drain_events();
+    (sim, tr, angles, ev)
+}
+
+/// Launch speeds of the gate sweeps, m/s: from a marble barely rolling to a fast drop.
+const GATE_SPEEDS: [f32; 6] = [0.06, 0.1, 0.2, 0.3, 0.6, 1.0];
+
+#[test]
+fn one_way_gate_flap_is_pushed_open_by_a_forward_marble() {
+    let [_, hi] = parble_kit::builtin()
+        .piece(&PieceId::new(GATE).unwrap())
+        .unwrap()
+        .animated_parts[0]
+        .limits_mdeg;
+    for speed in GATE_SPEEDS {
+        let (sim, tr, angles, ev) = one_way_at(GATE, 1.0, speed);
+        let past = first(&tr, 0, |s| s.position[0] > 1.5 * CELL)
+            .unwrap_or_else(|| panic!("{speed} m/s: the forward marble never passed"));
+        assert!(tr[past][0].position[1] > 0.015, "{speed} m/s: marble fell");
+        assert!(
+            tr.last().unwrap()[0].linvel[0] > 0.02,
+            "{speed} m/s: marble stalled"
+        );
+        // The flap rests shut until the marble touches it, then swings open under the push.
+        let touched = first(&tr, 0, |s| s.position[0] > CELL - 0.0015 - R - 0.001).unwrap();
+        assert!(
+            angles[..touched].iter().all(|&a| a == 0),
+            "{speed} m/s: flap moved early"
+        );
+        let peak = *angles.iter().max().unwrap();
+        assert!(
+            (25_000..=hi + 1_000).contains(&peak),
+            "{speed} m/s: flap peaked at {peak} mdeg"
+        );
+        // One open and one close, and the flap falls back onto its stop without chatter.
+        let open = signals(&ev, "open");
+        let close = signals(&ev, "close");
+        assert_eq!(
+            (open.len(), close.len()),
+            (1, 1),
+            "{speed} m/s: {open:?} {close:?}"
+        );
+        assert!(
+            (open[0].0 as usize) < past,
+            "{speed} m/s: opened after the pass"
+        );
+        assert_eq!(signals(&ev, "forward"), [(signals(&ev, "forward")[0].0, 0)]);
+        assert!(signals(&ev, "reverse").is_empty());
+        assert!(
+            angles.iter().all(|&a| a > -1_500),
+            "{speed} m/s: flap swung back through its stop"
+        );
+        let settled = &angles[angles.len() - 120..];
+        assert!(
+            settled.iter().all(|&a| a == 0),
+            "{speed} m/s: flap not at rest: {settled:?}"
+        );
+        let s = state(&sim);
+        assert_eq!((s["passes"], s["blocked"], s["open"]), (1, 0, 0));
+        assert_eq!(sim.mechanisms()[0].part_angles, [0]);
+    }
 }
 
 #[test]
-fn one_way_gate_opens_forward_and_blocks_reverse() {
-    let (sim, tr, ev) = one_way(GATE, 1.0);
-    let past = first(&tr, 0, |s| s.position[0] > 1.5 * CELL).expect("forward marble never passed");
-    assert!(tr[past][0].position[1] > 0.015, "forward marble fell");
-    let open = signals(&ev, "open");
-    assert_eq!(open.len(), 1);
-    assert!(
-        (open[0].0 as usize) < past,
-        "the flap opened after the marble passed"
-    );
-    assert_eq!(signals(&ev, "close").len(), 1);
-    assert_eq!(signals(&ev, "forward"), [(open[0].0, 0)]);
-    let s = state(&sim);
-    assert_eq!((s["passes"], s["blocked"], s["open"]), (1, 0, 0));
-    assert_eq!(sim.mechanisms()[0].part_angles, [0]);
+fn one_way_gate_flap_stops_a_reverse_marble() {
+    for speed in GATE_SPEEDS {
+        let (sim, tr, angles, ev) = one_way_at(GATE, -1.0, speed);
+        // The shut flap (3 mm plate at the cell centre) stops the marble one radius short of it.
+        let closest = tr.iter().map(|s| s[0].position[0]).fold(f32::MAX, f32::min);
+        assert!(
+            closest > CELL + 0.0015 + R - 0.001,
+            "{speed} m/s: reverse marble reached x = {closest}"
+        );
+        assert!(
+            angles.iter().all(|&a| (-500..GATE_OPEN_MDEG).contains(&a)),
+            "{speed} m/s: flap moved off its stop: {:?}",
+            (angles.iter().min(), angles.iter().max())
+        );
+        assert!(signals(&ev, "open").is_empty(), "{speed} m/s");
+        assert_eq!(signals(&ev, "reverse").len(), 1);
+        assert_eq!(state(&sim)["blocked"], 1);
+        assert!(
+            tr.last().unwrap()[0].linvel[0] > 0.0,
+            "{speed} m/s: reverse marble did not turn back"
+        );
+    }
+}
 
-    let (sim, tr, ev) = one_way(GATE, -1.0);
-    // The shut flap (2 mm plate at the cell centre) stops the marble 9 mm short of it.
-    let closest = tr.iter().map(|s| s[0].position[0]).fold(f32::MAX, f32::min);
-    assert!(
-        closest > CELL + 0.008,
-        "reverse marble reached x = {closest}"
-    );
-    assert!(signals(&ev, "open").is_empty());
-    assert_eq!(signals(&ev, "reverse").len(), 1);
-    assert_eq!(state(&sim)["blocked"], 1);
-    assert!(
-        tr.last().unwrap()[0].linvel[0] > 0.0,
-        "reverse marble did not turn back"
-    );
+#[test]
+fn one_way_gate_flap_angle_is_its_body_rotation() {
+    // Mirrored and yawed placements report the same opening angle for the same push.
+    let mut peaks = Vec::new();
+    for (yaw, mirror) in [(0, Mirror::Off), (0, Mirror::On), (2, Mirror::Off)] {
+        let mut gate = place(GATE, 1, 0, 0, yaw);
+        gate.mirror = mirror;
+        let layout = [
+            place("blk_straight_l1", 0, 0, 0, 0),
+            gate,
+            place("blk_straight_l1", 2, 0, 0, 0),
+        ];
+        let mut sim = rig(&layout, 1);
+        // A mirror (x → −x) or a half turn puts the in port on +X.
+        let dir = if (yaw == 2) != (mirror == Mirror::On) {
+            -1.0
+        } else {
+            1.0
+        };
+        let x0 = if dir > 0.0 { -0.02 } else { 0.14 };
+        launch(
+            &mut sim,
+            Vector::new(x0, rest(1), 0.0),
+            Vector::X * 0.3 * dir,
+        );
+        let mut peak = 0;
+        for _ in 0..300 {
+            sim.tick(1);
+            peak = peak.max(sim.mechanisms()[0].part_angles[0]);
+        }
+        peaks.push(peak);
+    }
+    assert!(peaks.iter().all(|&p| p > 45_000), "{peaks:?}");
 }
 
 #[test]

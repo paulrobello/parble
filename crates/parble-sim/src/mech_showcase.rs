@@ -5,8 +5,8 @@
 //!   `first = 1`. The rocker sets side 1 at tick 0, the marble leaves by the −Z branch (away from
 //!   the tray), and [`crate::behaviour::FORK_SETTLE_TICKS`] later the rocker swings to side 0.
 //! - Gate lane: L1 straight, `mech_gate_oneway_l1`, L1 straight (the rig of the one-way gate test).
-//!   The marble opens the flap from the in port, rolls through, and the flap swings shut over
-//!   [`crate::behaviour::GATE_CLOSE_TICKS`].
+//!   The marble pushes the hinged flap open from the in port, rolls under it, and the flap falls
+//!   shut behind it ([`crate::behaviour::GATE_FLAP`]).
 //!
 //! Both marbles leave their lane onto the open floor ([`scene::floor_collider`]). The row sits
 //! behind the tray (−Z), so the plain environment's tray never overlaps it.
@@ -44,10 +44,10 @@ pub const GATE_LAUNCH_M_S: f32 = 0.3;
 pub const SHOWCASE_TICKS: u32 = crate::golden::RAMP_10S_TICKS;
 
 /// The `shots-test` capture ticks, multiples of the app's 4-tick lockstep frame: the toggle's
-/// rocker part-way through its swing to side 0, and the gate's flap fully open with the marble
-/// under it. The tests below pin both against the sim.
+/// rocker part-way through its swing to side 0, and the gate's flap pushed well open (past 30°) with
+/// the marble under it. The tests below pin both against the sim.
 pub const TOGGLE_FLIP_SHOT_TICK: u64 = 60;
-pub const GATE_OPEN_SHOT_TICK: u64 = 64;
+pub const GATE_OPEN_SHOT_TICK: u64 = 72;
 
 /// The showcase as kit placements.
 pub fn placements() -> Vec<Placement> {
@@ -167,20 +167,19 @@ mod tests {
 
         let g = GATE_OPEN_SHOT_TICK as usize;
         assert_eq!(gate[0], 0, "the flap starts shut");
-        assert_eq!(gate[g], behaviour::GATE_OPEN_MDEG, "flap not open at {g}");
+        assert!(gate[g] >= 30_000, "flap not open at {g}: {} mdeg", gate[g]);
         let flap_x = (GATE_X + 1) as f32 * cell;
         assert!(
             (marbles[g][1].position[0] - flap_x).abs() < 0.5 * cell,
             "gate marble at {:?}",
             marbles[g][1].position
         );
-        // The flap swings shut over the 24-tick close, one step per tick.
-        let closing = gate
-            .windows(2)
-            .filter(|w| w[0] > w[1] && w[0] <= behaviour::GATE_OPEN_MDEG)
-            .count();
-        assert_eq!(closing, behaviour::GATE_CLOSE_TICKS as usize);
-        assert_eq!(*gate.last().unwrap(), 0, "the flap closes again");
+        // The flap falls shut again once the marble is through.
+        assert!(
+            libm::fabsf(*gate.last().unwrap() as f32) <= behaviour::GATE_CLOSED_MDEG as f32,
+            "the flap closes again: {} mdeg",
+            gate.last().unwrap()
+        );
         assert!(
             marbles.last().unwrap()[1].position[0] > (GATE_X as f32 + 2.5) * cell,
             "the gate marble stayed in its lane"

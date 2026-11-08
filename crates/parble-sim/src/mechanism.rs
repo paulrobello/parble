@@ -3,13 +3,17 @@
 //!
 //! Everything here advances by tick count. A part's angle is a pure function of the tick
 //! ([`Keyframes::sample`] on integer millidegrees), never an accumulated `angle += ω·dt`, so how
-//! the caller groups ticks into frames cannot change the run.
+//! the caller groups ticks into frames cannot change the run. The exception is a physical part
+//! ([`Mechanism::part_physics`]): a dynamic body on a revolute joint whose angle is read back from
+//! the body after each step, rounded to millidegrees.
 //!
 //! Each tick, after the physics step that reached tick `t`, [`Mechanisms::after_step`]:
+//! 0. reads every physical part's angle from its body;
 //! 1. updates every sensor's occupancy from the marble positions at `t` (sphere against the placed
 //!    box or sphere, so sensors add nothing to Rapier's broad phase);
 //! 2. calls [`Mechanism::step`] for each instance in [`InstanceId`] order;
-//! 3. sets each part's next kinematic pose to its angle at `t + 1`;
+//! 3. sets each kinematic part's next pose to its angle at `t + 1` (a physical part instead takes
+//!    its brace, [`MechContext::brace_part`]);
 //! 4. on every multiple of [`crate::HASH_SAMPLE_TICKS`], absorbs every instance's state into
 //!    [`Sim::mechanism_hash`];
 //! 5. when recording is on ([`Sim::set_event_recording`]), reads contacts back from the narrow phase
@@ -68,6 +72,39 @@ pub trait Mechanism: Send + Sync {
     fn save(&self) -> MechConfig;
     /// Restore from a map [`Mechanism::save`] produced (unknown keys are ignored).
     fn restore(&mut self, state: &MechConfig);
+    /// `Some` for a part simulated as a hinged dynamic body ([`PartPhysics`]) instead of a
+    /// kinematic pose. Asked once per part when the instance is added.
+    fn part_physics(&self, _part: usize) -> Option<PartPhysics> {
+        None
+    }
+}
+
+/// A physical part: a dynamic body on a revolute joint about the part's pivot and axis, limited to
+/// the sidecar's `limits_mdeg`. Contacts push it and gravity returns it; the behaviour reads its
+/// angle ([`MechContext::part_angle`]) and may brace it ([`MechContext::brace_part`]), and
+/// [`MechContext::play`] does nothing. Its collider is the convex hull of the sidecar collision
+/// and touches marbles only ([`FREE_PART_GROUP`]), so a part modelled flush with its frame swings
+/// freely.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PartPhysics {
+    pub mass_kg: f32,
+    /// Rapier body angular damping, 1/s.
+    pub angular_damping: f32,
+}
+
+/// Collision group of physical part colliders. Every static and kinematic collider leaves it out
+/// of its memberships ([`fixed_groups`]) and marbles keep the default (all groups), so a physical
+/// part collides with marbles and other physical parts only.
+pub const FREE_PART_GROUP: Group = Group::GROUP_32;
+
+/// Interaction groups of the static and kinematic colliders: every membership but
+/// [`FREE_PART_GROUP`]. This only filters pairs with physical parts.
+pub fn fixed_groups() -> InteractionGroups {
+    InteractionGroups::new(
+        Group::ALL.difference(FREE_PART_GROUP),
+        Group::ALL,
+        InteractionTestMode::And,
+    )
 }
 
 /// Builds a behaviour from its placement's config.
@@ -331,10 +368,17 @@ struct PartRuntime {
     limits: [i32; 2],
     start: u64,
     motion: Keyframes,
+    /// Physical part: its angle read from the body after the last step, millidegrees.
+    physical: Option<i32>,
+    /// Physical part held against its stop: marbles cannot move it ([`MechContext::brace_part`]).
+    braced: bool,
 }
 
 impl PartRuntime {
     fn angle_at(&self, tick: u64) -> i32 {
+        if let Some(mdeg) = self.physical {
+            return mdeg;
+        }
         self.motion
             .sample(tick.saturating_sub(self.start))
             .clamp(self.limits[0], self.limits[1])
@@ -345,6 +389,18 @@ impl PartRuntime {
         let (s, c) = (libm::sinf(theta / 2.0), libm::cosf(theta / 2.0));
         let a = self.axis * s;
         Pose::from_parts(self.pivot, Rotation::from_xyzw(a.x, a.y, a.z, c))
+    }
+
+    /// A physical part's angle from its body rotation, millidegrees (rounded).
+    fn measure(&self, world: &PhysicsWorld) -> i32 {
+        let q = world.bodies[self.body].rotation();
+        let (v, w) = if q.w < 0.0 {
+            (-Vector::new(q.x, q.y, q.z), -q.w)
+        } else {
+            (Vector::new(q.x, q.y, q.z), q.w)
+        };
+        let theta = 2.0 * libm::atan2f(v.dot(self.axis), w) * self.sign;
+        libm::roundf(theta * (180_000.0 / core::f32::consts::PI)) as i32
     }
 }
 
@@ -397,7 +453,7 @@ impl MechContext<'_> {
     /// pose the next step moves it to is `motion.sample(1)`). Angles are clamped to the part's
     /// limits. Returns `false` for an unknown part.
     pub fn play(&mut self, index: usize, motion: Keyframes) -> bool {
-        let Some(p) = self.parts.get_mut(index) else {
+        let Some(p) = self.parts.get_mut(index).filter(|p| p.physical.is_none()) else {
             return false;
         };
         p.start = self.tick;
@@ -409,6 +465,20 @@ impl MechContext<'_> {
     pub fn move_part(&mut self, index: usize, to: i32, ticks: u32) -> bool {
         match self.part_angle(index) {
             Some(from) => self.play(index, Keyframes::ramp(from, to, ticks)),
+            None => false,
+        }
+    }
+
+    /// Brace physical part `index` on its stop (or release it) from the next step: braced, a
+    /// marble pressing it meets the stop's full stiffness, as if the frame took the push (a
+    /// higher Rapier dominance group). A part much lighter than the marble cannot pass that push
+    /// through the solver's joint chain on its own. Returns `false` for a kinematic part.
+    pub fn brace_part(&mut self, index: usize, braced: bool) -> bool {
+        match self.parts.get_mut(index).filter(|p| p.physical.is_some()) {
+            Some(p) => {
+                p.braced = braced;
+                true
+            }
             None => false,
         }
     }
@@ -577,8 +647,33 @@ impl Mechanisms {
                     })?
                     .friction(scene::WOOD_FRICTION)
                     .restitution(scene::WOOD_RESTITUTION)
+                    .collision_groups(fixed_groups())
                     .build();
                 colliders.push((collider, g.surface));
+            }
+            let physics = behaviour.part_physics(pi);
+            if let Some(ph) = physics {
+                // One convex hull over every group carries the whole mass, with the first group's
+                // surface.
+                let points: Vec<Vector> = part
+                    .collision
+                    .iter()
+                    .flat_map(|g| &g.vertices_um)
+                    .map(|&v| um_m(sub3(place_point_um(o, anchor, v), pivot_um)))
+                    .collect();
+                let surface = colliders.first().map_or(Surface::Wood, |c| c.1);
+                let hull = ColliderBuilder::convex_hull(&points)
+                    .ok_or(MechanismError::PartMesh { part: pi, group: 0 })?
+                    .mass(ph.mass_kg)
+                    .friction(scene::WOOD_FRICTION)
+                    .restitution(scene::WOOD_RESTITUTION)
+                    .collision_groups(InteractionGroups::new(
+                        FREE_PART_GROUP,
+                        FREE_PART_GROUP,
+                        InteractionTestMode::And,
+                    ))
+                    .build();
+                colliders = vec![(hull, surface)];
             }
             let runtime = PartRuntime {
                 name: part.name.clone(),
@@ -589,16 +684,21 @@ impl Mechanisms {
                 limits: part.limits_mdeg,
                 start: tick,
                 motion: Keyframes::hold(part.rest_mdeg),
+                physical: physics.map(|_| part.rest_mdeg),
+                braced: false,
             };
-            built.push((runtime, colliders));
+            built.push((runtime, colliders, physics));
         }
 
         let mut parts = Vec::with_capacity(built.len());
-        for (pi, (mut runtime, colliders)) in built.into_iter().enumerate() {
-            let body = RigidBodyBuilder::kinematic_position_based()
-                .pose(runtime.pose_at(tick))
-                .can_sleep(false)
-                .build();
+        for (pi, (mut runtime, colliders, physics)) in built.into_iter().enumerate() {
+            let body = match physics {
+                Some(ph) => RigidBodyBuilder::dynamic().angular_damping(ph.angular_damping),
+                None => RigidBodyBuilder::kinematic_position_based(),
+            }
+            .pose(runtime.pose_at(tick))
+            .can_sleep(false)
+            .build();
             let handle = world.bodies.insert(body);
             for (collider, surface) in colliders {
                 let ch = world
@@ -608,7 +708,19 @@ impl Mechanisms {
                     .insert(ch.into_raw_parts(), (id, pi, surface));
             }
             runtime.body = handle;
-            world.bodies[handle].set_next_kinematic_position(runtime.pose_at(tick + 1));
+            if physics.is_some() {
+                let frame = world
+                    .bodies
+                    .insert(RigidBodyBuilder::fixed().translation(runtime.pivot).build());
+                let rad = |mdeg: i32| mdeg as f32 * (core::f32::consts::PI / 180_000.0);
+                // About `sign · axis`, so the joint angle is the part angle in radians.
+                let joint = RevoluteJointBuilder::new(runtime.axis * runtime.sign)
+                    .limits([rad(runtime.limits[0]), rad(runtime.limits[1])])
+                    .contacts_enabled(false);
+                world.impulse_joints.insert(frame, handle, joint, true);
+            } else {
+                world.bodies[handle].set_next_kinematic_position(runtime.pose_at(tick + 1));
+            }
             parts.push(runtime);
         }
 
@@ -640,6 +752,14 @@ impl Mechanisms {
             return;
         }
         let balls: Vec<_> = marbles.iter().map(|&h| marble_ball(world, h)).collect();
+
+        for inst in self.instances.values_mut() {
+            for p in &mut inst.parts {
+                if p.physical.is_some() {
+                    p.physical = Some(p.measure(world));
+                }
+            }
+        }
 
         for (&id, inst) in &mut self.instances {
             let mut sensor_events = Vec::new();
@@ -680,8 +800,12 @@ impl Mechanisms {
             inst.behaviour.step(&mut ctx);
 
             for p in &inst.parts {
-                let pose = p.pose_at(tick + 1);
-                world.bodies[p.body].set_next_kinematic_position(pose);
+                let body = &mut world.bodies[p.body];
+                if p.physical.is_some() {
+                    body.set_dominance_group(i8::from(p.braced));
+                } else {
+                    body.set_next_kinematic_position(p.pose_at(tick + 1));
+                }
             }
 
             if self.recording {
@@ -998,12 +1122,20 @@ impl Sim {
                 {
                     part.start = tick;
                     part.motion = Keyframes::hold(v as i32);
+                    if part.physical.is_some() {
+                        part.physical = Some(v as i32);
+                    }
                 }
             }
             for part in &inst.parts {
                 let w = &mut self.world.bodies[part.body];
                 w.set_position(part.pose_at(tick), true);
-                w.set_next_kinematic_position(part.pose_at(tick + 1));
+                if part.physical.is_some() {
+                    w.set_linvel(Vector::ZERO, true);
+                    w.set_angvel(Vector::ZERO, true);
+                } else {
+                    w.set_next_kinematic_position(part.pose_at(tick + 1));
+                }
             }
         }
     }

@@ -883,6 +883,7 @@ impl ChunkMesh {
             ))
             .friction(scene::WOOD_FRICTION)
             .restitution(scene::WOOD_RESTITUTION)
+            .collision_groups(crate::mechanism::fixed_groups())
             .build()
     }
 }

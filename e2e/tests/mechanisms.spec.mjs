@@ -2,15 +2,17 @@
 // one marble each (crates/parble-sim/src/mech_showcase.rs), restarting every 10 s. Sampled on every
 // animation frame through a run, each drawn part angle (`window.__parble.kit.parts`) is the sim's
 // angle interpolated between the last two physics ticks at the frame's alpha, and the gate flap's
-// 24-tick close is drawn as a smooth, monotonic sweep across frames, with angles between ticks. Shots
-// go to target/shots/web-mechanisms/.
+// fall back onto its stop is drawn as a smooth, monotonic sweep across frames, with angles between
+// ticks. Shots go to target/shots/web-mechanisms/.
 import { mkdirSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
 const SHOTS = new URL("../../target/shots/web-mechanisms/", import.meta.url);
 const BAD_TEXT = (t) => /%cERROR%c|\bERROR\b/.test(t) || /uncaptured|invalid|validation|panicked/i.test(t);
-// behaviour.rs GATE_OPEN_MDEG; the flap closes from it to 0 over GATE_CLOSE_TICKS (24).
-const GATE_OPEN_MDEG = 80_000;
+// The gate flap is a physical hinge (behaviour.rs GATE_FLAP): the marble pushes it open, gravity
+// drops it back onto its stop, below GATE_CLOSED_MDEG, then it settles in a few small bounces.
+const GATE_CLOSED_MDEG = 2_000;
+const GATE_LIMIT_MDEG = 85_000;
 
 mkdirSync(SHOTS, { recursive: true });
 
@@ -59,21 +61,22 @@ test("mechanism parts interpolate between physics ticks and sweep smoothly", asy
     }
   }
 
-  // 2. The gate flap's close: consecutive frames while it moves from open to shut.
+  // 2. The gate flap's fall: consecutive frames from its widest swing until it first reaches its stop.
   const gate = samples.map((s) => ({ tick: s.tick, run: s.run, frame: s.frame, ...s.parts.find((p) => p.piece === "mech_gate_oneway_l1") }));
-  const closing = gate.filter((g) => g.prevMdeg !== null && g.prevMdeg > g.tickMdeg && g.prevMdeg <= GATE_OPEN_MDEG);
+  const peak = gate.reduce((best, g, i) => (g.tickMdeg > gate[best].tickMdeg ? i : best), 0);
+  const fall = gate.slice(peak).filter((g) => g.run === gate[peak].run);
+  const fallSweep = fall.slice(0, fall.findIndex((g) => g.tickMdeg <= GATE_CLOSED_MDEG) + 1);
+  const closing = fallSweep.filter((g) => g.prevMdeg !== null && g.prevMdeg > g.tickMdeg);
   console.log(
     `gate close frames: ${JSON.stringify(closing.map((g) => [g.tick, g.prevMdeg, g.tickMdeg, +g.alpha.toFixed(3), +g.angleMdeg.toFixed(0)]))}`,
   );
   expect(closing.length).toBeGreaterThanOrEqual(3);
-  const run = closing[0].run;
-  const sweep = gate.filter((g) => g.run === run && g.tick >= closing[0].tick - 8 && g.tick <= closing.at(-1).tick + 8);
-  for (let i = 1; i < sweep.length; i++) {
-    const [a, b] = [sweep[i - 1], sweep[i]];
-    // Monotonic: the flap only closes, never jumps back open.
+  for (let i = 1; i < fallSweep.length; i++) {
+    const [a, b] = [fallSweep[i - 1], fallSweep[i]];
+    // Monotonic: the falling flap never jumps back open.
     expect(b.angleMdeg).toBeLessThanOrEqual(a.angleMdeg);
-    // Smooth: no frame jumps more than a third of the 80° travel.
-    expect(a.angleMdeg - b.angleMdeg).toBeLessThan(GATE_OPEN_MDEG / 3);
+    // Smooth: no frame jumps more than a third of the flap's travel.
+    expect(a.angleMdeg - b.angleMdeg).toBeLessThan(GATE_LIMIT_MDEG / 3);
   }
   // The drawn rotation changes frame to frame while the flap moves.
   // Under host load a requestAnimationFrame can fire twice for one app frame, so count app frames.

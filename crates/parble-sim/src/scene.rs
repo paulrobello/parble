@@ -117,6 +117,7 @@ pub fn tray_collider() -> Collider {
         .expect("tray trimesh is manifold and consistently oriented")
         .friction(WOOD_FRICTION)
         .restitution(WOOD_RESTITUTION)
+        .collision_groups(crate::mechanism::fixed_groups())
         .build()
 }
 
@@ -156,6 +157,7 @@ pub fn floor_collider() -> Collider {
         .translation(Vector::new(tray_length_m() / 2.0, -0.05, 0.0))
         .friction(WOOD_FRICTION)
         .restitution(WOOD_RESTITUTION)
+        .collision_groups(crate::mechanism::fixed_groups())
         .build()
 }
 

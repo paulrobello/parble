@@ -1,8 +1,9 @@
 //! Kit mechanism behaviours (P2-T5): the state machines behind the seven `mech_*` pieces, driven
 //! by the [`crate::mechanism`] framework.
 //!
-//! Every behaviour reads only its sensors (sidecar order) and the tick, moves its part through
-//! [`MechContext::play`] / [`MechContext::move_part`], and reports through [`MechContext::emit`]
+//! Every behaviour reads only its sensors (sidecar order) and the tick, moves a kinematic part
+//! through [`MechContext::play`] / [`MechContext::move_part`] (a physical part moves itself, see
+//! [`Mechanism::part_physics`]), and reports through [`MechContext::emit`]
 //! (kept in the event stream while recording, for audio and render sync). State is integers, saved
 //! by [`Mechanism::save`] under keys that never use the framework's `rng/` and `part/` prefixes.
 //!
@@ -16,7 +17,7 @@
 //! | `mech_splitter_l3` | `entry` | `anim_flap` | the flap is set to a seeded side before each marble arrives |
 //! | `mech_toggle_l3` | `entry` | `anim_rocker` | the rocker flips to the other side after each marble |
 //! | `mech_checkpoint_l1` | `gate` | — | split tick and a camera cue per pass |
-//! | `mech_gate_oneway_l1` | `approach`, `exit` | `anim_flap` | opens for marbles that reach `approach` first; the closed flap blocks the others |
+//! | `mech_gate_oneway_l1` | `approach`, `exit` | `anim_flap` (physical) | marbles from `approach` push the hinged flap open; the flap's closed stop holds the others back |
 //! | `mech_hole_oneway_l1` | `trap`, `over` | `anim_trapdoor` | opens under marbles that reach `trap` first; marbles from `over` roll across the shut door |
 //!
 //! Both fork parts are a switch blade hinged about +Y with its tip upstream; at its ±25° limits
@@ -515,20 +516,27 @@ impl Heading {
     }
 }
 
-/// One-way gate flap open angle and timing.
-pub const GATE_OPEN_MDEG: i32 = 80_000;
-pub const GATE_OPEN_TICKS: u32 = 4;
-pub const GATE_CLOSE_TICKS: u32 = 24;
-/// The flap closes once no forward marble has been in either sensor for this long.
-pub const GATE_HOLD_TICKS: i64 = 12;
+/// The gate reports `open` when the flap swings past this angle, millidegrees.
+pub const GATE_OPEN_MDEG: i32 = 20_000;
+/// and `close` when it falls back below this one.
+pub const GATE_CLOSED_MDEG: i32 = 2_000;
 
-/// One-way gate: a marble that reaches `approach` (−X, the in port) first opens the flap; a
-/// marble that reaches `exit` first meets the shut flap and goes back.
+/// The gate flap's physics: a light flap (0.3 g, a 5.4 g cat's eye at 0.06 m/s still swings it
+/// open) hanging from its top edge, returned to its closed stop by gravity alone. The damping
+/// settles it on the stop in a few small bounces.
+pub const GATE_FLAP: crate::mechanism::PartPhysics = crate::mechanism::PartPhysics {
+    mass_kg: 0.000_3,
+    angular_damping: 2.0,
+};
+
+/// One-way gate: the flap is a dynamic body hinged at its top edge ([`GATE_FLAP`]). A marble from
+/// `approach` (−X, the in port) pushes it open toward +X and rolls under it; a marble from `exit`
+/// pushes it against its closed stop and goes back. `forward` / `reverse` say which sensor a
+/// marble reached first, `open` / `close` follow the flap angle.
 #[derive(Debug, Clone, Default)]
 pub struct OneWayGate {
     heading: Heading,
     open: bool,
-    last_forward: i64,
     passes: i64,
     blocked: i64,
 }
@@ -539,7 +547,7 @@ impl OneWayGate {
     }
 }
 
-/// Shared open/close of the one-way pieces: open while any marble from `trigger` is in a sensor,
+/// Kinematic open/close of the one-way hole: open while any marble from `trigger` is in a sensor,
 /// close `hold` ticks after the last one.
 #[allow(clippy::too_many_arguments)]
 fn one_way_step(
@@ -589,26 +597,34 @@ impl Mechanism for OneWayGate {
     }
 
     fn step(&mut self, ctx: &mut MechContext<'_>) {
-        one_way_step(
-            ctx,
-            &mut self.heading,
-            &mut self.open,
-            &mut self.last_forward,
-            &mut self.passes,
-            &mut self.blocked,
-            0,
-            GATE_OPEN_MDEG,
-            GATE_OPEN_TICKS,
-            GATE_CLOSE_TICKS,
-            GATE_HOLD_TICKS,
-            ["forward", "reverse", "open", "close"],
-        );
+        let fresh = self.heading.update(ctx);
+        for &m in &fresh[0] {
+            self.passes += 1;
+            ctx.emit("forward", m as i64);
+        }
+        for &m in &fresh[1] {
+            self.blocked += 1;
+            ctx.emit("reverse", m as i64);
+        }
+        let angle = ctx.part_angle(0).unwrap_or(0);
+        // A shut flap pushed from `exit` rests on its stop in the frame.
+        let in_sensor =
+            |m: usize| (0..2).any(|si| ctx.sensor(si).is_some_and(|s| s.occupants.contains(&m)));
+        let reverse_in = self.heading.from(1).any(in_sensor);
+        let forward_in = self.heading.from(0).any(in_sensor);
+        ctx.brace_part(0, reverse_in && !forward_in && angle <= GATE_CLOSED_MDEG);
+        if !self.open && angle >= GATE_OPEN_MDEG {
+            self.open = true;
+            ctx.emit("open", 1);
+        } else if self.open && angle <= GATE_CLOSED_MDEG {
+            self.open = false;
+            ctx.emit("close", 0);
+        }
     }
 
     fn save(&self) -> MechConfig {
         let mut s = MechConfig::from([
             ("open".to_owned(), i64::from(self.open)),
-            ("last_forward".to_owned(), self.last_forward),
             ("passes".to_owned(), self.passes),
             ("blocked".to_owned(), self.blocked),
         ]);
@@ -618,10 +634,13 @@ impl Mechanism for OneWayGate {
 
     fn restore(&mut self, state: &MechConfig) {
         self.open = get(state, "open") != 0;
-        self.last_forward = get(state, "last_forward");
         self.passes = get(state, "passes");
         self.blocked = get(state, "blocked");
         self.heading.restore(state);
+    }
+
+    fn part_physics(&self, part: usize) -> Option<crate::mechanism::PartPhysics> {
+        (part == 0).then_some(GATE_FLAP)
     }
 }
 

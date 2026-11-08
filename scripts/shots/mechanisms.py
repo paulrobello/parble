@@ -3,7 +3,8 @@
 
 - toggle-mid-flip: the toggle's rocker part-way through its swing after the marble left
   (`TOGGLE_FLIP_SHOT_TICK` in crates/parble-sim/src/mech_showcase.rs).
-- gate-open: the one-way gate's flap fully open over the passing marble (`GATE_OPEN_SHOT_TICK`).
+- gate-open: the one-way gate's flap pushed well open (past 30°) by the passing marble
+  (`GATE_OPEN_SHOT_TICK`).
 
 Each capture runs the native build in lockstep (`--lockstep-after`), so the tick is the same sim
 state on every run, and must exit 0 with a lit frame and no logged error. The part poses drawn on
@@ -23,7 +24,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SHOWCASE = ROOT / "crates/parble-sim/src/mech_showcase.rs"
-BEHAVIOUR = ROOT / "crates/parble-sim/src/behaviour.rs"
 LOCKSTEP_AFTER_S = 6
 
 
@@ -105,11 +105,11 @@ def main() -> int:
     tick = const(SHOWCASE, "GATE_OPEN_SHOT_TICK")
     s = capture(binary, out / "gate-open.png", a.quality, tick)
     g = part(s, "mech_gate_oneway_l1")
-    want = const(BEHAVIOUR, "GATE_OPEN_MDEG")
-    ok = g["angleMdeg"] == want and g["tickMdeg"] == want
+    want = 30_000  # the physical flap's angle at the shot tick is pinned in mech_showcase.rs
+    ok = g["tickMdeg"] >= want and g["angleMdeg"] == g["tickMdeg"]
     fail |= not ok
     print(f"{'ok  ' if ok else 'FAIL'} gate-open tick {tick}: flap {g['angleMdeg']} mdeg "
-          f"(open {want}); {out / 'gate-open.png'}")
+          f"(want >= {want}); {out / 'gate-open.png'}")
     return 1 if fail else 0
 
 
