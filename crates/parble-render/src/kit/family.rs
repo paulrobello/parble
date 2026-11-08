@@ -103,9 +103,11 @@ mod tests {
     fn every_family_file_ships() {
         let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../../assets/");
         for f in [TextureFamily::Bc7, TextureFamily::Astc, TextureFamily::Png] {
-            for map in super::super::WOOD_MAPS {
-                let p = format!("{root}{}", super::super::wood_path(map, f));
-                assert!(std::path::Path::new(&p).is_file(), "missing {p}");
+            for set in super::super::WOOD_SETS {
+                for map in super::super::WOOD_MAPS {
+                    let p = format!("{root}{}", super::super::wood_path(set, map, f));
+                    assert!(std::path::Path::new(&p).is_file(), "missing {p}");
+                }
             }
         }
     }

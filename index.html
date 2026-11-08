@@ -51,8 +51,52 @@
     <link data-trunk rel="copy-file" href="web/wgsl-compat.js" data-target-path="web" />
     <link data-trunk rel="copy-file" href="web/frame-latency.js" data-target-path="web" />
     <link data-trunk rel="copy-dir" href="web/ui/dist" data-target-path="web/ui" />
-    <!-- Kit wood maps in all three texture families; the wasm fetches only the device's family (P1-T4). -->
-    <link data-trunk rel="copy-dir" href="assets/materials/wood_warm_a" data-target-path="assets/materials/wood_warm_a" />
+    <!-- Kit textures, exactly the files the wasm can fetch (crates/parble-render/src/kit fetchable_paths,
+         checked by a test): the three wood variants' base_color and orm in all three texture families
+         (the wasm fetches only the device's family; the sets' normal maps are not loaded), then each
+         piece's baked AO and normal PNG per LOD. -->
+    <link data-trunk rel="copy-file" href="assets/materials/wood_warm_a/wood_warm_a.base_color.bc7.ktx2" data-target-path="assets/materials/wood_warm_a" />
+    <link data-trunk rel="copy-file" href="assets/materials/wood_warm_a/wood_warm_a.orm.bc7.ktx2" data-target-path="assets/materials/wood_warm_a" />
+    <link data-trunk rel="copy-file" href="assets/materials/wood_warm_a/wood_warm_a.base_color.astc.ktx2" data-target-path="assets/materials/wood_warm_a" />
+    <link data-trunk rel="copy-file" href="assets/materials/wood_warm_a/wood_warm_a.orm.astc.ktx2" data-target-path="assets/materials/wood_warm_a" />
+    <link data-trunk rel="copy-file" href="assets/materials/wood_warm_a/wood_warm_a.base_color.png" data-target-path="assets/materials/wood_warm_a" />
+    <link data-trunk rel="copy-file" href="assets/materials/wood_warm_a/wood_warm_a.orm.png" data-target-path="assets/materials/wood_warm_a" />
+    <link data-trunk rel="copy-file" href="assets/materials/wood_warm_b/wood_warm_b.base_color.bc7.ktx2" data-target-path="assets/materials/wood_warm_b" />
+    <link data-trunk rel="copy-file" href="assets/materials/wood_warm_b/wood_warm_b.orm.bc7.ktx2" data-target-path="assets/materials/wood_warm_b" />
+    <link data-trunk rel="copy-file" href="assets/materials/wood_warm_b/wood_warm_b.base_color.astc.ktx2" data-target-path="assets/materials/wood_warm_b" />
+    <link data-trunk rel="copy-file" href="assets/materials/wood_warm_b/wood_warm_b.orm.astc.ktx2" data-target-path="assets/materials/wood_warm_b" />
+    <link data-trunk rel="copy-file" href="assets/materials/wood_warm_b/wood_warm_b.base_color.png" data-target-path="assets/materials/wood_warm_b" />
+    <link data-trunk rel="copy-file" href="assets/materials/wood_warm_b/wood_warm_b.orm.png" data-target-path="assets/materials/wood_warm_b" />
+    <link data-trunk rel="copy-file" href="assets/materials/wood_warm_c/wood_warm_c.base_color.bc7.ktx2" data-target-path="assets/materials/wood_warm_c" />
+    <link data-trunk rel="copy-file" href="assets/materials/wood_warm_c/wood_warm_c.orm.bc7.ktx2" data-target-path="assets/materials/wood_warm_c" />
+    <link data-trunk rel="copy-file" href="assets/materials/wood_warm_c/wood_warm_c.base_color.astc.ktx2" data-target-path="assets/materials/wood_warm_c" />
+    <link data-trunk rel="copy-file" href="assets/materials/wood_warm_c/wood_warm_c.orm.astc.ktx2" data-target-path="assets/materials/wood_warm_c" />
+    <link data-trunk rel="copy-file" href="assets/materials/wood_warm_c/wood_warm_c.base_color.png" data-target-path="assets/materials/wood_warm_c" />
+    <link data-trunk rel="copy-file" href="assets/materials/wood_warm_c/wood_warm_c.orm.png" data-target-path="assets/materials/wood_warm_c" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_straight_l3/blk_straight_l3_lod0_ao.png" data-target-path="assets/kit/blk_straight_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_straight_l3/blk_straight_l3_lod0_normal.png" data-target-path="assets/kit/blk_straight_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_straight_l3/blk_straight_l3_lod1_ao.png" data-target-path="assets/kit/blk_straight_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_straight_l3/blk_straight_l3_lod1_normal.png" data-target-path="assets/kit/blk_straight_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_straight_l3/blk_straight_l3_lod2_ao.png" data-target-path="assets/kit/blk_straight_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_straight_l3/blk_straight_l3_lod2_normal.png" data-target-path="assets/kit/blk_straight_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_curve90_l3/blk_curve90_l3_lod0_ao.png" data-target-path="assets/kit/blk_curve90_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_curve90_l3/blk_curve90_l3_lod0_normal.png" data-target-path="assets/kit/blk_curve90_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_curve90_l3/blk_curve90_l3_lod1_ao.png" data-target-path="assets/kit/blk_curve90_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_curve90_l3/blk_curve90_l3_lod1_normal.png" data-target-path="assets/kit/blk_curve90_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_curve90_l3/blk_curve90_l3_lod2_ao.png" data-target-path="assets/kit/blk_curve90_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_curve90_l3/blk_curve90_l3_lod2_normal.png" data-target-path="assets/kit/blk_curve90_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_slope_gentle_l3/blk_slope_gentle_l3_lod0_ao.png" data-target-path="assets/kit/blk_slope_gentle_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_slope_gentle_l3/blk_slope_gentle_l3_lod0_normal.png" data-target-path="assets/kit/blk_slope_gentle_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_slope_gentle_l3/blk_slope_gentle_l3_lod1_ao.png" data-target-path="assets/kit/blk_slope_gentle_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_slope_gentle_l3/blk_slope_gentle_l3_lod1_normal.png" data-target-path="assets/kit/blk_slope_gentle_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_slope_gentle_l3/blk_slope_gentle_l3_lod2_ao.png" data-target-path="assets/kit/blk_slope_gentle_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_slope_gentle_l3/blk_slope_gentle_l3_lod2_normal.png" data-target-path="assets/kit/blk_slope_gentle_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_end_l3/blk_end_l3_lod0_ao.png" data-target-path="assets/kit/blk_end_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_end_l3/blk_end_l3_lod0_normal.png" data-target-path="assets/kit/blk_end_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_end_l3/blk_end_l3_lod1_ao.png" data-target-path="assets/kit/blk_end_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_end_l3/blk_end_l3_lod1_normal.png" data-target-path="assets/kit/blk_end_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_end_l3/blk_end_l3_lod2_ao.png" data-target-path="assets/kit/blk_end_l3" />
+    <link data-trunk rel="copy-file" href="assets/kit/blk_end_l3/blk_end_l3_lod2_normal.png" data-target-path="assets/kit/blk_end_l3" />
   </head>
   <body>
     <canvas id="parble"></canvas>

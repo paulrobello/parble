@@ -1,16 +1,20 @@
 //! Instanced, chunked kit-piece renderer (P1-T4).
 //!
-//! - Instancing: one [`Mesh`] per (piece type, LOD) and one shared wood material, so Bevy's GPU
-//!   preprocessing bins every instance of a (type, LOD) into one indirect draw per view, below the
-//!   P1-T4 bound of one per (type × LOD × chunk). Instances are grouped under one [`KitChunk`]
-//!   entity per 8×8×8-cell chunk (kit contract §2).
+//! - Instancing: one [`Mesh`] per (piece type, LOD) and one [`KitWoodMaterial`] per (piece type,
+//!   LOD, wood variant), so Bevy's GPU preprocessing bins every instance of a (type, LOD, variant)
+//!   into one indirect draw per view, below the P1-T4 bound of one per (type × LOD × chunk).
+//!   Instances are grouped under one [`KitChunk`] entity per 8×8×8-cell chunk (kit contract §2).
 //! - LOD: each piece spawns all three LODs with contiguous [`VisibilityRange`]s from the §12
 //!   thresholds (one cell 160 px / 48 px tall at 1440p) and a ±15 % margin. Bevy draws both LODs in
 //!   the margin with complementary screen-space dither (`VISIBILITY_RANGE_DITHER`, main pass and
 //!   prepass/shadows), so there is no hard cut. The fade is measured from each piece's origin, which
 //!   is finer than §12's per-chunk nearest point.
-//! - Textures: the wood set loads as BC7 KTX2, else ASTC KTX2, else PNG ([`family`]), chosen once the
-//!   render device exists (on the web it arrives after `Startup`).
+//! - Wood (§12): each piece picks one of [`WOOD_SETS`] by a hash of its anchor cell
+//!   ([`variant_of`]). `wood.wesl` projects the tileable wood in world space, triplanar, at one
+//!   1,024² repeat per [`WOOD_TILE_M`] (4,096 texels per metre; Low samples mip 1, 2,048), and the
+//!   StandardMaterial half applies the piece's baked AO and bevel normal maps at UV0.
+//! - Textures: the wood sets load as BC7 KTX2, else ASTC KTX2, else PNG ([`family`]), chosen once
+//!   the render device exists (on the web it arrives after `Startup`). Baked maps are PNG only.
 //! - The draw counts in [`KitDiag`] are read from the render world's binned phases ([`count_draws`]).
 
 pub mod family;
@@ -22,21 +26,24 @@ use std::{
 };
 
 use bevy::{
-    asset::{UntypedAssetId, io::AssetSourceBuilder},
+    asset::{UntypedAssetId, embedded_asset, io::AssetSourceBuilder},
     camera::visibility::VisibilityRange,
     core_pipeline::{core_3d::Opaque3d, prepass::Opaque3dPrepass},
-    image::ImageLoaderSettings,
-    math::Affine2,
-    pbr::{RenderMaterialInstances, RenderMeshInstances, Shadow},
+    image::{ImageAddressMode, ImageLoaderSettings, ImageSampler, ImageSamplerDescriptor},
+    pbr::{
+        ExtendedMaterial, MaterialExtension, RenderMaterialInstances, RenderMeshInstances, Shadow,
+    },
     prelude::*,
     render::{
         Render, RenderApp, RenderSystems,
         render_phase::{BinnedPhaseItem, BinnedRenderPhase, ViewBinnedRenderPhases},
+        render_resource::{AsBindGroup, ShaderType},
         renderer::RenderDevice,
         settings::WgpuFeatures,
         sync_world::MainEntity,
         view::{ExtractedView, RenderVisibilityRanges, RenderVisibleEntities},
     },
+    shader::ShaderRef,
 };
 use serde::Serialize;
 
@@ -77,15 +84,86 @@ pub const PIECES: [(&str, &[u8]); 4] = [
 
 /// Asset source for the served `assets/` tree (web: `dist/assets`, copied by Trunk).
 pub const ASSET_SOURCE: &str = "parble";
-/// Wood set the kit material samples, and its maps.
-pub const WOOD_SET: &str = "wood_warm_a";
+/// Wood variants (P1-T1), picked per piece by [`variant_of`], and the maps the kit material loads
+/// from each. The sets' own normal maps are not loaded: the bevel normal is the piece's baked map.
+pub const WOOD_SETS: [&str; 3] = ["wood_warm_a", "wood_warm_b", "wood_warm_c"];
 pub const WOOD_MAPS: [&str; 2] = ["base_color", "orm"];
-/// One wood repeat is 250 mm and a piece's UV0 atlas spans one 60 mm cell.
-const WOOD_UV_SCALE: f32 = 0.24;
+/// One wood repeat in metres (`assets/materials/provenance.json` `contract.tileM`).
+pub const WOOD_TILE_M: f32 = 0.25;
+/// Per-piece, per-LOD baked maps (P1-T2), PNG only, sampled at UV0.
+pub const BAKED_MAPS: [&str; 2] = ["ao", "normal"];
+
+const SHADER: &str = "embedded://parble_render/kit/wood.wesl";
 
 /// Path of a wood map in `family`, relative to the `assets/` root.
-pub fn wood_path(map: &str, family: TextureFamily) -> String {
-    format!("materials/{WOOD_SET}/{WOOD_SET}.{map}.{}", family.suffix())
+pub fn wood_path(set: &str, map: &str, family: TextureFamily) -> String {
+    format!("materials/{set}/{set}.{map}.{}", family.suffix())
+}
+
+/// Path of a piece's baked map for `lod`, relative to the `assets/` root.
+pub fn baked_path(piece: &str, lod: usize, map: &str) -> String {
+    format!("kit/{piece}/{piece}_lod{lod}_{map}.png")
+}
+
+/// Every file the kit renderer can fetch from [`ASSET_SOURCE`], over all texture families, sorted.
+/// `index.html` ships exactly these under `assets/`.
+pub fn fetchable_paths() -> Vec<String> {
+    let mut out = Vec::new();
+    for f in [TextureFamily::Bc7, TextureFamily::Astc, TextureFamily::Png] {
+        for set in WOOD_SETS {
+            for map in WOOD_MAPS {
+                out.push(wood_path(set, map, f));
+            }
+        }
+    }
+    for (piece, _) in PIECES {
+        for lod in 0..LODS {
+            for map in BAKED_MAPS {
+                out.push(baked_path(piece, lod, map));
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
+/// Wood uniform for `wood.wesl` (binding 100).
+#[derive(Clone, Copy, Debug, Default, ShaderType, Reflect)]
+pub struct KitWoodParams {
+    /// 1 / [`WOOD_TILE_M`].
+    pub inv_tile_m: f32,
+    /// 1 once the wood maps are bound.
+    pub enabled: f32,
+    /// Wood mip bias: 1 on Low (2,048 texels per metre), else 0.
+    pub mip_bias: f32,
+    pub pad: f32,
+}
+
+/// The world-space wood of one variant, layered over StandardMaterial's baked AO and normal.
+#[derive(Asset, AsBindGroup, Reflect, Debug, Clone, Default)]
+pub struct KitWoodExt {
+    #[uniform(100)]
+    pub params: KitWoodParams,
+    #[texture(101)]
+    #[sampler(102)]
+    pub base: Option<Handle<Image>>,
+    #[texture(103)]
+    #[sampler(104)]
+    pub orm: Option<Handle<Image>>,
+}
+
+impl MaterialExtension for KitWoodExt {
+    fn fragment_shader() -> ShaderRef {
+        SHADER.into()
+    }
+}
+
+pub type KitWoodMaterial = ExtendedMaterial<StandardMaterial, KitWoodExt>;
+
+/// Wood variant of the piece anchored at `cell`: hash bits disjoint from the stress layout's piece
+/// type (`h % 4`) and yaw (`h >> 8`), so variants do not correlate with either.
+pub fn variant_of(cell: IVec3) -> usize {
+    ((cell_hash(cell) >> 16) % WOOD_SETS.len() as u32) as usize
 }
 
 /// Registers the [`ASSET_SOURCE`] source. Add it before `DefaultPlugins` (Bevy reads asset sources
@@ -271,6 +349,8 @@ struct KitShared(Arc<Mutex<Shared>>);
 #[serde(rename_all = "camelCase")]
 pub struct TextureDiag {
     pub path: String,
+    /// `wood` (a [`WOOD_SETS`] map in the device's family) or `baked` (a piece's PNG map).
+    pub kind: &'static str,
     pub state: &'static str,
     /// `wgpu::TextureFormat` of the loaded image.
     pub format: Option<String>,
@@ -283,6 +363,10 @@ pub struct KitDiag {
     pub pieces: usize,
     pub chunks: usize,
     pub piece_types: usize,
+    /// Wood variants in use ([`WOOD_SETS`]); each (type, LOD, variant) is one material.
+    pub variants: usize,
+    /// Pieces per wood variant in the layout.
+    pub variant_pieces: Vec<usize>,
     /// One draw per occupied (type × chunk) × LOD (the P1-T4 bound).
     pub draw_bound: usize,
     pub lod_triangles: Vec<[usize; LODS]>,
@@ -298,8 +382,9 @@ pub struct KitDiag {
 
 #[derive(Resource, Default)]
 struct KitTextures {
-    material: Handle<StandardMaterial>,
-    images: Vec<(String, Handle<Image>)>,
+    /// `materials[piece][lod][variant]`.
+    materials: Vec<[[Handle<KitWoodMaterial>; 3]; LODS]>,
+    images: Vec<(String, &'static str, Handle<Image>)>,
 }
 
 pub struct KitPlugin;
@@ -307,7 +392,9 @@ pub struct KitPlugin;
 impl Plugin for KitPlugin {
     fn build(&self, app: &mut App) {
         let shared = KitShared::default();
-        app.init_resource::<KitScene>()
+        embedded_asset!(app, "wood.wesl");
+        app.add_plugins(MaterialPlugin::<KitWoodMaterial>::default())
+            .init_resource::<KitScene>()
             .init_resource::<TextureCap>()
             .init_resource::<KitDiag>()
             .init_resource::<KitTextures>()
@@ -322,18 +409,21 @@ impl Plugin for KitPlugin {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_kit(
     mut commands: Commands,
     scene: Res<KitScene>,
     shared: Res<KitShared>,
     mut diag: ResMut<KitDiag>,
     mut tex: ResMut<KitTextures>,
+    quality: Option<Res<crate::Quality>>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut materials: ResMut<Assets<KitWoodMaterial>>,
 ) {
     if *scene == KitScene::None {
         return;
     }
+    let low = quality.is_some_and(|q| *q == crate::Quality::Low);
     let layout = stress_layout();
     let mut handles: Vec<[Handle<Mesh>; LODS]> = Vec::new();
     let mut ids = HashSet::new();
@@ -348,13 +438,32 @@ fn spawn_kit(
     }
     shared.0.lock().expect("kit shared").meshes = ids;
 
-    let material = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.62, 0.40, 0.22),
-        perceptual_roughness: 0.55,
-        uv_transform: Affine2::from_scale(Vec2::splat(WOOD_UV_SCALE)),
-        ..default()
-    });
-    tex.material = material.clone();
+    // Until the maps load: the GLB placeholder wood colour, flat.
+    tex.materials = (0..PIECES.len())
+        .map(|_| {
+            std::array::from_fn(|_| {
+                std::array::from_fn(|_| {
+                    materials.add(KitWoodMaterial {
+                        base: StandardMaterial {
+                            base_color: Color::srgb(0.62, 0.40, 0.22),
+                            perceptual_roughness: 0.55,
+                            ..default()
+                        },
+                        extension: KitWoodExt {
+                            params: KitWoodParams {
+                                inv_tile_m: 1.0 / WOOD_TILE_M,
+                                enabled: 0.0,
+                                mip_bias: if low { 1.0 } else { 0.0 },
+                                pad: 0.0,
+                            },
+                            ..default()
+                        },
+                    })
+                })
+            })
+        })
+        .collect();
+    let mut variant_pieces = vec![0; WOOD_SETS.len()];
 
     let ranges = lod_ranges(crate::camera::FOV_DEG.to_radians());
     let (chunks, bound) = chunk_stats(&layout);
@@ -375,6 +484,8 @@ fn spawn_kit(
             .with_children(|c| {
                 for p in placements {
                     let t = placement_transform(p);
+                    let v = variant_of(p.cell);
+                    variant_pieces[v] += 1;
                     for (lod, range) in ranges.iter().enumerate() {
                         c.spawn((
                             KitInstance {
@@ -382,7 +493,7 @@ fn spawn_kit(
                                 lod: lod as u8,
                             },
                             Mesh3d(handles[p.piece][lod].clone()),
-                            MeshMaterial3d(material.clone()),
+                            MeshMaterial3d(tex.materials[p.piece][lod][v].clone()),
                             t,
                             range.clone(),
                         ));
@@ -393,6 +504,8 @@ fn spawn_kit(
     diag.pieces = layout.len();
     diag.chunks = chunks;
     diag.piece_types = PIECES.len();
+    diag.variants = WOOD_SETS.len();
+    diag.variant_pieces = variant_pieces;
     diag.draw_bound = bound;
     diag.lod_bands_m = [
         ranges[0].end_margin.start,
@@ -406,8 +519,8 @@ fn spawn_kit(
     );
 }
 
-/// Picks the texture family once the render device exists, then loads the wood maps into the kit
-/// material.
+/// Picks the texture family once the render device exists, then loads every wood variant's maps and
+/// every piece's baked maps into the kit materials.
 fn load_textures(
     scene: Res<KitScene>,
     cap: Res<TextureCap>,
@@ -415,7 +528,7 @@ fn load_textures(
     server: Res<AssetServer>,
     mut diag: ResMut<KitDiag>,
     mut tex: ResMut<KitTextures>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut materials: ResMut<Assets<KitWoodMaterial>>,
 ) {
     let (KitScene::Stress2000, None, Some(device)) = (*scene, diag.family, device) else {
         return;
@@ -428,26 +541,59 @@ fn load_textures(
     diag.device_bc = Some(bc);
     diag.device_astc = Some(astc);
     info!("kit: texture family {}", family.name());
-    let mut load = |map: &str| {
-        let path = format!("{ASSET_SOURCE}://{}", wood_path(map, family));
-        let srgb = map == "base_color";
+    let mut images = Vec::new();
+    let mut load = |rel: String, kind: &'static str, srgb: bool, repeat: bool| {
+        let path = format!("{ASSET_SOURCE}://{rel}");
         let h: Handle<Image> = server
             .load_builder()
-            .with_settings(move |s: &mut ImageLoaderSettings| s.is_srgb = srgb)
+            .with_settings(move |s: &mut ImageLoaderSettings| {
+                s.is_srgb = srgb;
+                if repeat {
+                    // World-space tiling wraps; the default sampler clamps.
+                    let mut d = ImageSamplerDescriptor {
+                        address_mode_u: ImageAddressMode::Repeat,
+                        address_mode_v: ImageAddressMode::Repeat,
+                        ..ImageSamplerDescriptor::linear()
+                    };
+                    d.set_anisotropic_filter(8);
+                    s.sampler = ImageSampler::Descriptor(d);
+                }
+            })
             .load(path.clone());
-        tex.images.push((path, h.clone()));
+        images.push((path, kind, h.clone()));
         h
     };
-    let base = load("base_color");
-    let orm = load("orm");
-    if let Some(mut m) = materials.get_mut(&tex.material) {
-        m.base_color = Color::WHITE;
-        m.base_color_texture = Some(base);
-        m.perceptual_roughness = 1.0;
-        m.metallic = 1.0;
-        m.metallic_roughness_texture = Some(orm.clone());
-        m.occlusion_texture = Some(orm);
+    let wood: Vec<[Handle<Image>; 2]> = WOOD_SETS
+        .iter()
+        .map(|set| {
+            WOOD_MAPS.map(|map| {
+                load(
+                    wood_path(set, map, family),
+                    "wood",
+                    map == "base_color",
+                    true,
+                )
+            })
+        })
+        .collect();
+    for (p, (piece, _)) in PIECES.iter().enumerate() {
+        for lod in 0..LODS {
+            let [ao, normal] =
+                BAKED_MAPS.map(|map| load(baked_path(piece, lod, map), "baked", false, false));
+            for (v, [base, orm]) in wood.iter().enumerate() {
+                let Some(mut m) = materials.get_mut(&tex.materials[p][lod][v]) else {
+                    continue;
+                };
+                m.base.base_color = Color::WHITE;
+                m.base.occlusion_texture = Some(ao.clone());
+                m.base.normal_map_texture = Some(normal.clone());
+                m.extension.base = Some(base.clone());
+                m.extension.orm = Some(orm.clone());
+                m.extension.params.enabled = 1.0;
+            }
+        }
     }
+    tex.images = images;
 }
 
 fn update_diag(
@@ -461,8 +607,9 @@ fn update_diag(
     diag.textures = tex
         .images
         .iter()
-        .map(|(path, h)| TextureDiag {
+        .map(|(path, kind, h)| TextureDiag {
             path: path.clone(),
+            kind,
             state: match server.load_state(h) {
                 bevy::asset::LoadState::NotLoaded => "notLoaded",
                 bevy::asset::LoadState::Loading => "loading",
@@ -673,6 +820,76 @@ mod tests {
         assert_eq!(chunks, 14);
         assert_eq!(bound, 14 * PIECES.len() * LODS);
         assert_eq!(stress_layout(), layout, "deterministic");
+    }
+
+    #[test]
+    fn every_piece_type_uses_every_wood_variant_deterministically() {
+        let layout = stress_layout();
+        for t in 0..PIECES.len() {
+            for v in 0..WOOD_SETS.len() {
+                assert!(
+                    layout
+                        .iter()
+                        .any(|p| p.piece == t && variant_of(p.cell) == v),
+                    "type {t} never uses variant {v}"
+                );
+            }
+        }
+        let counts: Vec<usize> = (0..WOOD_SETS.len())
+            .map(|v| layout.iter().filter(|p| variant_of(p.cell) == v).count())
+            .collect();
+        // Roughly a third each (2,000 / 3 ≈ 667).
+        assert!(
+            counts.iter().all(|&n| (550..=780).contains(&n)),
+            "{counts:?}"
+        );
+        assert_eq!(
+            variant_of(IVec3::new(3, -2, 7)),
+            variant_of(IVec3::new(3, -2, 7))
+        );
+    }
+
+    /// §12: tileable wood at 4,096 texels per metre on High, 1,024² per [`WOOD_TILE_M`] repeat.
+    #[test]
+    fn wood_texel_density_is_the_contract_high_tier() {
+        let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../../assets/");
+        for set in WOOD_SETS {
+            for map in WOOD_MAPS {
+                for f in [TextureFamily::Bc7, TextureFamily::Astc] {
+                    let p = format!("{root}{}", wood_path(set, map, f));
+                    let b = std::fs::read(&p).expect(&p);
+                    let dim = |o: usize| u32::from_le_bytes([b[o], b[o + 1], b[o + 2], b[o + 3]]);
+                    // KTX2 header: pixelWidth at 20, pixelHeight at 24.
+                    assert_eq!((dim(20), dim(24)), (1024, 1024), "{p}");
+                    assert_eq!(dim(20) as f32 / WOOD_TILE_M, 4096.0);
+                }
+            }
+        }
+    }
+
+    /// `index.html` copies exactly the files the kit renderer can fetch (no wood normal maps, GLBs or
+    /// sidecars), and each exists.
+    #[test]
+    fn index_html_ships_exactly_the_fetchable_kit_files() {
+        let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../../");
+        let html = std::fs::read_to_string(format!("{root}index.html")).expect("index.html");
+        let mut shipped: Vec<String> = html
+            .split("href=\"assets/")
+            .skip(1)
+            .map(|s| s[..s.find('"').expect("closing quote")].to_owned())
+            .collect();
+        shipped.sort();
+        assert_eq!(shipped, fetchable_paths());
+        for p in &shipped {
+            assert!(
+                std::path::Path::new(&format!("{root}assets/{p}")).is_file(),
+                "missing {p}"
+            );
+        }
+        assert!(
+            !html.contains("rel=\"copy-dir\" href=\"assets/"),
+            "assets ship per file"
+        );
     }
 
     #[test]

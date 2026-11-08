@@ -1,8 +1,9 @@
 // P1-T4 instanced chunked kit renderer in GPU Chromium: the 2,000-piece `kit2000` wall draws within
-// one draw per (type × LOD × chunk), every LOD is in frame with crossfading ranges, and the wood maps
-// load in the device's texture family (BC7, else ASTC, else PNG) with no console errors or WebGPU
-// validation messages. `?tex=astc` and `?tex=png` cap the family to exercise the fallbacks. Shots go to
-// target/shots/web-kit/.
+// one draw per (type × LOD × chunk), as one draw per (type, LOD, wood variant), every LOD is in frame
+// with crossfading ranges, the three wood variants load in the device's texture family (BC7, else
+// ASTC, else PNG) and every piece's baked AO and normal PNGs load, with no console errors or WebGPU
+// validation messages. `?tex=astc` and `?tex=png` cap the family to exercise the fallbacks. Shots go
+// to target/shots/web-kit/.
 import { mkdirSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
@@ -37,7 +38,7 @@ for (const tex of [null, "astc", "png"]) {
     await page.waitForFunction(
       () => {
         const k = window.__parble?.kit;
-        return k && k.draws.main > 0 && k.textures.length === 2 && k.textures.every((t) => t.state !== "loading" && t.state !== "notLoaded");
+        return k && k.draws.main > 0 && k.textures.length > 0 && k.textures.every((t) => t.state !== "loading" && t.state !== "notLoaded");
       },
       null,
       { timeout: 60_000 },
@@ -50,18 +51,29 @@ for (const tex of [null, "astc", "png"]) {
     expect(k.draws.mainViews).toBe(1);
     expect(k.draws.main).toBeGreaterThan(0);
     expect(k.draws.main).toBeLessThanOrEqual(k.drawBound);
-    // All three LODs of all four types are in frame, each as one instanced draw.
-    expect(k.draws.main).toBe(k.pieceTypes * 3);
+    // All three LODs of all four types in all three wood variants are in frame, each as one
+    // instanced draw.
+    expect(k.variants).toBe(3);
+    expect(k.variantPieces.every((n) => n > 0)).toBe(true);
+    expect(k.draws.main).toBe(k.pieceTypes * 3 * k.variants);
     // More LOD instances than pieces: the pieces inside a fade band draw both LODs, dithered.
     expect(k.draws.mainInstances).toBeGreaterThan(k.pieces);
     expect(k.draws.ditheredInstances).toBe(k.draws.mainInstances);
     expect(typeof k.deviceBc).toBe("boolean");
     expect(typeof k.deviceAstc).toBe("boolean");
     expect(k.family).toBe(expectedFamily(k.deviceBc, k.deviceAstc, tex));
+    // Wood: base_color and orm of each variant. Baked: AO and normal per piece type and LOD.
+    expect(k.textures.filter((t) => t.kind === "wood")).toHaveLength(k.variants * 2);
+    expect(k.textures.filter((t) => t.kind === "baked")).toHaveLength(k.pieceTypes * 3 * 2);
     for (const t of k.textures) {
       expect(t.state).toBe("loaded");
-      expect(t.path).toContain(`.${k.family === "png" ? "png" : `${k.family}.ktx2`}`);
-      expect(t.format).toMatch(FORMATS[k.family]);
+      if (t.kind === "wood") {
+        expect(t.path).toContain(`.${k.family === "png" ? "png" : `${k.family}.ktx2`}`);
+        expect(t.format).toMatch(FORMATS[k.family]);
+      } else {
+        expect(t.path).toMatch(/_lod[0-2]_(ao|normal)\.png$/);
+        expect(t.format).toMatch(FORMATS.png);
+      }
     }
     await page.locator("canvas#parble").screenshot({ path: new URL(`kit2000-${tex ?? "auto"}.png`, SHOTS).pathname });
     expect(errors).toEqual([]);
