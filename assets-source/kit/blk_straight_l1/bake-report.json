@@ -1,0 +1,53 @@
+{
+  "aoDistanceM": 0.02,
+  "blender": "5.2.2 LTS",
+  "cageExtrusionM": 0.0005,
+  "channels": {
+    "blk_straight_l1_lod0_ao": {
+      "colorspace": "Non-Color",
+      "sha256": "b7d6e2399530b7c30c83ff520f2a564f9292727be1bfc4bf84137a6b25f21ecc",
+      "size": 512
+    },
+    "blk_straight_l1_lod0_normal": {
+      "colorspace": "Non-Color",
+      "sha256": "4c807ff3d1760ff956af8af516295a538561dbdf97e0ac2eea4a79e650bf7a9b",
+      "size": 512
+    },
+    "blk_straight_l1_lod1_ao": {
+      "colorspace": "Non-Color",
+      "sha256": "16105f7d51b2f2a6c40fb0867ac734ffd612821b53c605912a01cd46142c7dbf",
+      "size": 256
+    },
+    "blk_straight_l1_lod1_normal": {
+      "colorspace": "Non-Color",
+      "sha256": "948b6a1e7e5d4a97e48a503a31672e2e652c96c5766eec1b42ecd3b964fa5dfd",
+      "size": 256
+    },
+    "blk_straight_l1_lod2_ao": {
+      "colorspace": "Non-Color",
+      "sha256": "ba26fdc99bc17348ae65f7476f4311c2dc88bc90166e0dba268417ee281ac79b",
+      "size": 128
+    },
+    "blk_straight_l1_lod2_normal": {
+      "colorspace": "Non-Color",
+      "sha256": "10a2327bfd9f9ae217ea0d0892f81535be9c07c4e058333340caf899380acfa3",
+      "size": 128
+    }
+  },
+  "device": "GPU",
+  "highPoly": {
+    "bevel_segs": 8,
+    "n_fillet": 12,
+    "n_round": 64,
+    "path": {
+      "curve90": 40,
+      "end": 32,
+      "slope_gentle": 32,
+      "straight": 1
+    }
+  },
+  "marginPx": 8,
+  "maxRayDistanceM": 0.002,
+  "samples": 16,
+  "skipped": false
+}

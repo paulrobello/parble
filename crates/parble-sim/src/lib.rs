@@ -25,6 +25,8 @@ pub mod scene;
 pub mod track_run;
 
 #[cfg(test)]
+mod kit_pieces_test;
+#[cfg(test)]
 mod seam_test;
 
 use hash::{Fnv1a64, POSITION_QUANTA_PER_M, VELOCITY_QUANTA_PER_M_PER_S, quantize};

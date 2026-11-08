@@ -395,13 +395,13 @@ mod tests {
     fn unknown_ids_and_overlaps_refuse_the_run() {
         let t = with_pieces(&[
             ("blk_straight_l3", [4, 0, 0], 0),
-            ("blk_straight_l1", [5, 0, 0], 0),
+            ("blk_spiral_l1", [5, 0, 0], 0),
         ]);
         assert_eq!(
             TrackRun::new(&t).err(),
             Some(TrackRunError::UnknownPiece {
                 placement: 1,
-                piece: id("blk_straight_l1")
+                piece: id("blk_spiral_l1")
             })
         );
         let t = with_pieces(&[("blk_straight", [4, 0, 0], 0), ("blk_end_l3", [4, 0, 0], 0)]);

@@ -192,7 +192,7 @@ const CURVE_KICK_MARGIN_MM_S: f32 = 5.0;
 /// the mean of its two neighbours. A bump is an impulse and shows in full. The marble's smooth
 /// swing up the outer wall of a curve (its vertical speed peaks at 30–66 mm/s on an exact tube,
 /// see [`curve_and_slope_joins`]) has a period near 30 ticks and leaks under 2 mm/s.
-fn kick(tr: &[MarbleState], sel: impl Fn(&MarbleState) -> bool) -> f32 {
+pub(crate) fn kick(tr: &[MarbleState], sel: impl Fn(&MarbleState) -> bool) -> f32 {
     tr.windows(3)
         .filter(|w| sel(&w[1]))
         .map(|w| (w[1].linvel[1] - 0.5 * (w[0].linvel[1] + w[2].linvel[1])).abs())
@@ -296,7 +296,7 @@ fn curve_and_slope_joins() {
 }
 
 /// Peak upward vertical velocity in mm/s while `sel` holds.
-fn upward(tr: &[MarbleState], sel: impl Fn(&MarbleState) -> bool) -> f32 {
+pub(crate) fn upward(tr: &[MarbleState], sel: impl Fn(&MarbleState) -> bool) -> f32 {
     tr.iter()
         .filter(|m| sel(m))
         .map(|m| m.linvel[1])

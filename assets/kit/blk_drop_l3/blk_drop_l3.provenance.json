@@ -1,0 +1,206 @@
+{
+  "schema": "parble-kit-provenance/1",
+  "pieceId": "blk_drop_l3",
+  "pieceVersion": 1,
+  "route": "scripted",
+  "card": "P2-T2",
+  "contract": {
+    "path": "docs/kit-contract.md",
+    "version": 1,
+    "sha256": "a13c69a3266ee63dea8295af3ec536aa93e4c358675b95e24628502ad217aaf1",
+    "approved": "Paul, 2026-11-07 (contract status line)"
+  },
+  "generator": {
+    "path": "blender/kit/generate.py",
+    "sha256": "52d66541d215359b38230d881691fef0056465aa5d5cd90d645cf288678f685f"
+  },
+  "generatorDeps": [
+    {
+      "path": "blender/kit/kitgeom.py",
+      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+    },
+    {
+      "path": "blender/kit/kitblocks.py",
+      "sha256": "4af584be5af2ea3827da638e45c13fbba52ecec08950720b05597f733c591e9e"
+    }
+  ],
+  "authoringAgent": {
+    "harness": "claude-code",
+    "model": "claude-opus-5-5"
+  },
+  "blender": "5.2.2 LTS",
+  "toolVersions": {
+    "gltfTransform": "4.3.0",
+    "meshoptimizer": "0.25.0",
+    "gltfValidator": "2.0.0-dev.3.10",
+    "node": "v24.18.0"
+  },
+  "material": "placeholder (wood_placeholder, no maps, no emission); final tileable wood comes from P1-T1",
+  "bake": {
+    "device": "GPU",
+    "samples": 16,
+    "cageExtrusionM": 0.0005,
+    "maxRayDistanceM": 0.002,
+    "marginPx": 8,
+    "aoDistanceM": 0.02,
+    "channels": {
+      "blk_drop_l3_lod0_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "17153577fccc5d1da043a54849842f267b4c027f9974c119dc903d2feee88b08",
+        "size": 512
+      },
+      "blk_drop_l3_lod0_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "91823156f892bf36355a30f1e64aee9327c629069698a3fcffa3155589499159",
+        "size": 512
+      },
+      "blk_drop_l3_lod1_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "1dcd38b8e0a7df2c3d24fb55c9f7c39f597658f6ca4023d9d12f52380c411fdd",
+        "size": 256
+      },
+      "blk_drop_l3_lod1_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "7e460ce9f6f3a8717489db33d0e6ba7684c7cb70acc79ebdcc93653f326644e3",
+        "size": 256
+      },
+      "blk_drop_l3_lod2_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "e7fa834f83c192b7b517b15549aecb7374812d00e5a40de1ff2e018733190fa1",
+        "size": 128
+      },
+      "blk_drop_l3_lod2_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "95e691fa2dcf850b0188f70b1d1004ee2dcca79526f3a6224ee6bc44241a7ee2",
+        "size": 128
+      }
+    }
+  },
+  "lods": [
+    {
+      "lod": "blk_drop_l3_lod0",
+      "tris": 641
+    },
+    {
+      "lod": "blk_drop_l3_lod1",
+      "tris": 221
+    },
+    {
+      "lod": "blk_drop_l3_lod2",
+      "tris": 117
+    }
+  ],
+  "collider": {
+    "node": "blk_drop_l3_collider",
+    "tris": 213
+  },
+  "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
+  "texelDensityPxPerM": {
+    "lod0": {
+      "max": 2794,
+      "median": 2730.8,
+      "min": 2148.6
+    },
+    "lod1": {
+      "max": 1545.8,
+      "median": 1419.2,
+      "min": 1238.5
+    },
+    "lod2": {
+      "max": 704.8,
+      "median": 697.9,
+      "min": 625.4
+    }
+  },
+  "compression": {
+    "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
+    "glbBytes": 42640,
+    "ktx2": "not produced in P1-T2 (maps ship as PNG)"
+  },
+  "derivedFiles": [
+    {
+      "path": "assets/kit/blk_drop_l3/blk_drop_l3.glb",
+      "sha256": "35b2b248a3149d552107c32f915e6869abc068f73434ad2f2dad964ec493e48a",
+      "bytes": 42640
+    },
+    {
+      "path": "assets/kit/blk_drop_l3/blk_drop_l3.kit.json",
+      "sha256": "3edfd306a8ba9635151325fc1f390aa987ee076bb0e7841ca47702a499d3efa7",
+      "bytes": 13171
+    },
+    {
+      "path": "assets/kit/blk_drop_l3/blk_drop_l3_lod0_ao.png",
+      "sha256": "17153577fccc5d1da043a54849842f267b4c027f9974c119dc903d2feee88b08",
+      "bytes": 68514
+    },
+    {
+      "path": "assets/kit/blk_drop_l3/blk_drop_l3_lod0_normal.png",
+      "sha256": "91823156f892bf36355a30f1e64aee9327c629069698a3fcffa3155589499159",
+      "bytes": 46501
+    },
+    {
+      "path": "assets/kit/blk_drop_l3/blk_drop_l3_lod1_ao.png",
+      "sha256": "1dcd38b8e0a7df2c3d24fb55c9f7c39f597658f6ca4023d9d12f52380c411fdd",
+      "bytes": 24066
+    },
+    {
+      "path": "assets/kit/blk_drop_l3/blk_drop_l3_lod1_normal.png",
+      "sha256": "7e460ce9f6f3a8717489db33d0e6ba7684c7cb70acc79ebdcc93653f326644e3",
+      "bytes": 21335
+    },
+    {
+      "path": "assets/kit/blk_drop_l3/blk_drop_l3_lod2_ao.png",
+      "sha256": "e7fa834f83c192b7b517b15549aecb7374812d00e5a40de1ff2e018733190fa1",
+      "bytes": 6668
+    },
+    {
+      "path": "assets/kit/blk_drop_l3/blk_drop_l3_lod2_normal.png",
+      "sha256": "95e691fa2dcf850b0188f70b1d1004ee2dcca79526f3a6224ee6bc44241a7ee2",
+      "bytes": 10589
+    },
+    {
+      "path": "assets-source/kit/blk_drop_l3/blk_drop_l3_high.blend",
+      "sha256": "979aba37088cf7cb905e57e766b324c049be6739d41d04826348db9ed6082e8f",
+      "bytes": 154991
+    },
+    {
+      "path": "assets-source/kit/blk_drop_l3/blk_drop_l3_low.blend",
+      "sha256": "03bcc66ffb3364541deb5c6803ecaffec97929bacb42a8a0aad81dfa657ca3cf",
+      "bytes": 122087
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/reference/ref-02.webp",
+      "sha256": "4c4ed7650fef0b588fbbc58c293f948a3120733b62329af051e4c6d2c0ff3d27",
+      "role": "look reference (owner-supplied)"
+    },
+    {
+      "path": "docs/reference/ref-01.webp",
+      "sha256": "bce26129ad47abea4cb7d1b9915801c52fc79ef80f2d34daa189030f00498115",
+      "role": "look reference (owner-supplied)"
+    },
+    {
+      "path": "docs/reference/ref-06-rail-into-block-tower.png",
+      "sha256": "8d0bf3fb25233bceae74705473dd867a8a24358500ef1fa58219791bcb7360c0",
+      "role": "look reference (owner-supplied)"
+    }
+  ],
+  "license": "MIT (repository licence); geometry is generated by the repository's own generator",
+  "validation": {
+    "pass": true,
+    "checks": [
+      "kit-check contract 14.1-14.10",
+      "gltf-validator reimport (meshopt GLB)",
+      "blender reimport (meshopt GLB)"
+    ]
+  },
+  "approvals": [
+    {
+      "who": "Paul",
+      "gate": "piece look",
+      "status": "pending",
+      "notes": "P2-T2 piece; review sheet blender/kit/review/p2t2-pieces.png"
+    }
+  ]
+}

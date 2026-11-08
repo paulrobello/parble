@@ -222,7 +222,7 @@ mod tests {
     #[test]
     fn a_valid_file_with_a_piece_outside_the_kit_is_refused_at_load() {
         let mut doc = fixtures()["valid"][0]["file"].clone();
-        doc["placements"][2]["piece"] = "blk_straight_l1".into();
+        doc["placements"][2]["piece"] = "blk_spiral_l1".into();
         assert!(
             file::load(&doc.to_string()).is_ok(),
             "the file itself is valid"
@@ -233,7 +233,7 @@ mod tests {
         }) {
             Some((Event::BridgeError { command, message }, After::Nothing)) => {
                 assert_eq!(command, "loadTrack");
-                assert!(message.contains("blk_straight_l1"), "{message}");
+                assert!(message.contains("blk_spiral_l1"), "{message}");
             }
             other => panic!("unexpected {other:?}"),
         }

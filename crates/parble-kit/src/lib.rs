@@ -19,12 +19,29 @@ use serde::Deserialize;
 pub const SIDECAR_SCHEMA: u32 = 1;
 
 /// Sidecars shipped in `assets/kit/`, in id order.
-const BUILTIN_SIDECARS: [&str; 4] = [
+const BUILTIN_SIDECARS: [&str; 17] = [
+    include_str!("../../../assets/kit/blk_curve90_l2/blk_curve90_l2.kit.json"),
     include_str!("../../../assets/kit/blk_curve90_l3/blk_curve90_l3.kit.json"),
+    include_str!("../../../assets/kit/blk_drop_l2/blk_drop_l2.kit.json"),
+    include_str!("../../../assets/kit/blk_drop_l3/blk_drop_l3.kit.json"),
     include_str!("../../../assets/kit/blk_end_l3/blk_end_l3.kit.json"),
+    include_str!("../../../assets/kit/blk_join_l2/blk_join_l2.kit.json"),
+    include_str!("../../../assets/kit/blk_join_l3/blk_join_l3.kit.json"),
+    include_str!("../../../assets/kit/blk_pillar/blk_pillar.kit.json"),
+    include_str!("../../../assets/kit/blk_redirect_l2/blk_redirect_l2.kit.json"),
+    include_str!("../../../assets/kit/blk_redirect_l3/blk_redirect_l3.kit.json"),
+    include_str!("../../../assets/kit/blk_slope_gentle_l2/blk_slope_gentle_l2.kit.json"),
     include_str!("../../../assets/kit/blk_slope_gentle_l3/blk_slope_gentle_l3.kit.json"),
+    include_str!("../../../assets/kit/blk_slope_steep_l3/blk_slope_steep_l3.kit.json"),
+    include_str!("../../../assets/kit/blk_straight_l1/blk_straight_l1.kit.json"),
+    include_str!("../../../assets/kit/blk_straight_l2/blk_straight_l2.kit.json"),
     include_str!("../../../assets/kit/blk_straight_l3/blk_straight_l3.kit.json"),
+    include_str!("../../../assets/kit/blk_tower_socket_l1/blk_tower_socket_l1.kit.json"),
 ];
+
+/// [`BUILTIN_SIDECARS`] index of `blk_straight_l3`, the tests' reference sidecar.
+#[cfg(test)]
+const STRAIGHT_L3: usize = 15;
 
 /// Contact surface of a collision group. Feeds `RollSample` and `ContactEvent` in P2-T1.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
@@ -413,12 +430,32 @@ mod tests {
         assert_eq!(
             ids,
             [
+                "blk_curve90_l2",
                 "blk_curve90_l3",
+                "blk_drop_l2",
+                "blk_drop_l3",
                 "blk_end_l3",
+                "blk_join_l2",
+                "blk_join_l3",
+                "blk_pillar",
+                "blk_redirect_l2",
+                "blk_redirect_l3",
+                "blk_slope_gentle_l2",
                 "blk_slope_gentle_l3",
-                "blk_straight_l3"
+                "blk_slope_steep_l3",
+                "blk_straight_l1",
+                "blk_straight_l2",
+                "blk_straight_l3",
+                "blk_tower_socket_l1"
             ]
         );
+        assert!(kit.get(&id("blk_join_l3")).unwrap().chiral);
+        let tower = kit.get(&id("blk_tower_socket_l1")).unwrap();
+        assert_eq!(tower.ports[0].class, PortClass::Socket);
+        assert_eq!(tower.ports[0].inset_um, 10_000);
+        let redirect = kit.get(&id("blk_redirect_l3")).unwrap();
+        assert_eq!(redirect.footprint.len(), 2);
+        assert_eq!(redirect.ports[1].cell, CellCoord::new(0, -1, 0));
         for p in kit.iter() {
             assert_eq!(p.collision.len(), 1, "{}", p.def.id);
             assert_eq!(p.collision[0].surface, Surface::Wood);
@@ -460,7 +497,7 @@ mod tests {
 
     #[test]
     fn sensors_and_animated_parts_parse_to_typed_defs() {
-        let mut v: serde_json::Value = serde_json::from_str(BUILTIN_SIDECARS[3]).unwrap();
+        let mut v: serde_json::Value = serde_json::from_str(BUILTIN_SIDECARS[STRAIGHT_L3]).unwrap();
         v["sensors"] = serde_json::json!([
             { "center_um": [-20000, 27500, 0], "half_extents_um": [6000, 12500, 14000], "id": "approach", "shape": "box" },
             { "center_um": [0, 30000, 0], "id": "core", "radius_um": 9000, "shape": "sphere" }
@@ -532,7 +569,7 @@ mod tests {
 
     #[test]
     fn refuses_bad_sidecars() {
-        let good = BUILTIN_SIDECARS[3];
+        let good = BUILTIN_SIDECARS[STRAIGHT_L3];
         let mut v: serde_json::Value = serde_json::from_str(good).unwrap();
         v["schema"] = 2.into();
         assert!(matches!(
