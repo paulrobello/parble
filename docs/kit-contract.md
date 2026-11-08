@@ -187,6 +187,7 @@ Rail section at `L2`, scale about 1 character = 1 mm:
 - Collision floors run to the cell face (0 mm inset). The visible seam gap and bevels exist only on the render mesh.
 - Lip fillets and outer bevels are dropped from the collision mesh (sharp edges).
 - Wall tops in the collision mesh: block family at the top face (60 mm in a 1-cell piece), rail family at floor + 18 mm. At a block-to-rail mate both walls stand at `u = ±14`, so the marble sees no step, only a lower wall on the rail side.
+- **Rail port ring (P2-T4):** a rail's ring is the canonical ring with its two wall tops at `(±14000, floor + 18000)` µm. The rail collision mesh also carries the lip tops and the outer R18 shell (16 segments), which kit-check ignores at a port by looking only within 16 mm of the half-round centre. Rail port ends are left open, as block port faces are.
 
 ### 5.5 Port classes and the rail-to-block joint (`ref-06`)
 
@@ -210,6 +211,7 @@ The rail-to-block joint is the `ref-06` look: a rail end enters a round hole in 
 | Closed (round) socket | `L1` only in a 1-cell block: bore spans 15 − 6 = 9 mm to 15 + 34 = 49 mm, leaving 9 mm of wood below, 11 mm above and (60 − 40) / 2 = 10 mm beside it. The bore top at floor + 34 meets the §5.1 overhead clearance. |
 | Open (U-slot) socket | `L2`, `L3`: the bore would break the top face (`L2` top at 63 mm), so the socket becomes a 40 mm wide U slot from the bore bottom up to the top face |
 | Spigot volume | Declared in the rail sidecar as `spigot` and in the block sidecar as `receptacle`. It is the only geometry allowed outside a piece's footprint. Kit-check asserts the spigot volume fits inside the receptacle with at least 1.5 mm radial clearance. |
+| As built (P2-T4) | `rail_joint_l1` declares `spigot` = `{axis [1, 0, 0], center_um [30000, 29000, 0], length_um 10000, radius_um 18440}`. The radius covers the collision section's sharp lip corner at (18, 18) mm, 18.44 mm from the bore axis (1.56 mm clear); the render section reaches 18.11 mm (1.89 mm clear). `blk_tower_socket_l1` (P2-T2) declares no `receptacle`, and adding one would change its sidecar bytes, so kit-check holds the spigot radius to the §5.5 bore instead: at most 20 − 1.5 = 18.5 mm. The spigot port's `inset_um` (10000) measures outward, past the rail's own face, so its collision port plane and the socket's coincide and the 17 floor vertices weld. |
 
 Rail-to-block joint, side elevation through the channel centreline (rail at `L1`, block cell on the right), scale about 1 character = 2 mm:
 
@@ -328,8 +330,8 @@ MVP multi-cell rails (P2-T4):
 | Piece | Footprint (X × Z × Y cells) | Centreline geometry |
 |---|---|---|
 | Rail straight | 1 × 1 × 1 (longer straights are 1 × N) | Straight, port to port |
-| Rail curve 90° | 2 × 2 × 1 | Arc of radius 90 mm about the footprint corner. The entry port is at the centre of the anchor cell's face. Inner rail edge radius 72 mm, outer 108 mm. All 4 cells are entered, so all 4 are in the footprint. Arc length 141.4 mm. |
-| S-rail 1×3 | 2 × 3 × 1 (lateral offset 1 cell over 3 cells length, see §16, Q7) | Two opposed arcs of radius 150 mm, each turning 36.87°: offset 2 × 150 × (1 − cos 36.87°) = 60 mm, length 2 × 150 × sin 36.87° = 180 mm. Edges stay within 12 to 108 mm laterally. Arc length 193.1 mm. |
+| Rail curve 90° | 2 × 2 × 1 | Arc of radius 90 mm about the footprint corner. The entry port is at the centre of the anchor cell's face. Inner rail edge radius 72 mm, outer 108 mm. All 4 cells are entered, so all 4 are in the footprint. Arc length 141.4 mm. As built (P2-T4): cells x 0..1, z −1..0, centre (−30, −90) mm, entry on the anchor's `−x` face, exit on the `−z` face of cell (1, 0, −1), the turn of `blk_curve90_*`. |
+| S-rail 1×3 | 2 × 3 × 1 (lateral offset 1 cell over 3 cells length, see §16, Q7). As built (P2-T4) the length runs along +x: cells x 0..2, z −1..0, entry on the anchor's `−x` face, exit on the `+x` face of cell (2, 0, −1) | Two opposed arcs of radius 150 mm, each turning 36.87°: offset 2 × 150 × (1 − cos 36.87°) = 60 mm, length 2 × 150 × sin 36.87° = 180 mm. Edges stay within 12 to 108 mm laterally. Arc length 193.1 mm. |
 | Rail-to-block joint | 1 × 1 × 1 plus a 10 mm spigot | Straight rail with a `channel` port and a `spigot` port |
 | Helix (P7) | 2 × 2 × N | Defined in P7 against these rules |
 
@@ -377,7 +379,7 @@ One sidecar per piece: `assets/kit/<id>/<id>.kit.json`, next to `<id>.glb`. `par
 | `collision` | Static collision groups: `surface` id plus flat `vertices_um` (x, y, z triples) and `indices` (triangle triples) in the piece-local frame |
 | `sensors` | Trigger volumes for mechanisms: `id`, `shape` (`box` with `center_um` + `half_extents_um`, or `sphere` with `center_um` + `radius_um`) |
 | `animated_parts` | One per kinematic part: `name` (the GLB node name, `anim_<name>`), `pivot_um`, `axis` (integer unit vector), `rest_mdeg`, `limits_mdeg`, and its own `collision` list (same shape as the top-level list) |
-| `spigot` / `receptacle` | Optional cylinder volumes for §5.5 |
+| `spigot` / `receptacle` | Optional cylinder volumes for §5.5: `axis` (integer unit vector), `center_um` (centre of the base), `length_um`, `radius_um` |
 | `surface` ids | `wood` (block), `rail` (rail), `wood_end_grain` (gate plates, flaps). They feed `RollSample` and `ContactEvent` in P2-T1. |
 
 Example (one-way gate at `L1`, collision arrays truncated). Port and sensor objects are shown on one line for readability. The generator writes the canonical 2-space-indented form.
@@ -483,10 +485,10 @@ The dimensioned sections are inline above so every number is searchable:
 
 1. Sidecar parses, schema and `kit_contract` versions match, and the file is byte-identical on rebuild.
 2. The ID matches the §10 grammar, and the level suffix matches port 0.
-3. Every side port ring equals the canonical ring or the tunnel ring (§5.4), and the port lies on an outer footprint face (§9).
+3. Every side port ring equals the canonical ring or the tunnel ring (§5.4), or on a rail piece the rail ring, and the port lies on an outer footprint face (§9). A spigot port's ring sits `inset_um` past the face (§5.5).
 4. Render-mesh port position within ±0.1 mm and width 28.0 ±0.1 mm (§3.1).
-5. The footprint recomputed from the meshes equals the declared footprint, and no geometry leaves it except a declared spigot.
-6. The collision mesh is present and within budget, LOD0 to LOD2 are present and within budget (§12).
+5. The footprint recomputed from the meshes equals the declared footprint, and no geometry leaves it except a declared spigot. A spigot volume exists exactly when the piece has a spigot port, and its radius clears the §5.5 bore by at least 1.5 mm.
+6. The collision mesh is present and within budget, LOD0 to LOD2 are present and within budget (§12). A rail's budget is per cell of centreline length: straight 60 mm, joint 70 mm, curve 141.4 mm, S-rail 193.1 mm.
 7. Animated parts named in the sidecar exist as GLB nodes, with pivot and axis present. Since P2-T3 kit-check also requires each mechanism shape's part set (hopper `anim_gate`, splitter and one-way gate `anim_flap`, toggle `anim_rocker`, one-way hole `anim_trapdoor`, none on the finish cup or the checkpoint arch), an integer pivot, an axis-aligned unit axis and limits that hold the rest angle, the `anim_<name>` node at the pivot rotated to the rest angle about the axis, `anim_<name>_lod0`–`lod2` children inside the inset footprint, non-empty `wood_end_grain` part collision, and all parts together within the §12 part budget.
 8. Overhead clearance of at least 34 mm above every channel floor for static geometry and for animated parts in their open pose (§5.1). Kit-check measures each upward collision hit against the lowest upward hit within ±14 mm across and 14 mm below it, credited as twice the height difference, so a round bore's crown counts from the floor beneath it rather than from the curved bore wall.
 9. Provenance file present.
@@ -523,7 +525,7 @@ Every number in `plans/phase-1-look-dev.md` and `plans/phase-2-core-kit.md`, fou
 
 ## 16. Open questions for owner review
 
-Each item is a judgment call made while writing this contract. **Resolved 2026-11-07: Paul approved every default below as written.** Q18 (rail supports) remains deliberately open for P2-T4 to decide.
+Each item is a judgment call made while writing this contract. **Resolved 2026-11-07: Paul approved every default below as written.** Q18 (rail supports) was left open for P2-T4, which decided it (see the row).
 
 | ID | Question | Default in this contract |
 |---|---|---|
@@ -544,5 +546,5 @@ Each item is a judgment call made while writing this contract. **Resolved 2026-1
 | Q15 | Texel density: tileable wood at 4,096 texels per metre on High, 8,192 on Ultra, 2,048 on Low. Baked per-piece maps at 2,048 texels per metre (512² per 1-cell piece). | As in §12 |
 | Q16 | Rail curve radius 90 mm on a 2 × 2 footprint. Block curve radius 30 mm inside 1 cell (inner wall radius 16 mm, tight for a shooter). | As in §9, §10 |
 | Q17 | Sidecar stores integer µm and millidegrees rather than floats, for byte-identical rebuilds and exact port rings. | As in §11 |
-| Q18 | Rail supports: rails carry no posts in this contract. How rails are held up (integrated posts, or `blk_pillar` under the rail) is left to P2-T4. | Open |
+| Q18 | Rail supports: rails carry no posts in this contract. How rails are held up (integrated posts, or `blk_pillar` under the rail) is left to P2-T4. | Decided in P2-T4: the rail pieces carry no integrated posts. A rail is held by the blocks it joins (`ref-05`, `ref-06`) and, where a run needs it, by a separate support piece under it, which a later card adds. |
 | Q19 | Multi-cell pieces merge into their anchor cell's chunk collider, so a chunk collider can extend past 480 mm. Seams between chunk colliders are not covered by `FIX_INTERNAL_EDGES`. | P1-T3 measures the chunk-boundary seam with the same 2 mm/s metric |
