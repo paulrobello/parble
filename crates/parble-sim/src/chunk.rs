@@ -783,7 +783,10 @@ struct Placed {
 }
 
 /// A chunk collider's slopes and per-triangle slope tags ([`ChunkMesh::slope_of`]).
-type SlopeTags = (Vec<ChannelSlope>, Vec<Vec<u32>>);
+pub type SlopeTags = (Vec<ChannelSlope>, Vec<Vec<u32>>);
+
+/// A chunk collider's bends and per-triangle bend tags ([`ChunkMesh::bend_of`]).
+pub type BendTags = (Vec<ChannelBend>, Vec<u32>);
 
 /// Placements grouped by chunk, with one merged collider per non-empty chunk.
 #[derive(Debug, Default)]
@@ -908,16 +911,18 @@ impl ChunkColliders {
         Ok(placed.placement)
     }
 
-    /// Dirty the chunk of `anchor` and of every placement face-adjacent to it (their shared-face
-    /// culling may change).
+    /// Dirty the chunk of `anchor` and of every placement adjacent to it across a face, edge or
+    /// corner: their shared-face culling and stitched-edge tags may change ([`Self::mark_stitched`]
+    /// finds the cell across an edge on a cell corner diagonally).
     fn mark_dirty(&mut self, anchor: CellCoord) {
         let Some(placed) = self.placed.get(&anchor) else {
             return;
         };
         let mut touched = vec![chunk_of(anchor)];
         for &c in &placed.cells {
-            for face in PortFace::ALL {
-                if let Some(&other) = self.occupancy.get(&(c + face.normal())) {
+            for i in 0..27 {
+                let d = CellCoord::new(i % 3 - 1, i / 3 % 3 - 1, i / 9 - 1);
+                if let Some(&other) = self.occupancy.get(&(c + d)) {
                     touched.push(chunk_of(other));
                 }
             }
@@ -939,6 +944,18 @@ impl ChunkColliders {
     /// Chunks that currently hold a collider, in order.
     pub fn chunks(&self) -> impl Iterator<Item = (CellCoord, ColliderHandle)> + '_ {
         self.handles.iter().map(|(&c, &h)| (c, h))
+    }
+
+    /// The contact-hook tags installed with a chunk collider: stitched-edge masks, bends and
+    /// per-triangle bend tags, slopes and per-triangle slope tags. For tests that compare an
+    /// edited world with a fresh one.
+    pub fn hook_tags(&self, h: ColliderHandle) -> Option<(&[u8], &BendTags, &SlopeTags)> {
+        let k = h.into_raw_parts();
+        Some((
+            self.stitched.get(&k)?,
+            self.bends.get(&k)?,
+            self.slopes.get(&k)?,
+        ))
     }
 
     /// The merged mesh of one chunk from the current placements.
@@ -1735,8 +1752,12 @@ mod tests {
             .unwrap();
         cc.rebuild(kit, &mut world).unwrap();
         cc.remove(CellCoord::new(7, 0, 1)).unwrap();
-        // Removing the slope dirties its own chunk and the chunk of the touching straight.
-        assert_eq!(cc.dirty_chunks().collect::<Vec<_>>(), [CellCoord::ORIGIN]);
+        // Removing the slope dirties its own chunk and the chunk of the diagonal straight at
+        // (8, 0, 0).
+        assert_eq!(
+            cc.dirty_chunks().collect::<Vec<_>>(),
+            [CellCoord::ORIGIN, CellCoord::new(1, 0, 0)]
+        );
         cc.rebuild(kit, &mut world).unwrap();
 
         let (fresh, fresh_world) = build(&layout);

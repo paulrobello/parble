@@ -69,6 +69,15 @@ pub struct ChunkGeometry {
     pub translation: [f32; 3],
     pub vertices: Vec<[f32; 3]>,
     pub triangles: Vec<[u32; 3]>,
+    /// The collider's active contact hooks (`ActiveHooks` bits).
+    pub active_hooks: u32,
+    /// Contact-hook tags ([`chunk::ChunkMesh::stitched`], `bends`, `bend_of`, `slopes`,
+    /// `slope_of`) installed with the collider.
+    pub stitched: Vec<u8>,
+    pub bends: Vec<chunk::ChannelBend>,
+    pub bend_of: Vec<u32>,
+    pub slopes: Vec<chunk::ChannelSlope>,
+    pub slope_of: Vec<Vec<u32>>,
 }
 
 /// A deterministic sim world advanced in whole ticks.
@@ -244,7 +253,8 @@ impl Sim {
     }
 
     /// Every chunk collider as built in the world: chunk, translation, trimesh vertices and
-    /// triangles, in chunk order. For tests that compare an edited world with a fresh one.
+    /// triangles, active hooks and contact-hook tags, in chunk order. For tests that compare an
+    /// edited world with a fresh one.
     pub fn chunk_collider_geometry(&self) -> Vec<ChunkGeometry> {
         self.pieces
             .chunks()
@@ -255,11 +265,21 @@ impl Sim {
                     .shape()
                     .as_trimesh()
                     .expect("chunk colliders are trimeshes");
+                let (stitched, (bends, bend_of), (slopes, slope_of)) = self
+                    .pieces
+                    .hook_tags(h)
+                    .expect("every chunk collider has its hook tags");
                 ChunkGeometry {
                     chunk,
                     translation: [t.x, t.y, t.z],
                     vertices: mesh.vertices().iter().map(|v| [v.x, v.y, v.z]).collect(),
                     triangles: mesh.indices().to_vec(),
+                    active_hooks: c.active_hooks().bits(),
+                    stitched: stitched.to_vec(),
+                    bends: bends.clone(),
+                    bend_of: bend_of.clone(),
+                    slopes: slopes.clone(),
+                    slope_of: slope_of.clone(),
                 }
             })
             .collect()
