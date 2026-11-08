@@ -1,5 +1,6 @@
-//! Marble types (P1-T6): the physical table for the three 16 mm marbles, plus the P0 legacy entry
-//! the golden ramp run was recorded with.
+//! Marble types (P1-T6, P5-T1): the physical table per type, plus the P0 legacy entry the golden
+//! ramp run was recorded with. Size is a separate dimension ([`MarbleSize`]): every type comes in
+//! mini 10 mm, standard 16 mm and shooter 25 mm, and mass follows from density × volume.
 //!
 //! Every value below comes from a published source; `docs/marbles.md` holds the full table with
 //! links and the derivations. Friction and restitution are **marble-on-wood pair** coefficients
@@ -17,6 +18,7 @@
 //! `I = 2/5·m·r²` and `ω = v/r` the two agree when `k = 2.5·c_rr·g / v`. [`ROLLING_REF_SPEED`] is
 //! the typical channel speed (0.5 m/s), so the damping is exact there and approximate elsewhere.
 
+use parble_core::contract;
 use rapier3d::prelude::*;
 
 use crate::scene;
@@ -36,18 +38,32 @@ pub enum MarbleKind {
     Glazed,
     /// Chrome steel (AISI 52100 bearing ball).
     Steel,
+    /// Clear soda-lime glass with twisted coloured ribbons inside.
+    Swirl,
+    /// Soda-lime glass with a layered translucent colour skin over the core.
+    Onionskin,
+    /// Milky blue opalescent glass (soda-lime glass with an opacifier).
+    Opal,
+    /// Clear soda-lime glass around an emissive (glow-in-the-dark) core.
+    Glow,
 }
 
 impl MarbleKind {
-    pub const ALL: [Self; 3] = [Self::CatsEye, Self::Glazed, Self::Steel];
+    pub const ALL: [Self; 7] = [
+        Self::CatsEye,
+        Self::Glazed,
+        Self::Steel,
+        Self::Swirl,
+        Self::Onionskin,
+        Self::Opal,
+        Self::Glow,
+    ];
+
+    /// The `--marble` values, for error messages.
+    pub const NAMES: &'static str = "cats-eye|glazed|steel|swirl|onionskin|opal|glow";
 
     pub fn parse(s: &str) -> Option<Self> {
-        match s {
-            "cats-eye" => Some(Self::CatsEye),
-            "glazed" => Some(Self::Glazed),
-            "steel" => Some(Self::Steel),
-            _ => None,
-        }
+        Self::ALL.into_iter().find(|k| k.name() == s)
     }
 
     pub fn name(self) -> &'static str {
@@ -55,17 +71,98 @@ impl MarbleKind {
             Self::CatsEye => "cats-eye",
             Self::Glazed => "glazed",
             Self::Steel => "steel",
+            Self::Swirl => "swirl",
+            Self::Onionskin => "onionskin",
+            Self::Opal => "opal",
+            Self::Glow => "glow",
         }
     }
 
+    /// The standard 16 mm marble of this type.
     pub fn spec(self) -> MarbleSpec {
         match self {
             Self::CatsEye => CATS_EYE,
             Self::Glazed => GLAZED,
             Self::Steel => STEEL,
+            Self::Swirl => SWIRL,
+            Self::Onionskin => ONIONSKIN,
+            Self::Opal => OPAL,
+            Self::Glow => GLOW,
+        }
+    }
+
+    /// This type at `size`: the same material, so only the radius (and with it the mass) changes.
+    pub fn spec_sized(self, size: MarbleSize) -> MarbleSpec {
+        MarbleSpec {
+            radius_m: size.radius_m(),
+            ..self.spec()
         }
     }
 }
+
+/// Marble size (P5-T1), from the kit contract's three diameters.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum MarbleSize {
+    /// 10 mm.
+    Mini,
+    /// 16 mm, the contract's standard marble.
+    #[default]
+    Standard,
+    /// 25 mm, the largest marble the kit passes.
+    Shooter,
+}
+
+impl MarbleSize {
+    pub const ALL: [Self; 3] = [Self::Mini, Self::Standard, Self::Shooter];
+
+    /// The `--marble-size` values, for error messages.
+    pub const NAMES: &'static str = "mini|standard|shooter";
+
+    pub fn parse(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|k| k.name() == s)
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Mini => "mini",
+            Self::Standard => "standard",
+            Self::Shooter => "shooter",
+        }
+    }
+
+    /// Radius, metres.
+    pub fn radius_m(self) -> f32 {
+        let d = match self {
+            Self::Mini => contract::MARBLE_MINI_DIAMETER_UM,
+            Self::Standard => contract::MARBLE_STANDARD_DIAMETER_UM,
+            Self::Shooter => contract::MARBLE_SHOOTER_DIAMETER_UM,
+        };
+        scene::um_to_m(d / 2)
+    }
+}
+
+/// The physics a run uses for an optional `--marble` and a `--marble-size`. No type at the standard
+/// size is the P0 legacy marble (the golden run); a size alone means a cat's eye at that size.
+pub fn spec_for(kind: Option<MarbleKind>, size: MarbleSize) -> MarbleSpec {
+    match (kind, size) {
+        (None, MarbleSize::Standard) => P0_LEGACY,
+        (k, s) => k.unwrap_or_default().spec_sized(s),
+    }
+}
+
+/// The lineup scenario's marbles in spawn order (P5-T1): every type at the standard size, with a
+/// mini and a shooter swirl at the two ends of the row for scale.
+pub const LINEUP: [(MarbleKind, MarbleSize); 9] = [
+    (MarbleKind::Swirl, MarbleSize::Mini),
+    (MarbleKind::CatsEye, MarbleSize::Standard),
+    (MarbleKind::Glazed, MarbleSize::Standard),
+    (MarbleKind::Steel, MarbleSize::Standard),
+    (MarbleKind::Swirl, MarbleSize::Standard),
+    (MarbleKind::Onionskin, MarbleSize::Standard),
+    (MarbleKind::Opal, MarbleSize::Standard),
+    (MarbleKind::Glow, MarbleSize::Standard),
+    (MarbleKind::Swirl, MarbleSize::Shooter),
+];
 
 /// Physical parameters of one marble type.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -128,6 +225,23 @@ pub const STEEL: MarbleSpec = MarbleSpec {
     pair_rules: true,
 };
 
+/// Swirl: clear soda-lime glass with coloured glass ribbons twisted through it. The ribbons are
+/// glass too, so every value is [`CATS_EYE`]'s (same sources).
+pub const SWIRL: MarbleSpec = CATS_EYE;
+
+/// Onionskin: soda-lime glass with a thin layer of coloured glass over the core. All glass, so
+/// every value is [`CATS_EYE`]'s (same sources).
+pub const ONIONSKIN: MarbleSpec = CATS_EYE;
+
+/// Opal: opal (milk) glass, glass made translucent and milky by an opacifier (Wikipedia, "Milk
+/// glass"). No source gives it a separate density, so it takes soda-lime's 2,520 kg/m³ (a proxy);
+/// contact values are glass's (same sources as [`CATS_EYE`]).
+pub const OPAL: MarbleSpec = CATS_EYE;
+
+/// Glow: clear soda-lime glass around a phosphorescent core. The pigment is a small fraction of the
+/// volume, so the body is taken as all glass: every value is [`CATS_EYE`]'s (same sources).
+pub const GLOW: MarbleSpec = CATS_EYE;
+
 /// The P0 marble the golden ramp hash `0c9206fc016d9b17` was recorded with (P0-T3 placeholder
 /// values, not measured). Kept unchanged so the golden stays byte-identical; renders as a cat's eye.
 pub const P0_LEGACY: MarbleSpec = MarbleSpec {
@@ -186,7 +300,8 @@ mod tests {
         for k in MarbleKind::ALL {
             assert_eq!(MarbleKind::parse(k.name()), Some(k));
         }
-        assert_eq!(MarbleKind::parse("opal"), None);
+        assert_eq!(MarbleKind::parse("agate"), None);
+        assert_eq!(MarbleKind::NAMES.split('|').count(), MarbleKind::ALL.len());
     }
 
     #[test]
@@ -211,30 +326,131 @@ mod tests {
     }
 
     #[test]
-    fn every_type_rolls_down_the_ramp_and_stays_in_the_tray() {
-        let mut hashes = Vec::new();
+    fn sizes_follow_the_contract_and_scale_mass_by_volume() {
+        let mm = |s: MarbleSize| s.radius_m() * 2_000.0;
+        assert!((mm(MarbleSize::Mini) - 10.0).abs() < 1e-4);
+        assert!((mm(MarbleSize::Standard) - 16.0).abs() < 1e-4);
+        assert!((mm(MarbleSize::Shooter) - 25.0).abs() < 1e-4);
+        assert_eq!(MarbleSize::Standard.radius_m(), R16);
         for k in MarbleKind::ALL {
-            let mut sim = crate::Sim::ramp_scene_with(k.spec());
-            sim.tick(crate::golden::RAMP_10S_TICKS);
-            let m = sim.marbles()[0];
-            assert!(
-                m.position[0] > scene::ramp_run_m(),
-                "{k:?} left the ramp: {m:?}"
-            );
-            assert!(
-                m.position[0] < scene::tray_length_m(),
-                "{k:?} escaped: {m:?}"
-            );
-            assert!(
-                m.position[1] > 0.0 && m.position[1] < 0.02,
-                "{k:?} height: {m:?}"
-            );
-            hashes.push(sim.trajectory_hash());
+            let std_g = k.spec().mass_kg();
+            assert_eq!(k.spec_sized(MarbleSize::Standard), k.spec());
+            for s in MarbleSize::ALL {
+                let spec = k.spec_sized(s);
+                assert_eq!(spec.radius_m, s.radius_m(), "{k:?} {s:?}");
+                // Same material at every size: mass ∝ r³.
+                let ratio = (s.radius_m() / R16).powi(3);
+                let m = spec.mass_kg();
+                assert!((m / std_g - ratio).abs() < 1e-4, "{k:?} {s:?} mass {m}");
+                assert_eq!(
+                    (spec.density, spec.friction, spec.restitution),
+                    (k.spec().density, k.spec().friction, k.spec().restitution)
+                );
+            }
         }
-        hashes.push(crate::golden::ramp_10s_hash());
-        hashes.sort_unstable();
-        hashes.dedup();
-        assert_eq!(hashes.len(), 4, "each type must run its own trajectory");
+    }
+
+    #[test]
+    fn new_glass_types_have_published_glass_masses() {
+        // Soda-lime glass, 2,520 kg/m³: 1.32 g mini, 5.40 g standard, 20.62 g shooter.
+        for k in [
+            MarbleKind::Swirl,
+            MarbleKind::Onionskin,
+            MarbleKind::Opal,
+            MarbleKind::Glow,
+        ] {
+            let g = |s| k.spec_sized(s).mass_kg() * 1_000.0;
+            assert!((g(MarbleSize::Mini) - 1.32).abs() < 0.01, "{k:?}");
+            assert!((g(MarbleSize::Standard) - 5.40).abs() < 0.01, "{k:?}");
+            assert!((g(MarbleSize::Shooter) - 20.62).abs() < 0.01, "{k:?}");
+        }
+        let steel_shooter = MarbleKind::Steel.spec_sized(MarbleSize::Shooter);
+        assert!((steel_shooter.mass_kg() * 1_000.0 - 63.89).abs() < 0.01);
+    }
+
+    #[test]
+    fn spec_for_keeps_the_legacy_default() {
+        assert_eq!(spec_for(None, MarbleSize::Standard), P0_LEGACY);
+        assert_eq!(
+            spec_for(None, MarbleSize::Mini),
+            MarbleKind::CatsEye.spec_sized(MarbleSize::Mini)
+        );
+        assert_eq!(spec_for(Some(MarbleKind::Opal), MarbleSize::Standard), OPAL);
+        for s in MarbleSize::ALL {
+            assert_eq!(MarbleSize::parse(s.name()), Some(s));
+        }
+        assert_eq!(MarbleSize::parse("huge"), None);
+    }
+
+    /// Every type × size: rolls down the ramp, stays in the tray for the whole run, and runs the
+    /// same trajectory twice. Specs that differ give different trajectories; equal specs (the glass
+    /// types share cat's eye's values) give the same one.
+    #[test]
+    fn every_type_and_size_rolls_down_the_ramp_and_stays_in_the_tray() {
+        let half_w = scene::tray_width_m() / 2.0;
+        let a = scene::ramp_run_m();
+        let h = scene::ramp_height_m();
+        let l = scene::tray_length_m();
+        let tol = 1.0e-3;
+        let mut runs: Vec<(MarbleSpec, u64)> = Vec::new();
+        for k in MarbleKind::ALL {
+            for size in MarbleSize::ALL {
+                let spec = k.spec_sized(size);
+                let r = spec.radius_m;
+                let mut sim = crate::Sim::ramp_scene_with(spec);
+                let mut max_x = f32::MIN;
+                for _ in 0..crate::golden::RAMP_10S_TICKS {
+                    sim.tick(1);
+                    let [x, y, z] = sim.marbles()[0].position;
+                    let surface = if x < a { h * (1.0 - x / a) } else { 0.0 };
+                    let at = sim.tick_count();
+                    assert!(y >= surface + r - tol, "{k:?} {size:?} tick {at}: y {y}");
+                    assert!(y < surface + r + 0.01, "{k:?} {size:?} tick {at}: y {y}");
+                    assert!(x >= r - tol && x <= l - r + tol, "{k:?} {size:?} x {x}");
+                    assert!(z.abs() <= half_w - r + tol, "{k:?} {size:?} z {z}");
+                    max_x = max_x.max(x);
+                }
+                assert!(
+                    max_x > a + 4.0 * scene::cell_m(),
+                    "{k:?} {size:?} max x {max_x}"
+                );
+                let hash = sim.trajectory_hash();
+                let mut again = crate::Sim::ramp_scene_with(spec);
+                again.tick(crate::golden::RAMP_10S_TICKS);
+                assert_eq!(again.trajectory_hash(), hash, "{k:?} {size:?} rerun");
+                runs.push((spec, hash));
+            }
+        }
+        for (i, (sa, ha)) in runs.iter().enumerate() {
+            for (sb, hb) in &runs[i + 1..] {
+                assert_eq!(sa == sb, ha == hb, "{sa:?} vs {sb:?}");
+            }
+            assert_ne!(*ha, crate::golden::ramp_10s_hash(), "{sa:?} hit the golden");
+        }
+    }
+
+    #[test]
+    fn lineup_marbles_rest_in_a_row_without_touching() {
+        let mut sim = crate::Sim::lineup_scene();
+        sim.tick(crate::golden::RAMP_10S_TICKS);
+        let ms = sim.marbles();
+        assert_eq!(ms.len(), LINEUP.len());
+        for (i, ((kind, size), m)) in LINEUP.iter().zip(&ms).enumerate() {
+            let r = size.radius_m();
+            let start = scene::lineup_marble_m(i, LINEUP.len(), r);
+            let [x, y, z] = m.position;
+            assert!(
+                (x - start.x).abs() < 1e-3 && (z - start.z).abs() < 1e-3,
+                "{kind:?} {m:?}"
+            );
+            assert!((y - r).abs() < 5e-4, "{kind:?} {size:?} y {y}");
+        }
+        for w in ms.windows(2) {
+            assert!(
+                w[1].position[0] - w[0].position[0] > 0.025,
+                "lineup marbles overlap"
+            );
+        }
     }
 
     #[test]

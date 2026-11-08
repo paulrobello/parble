@@ -1,19 +1,31 @@
-# Marble types (P1-T6)
+# Marble types (P1-T6, P5-T1)
 
-The physical table lives in `crates/parble-sim/src/marble.rs`. The render looks live in `crates/parble-render/src/marble/`. Select a type with `--marble <type>` natively or `?marble=<type>` on the web (see [agent-operability.md](agent-operability.md)).
+The physical table lives in `crates/parble-sim/src/marble.rs`. The render looks live in `crates/parble-render/src/marble/`. Select a type with `--marble <type>` and a size with `--marble-size <size>` natively, or `?marble=<type>&marble-size=<size>` on the web (see [agent-operability.md](agent-operability.md)).
 
 ## Physics table
 
-All three are 16 mm in diameter (radius 8 mm), the kit contract's standard marble. Mass follows from density and the 2.1447 cm³ volume.
+Size is a separate dimension from type: every type comes in the kit contract's three diameters, `mini` 10 mm, `standard` 16 mm and `shooter` 25 mm (`MarbleSize`, from `MARBLE_*_DIAMETER_UM` in `parble-core`). A size changes only the radius. The material values stay the type's, and mass follows from density × volume (0.5236 cm³, 2.1447 cm³ and 8.1812 cm³).
 
-| Type (`--marble`) | Material | Density (kg/m³) | Mass (g) | Friction vs wood | Restitution vs wood | Rolling resistance |
+| Type (`--marble`) | Material | Density (kg/m³) | Mass mini / standard / shooter (g) | Friction vs wood | Restitution vs wood | Rolling resistance |
 |---|---|---|---|---|---|---|
-| `cats-eye` | Soda-lime glass | 2,520 | 5.40 | 0.30 | 0.66 | 0.002 |
-| `glazed` | Glazed ceramic (porcelain body, glass glaze) | 2,400 | 5.15 | 0.30 | 0.66 | 0.002 |
-| `steel` | AISI 52100 chrome steel | 7,810 | 16.75 | 0.40 | 0.60 | 0.002 |
-| (none) | P0 legacy marble | 2,500 | 5.36 | 0.4 (averaged with wood 0.5) | 0.6 (averaged with wood 0.4) | none |
+| `cats-eye` | Soda-lime glass | 2,520 | 1.32 / 5.40 / 20.62 | 0.30 | 0.66 | 0.002 |
+| `glazed` | Glazed ceramic (porcelain body, glass glaze) | 2,400 | 1.26 / 5.15 / 19.63 | 0.30 | 0.66 | 0.002 |
+| `steel` | AISI 52100 chrome steel | 7,810 | 4.09 / 16.75 / 63.90 | 0.40 | 0.60 | 0.002 |
+| `swirl` (P5-T1) | Soda-lime glass, coloured glass ribbons | 2,520 | 1.32 / 5.40 / 20.62 | 0.30 | 0.66 | 0.002 |
+| `onionskin` (P5-T1) | Soda-lime glass, coloured glass skin | 2,520 | 1.32 / 5.40 / 20.62 | 0.30 | 0.66 | 0.002 |
+| `opal` (P5-T1) | Opal (milk) glass | 2,520 (proxy) | 1.32 / 5.40 / 20.62 | 0.30 | 0.66 | 0.002 |
+| `glow` (P5-T1) | Soda-lime glass, phosphorescent core | 2,520 | 1.32 / 5.40 / 20.62 | 0.30 | 0.66 | 0.002 |
+| (none) | P0 legacy marble, 16 mm only | 2,500 | 5.36 | 0.4 (averaged with wood 0.5) | 0.6 (averaged with wood 0.4) | none |
 
 The "solid glossy" marble is recorded as **glazed ceramic**, matching the audio cue sheet's voicing. Its glaze is a glass layer, so its contact values take the glass values.
+
+The four P5-T1 types are all glass, so they reuse the cat's eye's values and sources unchanged:
+
+- Swirl ribbons and the onionskin skin are coloured glass fused into the same soda-lime body.
+- Opal is opal (milk) glass: glass made translucent and milky by an opacifier ([Wikipedia, "Milk glass"](https://en.wikipedia.org/wiki/Milk_glass)). No source gives it its own density, so soda-lime's 2,520 kg/m³ is used as a proxy.
+- Glow is clear glass around a phosphorescent core. The pigment is a small fraction of the volume, so the body is taken as all glass.
+
+Because their specs equal the cat's eye's, a swirl, onionskin, opal or glow of a given size runs exactly the cat's eye trajectory of that size. A test asserts this both ways: equal specs give equal hashes and different specs give different hashes.
 
 ## Sources
 
@@ -31,7 +43,7 @@ The "solid glossy" marble is recorded as **glazed ceramic**, matching the audio 
 Limits of the sources:
 
 - The restitution values were measured on a hard concrete floor, not on wood. Wood is softer, so they are an upper bound for a marble on a wooden block.
-- No source separates rolling resistance by ball material on wood, so all three types share 0.002.
+- No source separates rolling resistance by ball material on wood, so every type shares 0.002 at every size.
 - The friction for glass and glaze is a proxy pair, as noted above.
 
 Refine these when the kit wood gets measured values.
@@ -44,7 +56,15 @@ Rapier has no rolling-resistance model. The coefficient is applied as angular da
 
 ## Determinism
 
-Without `--marble`, the `ramp` scenario runs the **P0 legacy** marble (`marble::P0_LEGACY`). Those are the P0-T3 placeholder values with Rapier's default combine rules and no damping, so the golden hash `0c9206fc016d9b17` is unchanged. `--marble <type>` runs the same tray with that type's real values. Those runs are deterministic, but no golden is recorded for them yet.
+Without `--marble`, the `ramp` scenario runs the **P0 legacy** marble (`marble::P0_LEGACY`). Those are the P0-T3 placeholder values with Rapier's default combine rules and no damping, so the golden hash `0c9206fc016d9b17` is unchanged. `--marble <type>` runs the same tray with that type's real values, and `--marble-size` spawns the marble 4 mm clear of the back wall at its own radius. `--marble-size standard` without `--marble` is still the legacy marble.
+
+Every type × size ramp run (7 × 3) has a committed golden in `crates/parble-sim/tests/golden/ramp_10s_variants.hash`. The native test `ramp_10s_variants_match_golden` checks it, and `make determinism-wasm` (part of `checkall-ci`) runs the same 21 runs in the wasm build under Node and compares them line by line. The P0 golden file is untouched.
+
+The all-pieces track (P2-T7) does not exist yet. Until it does, the ramp tray is the run every type × size is proven on: `every_type_and_size_rolls_down_the_ramp_and_stays_in_the_tray` checks every tick against the floor, walls and ends of the tray.
+
+## Lineup
+
+`--scenario lineup` rests every type side by side on the floor in front of the tray, with a mini and a shooter swirl at the two ends (`marble::LINEUP`), under one fixed shot (`Cues::lineup`). `make marble-shots` captures it on every tier as `target/shots/marbles/lineup-<tier>.png`. The reviewed High frame is committed as [`docs/shots/p5-t1-lineup.png`](shots/p5-t1-lineup.png); the script never rewrites it. The P1-T8 `shots-test` target does not exist yet, so the lineup is ready to be folded into it from `scripts/marble-shots.sh`.
 
 ## Render looks
 
@@ -53,7 +73,13 @@ Without `--marble`, the `ramp` scenario runs the **P0 legacy** marble (`marble::
 | `cats-eye` | A clear sphere with Bevy screen-space specular transmission (`specular_transmission = 1`, IOR 1.5, roughness 0, thickness = radius so the screen-space lookup lands on the central vanes, no shadow casting) around opaque inner vane geometry: 4 twisted petals, alternating red and green. The camera gets `ScreenSpaceTransmission`. | An opaque sphere with the fallback shader `vane_glass.wesl`. It refracts the view ray into the marble (IOR 1.5), marches the same petal surfaces (16 steps on Low, 32 on Medium) and composites the vanes over a dim glass body. |
 | `glazed` | Cobalt-blue ceramic body (roughness 0.45) under a clearcoat (1.0, roughness 0.04). | same |
 | `steel` | Metallic, iron F0 (linear 0.562/0.565/0.578, Real-Time Rendering 4th ed., Table 9.2), roughness 0.06, reflecting the environment map. | same |
+| `swirl` | The cat's eye structure with six wide ribbons twisted about one and a half turns pole to pole (`SWIRL_VANES`), every blade carrying the swirl ribbon texture. | `vane_glass.wesl` with the swirl vane shape and texture. |
+| `onionskin` | A clear transmissive shell (thickness 0.1 × radius, so the lookup lands just under the surface) around an opaque core sphere at 0.9 × radius with the onionskin texture. | An opaque sphere with the fallback shader `core_glass.wesl`. It refracts the view ray (IOR 1.5), intersects the core sphere analytically, samples the same texture with the UV sphere's mapping and composites it over a dim glass body. |
+| `opal` | A milky shell (tint periwinkle, roughness 0.08, specular transmission 0.8, diffuse transmission 0.2) around a core at 0.93 × radius with the milky blue opal texture (ref-04). | `core_glass.wesl` with the opal texture over a periwinkle body, plus a view-angle play of colour (blue, violet, teal) that grows toward the rim. |
+| `glow` | A clear shell around a core at 0.7 × radius whose texture is also its emissive texture, at 25 × a saturated green-cyan (`GLOW_EMISSIVE`, `GLOW_TINT`, pre-exposure like the playroom lanterns). It blooms through the post stack's bloom on every tier. | `core_glass.wesl` writing the core colour × the same tint and gain to emissive. |
+
+The glow bloom is measured, not eyeballed: `make marble-shots` captures glow on High and Ultra with `--bloom 1` and `--bloom 0`, and `scripts/marble-bloom-check.py` requires the mean luminance gain in a ring 1.1-1.6 silhouette radii out to be at least 2 (0-255 units) and more than twice any gain far from the marble.
 
 The environment map is a procedural night room built on the CPU (`marble/env.rs`). It has warm lantern lobes and a cool window, with every specular mip pre-convolved. It goes only on cameras that have no `EnvironmentMapLight`, as a stand-in until the P1-T5 environment probe.
 
-The vane colours are two Higgsfield textures (`assets/marbles/`, provenance in `assets-source/marbles/`), embedded in the binary.
+The vane colours are two Higgsfield textures (`assets/marbles/`, provenance in `assets-source/marbles/`), embedded in the binary. The P5-T1 swirl, onionskin, opal and glow patterns are four more (256² each, provenance in `assets-source/marbles/p5-t1/`, checked by `node assets-source/marbles/check-provenance.mjs p5-t1`). Every look scales with the marble's radius, so the sizes need no extra assets.

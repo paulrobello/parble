@@ -147,8 +147,9 @@ shots-p1t7:
 web-marbles: $(E2E_STAMP)
 	cd e2e && ./node_modules/.bin/playwright test tests/marbles.spec.mjs
 
-# P1-T6: native close-up shots of every marble type at every tier into target/shots/marbles
-# (P1-T8 folds this into shots-test).
+# P1-T6 / P5-T1: native close-up shots of every marble type at every tier, two sizes, the lineup
+# scenario per tier and the glow bloom check (needs numpy + Pillow) into target/shots/marbles
+# (P1-T8 folds this, lineup included, into shots-test).
 .PHONY: marble-shots
 marble-shots:
 	bash scripts/marble-shots.sh

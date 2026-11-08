@@ -84,18 +84,38 @@ impl Sim {
         Self::ramp_scene_with(marble::P0_LEGACY)
     }
 
-    /// The P0 tray ramp with one marble of the given spec (P1-T6 `--marble`).
+    /// The P0 tray ramp with one marble of the given spec (P1-T6 `--marble`, P5-T1
+    /// `--marble-size`). The spawn point follows the spec's radius.
     pub fn ramp_scene_with(spec: marble::MarbleSpec) -> Self {
         let mut sim = Self::empty();
         sim.world.colliders.insert(scene::tray_collider());
-        let (body, collider) = spec.build(scene::marble_spawn_m());
-        let handle = sim.world.bodies.insert(body);
-        sim.world
-            .colliders
-            .insert_with_parent(collider, handle, &mut sim.world.bodies);
-        sim.marbles.push(handle);
+        sim.add_marble(spec, scene::marble_spawn_for(spec.radius_m));
         sim.sample();
         sim
+    }
+
+    /// The marble lineup (P5-T1): the tray, plus every [`marble::LINEUP`] marble resting in a row
+    /// on the open floor in front of it.
+    pub fn lineup_scene() -> Self {
+        let mut sim = Self::empty();
+        sim.world.colliders.insert(scene::tray_collider());
+        sim.world.colliders.insert(scene::floor_collider());
+        let n = marble::LINEUP.len();
+        for (i, (kind, size)) in marble::LINEUP.into_iter().enumerate() {
+            let spec = kind.spec_sized(size);
+            sim.add_marble(spec, scene::lineup_marble_m(i, n, spec.radius_m));
+        }
+        sim.sample();
+        sim
+    }
+
+    fn add_marble(&mut self, spec: marble::MarbleSpec, at: Vector) {
+        let (body, collider) = spec.build(at);
+        let handle = self.world.bodies.insert(body);
+        self.world
+            .colliders
+            .insert_with_parent(collider, handle, &mut self.world.bodies);
+        self.marbles.push(handle);
     }
 
     /// Look-dev close-up (P1-T6): the tray with one marble of the given spec resting on the flat

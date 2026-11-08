@@ -114,6 +114,23 @@ impl Cues {
         )])
     }
 
+    /// Marble lineup (P5-T1 `--scenario lineup`): one set shot from in front of and above the row,
+    /// wide enough for the whole row, focused on its centre.
+    pub fn lineup() -> Self {
+        let n = parble_sim::marble::LINEUP.len();
+        let mid = scene::lineup_marble_m(n / 2, n, scene::standard_marble_radius_m());
+        let eye = Vec3::new(mid.x, 0.08, mid.z + 0.235);
+        let look = Vec3::new(mid.x, mid.y * 0.75, mid.z);
+        Self(vec![(
+            0,
+            Shot::Set {
+                eye: eye.to_array(),
+                look: look.to_array(),
+                focus_m: eye.distance(look),
+            },
+        )])
+    }
+
     /// One playroom set shot (`--scenario playroom --view rug|blocks`).
     pub fn playroom(view: crate::PlayroomView) -> Self {
         let (eye, look) = view.eye_target();

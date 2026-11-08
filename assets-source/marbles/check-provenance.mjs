@@ -1,13 +1,15 @@
-// Provenance reconciliation for the marble vane textures (P1-T6), per the validate-generated-assets
-// "Reconcile Provenance Records" procedure (the skill ships no script of its own).
-// Usage: node assets-source/marbles/check-provenance.mjs   (exit 0 = pass, 1 = fail)
+// Provenance reconciliation for the marble textures (P1-T6 vanes here, P5-T1 patterns in p5-t1/), per
+// the validate-generated-assets "Reconcile Provenance Records" procedure (the skill ships no script).
+// Usage: node assets-source/marbles/check-provenance.mjs [p5-t1]   (exit 0 = pass, 1 = fail)
+// The optional argument is a subdirectory with its own provenance.json, README.md and sources.
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const DIR = dirname(fileURLToPath(import.meta.url));
-const ROOT = resolve(DIR, "../..");
+const HERE = dirname(fileURLToPath(import.meta.url));
+const DIR = process.argv[2] ? join(HERE, process.argv[2]) : HERE;
+const ROOT = resolve(HERE, "../..");
 const sha256 = (p) => createHash("sha256").update(readFileSync(p)).digest("hex");
 const errors = [];
 const fail = (m) => errors.push(m);

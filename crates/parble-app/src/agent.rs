@@ -17,7 +17,7 @@ use parble_render::{
 use parble_sim::{
     Sim,
     hash::format_hash,
-    marble::{MarbleKind, P0_LEGACY},
+    marble::{self, MarbleKind, MarbleSize},
 };
 use serde::Serialize;
 
@@ -46,6 +46,9 @@ pub enum Scenario {
     /// The P1-T4 kit stress wall: 2,000 instanced pieces beside the ramp. Render-only, so the sim
     /// and its golden hash are the ramp's.
     Kit2000,
+    /// Marble lineup (P5-T1): every type side by side at rest on the floor in front of the tray,
+    /// with a mini and a shooter at the ends ([`marble::LINEUP`]). Ignores `--marble`.
+    Lineup,
 }
 
 impl Scenario {
@@ -55,6 +58,7 @@ impl Scenario {
             "closeup" => Some(Self::Closeup),
             "playroom" => Some(Self::Playroom),
             "kit2000" => Some(Self::Kit2000),
+            "lineup" => Some(Self::Lineup),
             _ => None,
         }
     }
@@ -65,24 +69,40 @@ impl Scenario {
             Self::Closeup => "closeup",
             Self::Playroom => "playroom",
             Self::Kit2000 => "kit2000",
+            Self::Lineup => "lineup",
         }
     }
 
-    /// The scenario's sim. `marble: None` keeps the P0 legacy marble, so `ramp` and `playroom` stay
-    /// the golden run; `Some(kind)` uses that type's physical table (P1-T6).
-    pub fn build(self, marble: Option<MarbleKind>) -> Sim {
-        match (self, marble) {
-            (Self::Ramp | Self::Playroom | Self::Kit2000, None) => Sim::ramp_scene(),
-            (Self::Ramp | Self::Playroom | Self::Kit2000, Some(k)) => {
-                Sim::ramp_scene_with(k.spec())
-            }
-            (Self::Closeup, m) => Sim::closeup_scene(m.map_or(P0_LEGACY, MarbleKind::spec)),
+    /// The scenario's sim. No `--marble` at the standard size keeps the P0 legacy marble, so `ramp`
+    /// and `playroom` stay the golden run; otherwise the type's physical table (P1-T6) at the
+    /// chosen size (P5-T1, [`marble::spec_for`]).
+    pub fn build(self, marble: Option<MarbleKind>, size: MarbleSize) -> Sim {
+        let spec = marble::spec_for(marble, size);
+        match self {
+            Self::Ramp | Self::Playroom | Self::Kit2000 => Sim::ramp_scene_with(spec),
+            Self::Closeup => Sim::closeup_scene(spec),
+            Self::Lineup => Sim::lineup_scene(),
+        }
+    }
+
+    /// The marble looks in sim spawn order: the lineup's list, or the one chosen marble (the legacy
+    /// marble renders as a cat's eye).
+    pub fn looks(self, marble: Option<MarbleKind>, size: MarbleSize) -> Vec<(MarbleKind, f32)> {
+        match self {
+            Self::Lineup => marble::LINEUP
+                .iter()
+                .map(|&(k, s)| (k, s.radius_m()))
+                .collect(),
+            _ => vec![(
+                marble.unwrap_or_default(),
+                marble::spec_for(marble, size).radius_m,
+            )],
         }
     }
 
     pub fn environment(self) -> Environment {
         match self {
-            Self::Ramp | Self::Closeup | Self::Kit2000 => Environment::Plain,
+            Self::Ramp | Self::Closeup | Self::Kit2000 | Self::Lineup => Environment::Plain,
             Self::Playroom => Environment::Playroom,
         }
     }
@@ -133,6 +153,7 @@ impl CameraChoice {
             (_, Scenario::Playroom, Some(v)) => Cues::playroom(v),
             (_, Scenario::Ramp | Scenario::Playroom, _) => Cues::ramp(),
             (_, Scenario::Closeup, _) => Cues::closeup(),
+            (_, Scenario::Lineup, _) => Cues::lineup(),
         }
     }
 }
@@ -149,6 +170,9 @@ pub struct AgentOpts {
     pub quality: Quality,
     /// Marble type (`--marble`). `None` is the P0 legacy marble (golden physics, cat's eye look).
     pub marble: Option<MarbleKind>,
+    /// Marble size (`--marble-size`, P5-T1). Standard without `--marble` is the legacy marble; any
+    /// other size without `--marble` is a cat's eye at that size.
+    pub marble_size: MarbleSize,
     pub dump_state: bool,
     pub camera: CameraChoice,
     /// Post overrides (`--taa`, `--dof`, `--aperture`, `--tonemap`) for look-dev and the shots test.
@@ -174,6 +198,7 @@ impl Default for AgentOpts {
             seed: 0,
             quality: Quality::Medium,
             marble: None,
+            marble_size: MarbleSize::Standard,
             dump_state: false,
             camera: CameraChoice::Director,
             post: PostOverrides::default(),
@@ -216,7 +241,7 @@ impl AgentOpts {
                 "scenario" => {
                     let v = need(value)?;
                     o.scenario = Scenario::parse(&v).ok_or_else(|| {
-                        format!("scenario: unknown {v:?} (known: ramp, closeup, playroom, kit2000)")
+                        format!("scenario: unknown {v:?} (known: ramp, closeup, playroom, kit2000, lineup)")
                     })?;
                 }
                 "seed" => {
@@ -238,6 +263,7 @@ impl AgentOpts {
                 }
                 "taa" => o.post.taa = Some(parse_bool(&key, value.as_deref())?),
                 "dof" => o.post.dof = Some(parse_bool(&key, value.as_deref())?),
+                "bloom" => o.post.bloom = Some(parse_bool(&key, value.as_deref())?),
                 "aperture" => {
                     let v = need(value)?;
                     o.post.aperture = Some(
@@ -265,8 +291,14 @@ impl AgentOpts {
                     let v = need(value)?;
                     o.marble =
                         Some(MarbleKind::parse(&v).ok_or_else(|| {
-                            format!("marble: unknown {v:?} (cats-eye|glazed|steel)")
+                            format!("marble: unknown {v:?} ({})", MarbleKind::NAMES)
                         })?);
+                }
+                "marble-size" => {
+                    let v = need(value)?;
+                    o.marble_size = MarbleSize::parse(&v).ok_or_else(|| {
+                        format!("marble-size: unknown {v:?} ({})", MarbleSize::NAMES)
+                    })?;
                 }
                 "dump-state" => o.dump_state = parse_bool(&key, value.as_deref())?,
                 "view" => {
@@ -387,6 +419,8 @@ struct DiagState<'a> {
     quality: &'static str,
     /// Marble type; `"legacy"` is the P0 marble the golden run uses.
     marble: &'static str,
+    /// Marble size (P5-T1): `mini`, `standard` or `shooter`.
+    marble_size: &'static str,
     /// Lights casting shadows this frame, and the tier's cap (at most 3 on High).
     shadow_lights: usize,
     shadow_light_cap: usize,
@@ -438,7 +472,12 @@ fn diag<'a>(
         }),
         seed: opts.seed,
         quality: opts.quality.name(),
-        marble: opts.marble.map_or("legacy", MarbleKind::name),
+        marble: match (opts.scenario, opts.marble, opts.marble_size) {
+            (Scenario::Lineup, ..) => "lineup",
+            (_, None, MarbleSize::Standard) => "legacy",
+            (_, m, _) => m.unwrap_or_default().name(),
+        },
+        marble_size: opts.marble_size.name(),
         shadow_lights: shadows.casting,
         shadow_light_cap: shadows.cap,
         view: opts.view.map(PlayroomView::name),
@@ -503,7 +542,9 @@ impl Plugin for AgentPlugin {
             exiting: false,
         })
         .insert_resource(opts.quality)
-        .insert_resource(MarbleLook(opts.marble.unwrap_or_default()))
+        .insert_resource(MarbleLook(
+            opts.scenario.looks(opts.marble, opts.marble_size),
+        ))
         .insert_resource(opts.scenario.environment())
         .insert_resource(opts.scenario.kit())
         .insert_resource(TextureCap(opts.tex))
@@ -723,7 +764,8 @@ mod tests {
         assert!(args("--camera drone").is_err());
         assert!(args("--aperture 0").is_err());
         assert!(args("--tonemap neon").is_err());
-        assert!(args("--marble opal").is_err());
+        assert!(args("--marble agate").is_err());
+        assert!(args("--marble-size huge").is_err());
         assert!(args("--seed -1").is_err());
         assert!(args("--exit-after -2").is_err());
         assert!(args("--exit-after").is_err());
@@ -773,7 +815,7 @@ mod tests {
             (q.scenario, q.view),
             (Scenario::Playroom, Some(PlayroomView::Rug))
         );
-        let mut sim = Scenario::Playroom.build(None);
+        let mut sim = Scenario::Playroom.build(None, MarbleSize::Standard);
         sim.tick(parble_sim::golden::RAMP_10S_TICKS);
         assert_eq!(sim.trajectory_hash(), parble_sim::golden::ramp_10s_hash());
     }
@@ -793,9 +835,50 @@ mod tests {
             (q.scenario, q.tex),
             (Scenario::Kit2000, Some(TextureFamily::Png))
         );
-        let mut sim = Scenario::Kit2000.build(None);
+        let mut sim = Scenario::Kit2000.build(None, MarbleSize::Standard);
         sim.tick(parble_sim::golden::RAMP_10S_TICKS);
         assert_eq!(sim.trajectory_hash(), parble_sim::golden::ramp_10s_hash());
+    }
+
+    #[test]
+    fn marble_size_and_lineup_parse_and_keep_the_golden_default() {
+        let o = args("--marble opal --marble-size shooter").unwrap();
+        assert_eq!(o.marble, Some(MarbleKind::Opal));
+        assert_eq!(o.marble_size, MarbleSize::Shooter);
+        let q = AgentOpts::from_query("?marble=glow&marble-size=mini", str::to_owned).unwrap();
+        assert_eq!(
+            (q.marble, q.marble_size),
+            (Some(MarbleKind::Glow), MarbleSize::Mini)
+        );
+        // No flags and an explicit standard size both stay the P0 golden run.
+        for o in [args("").unwrap(), args("--marble-size standard").unwrap()] {
+            let mut sim = o.scenario.build(o.marble, o.marble_size);
+            sim.tick(parble_sim::golden::RAMP_10S_TICKS);
+            assert_eq!(sim.trajectory_hash(), parble_sim::golden::ramp_10s_hash());
+        }
+        let sim = Scenario::Ramp.build(Some(MarbleKind::Swirl), MarbleSize::Shooter);
+        assert_eq!(sim.marbles().len(), 1);
+        let lineup = args("--scenario lineup").unwrap();
+        assert_eq!(lineup.scenario, Scenario::Lineup);
+        let looks = lineup.scenario.looks(None, MarbleSize::Standard);
+        assert_eq!(looks.len(), marble::LINEUP.len());
+        assert_eq!(
+            Scenario::Lineup
+                .build(None, MarbleSize::Standard)
+                .marbles()
+                .len(),
+            looks.len()
+        );
+        for k in MarbleKind::ALL {
+            assert!(
+                looks.iter().any(|(l, _)| *l == k),
+                "{k:?} missing from the lineup"
+            );
+        }
+        assert_eq!(
+            Scenario::Ramp.looks(None, MarbleSize::Mini),
+            vec![(MarbleKind::CatsEye, MarbleSize::Mini.radius_m())]
+        );
     }
 
     #[test]

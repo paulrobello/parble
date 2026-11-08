@@ -11,12 +11,33 @@
 
 use std::path::PathBuf;
 
-use parble_sim::golden::{RAMP_10S_TICKS, ramp_10s_hash_hex};
+use parble_sim::golden::{RAMP_10S_TICKS, ramp_10s_hash_hex, ramp_10s_variants};
 
 const UPDATE_ENV: &str = "PARBLE_UPDATE_GOLDEN";
 
 fn golden_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/golden/ramp_10s.hash")
+}
+
+/// P5-T1: every marble type × size on the same ramp. Additive: the P0 golden above is untouched.
+/// Regenerate with `PARBLE_UPDATE_GOLDEN=1` like the ramp golden.
+#[test]
+fn ramp_10s_variants_match_golden() {
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/golden/ramp_10s_variants.hash");
+    let actual = ramp_10s_variants();
+    if std::env::var(UPDATE_ENV).as_deref() == Ok("1") {
+        std::fs::write(&path, &actual).expect("write variants golden");
+        eprintln!("wrote {}", path.display());
+        return;
+    }
+    let expected = std::fs::read_to_string(&path).unwrap_or_else(|e| {
+        panic!(
+            "missing {} ({e}); generate it with {UPDATE_ENV}=1",
+            path.display()
+        )
+    });
+    assert_eq!(actual, expected, "type × size ramp hashes changed");
 }
 
 #[test]

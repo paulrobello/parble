@@ -1,0 +1,197 @@
+{
+  "schema": "parble-lookdev-provenance/1",
+  "task": "P5-T1 sandbox marble pattern textures",
+  "purpose": "Pattern swatches for the swirl, onionskin, opal and glow marbles. Runtime derivatives live in assets/marbles/.",
+  "date": "2026-11-07",
+  "route": "art skill, Higgsfield backend (higgsfield CLI 1.2.2)",
+  "authoringAgent": {
+    "harness": "claude-code",
+    "model": "claude-opus-5-5"
+  },
+  "generationTotal": 4,
+  "generationCap": 8,
+  "creditsTotal": 8,
+  "creditEvidence": "higgsfield account transactions: four 'Nano Banana Pro -2 spend' entries at 2026-11-08 02:45 UTC, matching the four job ids (created 02:45:24-02:45:37); balance 950 before, 942 after.",
+  "rejectedJobs": [],
+  "frames": [
+    {
+      "file": "swirl.png",
+      "subject": "swirl marble ribbon colour swatch",
+      "targetsReference": [],
+      "provider": "Higgsfield",
+      "model": "nano_banana_pro",
+      "jobId": "3a4a991d-24c5-4313-9497-7c54a680cdb5",
+      "jobStatus": "completed",
+      "createdAt": "2026-11-08T02:45:33Z",
+      "settings": {
+        "aspect_ratio": "1:1",
+        "resolution": "1k",
+        "batch_size": 1
+      },
+      "seed": "not exposed by provider",
+      "prompt": "Flat square texture swatch that fills the entire frame edge to edge: the twisted coloured glass ribbons from inside a classic swirl marble, unrolled flat and seen straight on. Several long flowing vertical ribbons of saturated colour side by side: tangerine orange, sunflower yellow, cobalt blue and a thin white ribbon, each ribbon with soft internal striations and gently twisting edges, narrow gaps of deep dark glass between them. Even flat lighting, no shadows, no specular glare, no marble, no sphere, no background, no border. Orthographic texture map for a 3D material, photoreal macro detail. No text, no logos, no watermark.",
+      "promptFile": "prompts/swirl.txt",
+      "negativePrompt": "none (negative guidance is inline)",
+      "referenceImages": [],
+      "generations": 1,
+      "credits": 2,
+      "format": "png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 1944734,
+      "sha256": "4fa2eddd8d7bb7e08f8bcffce0810c9075c64f4a32087cb2c0bd458703255c8b",
+      "transformations": "none; stored exactly as delivered by the provider CDN",
+      "runtimeDerivative": {
+        "file": "assets/marbles/swirl.png",
+        "command": "sips -z 256 256 assets-source/marbles/p5-t1/swirl.png --out assets/marbles/swirl.png",
+        "width": 256,
+        "height": 256,
+        "bytes": 83177,
+        "sha256": "3fc143df9053bf63237aa11db44c4bc6e530750865152832dcbfaf53938e8014",
+        "use": "embedded in parble-render (include_bytes) as the swirl marble's ribbon vanes (High-tier vane mesh and Low/Medium vane_glass.wesl fallback)"
+      },
+      "ownerReview": {
+        "status": "pending",
+        "date": null
+      }
+    },
+    {
+      "file": "onionskin.png",
+      "subject": "onionskin marble layered colour skin swatch",
+      "targetsReference": [],
+      "provider": "Higgsfield",
+      "model": "nano_banana_pro",
+      "jobId": "42088532-e3e3-4a24-9f4a-af53a2e46cac",
+      "jobStatus": "completed",
+      "createdAt": "2026-11-08T02:45:24Z",
+      "settings": {
+        "aspect_ratio": "1:1",
+        "resolution": "1k",
+        "batch_size": 1
+      },
+      "seed": "not exposed by provider",
+      "prompt": "Flat square texture swatch that fills the entire frame edge to edge: the layered translucent coloured glass skin of an onionskin marble, unrolled flat and seen straight on. Dense fine vertical streaks of many colours packed tightly together: rose red, coral, amber, lime green and sky blue, overlapping in semi-transparent layers so the colours blend where they cross, over a milky white ground. Even flat lighting, no shadows, no specular glare, no marble, no sphere, no background, no border. Orthographic texture map for a 3D material, photoreal macro detail. No text, no logos, no watermark.",
+      "promptFile": "prompts/onionskin.txt",
+      "negativePrompt": "none (negative guidance is inline)",
+      "referenceImages": [],
+      "generations": 1,
+      "credits": 2,
+      "format": "png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 2723448,
+      "sha256": "e36f829e25a3bd5e2f5efee117415f02a034064ef14b6742122838a3021fb0e2",
+      "transformations": "none; stored exactly as delivered by the provider CDN",
+      "runtimeDerivative": {
+        "file": "assets/marbles/onionskin.png",
+        "command": "sips -z 256 256 assets-source/marbles/p5-t1/onionskin.png --out assets/marbles/onionskin.png",
+        "width": 256,
+        "height": 256,
+        "bytes": 101158,
+        "sha256": "ee4e22f8e00a0eaf8f01ba17a564f29af288ed899c5d317f93fcf44188b305b1",
+        "use": "embedded in parble-render (include_bytes) as the onionskin core layer (High-tier core sphere and Low/Medium core_glass.wesl fallback)"
+      },
+      "ownerReview": {
+        "status": "pending",
+        "date": null
+      }
+    },
+    {
+      "file": "opal.png",
+      "subject": "milky blue opal swatch (ref-04 blue)",
+      "targetsReference": [
+        "docs/reference/ref-04.webp",
+        "assets-source/lookdev/07-wave-channel-opal-marble.png"
+      ],
+      "provider": "Higgsfield",
+      "model": "nano_banana_pro",
+      "jobId": "41b05653-b28f-4d19-84be-7634821b38ca",
+      "jobStatus": "completed",
+      "createdAt": "2026-11-08T02:45:26Z",
+      "settings": {
+        "aspect_ratio": "1:1",
+        "resolution": "1k",
+        "batch_size": 1
+      },
+      "seed": "not exposed by provider",
+      "prompt": "Flat square texture swatch that fills the entire frame edge to edge: polished milky blue opal seen straight on. A soft periwinkle and cornflower blue milky body with a gentle glow from within, scattered patches of play of colour in electric blue, violet and touches of teal green, soft cloudy translucent depth. Even flat lighting, no shadows, no specular glare, no stone outline, no sphere, no background, no border. Orthographic texture map for a 3D material, photoreal macro detail. No text, no logos, no watermark.",
+      "promptFile": "prompts/opal.txt",
+      "negativePrompt": "none (negative guidance is inline)",
+      "referenceImages": [],
+      "generations": 1,
+      "credits": 2,
+      "format": "png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 1697914,
+      "sha256": "5292e5be01bf0079efbfd1a7200826ef95f931b988a8a5f73b942e68e4fa1f60",
+      "transformations": "none; stored exactly as delivered by the provider CDN",
+      "runtimeDerivative": {
+        "file": "assets/marbles/opal.png",
+        "command": "sips -z 256 256 assets-source/marbles/p5-t1/opal.png --out assets/marbles/opal.png",
+        "width": 256,
+        "height": 256,
+        "bytes": 89012,
+        "sha256": "47ff79ce52297eb1341cd20dcbfebb4e0efb589b96b14b637561e463783d4aaf",
+        "use": "embedded in parble-render (include_bytes) as the opal core (High-tier core sphere under a milky shell and Low/Medium core_glass.wesl fallback)"
+      },
+      "ownerReview": {
+        "status": "pending",
+        "date": null
+      }
+    },
+    {
+      "file": "glow.png",
+      "subject": "glow marble luminous core swatch",
+      "targetsReference": [],
+      "provider": "Higgsfield",
+      "model": "nano_banana_pro",
+      "jobId": "be463272-3913-46ac-a31a-0e6f5a0190aa",
+      "jobStatus": "completed",
+      "createdAt": "2026-11-08T02:45:37Z",
+      "settings": {
+        "aspect_ratio": "1:1",
+        "resolution": "1k",
+        "batch_size": 1
+      },
+      "seed": "not exposed by provider",
+      "prompt": "Flat square texture swatch that fills the entire frame edge to edge: the luminous core of a glow-in-the-dark marble, seen straight on. Bright glowing aqua green and soft cyan phosphorescent swirls and wisps, brightest in flowing vertical bands, fading to darker teal between them, smooth soft gradients like light inside glass. Even flat lighting, no shadows, no specular glare, no marble, no sphere, no background, no border. Orthographic texture map for a 3D material, photoreal macro detail. No text, no logos, no watermark.",
+      "promptFile": "prompts/glow.txt",
+      "negativePrompt": "none (negative guidance is inline)",
+      "referenceImages": [],
+      "generations": 1,
+      "credits": 2,
+      "format": "png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 1691349,
+      "sha256": "3fcb0d4e1791c2607f0459163d497997ff94a4660f1f0a1e120c85cf38f45733",
+      "transformations": "none; stored exactly as delivered by the provider CDN",
+      "runtimeDerivative": {
+        "file": "assets/marbles/glow.png",
+        "command": "sips -z 256 256 assets-source/marbles/p5-t1/glow.png --out assets/marbles/glow.png",
+        "width": 256,
+        "height": 256,
+        "bytes": 63774,
+        "sha256": "f6bf8d311598a74a975469075ffaded2c3bde1aa935ead5a115c24a15a6688bc",
+        "use": "embedded in parble-render (include_bytes) as the glow core's base colour and emissive texture (High-tier core sphere and Low/Medium core_glass.wesl fallback)"
+      },
+      "ownerReview": {
+        "status": "pending",
+        "date": null
+      }
+    }
+  ],
+  "rights": {
+    "generatedOn": "Paul's Higgsfield plus plan",
+    "terms": "commercial terms not verified",
+    "references": "none uploaded: text-only prompts. The opal prompt was written against ref-04 and look-dev frame 07, which were viewed but not sent to the provider.",
+    "status": "pending"
+  },
+  "gates": {
+    "technical": "pass (node assets-source/marbles/check-provenance.mjs p5-t1)",
+    "creative": "pending Paul's review (lineup docs/shots/p5-t1-lineup.png)",
+    "rights": "pending",
+    "owner": "pending"
+  }
+}

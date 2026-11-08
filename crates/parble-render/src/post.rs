@@ -115,6 +115,8 @@ pub struct PostOverrides {
     /// `Some(false)` turns TAA off on a TAA tier (no AA then, never MSAA, so SSAO still runs).
     pub taa: Option<bool>,
     pub dof: Option<bool>,
+    /// `Some(false)` turns bloom off (P5-T1 glow bloom check).
+    pub bloom: Option<bool>,
     /// Aperture override, f-stops.
     pub aperture: Option<f32>,
     pub tonemapping: Option<Tonemapping>,
@@ -141,6 +143,9 @@ pub fn effective(quality: Quality, o: &PostOverrides) -> PostTier {
     }
     if o.dof == Some(false) {
         t.dof = None;
+    }
+    if let Some(b) = o.bloom {
+        t.bloom = b;
     }
     if let (Some(f), Some(dof)) = (o.aperture, t.dof.as_mut()) {
         dof.aperture_f_stops = f;

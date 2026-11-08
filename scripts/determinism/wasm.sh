@@ -9,6 +9,8 @@ cd "$root"
 
 target=wasm32-unknown-unknown
 golden=crates/parble-sim/tests/golden/ramp_10s.hash
+# P5-T1: every marble type × size on the same ramp.
+variants=crates/parble-sim/tests/golden/ramp_10s_variants.hash
 out=target/determinism-wasm
 tools=target/tools
 
@@ -28,4 +30,4 @@ cargo build --locked --release -p parble-sim-wasm --target "$target"
 rm -rf "$out"
 "$bindgen" --target nodejs --out-dir "$out" "target/$target/release/parble_sim_wasm.wasm"
 
-node scripts/determinism/run-golden.cjs "$out/parble_sim_wasm.js" "$golden"
+node scripts/determinism/run-golden.cjs "$out/parble_sim_wasm.js" "$golden" "$variants"

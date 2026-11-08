@@ -120,9 +120,14 @@ pub fn tray_collider() -> Collider {
         .build()
 }
 
-/// Spawn point of the marble: near the back wall, just above the ramp surface.
+/// Spawn point of the standard marble: near the back wall, just above the ramp surface.
 pub fn marble_spawn_m() -> Vector {
-    let r = standard_marble_radius_m();
+    marble_spawn_for(standard_marble_radius_m())
+}
+
+/// Spawn point of a marble of radius `r` (P5-T1 sizes): 4 mm clear of the back wall, just above
+/// the ramp surface. At the standard radius this is [`marble_spawn_m`] bit for bit.
+pub fn marble_spawn_for(r: f32) -> Vector {
     let x = r + 0.004;
     let surface_y = ramp_height_m() * (1.0 - x / ramp_run_m());
     // Touching height is r / cos θ ≈ 1.118 r on a 50 % slope, so this drops the marble ~1 mm.
@@ -132,6 +137,26 @@ pub fn marble_spawn_m() -> Vector {
 /// Resting point of the close-up marble: on the flat floor, 4 cells past the ramp foot.
 pub fn closeup_marble_m(radius: f32) -> Vector {
     Vector::new(ramp_run_m() + 4.0 * cell_m(), radius, 0.0)
+}
+
+/// Lineup row (P5-T1): on the open floor in front of the tray (+Z), centred on the tray's length.
+pub const LINEUP_Z_M: f32 = 0.07;
+/// Centre-to-centre spacing of the lineup row, wide enough for a shooter beside a standard marble.
+pub const LINEUP_SPACING_M: f32 = 0.026;
+
+/// Resting point of lineup marble `i` of `n` with radius `radius`.
+pub fn lineup_marble_m(i: usize, n: usize, radius: f32) -> Vector {
+    let x = tray_length_m() / 2.0 + (i as f32 - (n as f32 - 1.0) / 2.0) * LINEUP_SPACING_M;
+    Vector::new(x, radius, LINEUP_Z_M)
+}
+
+/// The open floor the lineup rests on: a 2 m wood slab with its top at y = 0 (the render floor).
+pub fn floor_collider() -> Collider {
+    ColliderBuilder::cuboid(1.0, 0.05, 1.0)
+        .translation(Vector::new(tray_length_m() / 2.0, -0.05, 0.0))
+        .friction(WOOD_FRICTION)
+        .restitution(WOOD_RESTITUTION)
+        .build()
 }
 
 /// A standard 16 mm glass marble body (CCD on, never sleeps) and its collider, with the
