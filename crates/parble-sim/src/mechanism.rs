@@ -464,6 +464,11 @@ impl MechContext<'_> {
         self.id
     }
 
+    /// Marbles in the world, in spawn order.
+    pub fn marble_count(&self) -> usize {
+        self.balls.len()
+    }
+
     /// A value from the placement's [`Placement::config`].
     pub fn config(&self, key: &str) -> Option<i64> {
         self.config.get(key).copied()

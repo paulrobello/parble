@@ -14,7 +14,11 @@ const MAX_PIECE_ID_LEN = 48;
 const PIECE_ID = /^(blk|rail|mech|terr|music|deco)_[a-z0-9]+(_[a-z0-9]+)*$/;
 
 export type MarbleSize = "mini" | "standard" | "shooter";
-export type ReleaseMode = { mode: "one" } | { mode: "all" } | { mode: "interval"; ticks: number };
+export type ReleaseMode =
+  | { mode: "sequential" }
+  | { mode: "one" }
+  | { mode: "all" }
+  | { mode: "interval"; ticks: number };
 export type IntMap = Record<string, number>;
 
 export interface Placement {
@@ -138,7 +142,9 @@ function placement(v: unknown, i: number): Placement {
 
 function release(v: unknown): ReleaseMode {
   if (!isObj(v)) return fail("release is not an object");
-  if ((v.mode === "one" || v.mode === "all") && hasOnly(v, ["mode"])) return v as ReleaseMode;
+  if ((v.mode === "sequential" || v.mode === "one" || v.mode === "all") && hasOnly(v, ["mode"])) {
+    return v as ReleaseMode;
+  }
   if (v.mode === "interval" && hasOnly(v, ["mode", "ticks"]) && isU32(v.ticks)) {
     if (v.ticks === 0) fail("release interval must be at least 1 tick");
     return v as ReleaseMode;

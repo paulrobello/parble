@@ -357,6 +357,42 @@ mod tests {
     }
 
     #[test]
+    fn new_tracks_default_to_sequential_and_every_mode_saves_and_reloads() {
+        use crate::track::ReleaseMode;
+        assert_eq!(Track::new(0).hopper.release, ReleaseMode::Sequential);
+        for mode in [
+            ReleaseMode::Sequential,
+            ReleaseMode::One,
+            ReleaseMode::All,
+            ReleaseMode::Interval { ticks: 120 },
+        ] {
+            let mut t = Track::new(5);
+            t.hopper.queue = vec![crate::track::MarbleSize::Standard; 3];
+            t.hopper.release = mode;
+            let f = ParbleFile::new(t, "modes");
+            let back = load(&f.to_json()).expect("saved file reloads");
+            assert_eq!(back.track.hopper.release, mode);
+            assert_eq!(back, f);
+        }
+        let doc = list("valid")
+            .into_iter()
+            .find(|c| c["name"] == "release-sequential")
+            .expect("sequential fixture")["file"]
+            .clone();
+        assert_eq!(
+            load(&doc.to_string()).unwrap().track.hopper.release,
+            ReleaseMode::Sequential
+        );
+        let one = list("valid")[1]["file"].clone();
+        assert_eq!(one["hopper"]["release"]["mode"], "one");
+        assert_eq!(
+            load(&one.to_string()).unwrap().track.hopper.release,
+            ReleaseMode::One,
+            "a saved mode is kept, not replaced by the default"
+        );
+    }
+
+    #[test]
     fn v1_loads_through_the_production_chain() {
         assert!(MIGRATIONS.is_empty(), "schema 1 needs no steps");
         let doc = list("valid")[0]["file"].clone();

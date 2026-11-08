@@ -69,14 +69,23 @@ pub enum MarbleSize {
 
 /// How the hopper releases its queue. Intervals are in sim ticks (no wall-clock input).
 ///
+/// `Sequential` is the default (PRD §6 P2 item 1: one marble in motion at a time). It releases the
+/// first marble at tick 0 and each later one only once no marble it released is still moving: every
+/// released marble is counted at a finish, lost, or at rest. The run applies the rule and its
+/// thresholds (`parble_sim::track_run`). `One`, `All` and `Interval` release on fixed ticks.
+///
 /// Deserialized through [`RawRelease`]: serde's internally tagged unit variants ignore extra
 /// fields, and a `.parble` file must refuse `{"mode": "one", "ticks": 5}`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "mode", rename_all = "lowercase", try_from = "RawRelease")]
 pub enum ReleaseMode {
+    #[default]
+    Sequential,
     One,
     All,
-    Interval { ticks: u32 },
+    Interval {
+        ticks: u32,
+    },
 }
 
 #[derive(Deserialize)]
@@ -91,10 +100,13 @@ impl TryFrom<RawRelease> for ReleaseMode {
 
     fn try_from(r: RawRelease) -> Result<Self, String> {
         match (r.mode.as_str(), r.ticks) {
+            ("sequential", None) => Ok(Self::Sequential),
             ("one", None) => Ok(Self::One),
             ("all", None) => Ok(Self::All),
             ("interval", Some(ticks)) => Ok(Self::Interval { ticks }),
-            ("one" | "all", Some(_)) => Err(format!("release mode {:?} takes no ticks", r.mode)),
+            ("sequential" | "one" | "all", Some(_)) => {
+                Err(format!("release mode {:?} takes no ticks", r.mode))
+            }
             ("interval", None) => Err("release mode \"interval\" needs ticks".into()),
             (m, _) => Err(format!("unknown release mode {m:?}")),
         }
@@ -102,7 +114,7 @@ impl TryFrom<RawRelease> for ReleaseMode {
 }
 
 /// Hopper configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HopperConfig {
     /// Index into [`Track::placements`] of the hopper piece, if one is placed.
@@ -110,16 +122,6 @@ pub struct HopperConfig {
     /// Marbles in release order.
     pub queue: Vec<MarbleSize>,
     pub release: ReleaseMode,
-}
-
-impl Default for HopperConfig {
-    fn default() -> Self {
-        Self {
-            placement: None,
-            queue: Vec::new(),
-            release: ReleaseMode::One,
-        }
-    }
 }
 
 /// A track: versions, run seed, placements in a stable order and the hopper config.

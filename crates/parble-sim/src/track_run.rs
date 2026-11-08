@@ -12,17 +12,22 @@
 //! when it is a `mech_hopper`, rolling toward its exit at [`HOPPER_KICK_M_S`], and the hopper's
 //! gate opens for each one on its release tick. Without a hopper they spawn on the tray ramp.
 //!
+//! In [`ReleaseMode::Sequential`] (the default) the next marble spawns only once no released
+//! marble is still moving ([`MarbleMotion`]): each one is counted at a finish, lost below
+//! [`LOST_Y_UM`], or slower than [`SETTLE_SPEED_UM_S`] for [`SETTLE_HOLD_TICKS`] ticks in a row.
+//!
 //! Releases happen between steps, on whole ticks, so a run is a pure function of the track and the
 //! tick count.
 
 use crate::behaviour::{self, release_ticks};
 use crate::chunk::{ChunkError, place_point_um};
+use crate::hash::{POSITION_QUANTA_PER_M, VELOCITY_QUANTA_PER_M_PER_S, quantize};
 use crate::mechanism::{MechanismError, MechanismRegistry};
 use crate::{Sim, scene};
 use parble_core::contract::{
     MARBLE_MINI_DIAMETER_UM, MARBLE_SHOOTER_DIAMETER_UM, MARBLE_STANDARD_DIAMETER_UM,
 };
-use parble_core::{CellCoord, MarbleSize, Orientation, PieceId, Placement, Track};
+use parble_core::{CellCoord, MarbleSize, Orientation, PieceId, Placement, ReleaseMode, Track};
 use parble_kit::KitCatalog;
 use rapier3d::prelude::*;
 
@@ -117,6 +122,36 @@ pub const HOPPER_KICK_M_S: f32 = 0.3;
 /// floor at L1).
 pub const HOPPER_BOWL_UM: [i32; 3] = [-10_000, 15_000, 0];
 
+/// Sequential release: a marble slower than this, µm/s (5 mm/s), is still. Compared as the squared
+/// speed of the velocity quantized like the trajectory hash, so the test is integer-exact.
+pub const SETTLE_SPEED_UM_S: i64 = 5_000;
+/// Sequential release: ticks in a row a marble must stay still to count as at rest (0.5 s), long
+/// enough that the top of a bounce or a rocker's turn does not count.
+pub const SETTLE_HOLD_TICKS: u32 = 120;
+/// Sequential release: a marble whose centre is below this height, µm (1 m under the tray floor),
+/// has fallen off the world and is lost.
+pub const LOST_Y_UM: i64 = -1_000_000;
+
+/// Whether a released marble still holds back a sequential release, and if not, why.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MarbleMotion {
+    /// Moving: `still` ticks in a row below [`SETTLE_SPEED_UM_S`] so far, fewer than
+    /// [`SETTLE_HOLD_TICKS`].
+    Moving { still: u32 },
+    /// Below [`SETTLE_SPEED_UM_S`] for [`SETTLE_HOLD_TICKS`] ticks. Moves again if knocked.
+    AtRest,
+    /// Counted by a finish cup. Final.
+    Finished,
+    /// Fell below [`LOST_Y_UM`]. Final.
+    Lost,
+}
+
+impl MarbleMotion {
+    pub fn is_moving(self) -> bool {
+        matches!(self, Self::Moving { .. })
+    }
+}
+
 /// Radius in metres of a marble size (contract §6).
 pub fn marble_radius_m(size: MarbleSize) -> f32 {
     let d = match size {
@@ -142,6 +177,10 @@ pub struct TrackRun {
     sim: Sim,
     releases: Vec<(u64, MarbleSize)>,
     next: usize,
+    /// The whole queue in [`ReleaseMode::Sequential`] runs, released from `next`; empty otherwise.
+    sequential: Vec<MarbleSize>,
+    /// Per released marble in [`ReleaseMode::Sequential`] runs; empty otherwise.
+    motion: Vec<MarbleMotion>,
     /// The hopper placement marbles spawn in, if the track has one.
     hopper: Option<Placement>,
 }
@@ -153,6 +192,8 @@ impl TrackRun {
             sim,
             releases: Vec::new(),
             next: 0,
+            sequential: Vec::new(),
+            motion: Vec::new(),
             hopper: None,
         }
     }
@@ -232,10 +273,21 @@ impl TrackRun {
                     error,
                 })?;
         }
+        let sequential = track.hopper.release == ReleaseMode::Sequential;
         let mut run = Self {
             sim,
-            releases: release_schedule(track),
+            releases: if sequential {
+                Vec::new()
+            } else {
+                release_schedule(track)
+            },
             next: 0,
+            sequential: if sequential {
+                track.hopper.queue.clone()
+            } else {
+                Vec::new()
+            },
+            motion: Vec::new(),
             hopper,
         };
         run.release_due();
@@ -248,7 +300,14 @@ impl TrackRun {
         for _ in 0..n {
             self.release_due();
             self.sim.tick(1);
+            self.update_motion();
         }
+    }
+
+    /// [`MarbleMotion`] of each released marble in spawn order, in [`ReleaseMode::Sequential`]
+    /// runs (empty in the other modes).
+    pub fn motion(&self) -> &[MarbleMotion] {
+        &self.motion
     }
 
     /// [`Sim::set_event_recording`]: read-only telemetry, so the run is unchanged.
@@ -261,7 +320,56 @@ impl TrackRun {
         self.sim.drain_events()
     }
 
+    fn update_motion(&mut self) {
+        if self.motion.is_empty() {
+            return;
+        }
+        let mut finished = vec![false; self.motion.len()];
+        for v in self.sim.mechanisms() {
+            if v.piece.as_str() == behaviour::FINISH {
+                for (m, _) in behaviour::Finish::arrivals(&v.state) {
+                    if let Some(f) = finished.get_mut(m) {
+                        *f = true;
+                    }
+                }
+            }
+        }
+        let marbles = self.sim.marbles();
+        for ((m, s), f) in self.motion.iter_mut().zip(&marbles).zip(finished) {
+            if matches!(m, MarbleMotion::Finished | MarbleMotion::Lost) {
+                continue;
+            }
+            let speed2 = s
+                .linvel
+                .iter()
+                .map(|&c| quantize(c, VELOCITY_QUANTA_PER_M_PER_S))
+                .fold(0i64, |a, c| a.saturating_add(c.saturating_mul(c)));
+            *m = if f {
+                MarbleMotion::Finished
+            } else if quantize(s.position[1], POSITION_QUANTA_PER_M) < LOST_Y_UM {
+                MarbleMotion::Lost
+            } else if speed2 >= SETTLE_SPEED_UM_S * SETTLE_SPEED_UM_S {
+                MarbleMotion::Moving { still: 0 }
+            } else {
+                match *m {
+                    MarbleMotion::Moving { still } if still + 1 < SETTLE_HOLD_TICKS => {
+                        MarbleMotion::Moving { still: still + 1 }
+                    }
+                    _ => MarbleMotion::AtRest,
+                }
+            };
+        }
+    }
+
     fn release_due(&mut self) {
+        if let Some(&size) = self.sequential.get(self.next) {
+            if self.motion.iter().all(|m| !m.is_moving()) {
+                self.spawn(size);
+                self.next += 1;
+                self.motion.push(MarbleMotion::Moving { still: 0 });
+            }
+            return;
+        }
         while let Some(&(at, size)) = self.releases.get(self.next) {
             if at > self.sim.tick {
                 break;
@@ -372,7 +480,7 @@ pub fn run_hash(track: &Track, ticks: u32) -> Result<u64, TrackRunError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use parble_core::{HopperConfig, ReleaseMode};
+    use parble_core::{HopperConfig, MechConfig};
 
     fn track(queue: Vec<MarbleSize>, release: ReleaseMode) -> Track {
         let mut t = Track::new(1);
@@ -428,6 +536,188 @@ mod tests {
             run_hash(&t, crate::golden::RAMP_10S_TICKS),
             Ok(crate::golden::ramp_10s_hash())
         );
+    }
+
+    /// The all-pieces track with a `n`-marble queue released in `release` mode.
+    fn allpieces_with(release: ReleaseMode, n: usize) -> Track {
+        let mut t = crate::allpieces::track();
+        t.hopper.queue.truncate(n);
+        t.hopper.release = release;
+        t
+    }
+
+    /// `(marble, arrival tick)` over every finish cup of the run.
+    fn arrivals(run: &TrackRun) -> Vec<(usize, u64)> {
+        run.mechanisms()
+            .iter()
+            .filter(|m| m.piece.as_str() == behaviour::FINISH)
+            .flat_map(|m| behaviour::Finish::arrivals(&m.state))
+            .collect()
+    }
+
+    #[test]
+    fn the_default_release_mode_is_sequential() {
+        assert_eq!(ReleaseMode::default(), ReleaseMode::Sequential);
+        assert_eq!(Track::new(0).hopper.release, ReleaseMode::Sequential);
+        let q = vec![MarbleSize::Standard, MarbleSize::Mini];
+        assert_eq!(
+            release_schedule(&track(q, ReleaseMode::Sequential)),
+            [(0, MarbleSize::Standard)],
+            "only the first sequential release has a fixed tick"
+        );
+    }
+
+    #[test]
+    fn a_one_marble_sequential_queue_runs_like_release_one() {
+        let seq = allpieces_with(ReleaseMode::Sequential, 1);
+        let one = allpieces_with(ReleaseMode::One, 1);
+        let (mut a, mut b) = (TrackRun::new(&seq).unwrap(), TrackRun::new(&one).unwrap());
+        a.tick(2_400);
+        b.tick(2_400);
+        assert_eq!(a.trajectory_hash(), b.trajectory_hash());
+        assert_eq!(a.mechanism_hash(), b.mechanism_hash());
+    }
+
+    #[test]
+    fn sequential_release_keeps_one_marble_moving_and_all_three_finish() {
+        const N: usize = 3;
+        let mut run = TrackRun::new(&allpieces_with(ReleaseMode::Sequential, N)).unwrap();
+        let mut spawned_at = vec![0u64];
+        let min2 = SETTLE_SPEED_UM_S * SETTLE_SPEED_UM_S;
+        for _ in 0..12_000 {
+            run.tick(1);
+            let t = run.tick_count();
+            if run.marbles().len() > spawned_at.len() {
+                spawned_at.push(t);
+            }
+            let moving = run.motion().iter().filter(|m| m.is_moving()).count();
+            assert!(moving <= 1, "tick {t}: {:?}", run.motion());
+            // Independent of the run's own bookkeeping: at most one marble outside a finish cup
+            // is above the settle speed.
+            let done: Vec<usize> = arrivals(&run).into_iter().map(|(m, _)| m).collect();
+            let fast = run
+                .marbles()
+                .iter()
+                .enumerate()
+                .filter(|(m, s)| {
+                    let v = s.linvel.map(|c| quantize(c, VELOCITY_QUANTA_PER_M_PER_S));
+                    !done.contains(m) && v.iter().map(|c| c * c).sum::<i64>() >= min2
+                })
+                .count();
+            assert!(fast <= 1, "tick {t}: {fast} marbles moving outside a cup");
+            if done.len() == N {
+                break;
+            }
+        }
+        let got = arrivals(&run);
+        assert_eq!(run.marbles().len(), N, "the hopper released every marble");
+        assert_eq!(got.len(), N, "every marble reached a cup: {got:?}");
+        assert!(run.motion().iter().all(|&m| m == MarbleMotion::Finished));
+        for (k, &at) in spawned_at.iter().enumerate().skip(1) {
+            let prev = got.iter().find(|(m, _)| *m == k - 1).unwrap().1;
+            assert!(
+                at > prev,
+                "marble {k} spawned at tick {at} before marble {} finished at {prev}",
+                k - 1
+            );
+        }
+        let hopper = run
+            .mechanisms()
+            .into_iter()
+            .find(|m| m.piece.as_str() == behaviour::HOPPER)
+            .unwrap();
+        assert_eq!(hopper.state["released"], N as i64);
+        assert_eq!(hopper.state["queue"], N as i64);
+        eprintln!("sequential spawns {spawned_at:?}, arrivals {got:?}");
+    }
+
+    /// Runs `t` until `n` marbles have spawned or `ticks` pass; returns the run and spawn ticks.
+    fn spawns(t: &Track, n: usize, ticks: u32) -> (TrackRun, Vec<u64>) {
+        let mut run = TrackRun::new(t).unwrap();
+        let mut at = vec![0u64];
+        for _ in 0..ticks {
+            run.tick(1);
+            if run.marbles().len() > at.len() {
+                at.push(run.tick_count() - 1);
+            }
+            if at.len() == n {
+                break;
+            }
+        }
+        (run, at)
+    }
+
+    #[test]
+    fn sequential_release_waits_for_a_marble_at_rest() {
+        // No hopper placement: the marbles spawn on the tray ramp, and the first must come to
+        // rest on the tray before the second spawns.
+        let t = track(vec![MarbleSize::Standard; 2], ReleaseMode::Sequential);
+        let (run, at) = spawns(&t, 2, 20_000);
+        assert_eq!(at.len(), 2, "the second marble never spawned");
+        assert_eq!(run.motion()[0], MarbleMotion::AtRest);
+        assert!(
+            at[1] > 9_600,
+            "spawned at {} while the first still rolled",
+            at[1]
+        );
+    }
+
+    #[test]
+    fn sequential_release_moves_on_from_a_lost_marble() {
+        // A hopper far off the tray with nothing after it: its marble falls off the world.
+        let mut t = with_pieces(&[(behaviour::HOPPER, [40, 2, 40], 0)]);
+        t.hopper = HopperConfig {
+            placement: Some(0),
+            queue: vec![MarbleSize::Standard; 2],
+            release: ReleaseMode::Sequential,
+        };
+        let (run, at) = spawns(&t, 2, 2_400);
+        assert_eq!(at.len(), 2, "the second marble never spawned");
+        assert_eq!(run.motion()[0], MarbleMotion::Lost);
+    }
+
+    #[test]
+    fn timed_modes_keep_their_schedule_and_track_no_motion() {
+        for release in [ReleaseMode::All, ReleaseMode::Interval { ticks: 480 }] {
+            let mut run = TrackRun::new(&allpieces_with(release, 3)).unwrap();
+            let mut spawned_at = vec![0u64];
+            for _ in 0..1_000 {
+                run.tick(1);
+                if run.marbles().len() > spawned_at.len() {
+                    spawned_at.push(run.tick_count() - 1);
+                }
+            }
+            let expect: Vec<u64> = release_schedule(&allpieces_with(release, 3))
+                .into_iter()
+                .map(|(t, _)| t)
+                .collect();
+            assert_eq!(spawned_at, expect, "{release:?}");
+            assert!(run.motion().is_empty(), "{release:?}");
+        }
+    }
+
+    #[test]
+    fn a_sequential_hopper_saves_and_restores() {
+        use crate::mechanism::Mechanism;
+        let config = MechConfig::from(behaviour::hopper_config(ReleaseMode::Sequential, 4));
+        let mut run = TrackRun::new(&allpieces_with(ReleaseMode::Sequential, 4)).unwrap();
+        run.tick(6_000);
+        let live = run
+            .mechanisms()
+            .into_iter()
+            .find(|m| m.piece.as_str() == behaviour::HOPPER)
+            .unwrap()
+            .state;
+        assert!(live["released"] >= 2, "{live:?}");
+        let saved: MechConfig = live
+            .iter()
+            .filter(|(k, _)| !k.starts_with("part/"))
+            .map(|(k, &v)| (k.clone(), v))
+            .collect();
+        let mut fresh = behaviour::Hopper::new(&config);
+        fresh.restore(&saved);
+        assert_eq!(fresh.save(), saved);
+        assert_eq!(saved["queue"], 4);
     }
 
     fn id(s: &str) -> PieceId {

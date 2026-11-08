@@ -13,7 +13,7 @@
 //!
 //! | piece | sensors | part | behaviour |
 //! |---|---|---|---|
-//! | `mech_hopper` | `release` | `anim_gate` | opens on each release tick of its queue ([`release_ticks`]), closes once the marble has left `release` |
+//! | `mech_hopper` | `release` | `anim_gate` | opens on each release tick of its queue ([`release_ticks`]), or in `sequential` mode when the run spawns the next marble, and closes once the marble has left `release` |
 //! | `mech_finish` | `cup` | — | counts each marble once and keeps its arrival tick |
 //! | `mech_splitter_l3` | `entry` | `anim_flap` | the flap is set to a seeded side before each marble arrives |
 //! | `mech_toggle_l3` | `entry` | `anim_rocker` | the rocker flips to the other side after each marble |
@@ -65,10 +65,13 @@ pub const ROPE_ARCH: &str = "mech_arch_rope_l1";
 pub const ALL_STAGGER_TICKS: u64 = 48;
 
 /// Release tick of each marble of an `n`-marble queue, in queue order. `One` releases only the
-/// first marble.
+/// first marble. `Sequential` has a fixed tick only for the first marble (0): the run releases
+/// the rest when the marbles before them have stopped moving ([`crate::track_run::TrackRun`]).
 pub fn release_ticks(release: ReleaseMode, n: usize) -> Vec<u64> {
     let step = match release {
-        ReleaseMode::One => return if n > 0 { vec![0] } else { Vec::new() },
+        ReleaseMode::One | ReleaseMode::Sequential => {
+            return if n > 0 { vec![0] } else { Vec::new() };
+        }
         ReleaseMode::All => ALL_STAGGER_TICKS,
         ReleaseMode::Interval { ticks } => u64::from(ticks.max(1)),
     };
@@ -76,8 +79,8 @@ pub fn release_ticks(release: ReleaseMode, n: usize) -> Vec<u64> {
 }
 
 /// Hopper config keys, filled in from [`parble_core::HopperConfig`] by
-/// [`crate::track_run::TrackRun`]: queue length, release mode (0 one, 1 all, 2 interval) and the
-/// interval in ticks.
+/// [`crate::track_run::TrackRun`]: queue length, release mode (0 one, 1 all, 2 interval,
+/// 3 sequential) and the interval in ticks.
 pub const HOPPER_QUEUE: &str = "queue";
 pub const HOPPER_RELEASE: &str = "release";
 pub const HOPPER_INTERVAL: &str = "interval";
@@ -88,6 +91,7 @@ pub fn hopper_config(release: ReleaseMode, n: usize) -> [(String, i64); 3] {
         ReleaseMode::One => (0, 0),
         ReleaseMode::All => (1, 0),
         ReleaseMode::Interval { ticks } => (2, i64::from(ticks)),
+        ReleaseMode::Sequential => (3, 0),
     };
     [
         (HOPPER_QUEUE.to_owned(), n as i64),
@@ -110,10 +114,13 @@ pub const HOPPER_OPEN_TIMEOUT: u64 = 480;
 
 /// Start hopper: a queue of `queue` marbles released on [`release_ticks`]. The queue is virtual
 /// (the 1-cell bowl holds one marble): the run spawns each marble in the bowl on its release tick
-/// and the gate opens for it.
+/// and the gate opens for it. In `sequential` mode the release tick is not known in advance, so
+/// the gate opens when the run has spawned more marbles than the hopper has released.
 #[derive(Debug, Clone, Default)]
 pub struct Hopper {
     ticks: Vec<u64>,
+    /// `Some(queue length)` in `sequential` mode.
+    sequential: Option<i64>,
     released: i64,
     open: bool,
     opened_at: i64,
@@ -128,10 +135,12 @@ impl Hopper {
             2 => ReleaseMode::Interval {
                 ticks: get(config, HOPPER_INTERVAL).clamp(1, i64::from(u32::MAX)) as u32,
             },
+            3 => ReleaseMode::Sequential,
             _ => ReleaseMode::One,
         };
         Self {
             ticks: release_ticks(release, n),
+            sequential: (release == ReleaseMode::Sequential).then_some(n as i64),
             ..Self::default()
         }
     }
@@ -151,13 +160,22 @@ impl Mechanism for Hopper {
         let left = ctx.sensor(0).map_or(0, |s| s.exited.len()) as i64;
         self.passed += left;
         let mut due = false;
-        while let Some(&at) = self.ticks.get(self.released as usize) {
-            if at >= t {
-                break;
+        if let Some(n) = self.sequential {
+            let spawned = (ctx.marble_count() as i64).min(n);
+            while self.released < spawned {
+                ctx.emit("release", self.released);
+                self.released += 1;
+                due = true;
             }
-            ctx.emit("release", self.released);
-            self.released += 1;
-            due = true;
+        } else {
+            while let Some(&at) = self.ticks.get(self.released as usize) {
+                if at >= t {
+                    break;
+                }
+                ctx.emit("release", self.released);
+                self.released += 1;
+                due = true;
+            }
         }
         if due {
             if !self.open {
@@ -182,7 +200,10 @@ impl Mechanism for Hopper {
             ("open".to_owned(), i64::from(self.open)),
             ("opened_at".to_owned(), self.opened_at),
             ("passed".to_owned(), self.passed),
-            ("queue".to_owned(), self.ticks.len() as i64),
+            (
+                "queue".to_owned(),
+                self.sequential.unwrap_or(self.ticks.len() as i64),
+            ),
         ])
     }
 
