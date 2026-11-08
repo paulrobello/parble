@@ -130,7 +130,8 @@ run-diag:
 
 # Trunk dev server on 127.0.0.1:$(DEV_PORT). No autoreload: Trunk injects its reload script after the
 # post_build hook hashed the inline scripts, so the page's CSP would block it (a console error).
-dev: $(TRUNK)
+# ui-build first: Trunk refuses to serve while a [watch] ignore path (web/ui/dist) is missing.
+dev: $(TRUNK) ui-build
 	$(TRUNK) serve --address 127.0.0.1 --port $(DEV_PORT) --no-autoreload
 
 dev-start: dev
