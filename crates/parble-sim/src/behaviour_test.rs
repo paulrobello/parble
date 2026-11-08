@@ -6,7 +6,6 @@ use crate::mechanism::{MechEventKind, SimEvent, stream_key};
 use crate::track_run::TrackRun;
 use crate::{MarbleState, Sim};
 use parble_core::{CellCoord, HopperConfig, MarbleSize, Mirror, Placement, SeededRng, Track, Yaw4};
-use parble_kit::{AnimatedPart, CollisionGroup, KitPiece, Surface};
 use rapier3d::prelude::*;
 
 const R: f32 = 0.008;
@@ -21,9 +20,8 @@ fn place(piece: &str, x: i32, y: i32, z: i32, yaw: u8) -> Placement {
     )
 }
 
-/// `layout` as chunk colliders plus a kit behaviour for every mechanism placement (with
-/// `override_piece` standing in for the builtin sidecar of its id), events on.
-fn rig(layout: &[Placement], seed: u64, override_piece: Option<&KitPiece>) -> Sim {
+/// `layout` as chunk colliders plus a kit behaviour for every mechanism placement, events on.
+fn rig(layout: &[Placement], seed: u64) -> Sim {
     let kit = parble_kit::builtin();
     let reg = registry();
     let mut sim = Sim::empty();
@@ -35,11 +33,7 @@ fn rig(layout: &[Placement], seed: u64, override_piece: Option<&KitPiece>) -> Si
         let Some(factory) = reg.get(&p.piece) else {
             continue;
         };
-        let piece = match override_piece {
-            Some(o) if o.def.id == p.piece => o,
-            _ => kit.piece(&p.piece).unwrap(),
-        };
-        sim.add_mechanism(piece, p, seed, factory(&p.config))
+        sim.add_mechanism(kit.piece(&p.piece).unwrap(), p, seed, factory(&p.config))
             .unwrap();
     }
     sim.set_event_recording(true);
@@ -134,17 +128,12 @@ fn fork_side(tr: &[Vec<MarbleState>], m: usize) -> Option<Side> {
 
 /// `n` marbles fed one at a time from an L3 straight into the fork `piece` at cell (1, 0, 0),
 /// 240 ticks apart. Returns each marble's branch and the events.
-fn feed_fork(
-    piece: &str,
-    part: Option<&KitPiece>,
-    seed: u64,
-    n: usize,
-) -> (Vec<Option<Side>>, Vec<SimEvent>) {
+fn feed_fork(piece: &str, seed: u64, n: usize) -> (Vec<Option<Side>>, Vec<SimEvent>) {
     let layout = [
         place("blk_straight_l3", 0, 0, 0, 0),
         place(piece, 1, 0, 0, 0),
     ];
-    let mut sim = rig(&layout, seed, part);
+    let mut sim = rig(&layout, seed);
     let (mut tr, mut ev) = (Vec::new(), Vec::new());
     for _ in 0..n {
         launch(&mut sim, Vector::new(-0.02, rest(3), 0.0), Vector::X * 0.6);
@@ -153,65 +142,9 @@ fn feed_fork(
     ((0..n).map(|m| fork_side(&tr, m)).collect(), ev)
 }
 
-/// A 12-triangle box, outward wound, µm.
-fn solid_box(lo: [i32; 3], hi: [i32; 3]) -> CollisionGroup {
-    let v: Vec<[i32; 3]> = (0..8)
-        .map(|i| {
-            [
-                if i & 4 == 0 { lo[0] } else { hi[0] },
-                if i & 2 == 0 { lo[1] } else { hi[1] },
-                if i & 1 == 0 { lo[2] } else { hi[2] },
-            ]
-        })
-        .collect();
-    let quads = [
-        [0, 1, 3, 2], // -x
-        [4, 6, 7, 5], // +x
-        [0, 4, 5, 1], // -y
-        [2, 3, 7, 6], // +y
-        [0, 2, 6, 4], // -z
-        [1, 5, 7, 3], // +z
-    ];
-    let triangles = quads
-        .iter()
-        .flat_map(|q| [[q[0], q[1], q[2]], [q[0], q[2], q[3]]])
-        .collect();
-    CollisionGroup {
-        surface: Surface::WoodEndGrain,
-        vertices_um: v,
-        triangles,
-    }
-}
-
-/// The fork piece `id` with its part replaced by a working switch blade: a 2 mm wall from 1 mm
-/// above the L3 floor to 14 mm, hinged about +Y at the shipped splitter pivot, its free end 18 mm
-/// upstream and swinging ±35° (10.3 mm to either side of the channel centre, past a standard
-/// marble's 8 mm radius plus the blade). The shipped parts cannot route a marble: see
-/// `shipped_*` below.
-fn switch_blade(id: &str) -> KitPiece {
-    let mut p = parble_kit::builtin()
-        .piece(&PieceId::new(id).unwrap())
-        .unwrap()
-        .clone();
-    let f0 = 45_000;
-    p.animated_parts = vec![AnimatedPart {
-        name: p.animated_parts[0].name.clone(),
-        pivot_um: [-8_000, f0, 0],
-        axis: [0, 1, 0],
-        rest_mdeg: 0,
-        limits_mdeg: [-35_000, 35_000],
-        collision: vec![solid_box(
-            [-26_000, f0 + 1_000, -1_000],
-            [-8_000, f0 + 14_000, 1_000],
-        )],
-    }];
-    p
-}
-
 #[test]
-fn toggle_alternates_six_marbles() {
-    let blade = switch_blade(TOGGLE);
-    let (sides, ev) = feed_fork(TOGGLE, Some(&blade), 1, 6);
+fn shipped_toggle_alternates_six_marbles() {
+    let (sides, ev) = feed_fork(TOGGLE, 1, 6);
     // Side 0 (+Z) is "L" for a marble travelling +X.
     assert_eq!(sides, [0, 1, 0, 1, 0, 1].map(Some));
     let passes: Vec<i64> = signals(&ev, "pass").into_iter().map(|p| p.1).collect();
@@ -220,13 +153,12 @@ fn toggle_alternates_six_marbles() {
 
 #[test]
 fn toggle_first_side_follows_config() {
-    let blade = switch_blade(TOGGLE);
     let layout = {
         let mut t = place(TOGGLE, 1, 0, 0, 0);
         t.config.insert("first".into(), 1);
         [place("blk_straight_l3", 0, 0, 0, 0), t]
     };
-    let mut sim = rig(&layout, 1, Some(&blade));
+    let mut sim = rig(&layout, 1);
     let (mut tr, mut ev) = (Vec::new(), Vec::new());
     for _ in 0..2 {
         launch(&mut sim, Vector::new(-0.02, rest(3), 0.0), Vector::X * 0.6);
@@ -249,12 +181,11 @@ fn expected_splits(seed: u64, n: usize) -> Vec<Option<Side>> {
 }
 
 #[test]
-fn splitter_matches_its_seeded_sequence() {
-    let blade = switch_blade(SPLITTER);
+fn shipped_splitter_matches_its_seeded_sequence() {
     let mut both = [false; 2];
     for seed in [3, 11] {
         let want = expected_splits(seed, 8);
-        let (sides, ev) = feed_fork(SPLITTER, Some(&blade), seed, 8);
+        let (sides, ev) = feed_fork(SPLITTER, seed, 8);
         assert_eq!(sides, want, "seed {seed}");
         for s in sides.iter().flatten() {
             both[*s as usize] = true;
@@ -267,27 +198,16 @@ fn splitter_matches_its_seeded_sequence() {
     assert!(both[0] && both[1], "the sequences never used both branches");
 }
 
+/// The shipped fork parts steer the marble: it touches the part and leaves by a branch, never back
+/// out of the -X port (the P2-T3 parts it replaced turned every marble back).
 #[test]
-#[ignore = "P2-T3 part geometry blocks the channel: the rocker plate is a 4-6 mm step at the cell entry"]
-fn shipped_toggle_alternates_six_marbles() {
-    let (sides, _) = feed_fork(TOGGLE, None, 1, 6);
-    assert_eq!(sides, [0, 1, 0, 1, 0, 1].map(Some));
-}
-
-#[test]
-#[ignore = "P2-T3 part geometry blocks the channel: the 12 mm blade's tip is 4 mm off centre at its 20° limit"]
-fn shipped_splitter_matches_its_seeded_sequence() {
-    let (sides, _) = feed_fork(SPLITTER, None, 3, 8);
-    assert_eq!(sides, expected_splits(3, 8));
-}
-
-/// What the shipped fork parts do today: the marble meets the part at the cell entry and rolls
-/// back out of the -X port. Pins the defect so a geometry fix shows up here.
-#[test]
-fn shipped_fork_parts_turn_the_marble_back() {
+fn shipped_fork_parts_steer_the_marble_into_a_branch() {
     for piece in [TOGGLE, SPLITTER] {
-        let (sides, ev) = feed_fork(piece, None, 1, 1);
-        assert_eq!(sides, [None], "{piece}");
+        let (sides, ev) = feed_fork(piece, 1, 1);
+        assert!(
+            sides[0].is_some(),
+            "{piece}: the marble never left by a branch"
+        );
         assert!(
             ev.iter().any(|e| matches!(e, SimEvent::Contact(c) if matches!(c.other, crate::mechanism::ContactOther::Part { .. }))),
             "{piece}: the marble never touched the part"
@@ -306,7 +226,7 @@ fn one_way(piece: &str, dir: f32) -> (Sim, Vec<Vec<MarbleState>>, Vec<SimEvent>)
         place(piece, 1, 0, 0, 0),
         place("blk_straight_l1", 2, 0, 0, 0),
     ];
-    let mut sim = rig(&layout, 1, None);
+    let mut sim = rig(&layout, 1);
     let x0 = if dir > 0.0 { -0.02 } else { 0.14 };
     launch(
         &mut sim,
@@ -397,7 +317,7 @@ fn checkpoint_reports_split_ticks_and_camera_cues() {
         place(CHECKPOINT, 1, 0, 0, 0),
         place("blk_straight_l1", 2, 0, 0, 0),
     ];
-    let mut sim = rig(&layout, 1, None);
+    let mut sim = rig(&layout, 1);
     let (mut tr, mut ev) = (Vec::new(), Vec::new());
     for _ in 0..2 {
         launch(&mut sim, Vector::new(-0.02, rest(1), 0.0), Vector::X * 0.3);
@@ -437,7 +357,7 @@ fn finish_counts_each_marble_once_with_its_arrival_tick() {
         place("blk_straight_l3", 0, 0, 0, 0),
         place(FINISH, 1, 0, 0, 0),
     ];
-    let mut sim = rig(&layout, 1, None);
+    let mut sim = rig(&layout, 1);
     let (mut tr, mut ev) = (Vec::new(), Vec::new());
     for _ in 0..3 {
         launch(&mut sim, Vector::new(-0.02, rest(3), 0.0), Vector::X * 0.4);
@@ -592,7 +512,7 @@ fn every_behaviour_restores_what_it_saved() {
         place(CHECKPOINT, 2, 0, 0, 0),
         place(HOLE, 3, 0, 0, 0),
     ];
-    let mut sim = rig(&layout, 5, None);
+    let mut sim = rig(&layout, 5);
     launch(&mut sim, Vector::new(-0.02, rest(1), 0.0), Vector::X * 0.3);
     sim.tick(300);
     for v in sim.mechanisms() {
@@ -631,4 +551,34 @@ fn registry_covers_every_mechanism_piece() {
     for id in mech {
         assert!(reg.get(&id).is_some(), "{id} has no behaviour");
     }
+}
+
+/// Each fork part routes a marble to its commanded branch whatever its entry speed (up to 0.6 m/s:
+/// faster marbles leave the L3 bend over its 15 mm lip) or lateral offset in the feed channel.
+#[test]
+fn shipped_fork_parts_route_slow_and_off_centre_marbles() {
+    let mut bad = Vec::new();
+    for piece in [TOGGLE, SPLITTER] {
+        for (first, seed) in [(0, 3), (1, 11)] {
+            let want = if piece == TOGGLE {
+                first
+            } else {
+                expected_splits(seed, 1)[0].unwrap()
+            };
+            for v in [0.2, 0.3, 0.4, 0.5, 0.6] {
+                for dz in [-0.004, -0.002, 0.0, 0.002, 0.004] {
+                    let mut t = place(piece, 1, 0, 0, 0);
+                    t.config.insert("first".into(), first);
+                    let mut sim = rig(&[place("blk_straight_l3", 0, 0, 0, 0), t], seed);
+                    let (mut tr, mut ev) = (Vec::new(), Vec::new());
+                    launch(&mut sim, Vector::new(-0.02, rest(3), dz), Vector::X * v);
+                    run(&mut sim, 400, &mut tr, &mut ev);
+                    if fork_side(&tr, 0) != Some(want) {
+                        bad.push((piece, want, v, dz));
+                    }
+                }
+            }
+        }
+    }
+    assert!(bad.is_empty(), "missed the commanded branch: {bad:?}");
 }

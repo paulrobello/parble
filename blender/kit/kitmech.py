@@ -11,7 +11,7 @@ sidecar stores the part's own collision in the piece-local frame at 0 mdeg, as c
 overhead and collider checks see only the piece body. Behaviour is P2-T5.
 
 Parts per piece (kit-check enforces the names): hopper `anim_gate` (release gate), splitter
-`anim_flap`, toggle `anim_rocker`, one-way gate `anim_flap`, one-way hole `anim_trapdoor`. The
+`anim_flap` and toggle `anim_rocker` (both a switch blade at the fork), one-way gate `anim_flap`, one-way hole `anim_trapdoor`. The
 finish cup and the checkpoint arch have no moving part, only sensors.
 """
 import math
@@ -270,9 +270,9 @@ def _solid_box(lo, hi):
 
 def _solid_prism(poly, axis, a0, a1):
     """Convex polygon `poly` [(p, q)] extruded along `axis` from a0 to a1. Axis "x": poly is
-    (z, y); axis "y": poly is (x, z)."""
+    (z, y); axis "y": poly is (x, z); axis "z": poly is (x, y)."""
     def pt(p, q, a):
-        return (a, q, p) if axis == "x" else (p, a, q)
+        return {"x": (a, q, p), "y": (p, a, q), "z": (p, q, a)}[axis]
     n = len(poly)
     v = [pt(p, q, a0) for p, q in poly] + [pt(p, q, a1) for p, q in poly]
     f = [tuple(range(n)), tuple(range(2 * n - 1, n - 1, -1))]
@@ -312,6 +312,40 @@ def _flap(px, f0, segs):
     return [plate, pin]
 
 
+# Fork switch blade (splitter and toggle): a vertical wall hinged about +Y at the fork, its free
+# end BLADE_LEN upstream. At ±FORK_LIMIT the tip is 10.1 mm off the channel centre, past a standard
+# marble's 8 mm radius, so the marble meets the blade's face and is steered to the open branch. The
+# shallow 25° face keeps a slow or off-centre marble rolling instead of bouncing it back upstream.
+# The underside (BLADE_UNDER: x at 0 mdeg, mm above the floor) follows the two troughs' floor and
+# the ridge between them, clearing it everywhere in the sweep by at least 0.5 mm.
+FORK_PIVOT_X = -2.0
+BLADE_LEN = 24.0
+BLADE_TOP = 14.0
+BLADE_UNDER = [(-2.0, 6.0), (-10.0, 1.8), (-18.0, 1.0), (-26.0, 4.0)]
+FORK_LIMIT = 25000
+
+
+def _switch_blade(shape, f0, segs):
+    """Splitter: a 2 mm blade on a slim post, resting at its +Z-tip limit. Toggle: the same blade on
+    a round hub, resting at its -Z-tip limit (side 0, the first marble's default)."""
+    half = FLAP_T
+    tip = FORK_PIVOT_X - BLADE_LEN
+    outline = [(x, f0 + y) for x, y in BLADE_UNDER] + [(tip, f0 + BLADE_TOP), (FORK_PIVOT_X, f0 + BLADE_TOP)]
+    blade = _solid_prism(outline, "z", -half, half)
+    y0, y1 = f0 + BLADE_UNDER[0][1], f0 + BLADE_TOP
+    if shape == "splitter":
+        hub = _solid_box((FORK_PIVOT_X - 1.5, y0, -1.5), (FORK_PIVOT_X + 1.5, y1, 1.5))
+        name, rest = "anim_flap", FORK_LIMIT
+    else:
+        n = max(8, 2 * segs)
+        ring = [(FORK_PIVOT_X + 2.0 * math.cos(2 * math.pi * k / n), 2.0 * math.sin(2 * math.pi * k / n))
+                for k in range(n)]
+        hub = _solid_prism(ring, "y", y0, y1)
+        name, rest = "anim_rocker", -FORK_LIMIT
+    return ({"name": name, "pivot_um": [B.um(FORK_PIVOT_X), B.um(f0), 0], "axis": [0, 1, 0],
+             "rest_mdeg": rest, "limits_mdeg": [-FORK_LIMIT, FORK_LIMIT]}, [blade, hub])
+
+
 def parts(piece_id, segs=None):
     """[(part dict without collision, [convex solids])], sorted by name. `segs` sets the curved
     outlines' segment count (collision: 8)."""
@@ -325,16 +359,8 @@ def parts(piece_id, segs=None):
     if shape == "gate_oneway":
         return [({"name": "anim_flap", "pivot_um": [0, 51000, 0], "axis": [0, 0, 1], "rest_mdeg": 0,
                   "limits_mdeg": [0, 85000]}, _flap(0.0, f0, s))]
-    if shape == "splitter":   # vertical blade at the fork; rests turned 20° to one branch
-        blade = _solid_box((-20.0, f0 + 4.0, -FLAP_T), (-8.0, f0 + 12.0, FLAP_T))
-        post = _solid_box((-9.5, f0 + 4.0, -1.5), (-6.5, f0 + 14.0, 1.5))
-        return [({"name": "anim_flap", "pivot_um": [-8000, B.um(f0), 0], "axis": [0, 1, 0],
-                  "rest_mdeg": 20000, "limits_mdeg": [-20000, 20000]}, [blade, post])]
-    if shape == "toggle":     # rocker tilting about the flow axis; rests tilted to one side
-        plate = _solid_box((-22.0, f0 + 4.0, -8.0), (-10.0, f0 + 6.0, 8.0))
-        ridge = _solid_box((-22.0, f0 + 6.0, -FLAP_T), (-10.0, f0 + 12.0, FLAP_T))
-        return [({"name": "anim_rocker", "pivot_um": [-16000, B.um(f0 + 4.0), 0], "axis": [1, 0, 0],
-                  "rest_mdeg": -12000, "limits_mdeg": [-12000, 12000]}, [plate, ridge])]
+    if shape in ("splitter", "toggle"):
+        return [_switch_blade(shape, f0, s)]
     if shape == "hole_oneway":  # trapdoor over the bore, hinged at its +x edge; drops the -x edge
         n = max(8, 2 * s)
         disc = [(TRAP_R * math.cos(2 * math.pi * k / n), TRAP_R * math.sin(2 * math.pi * k / n)) for k in range(n)]

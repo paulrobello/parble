@@ -7,12 +7,12 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "598168abc009ce13b7e42cfeb7194a4e1bb9939ee13669d3bb565ede5d7dd841",
+    "sha256": "7c2251a18e1a4fb4279da9a2ce54c0b676213eaa9f42e44ae9c4809dcaed3d03",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "7f8a9f772acf63a53ad23a67b316b76ee8ff068499bf4d74355c9fd7187b173c"
+    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
   },
   "generatorDeps": [
     {
@@ -21,11 +21,11 @@
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "4af584be5af2ea3827da638e45c13fbba52ecec08950720b05597f733c591e9e"
+      "sha256": "fe82520ff25b453ef318332b3b462d271b293e5a33b24e98e217add8ea311a52"
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "2ad8e089c960207ab1d476f108b694257dcf2cf875226f2b4563daf7f6579531"
+      "sha256": "73110478953adde29fdfb3e6f1c4956e5f52f803b01e72916e8e58d7ea589b4c"
     }
   ],
   "authoringAgent": {
@@ -118,19 +118,19 @@
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 113064,
+    "glbBytes": 113764,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/mech_splitter_l3/mech_splitter_l3.glb",
-      "sha256": "866a88904729e6c4657ebc3292468f0e0a51bc3905f74831fb4a53e008ffcb25",
-      "bytes": 113064
+      "sha256": "9f1411dc4e641002d1121acf434b18b3bfeb29e655c09249e9785e104ce95264",
+      "bytes": 113764
     },
     {
       "path": "assets/kit/mech_splitter_l3/mech_splitter_l3.kit.json",
-      "sha256": "5129f0bf434f7d66c332a971832353c7564afe7bae7bfb8fc1e7844d0c8c2e23",
-      "bytes": 38011
+      "sha256": "9f231e2b2d7a227e0d6fefb1cdf714e504f934e2fa245c47632e3951673ad3bc",
+      "bytes": 38618
     },
     {
       "path": "assets/kit/mech_splitter_l3/mech_splitter_l3_lod0_ao.png",
@@ -164,13 +164,13 @@
     },
     {
       "path": "assets-source/kit/mech_splitter_l3/mech_splitter_l3_high.blend",
-      "sha256": "bfa6e5eaf7c123091d25366a5b8f9d4fe832164607626182f28b4ef95d985f25",
-      "bytes": 373995
+      "sha256": "fc28d6737af286d82624f9c66611e1a14e7101ea9c692bf0766a879cc876f4aa",
+      "bytes": 374495
     },
     {
       "path": "assets-source/kit/mech_splitter_l3/mech_splitter_l3_low.blend",
-      "sha256": "9c24cc9fa5db9933cf213c7c678a22f2dd4f99e2261ad3b8b00e303719bbac02",
-      "bytes": 190229
+      "sha256": "f29d68f0dcfde2d621fe41fb52ba6e13384d4aadf32faa6d8c40427b0a70193b",
+      "bytes": 190591
     }
   ],
   "references": [

@@ -3,7 +3,7 @@
   "colliderTris": 568,
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "7f8a9f772acf63a53ad23a67b316b76ee8ff068499bf4d74355c9fd7187b173c"
+    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
   },
   "generatorDeps": [
     {
@@ -12,11 +12,11 @@
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "4af584be5af2ea3827da638e45c13fbba52ecec08950720b05597f733c591e9e"
+      "sha256": "fe82520ff25b453ef318332b3b462d271b293e5a33b24e98e217add8ea311a52"
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "2ad8e089c960207ab1d476f108b694257dcf2cf875226f2b4563daf7f6579531"
+      "sha256": "73110478953adde29fdfb3e6f1c4956e5f52f803b01e72916e8e58d7ea589b4c"
     }
   ],
   "lodParams": {
@@ -80,13 +80,13 @@
   ],
   "partTris": {
     "lod0": {
-      "anim_rocker_lod0": 24
+      "anim_rocker_lod0": 144
     },
     "lod1": {
-      "anim_rocker_lod1": 24
+      "anim_rocker_lod1": 64
     },
     "lod2": {
-      "anim_rocker_lod2": 24
+      "anim_rocker_lod2": 48
     }
   },
   "pieceId": "mech_toggle_l3",

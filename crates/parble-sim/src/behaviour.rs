@@ -16,11 +16,9 @@
 //! | `mech_splitter_l3` | `entry` | `anim_flap` | the flap is set to a seeded side before each marble arrives |
 //! | `mech_toggle_l3` | `entry` | `anim_rocker` | the rocker flips to the other side after each marble |
 //!
-//! The fork parts as shipped (P2-T3) cannot route a marble: the splitter blade's tip is 4 mm off
-//! the channel centre at its 20° limit (a standard marble is 8 mm in radius) and the toggle's
-//! rocker plate is a 4–6 mm step at the cell entry, so a marble meets either head-on and rolls
-//! back. The behaviours drive the part to its limits ([`fork_angle`]); the tests prove the routing
-//! with a switch-blade part in place of the shipped one until the P2-T3 geometry is fixed.
+//! Both fork parts are a switch blade hinged about +Y with its tip upstream; at its ±25° limits
+//! the tip is 10.1 mm off the channel centre, so the marble meets the blade's face and is steered
+//! to the open branch. The behaviours drive the part to its limits ([`fork_angle`]).
 //! | `mech_checkpoint_l1` | `gate` | — | split tick and a camera cue per pass |
 //! | `mech_gate_oneway_l1` | `approach`, `exit` | `anim_flap` | opens for marbles that reach `approach` first; the closed flap blocks the others |
 //! | `mech_hole_oneway_l1` | `trap`, `over` | `anim_trapdoor` | opens under marbles that reach `trap` first; marbles from `over` roll across the shut door |
