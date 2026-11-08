@@ -23,6 +23,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 import kitgeom as K  # noqa: E402
+import kitblocks as B  # noqa: E402
 
 SKIP_BAKE = os.environ.get("PARBLE_SKIP_BAKE") == "1"
 DEVICE = os.environ.get("PARBLE_BAKE_DEVICE", "GPU")
@@ -78,12 +79,25 @@ def texel_density(ob, px):
     return {"min": round(min(vals), 1), "median": round(statistics.median(vals), 1), "max": round(max(vals), 1)}
 
 
-def check_render_bounds(ob):
-    lim = (K.CELL / 2 - K.INSET) * 0.001 + 1e-6
+def check_render_bounds(ob, pid):
+    lo, hi = B.bounds_mm(pid)  # contract frame mm; Blender (x, y, z) = contract (x, -z, y)
+    lo = [(c + K.INSET) * 0.001 - 1e-6 for c in lo]
+    hi = [(c - K.INSET) * 0.001 + 1e-6 for c in hi]
     for v in ob.data.vertices:
         x, y, z = v.co
-        if abs(x) > lim or abs(y) > lim or z < K.INSET * 0.001 - 1e-6 or z > (K.CELL - K.INSET) * 0.001 + 1e-6:
-            raise RuntimeError(f"{ob.name}: vertex {tuple(v.co)} leaves the inset cell")
+        p = (x, z, -y)
+        if any(p[k] < lo[k] or p[k] > hi[k] for k in range(3)):
+            raise RuntimeError(f"{ob.name}: vertex {tuple(v.co)} leaves the inset footprint")
+
+
+def map_size(pid, lod):
+    """§12: 512² per 1-cell piece at LOD0; a multi-cell piece's atlas scales with its footprint
+    (next power of two of 512 × sqrt(cells)), capped at 2,048²."""
+    n = B.cells(pid)
+    s = MAP_SIZE[lod]
+    while s * s < MAP_SIZE[lod] ** 2 * n:
+        s *= 2
+    return min(s, 2048)
 
 
 def setup_cycles():
@@ -151,35 +165,38 @@ def build_piece(pid, out):
     coll.objects.link(root)
 
     lods = {}
+    G = B if B.handles(pid) else K
+    ncells = B.cells(pid)
     for lod, q in K.LODS.items():
-        ob = K.build_render_object(pid, q, f"{pid}_lod{lod}", coll, mat)
-        check_render_bounds(ob)
+        ob = G.build_render_object(pid, q, f"{pid}_lod{lod}", coll, mat)
+        check_render_bounds(ob, pid)
         tris = tri_count(ob)
-        budget = K.BUDGET_1CELL_BLOCK[lod]
+        budget = K.BUDGET_1CELL_BLOCK[lod] * ncells
         print(f"[kit] {pid} LOD{lod}: {tris} tris (budget {budget})")
         if tris > budget:
             raise RuntimeError(f"{pid} LOD{lod}: {tris} tris > budget {budget}")
         ob.parent = root
         lods[lod] = ob
-    col = K.build_collider_object(pid, f"{pid}_collider", coll)
+    col = G.build_collider_object(pid, f"{pid}_collider", coll)
     col.parent = root
     ctris = tri_count(col)
-    if ctris > K.COLLISION_TRIS_PER_CELL:
-        raise RuntimeError(f"{pid} collider: {ctris} tris > {K.COLLISION_TRIS_PER_CELL}")
-    K.build_socket_empties(pid, coll, parent=root)
+    print(f"[kit] {pid} collider: {ctris} tris (budget {K.COLLISION_TRIS_PER_CELL * ncells})")
+    if ctris > K.COLLISION_TRIS_PER_CELL * ncells:
+        raise RuntimeError(f"{pid} collider: {ctris} tris > {K.COLLISION_TRIS_PER_CELL * ncells}")
+    G.build_socket_empties(pid, coll, parent=root)
     for ob in lods.values():
         unwrap(ob)
-    density = {f"lod{lod}": texel_density(ob, MAP_SIZE[lod]) for lod, ob in lods.items()}
+    density = {f"lod{lod}": texel_density(ob, map_size(pid, lod)) for lod, ob in lods.items()}
 
     bake_rep = {"skipped": True}
     if not SKIP_BAKE:
-        high = K.build_render_object(pid, K.HIGH, f"{pid}_high", coll, mat)
+        high = G.build_render_object(pid, K.HIGH, f"{pid}_high", coll, mat)
         select_only([high])
         bpy.ops.wm.save_as_mainfile(filepath=str(out / f"{pid}_high.blend"), compress=True, copy=True)
         setup_cycles()
         channels = {}
         for lod, ob in lods.items():
-            s = MAP_SIZE[lod]
+            s = map_size(pid, lod)
             for kind, highs in (("NORMAL", [high]), ("AO", [])):
                 name = f"{pid}_lod{lod}_{kind.lower()}"
                 img = bpy.data.images.new(name, s, s, alpha=False, float_buffer=False)
@@ -206,7 +223,7 @@ def build_piece(pid, out):
         export_yup=True, export_apply=True, export_extras=True, export_tangents=True, export_normals=True,
         export_texcoords=True, export_cameras=False, export_lights=False, export_image_format="NONE",
         export_materials="EXPORT", export_animations=False)
-    (out / f"{pid}.kit.json").write_bytes(K.sidecar_bytes(pid))
+    (out / f"{pid}.kit.json").write_bytes(G.sidecar_bytes(pid))
 
     rel = lambda p: pathlib.Path(p).resolve().relative_to(REPO).as_posix()
     rep = {
@@ -215,9 +232,9 @@ def build_piece(pid, out):
         "lodTris": {f"{pid}_lod{lod}": tri_count(ob) for lod, ob in lods.items()},
         "colliderTris": ctris,
         "texelDensityPxPerM": density,
-        "mapSize": {f"lod{k}": v for k, v in MAP_SIZE.items()},
+        "mapSize": {f"lod{k}": map_size(pid, k) for k in MAP_SIZE},
         "generator": {"path": rel(__file__), "sha256": sha256(__file__)},
-        "generatorDeps": [{"path": rel(K.__file__), "sha256": sha256(K.__file__)}],
+        "generatorDeps": [{"path": rel(m.__file__), "sha256": sha256(m.__file__)} for m in (K, B)],
         "blender": bpy.app.version_string,
         "lodParams": {f"lod{k}": v for k, v in K.LODS.items()},
     }
@@ -232,7 +249,7 @@ def main():
     if not argv:
         raise SystemExit("usage: generate.py -- <stage_dir> [piece_id ...]")
     stage = pathlib.Path(argv[0]).resolve()
-    for pid in argv[1:] or K.BUILD:
+    for pid in argv[1:] or B.BUILD:
         out = stage / pid
         out.mkdir(parents=True, exist_ok=True)
         build_piece(pid, out)

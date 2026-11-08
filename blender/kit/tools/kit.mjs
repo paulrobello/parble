@@ -42,6 +42,16 @@ function canonicalRing(floorUm) {
   pts.push([14000, 60000]);
   return pts;
 }
+// §5.1 tunnel bore at a port (blender/kit/kitblocks.py tunnel_ring_um): the 17 canonical floor
+// vertices, then the 17 crown vertices (centre floor + 20 mm, apex floor + 34 mm).
+function tunnelRing(floorUm) {
+  const pts = canonicalRing(floorUm).slice(1, -1);
+  for (let i = 0; i < 17; i++) {
+    const ph = (90 - 11.25 * i) * Math.PI / 180;
+    pts.push([roundHalfAway(14000 * Math.sin(ph)), floorUm + 20000 + roundHalfAway(14000 * Math.cos(ph))]);
+  }
+  return pts;
+}
 function sortKeys(v) {
   if (Array.isArray(v)) return v.map(sortKeys);
   if (v && typeof v === "object") return Object.fromEntries(Object.keys(v).sort().map((k) => [k, sortKeys(v[k])]));
@@ -54,6 +64,8 @@ function allIntegers(v, where, errs) {
 }
 
 const FACE = { "+x": [0, 1], "-x": [0, -1], "+z": [2, 1], "-z": [2, -1] };
+// Pieces whose look Paul approved (P1-T2, 2026-11-07); every other piece's look gate is pending.
+const P1_APPROVED = new Set(["blk_straight_l3", "blk_curve90_l3", "blk_slope_gentle_l3", "blk_end_l3"]);
 
 function pieces(dir, ids) {
   return ids.length ? ids : fs.readdirSync(dir).filter((d) => ID_RE.test(d)).sort();
@@ -118,10 +130,17 @@ function overhead(verts, tris, footprint, errs, id) {
     const ny = (B[2] - A[2]) * (C[0] - A[0]) - (B[0] - A[0]) * (C[2] - A[2]);
     return { A, B, C, ny };
   });
-  let worst = Infinity;
-  for (const [cx, cy, cz] of footprint) {
+  // The 34 mm rule is measured above the channel floor's lowest line. In a tunnel (§5.1 bore) a
+  // column off the centreline sees the floor rise and the crown fall by the same amount, so each
+  // up-facing hit is credited twice its rise above the lowest up-facing hit within ±14 mm in plan
+  // (one channel half-width) and 14 mm below it. 100 µm covers the sampled column's offset from
+  // the centreline (≤ 0.5 mm, where the 16-segment floor and crown each rise ≤ 49 µm).
+  const cols = new Map();
+  for (const [cx, , cz] of footprint) {
     for (let i = 0; i < 60; i++) for (let k = 0; k < 60; k++) {
-      const x = cx * 60000 - 30000 + i * 1000 + 371, z = cz * 60000 - 30000 + k * 1000 + 613;
+      const gi = cx * 60 + i, gk = cz * 60 + k;
+      if (cols.has(`${gi},${gk}`)) continue;
+      const x = gi * 1000 - 30000 + 371, z = gk * 1000 - 30000 + 613;
       const hits = [];
       for (const t of T) {
         if (t.ny === 0) continue;
@@ -134,14 +153,26 @@ function overhead(verts, tris, footprint, errs, id) {
         hits.push({ y: l1 * A[1] + l2 * B[1] + l3 * C[1], up: t.ny > 0 });
       }
       hits.sort((a, b) => a.y - b.y);
-      for (let h = 0; h + 1 < hits.length; h++) {
-        if (hits[h].up && hits[h + 1].y - hits[h].y > 1) worst = Math.min(worst, hits[h + 1].y - hits[h].y);
-      }
+      cols.set(`${gi},${gk}`, { gi, gk, hits, ups: hits.filter((h) => h.up).map((h) => h.y) });
     }
   }
-  if (worst === Infinity) worst = "open (no static geometry above any floor)";
-  else if (worst < 34000) errs.push(`${id}: overhead clearance ${worst} µm < 34000 µm (§5.1)`);
-  return worst;
+  let worst = Infinity, worstRaw = Infinity;
+  for (const { gi, gk, hits } of cols.values()) {
+    for (let h = 0; h + 1 < hits.length; h++) {
+      const gap = hits[h + 1].y - hits[h].y;
+      if (!hits[h].up || gap <= 1) continue;
+      let low = hits[h].y;
+      for (let di = -14; di <= 14; di++) for (let dk = -14; dk <= 14; dk++) {
+        const c = cols.get(`${gi + di},${gk + dk}`);
+        if (c) for (const y of c.ups) if (y < low && y >= hits[h].y - 14000) low = y;
+      }
+      worstRaw = Math.min(worstRaw, gap);
+      worst = Math.min(worst, gap + 2 * (hits[h].y - low));
+    }
+  }
+  if (worst === Infinity) return "open (no static geometry above any floor)";
+  if (worst < 34000 - 100) errs.push(`${id}: overhead clearance ${Math.round(worst)} µm < 34000 µm (§5.1)`);
+  return `${Math.round(worst)} at the floor line (raw column min ${Math.round(worstRaw)})`;
 }
 
 // ------------------------------------------------------------------------------------ check
@@ -180,12 +211,23 @@ async function checkPiece(runtime, source, id, opts) {
     const nb = [...p.cell]; nb[ax] += sgn;
     if (!fpKey.has(p.cell.join(","))) errs.push(`${id}: port ${p.index} cell not in footprint`);
     if (fpKey.has(nb.join(","))) errs.push(`${id}: port ${p.index} faces a footprint cell (§9 rule 5)`);
-    const plane = p.cell[ax] * 60000 + sgn * 30000, uC = p.cell[other] * 60000, vB = p.cell[1] * 60000;
-    const got = new Set(colVerts.filter((v) => v[ax] === plane && Math.abs(v[other] - uC) <= 14000 && v[1] >= vB && v[1] <= vB + 60000)
-      .map((v) => `${v[other] - uC},${v[1] - vB}`));
-    const want = new Set(canonicalRing(15000 * p.level).map(([u, v]) => `${u},${v}`));
-    const missing = [...want].filter((k) => !got.has(k)), extra = [...got].filter((k) => !want.has(k));
-    if (missing.length || extra.length) errs.push(`${id}: port ${p.index} ring != canonical (missing ${missing.slice(0, 3)}, extra ${extra.slice(0, 3)})`);
+    // socket ports: the collision port plane sits inset_um inside the face (§5.5)
+    const plane = p.cell[ax] * 60000 + sgn * (30000 - p.inset_um), uC = p.cell[other] * 60000, vB = p.cell[1] * 60000;
+    const fl = 15000 * p.level;
+    const onPlane = colVerts.filter((v) => v[ax] === plane && Math.abs(v[other] - uC) <= 14000);
+    // open channel: wall tops at the cell top; tunnel: floor to crown apex (may rise past the cell)
+    const rings = [
+      [canonicalRing(fl), onPlane.filter((v) => v[1] >= vB && v[1] <= vB + 60000)],
+      [tunnelRing(fl), onPlane.filter((v) => v[1] >= vB + fl && v[1] <= vB + fl + 34000)],
+    ].map(([ring, vs]) => {
+      const got = new Set(vs.map((v) => `${v[other] - uC},${v[1] - vB}`));
+      const want = new Set(ring.map(([u, v]) => `${u},${v}`));
+      return { missing: [...want].filter((k) => !got.has(k)), extra: [...got].filter((k) => !want.has(k)) };
+    });
+    if (!rings.some((r) => !r.missing.length && !r.extra.length)) {
+      const { missing, extra } = rings[0];
+      errs.push(`${id}: port ${p.index} ring != canonical open or tunnel ring (open: missing ${missing.slice(0, 3)}, extra ${extra.slice(0, 3)})`);
+    }
   }
   // 5. collision footprint
   for (const [a, b, c] of colTris) {
@@ -239,7 +281,8 @@ async function checkPiece(runtime, source, id, opts) {
   const report = JSON.parse(fs.readFileSync(path.join(source, id, "export-report.json"), "utf8"));
   info.lodTris.forEach((t, l) => {
     if (t < 0) return;
-    if (fp.length === 1 && sc.family === "blk" && t > BUDGET_1CELL_BLOCK[l]) errs.push(`${id}: LOD${l} ${t} tris > ${BUDGET_1CELL_BLOCK[l]}`);
+    // multi-cell block pieces get the 1-cell budget per footprint cell (P2-T2)
+    if (sc.family === "blk" && t > BUDGET_1CELL_BLOCK[l] * fp.length) errs.push(`${id}: LOD${l} ${t} tris > ${BUDGET_1CELL_BLOCK[l] * fp.length}`);
     if (l > 0 && t >= info.lodTris[l - 1]) errs.push(`${id}: LOD${l} (${t}) not below LOD${l - 1}`);
     if (report.lodTris[lodNames[l]] !== t) errs.push(`${id}: LOD${l} ${t} tris != export report ${report.lodTris[lodNames[l]]}`);
   });
@@ -249,8 +292,12 @@ async function checkPiece(runtime, source, id, opts) {
   for (const n of lodNames) {
     for (const p of md[n]?.pos ?? []) {
       const c = cellOf(p, CELL);
-      const lo = [c[0] * CELL - CELL / 2 + INSET, c[1] * CELL + INSET, c[2] * CELL - CELL / 2 + INSET];
-      const inset = [0, 1, 2].every((k) => p[k] >= lo[k] - 1e-6 && p[k] <= lo[k] + CELL - 2 * INSET + 1e-6);
+      const lo = [c[0] * CELL - CELL / 2, c[1] * CELL, c[2] * CELL - CELL / 2];
+      // the seam inset applies on outer footprint faces only; across a face to another footprint
+      // cell the piece is one solid (multi-cell pieces)
+      const has = (k, d) => { const n = [...c]; n[k] += d; return fpKey.has(n.join(",")); };
+      const inset = [0, 1, 2].every((k) => p[k] >= lo[k] + (has(k, -1) ? 0 : INSET) - 1e-6
+        && p[k] <= lo[k] + CELL - (has(k, 1) ? 0 : INSET) + 1e-6);
       if (!fpKey.has(c.join(",")) || !inset) { errs.push(`${id}: ${n} vertex ${p.map((x) => x.toFixed(5))} outside the inset footprint`); break; }
     }
   }
@@ -262,6 +309,17 @@ async function checkPiece(runtime, source, id, opts) {
     const plane = p.cell[ax] * CELL + sgn * (CELL / 2 - INSET), uC = p.cell[other] * CELL;
     const floor = p.cell[1] * CELL + 0.015 * p.level, cy = floor + 0.014;
     for (const n of lodNames) {
+      if (p.class === "socket") {
+        // §5.5 socket bore on the face: 40 mm diameter about the half-round centre, bottom at floor - 6
+        const vs = (md[n]?.pos ?? []).filter((v) => Math.abs(v[ax] - plane) < 1e-6 && Math.hypot(v[other] - uC, v[1] - cy) < 0.0205);
+        if (!vs.length) { errs.push(`${id}: ${n} socket port ${p.index} has no bore vertices on the face`); continue; }
+        const r = vs.map((v) => Math.hypot(v[other] - uC, v[1] - cy));
+        const rDev = Math.max(...r.map((x) => Math.abs(x - 0.020)));
+        const low = Math.min(...vs.map((v) => v[1])) - (floor - 0.006);
+        if (rDev > TOL || Math.abs(low) > TOL) errs.push(`${id}: ${n} socket ${p.index} bore radius dev ${(rDev * 1000).toFixed(3)} mm, bottom off ${(low * 1000).toFixed(3)} mm`);
+        info.ports.push({ lod: n.slice(-4), port: p.index, floorErrMm: +(low * 1000).toFixed(4), centreErrMm: 0, widthMm: +(2000 * r.reduce((a, b) => a + b, 0) / r.length).toFixed(4) });
+        continue;
+      }
       const vs = (md[n]?.pos ?? []).filter((v) => Math.abs(v[ax] - plane) < 1e-6 && Math.abs(v[other] - uC) < 0.0145 && v[1] < cy + 1e-6);
       if (!vs.length) { errs.push(`${id}: ${n} port ${p.index} has no render channel vertices on the face`); continue; }
       const low = vs.reduce((a, b) => (b[1] < a[1] ? b : a));
@@ -282,6 +340,7 @@ async function checkPiece(runtime, source, id, opts) {
     const t = node.getWorldTranslation();
     const want = [p.cell[0] * CELL, p.cell[1] * CELL + 0.015 * (p.level ?? 0), p.cell[2] * CELL];
     if (p.kind === "side") { const [ax, sgn] = FACE[p.face]; want[ax] += sgn * CELL / 2; }
+    if (p.face === "top") want[1] += CELL;
     if (t.some((x, k) => Math.abs(x - want[k]) > 1e-6)) errs.push(`${id}: socket port_${p.index} at ${t} != ${want}`);
     const ex = node.getExtras();
     for (const k of ["index", "face", "level", "class", "flow", "kind"]) if (p[k] !== undefined && ex[k] !== p[k]) errs.push(`${id}: socket port_${p.index} extras.${k} ${ex[k]} != ${p[k]}`);
@@ -332,7 +391,7 @@ async function provenance(runtime, source, ids, checks) {
       pieceId: id,
       pieceVersion: JSON.parse(fs.readFileSync(path.join(dir, `${id}.kit.json`), "utf8")).piece_version,
       route: "scripted",
-      card: "P1-T2",
+      card: P1_APPROVED.has(id) ? "P1-T2" : "P2-T2",
       contract: { path: "docs/kit-contract.md", version: CONTRACT_VERSION, sha256: sha256(path.join(REPO, "docs/kit-contract.md")), approved: "Paul, 2026-11-07 (contract status line)" },
       generator: exp.generator,
       generatorDeps: exp.generatorDeps,
@@ -353,7 +412,9 @@ async function provenance(runtime, source, ids, checks) {
         .map((p) => ({ path: p, sha256: sha256(path.join(REPO, p)), role: "look reference (owner-supplied)" })),
       license: "MIT (repository licence); geometry is generated by the repository's own generator",
       validation: { pass: true, checks },
-      approvals: [{ who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the four-piece look 2026-11-07 (blender/kit/review/pieces.png; also seen textured in the kit2000 and playroom scenes)" }],
+      approvals: [P1_APPROVED.has(id)
+        ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the four-piece look 2026-11-07 (blender/kit/review/pieces.png; also seen textured in the kit2000 and playroom scenes)" }
+        : { who: "Paul", gate: "piece look", status: "pending", notes: "P2-T2 piece; review sheet blender/kit/review/p2t2-pieces.png" }],
     };
     fs.writeFileSync(path.join(dir, `${id}.provenance.json`), JSON.stringify(pv, null, 2) + "\n");
     console.log(`provenance ${id}`);

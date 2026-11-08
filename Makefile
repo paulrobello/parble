@@ -255,14 +255,17 @@ $(KIT_STAMP): $(KIT_TOOLS)/package.json $(KIT_TOOLS)/package-lock.json
 
 kit-tools: $(KIT_STAMP)
 
+# KIT_IDS limits kit-build to those pieces (re-baking an approved piece replaces its maps, so
+# rebuild only what changed, e.g. make kit-build KIT_IDS="blk_drop_l3 blk_pillar").
+KIT_IDS ?=
 kit-build: $(KIT_STAMP)
 	rm -rf target/kit-stage
 	mkdir -p target/kit-stage
-	$(KIT_RUN) -P blender/kit/generate.py -- target/kit-stage
-	node $(KIT_TOOLS)/kit.mjs compress target/kit-stage assets/kit assets-source/kit
-	$(KIT_RUN) -P blender/kit/reimport.py -- assets/kit
+	$(KIT_RUN) -P blender/kit/generate.py -- target/kit-stage $(KIT_IDS)
+	node $(KIT_TOOLS)/kit.mjs compress target/kit-stage assets/kit assets-source/kit $(KIT_IDS)
+	$(KIT_RUN) -P blender/kit/reimport.py -- assets/kit $(KIT_IDS)
 	node $(KIT_TOOLS)/kit.mjs provenance assets/kit assets-source/kit \
-	  --checks "kit-check contract 14.1-14.10,gltf-validator reimport (meshopt GLB),blender reimport (meshopt GLB)"
+	  --checks "kit-check contract 14.1-14.10,gltf-validator reimport (meshopt GLB),blender reimport (meshopt GLB)" $(KIT_IDS)
 
 kit-check: $(KIT_STAMP)
 	node $(KIT_TOOLS)/kit.mjs check assets/kit assets-source/kit

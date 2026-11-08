@@ -183,6 +183,7 @@ Rail section at `L2`, scale about 1 character = 1 mm:
 - One collision mesh per piece, the same for every LOD.
 - The channel half-round is sampled with **16 segments** (17 vertices, every 11.25°). Chord sag is 14 × (1 − cos 5.625°) = 0.067 mm.
 - **Canonical port ring:** at every side port the collision vertices on the port plane are exactly the 17 half-round vertices plus the two wall tops, computed in integer µm from `u = 14000 × sin θ`, `v = floor + 14000 − 14000 × cos θ`, `θ = −90° … +90°` in 11.25° steps, rounded half away from zero. `parble-core` exports this ring as a constant table. Kit-check asserts every port ring equals it exactly.
+- **Tunnel port ring (P2-T2):** a side port that exits a bored tunnel (the redirect's exit) has no wall tops. Its ring is the same 17 floor vertices plus 17 crown vertices, the floor half-round mirrored about `floor + 17000` µm, so the bore spans `floor … floor + 34000` (§5.1). A socket port's ring sits on its inset plane (`inset_um`, §5.5). Kit-check accepts the open ring or the tunnel ring at each side port. The tunnel ring exists only in `blender/kit/tools/kit.mjs` and is not yet a `parble-core` table.
 - Collision floors run to the cell face (0 mm inset). The visible seam gap and bevels exist only on the render mesh.
 - Lip fillets and outer bevels are dropped from the collision mesh (sharp edges).
 - Wall tops in the collision mesh: block family at the top face (60 mm in a 1-cell piece), rail family at floor + 18 mm. At a block-to-rail mate both walls stand at `u = ±14`, so the marble sees no step, only a lower wall on the rail side.
@@ -482,12 +483,12 @@ The dimensioned sections are inline above so every number is searchable:
 
 1. Sidecar parses, schema and `kit_contract` versions match, and the file is byte-identical on rebuild.
 2. The ID matches the §10 grammar, and the level suffix matches port 0.
-3. Every side port ring equals the canonical ring (§5.4), and the port lies on an outer footprint face (§9).
+3. Every side port ring equals the canonical ring or the tunnel ring (§5.4), and the port lies on an outer footprint face (§9).
 4. Render-mesh port position within ±0.1 mm and width 28.0 ±0.1 mm (§3.1).
 5. The footprint recomputed from the meshes equals the declared footprint, and no geometry leaves it except a declared spigot.
 6. The collision mesh is present and within budget, LOD0 to LOD2 are present and within budget (§12).
 7. Animated parts named in the sidecar exist as GLB nodes, with pivot and axis present.
-8. Overhead clearance of at least 34 mm above every channel floor for static geometry and for animated parts in their open pose (§5.1).
+8. Overhead clearance of at least 34 mm above every channel floor for static geometry and for animated parts in their open pose (§5.1). Kit-check measures each upward collision hit against the lowest upward hit within ±14 mm across and 14 mm below it, credited as twice the height difference, so a round bore's crown counts from the floor beneath it rather than from the curved bore wall.
 9. Provenance file present.
 10. No emissive material or inlay slot on any non-mechanical piece, and every mechanical piece's inlay defaults to off (§5.6).
 
