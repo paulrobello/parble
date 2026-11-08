@@ -684,6 +684,7 @@ fn every_behaviour_restores_what_it_saved() {
         place(GATE, 1, 0, 0, 0),
         place(CHECKPOINT, 2, 0, 0, 0),
         place(HOLE, 3, 0, 0, 0),
+        place(ROPE_ARCH, 4, 0, 0, 0),
     ];
     let mut sim = rig(&layout, 5);
     launch(&mut sim, Vector::new(-0.02, rest(1), 0.0), Vector::X * 0.3);
@@ -720,7 +721,7 @@ fn registry_covers_every_mechanism_piece() {
         .filter(|p| p.family == "mech")
         .map(|p| p.def.id.clone())
         .collect();
-    assert_eq!(mech.len(), 8);
+    assert_eq!(mech.len(), 9);
     for id in mech {
         assert!(reg.get(&id).is_some(), "{id} has no behaviour");
     }
@@ -915,4 +916,136 @@ fn hopper_releases_ten_into_a_flat_straight_without_a_stall() {
         );
         assert_eq!(v.part_angles, [0], "{release:?}");
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Rope-curtain arch
+// ---------------------------------------------------------------------------------------------
+
+/// Launch speeds of the rope arch sweeps, m/s.
+const ROPE_SPEEDS: [f32; 7] = [0.1, 0.15, 0.2, 0.3, 0.45, 0.6, 0.8];
+
+/// A cat's eye rolled along `dir` through L1 straight, rope arch, L1 straight at `speed`: its
+/// speed as its surface enters the curtain zone and as it leaves it (m/s), the rope angles after
+/// every tick, and the trajectory.
+fn rope_pass(dir: f32, speed: f32) -> (f32, f32, Vec<Vec<i32>>, Vec<Vec<MarbleState>>) {
+    let layout = [
+        place("blk_straight_l1", 0, 0, 0, 0),
+        place(ROPE_ARCH, 1, 0, 0, 0),
+        place("blk_straight_l1", 2, 0, 0, 0),
+    ];
+    let mut sim = rig(&layout, 1);
+    let x0 = if dir > 0.0 { -0.02 } else { 0.14 };
+    launch(
+        &mut sim,
+        Vector::new(x0, rest(1), 0.0),
+        Vector::X * speed * dir,
+    );
+    let half = ROPE_ARCH_HALF_UM as f32 * 1.0e-6 + R;
+    let (mut tr, mut angles) = (Vec::new(), Vec::new());
+    for _ in 0..900 {
+        sim.tick(1);
+        tr.push(sim.marbles());
+        angles.push(sim.mechanisms()[0].part_angles.clone());
+    }
+    // Along the travel direction, from the arch centre (x = 1 cell).
+    let s = |m: &MarbleState| (m.position[0] - CELL) * dir;
+    let speed_at = |edge: f32| {
+        tr.iter()
+            .map(|t| &t[0])
+            .find(|m| s(m) >= edge)
+            .map_or(0.0, |m| Vector::from(m.linvel).length())
+    };
+    (speed_at(-half), speed_at(half), angles, tr)
+}
+
+#[test]
+fn rope_arch_halves_the_speed_of_a_marble_passing_through() {
+    let mut report = Vec::new();
+    for dir in [1.0, -1.0] {
+        for v in ROPE_SPEEDS {
+            let (entry, exit, _, tr) = rope_pass(dir, v);
+            let ratio = exit / entry;
+            report.push(format!(
+                "dir {dir} launch {v}: entry {entry:.3} exit {exit:.3} ratio {ratio:.3}"
+            ));
+            assert!(
+                entry > 0.0 && exit > 0.0,
+                "dir {dir} launch {v}: never left the arch"
+            );
+            assert!(
+                (0.45..=0.55).contains(&ratio),
+                "dir {dir} launch {v}: entry {entry} exit {exit} ratio {ratio}"
+            );
+            // The ropes have no collider: the marble stays on the channel floor, centred, and
+            // leaves by the far straight.
+            let on_track = |m: &&MarbleState| (m.position[0] - CELL).abs() < 1.5 * CELL - R;
+            for m in tr.iter().map(|t| &t[0]).filter(on_track) {
+                assert!(
+                    (m.position[1] - rest(1)).abs() < 1.0e-3,
+                    "dir {dir} launch {v}: {m:?}"
+                );
+                assert!(m.position[2].abs() < 1.0e-3, "dir {dir} launch {v}: {m:?}");
+            }
+            let last = tr.last().unwrap()[0].position[0];
+            assert!(
+                (last - CELL) * dir > 1.5 * CELL,
+                "dir {dir} launch {v}: stopped at x = {last}"
+            );
+        }
+        // A crawling marble (0.05 m/s) still gets through; rolling resistance takes a little more
+        // than the curtain's half at that speed (0.43 measured).
+        let (entry, exit, _, _) = rope_pass(dir, 0.05);
+        assert!(
+            exit > 0.0 && exit / entry > 0.35,
+            "dir {dir}: {entry} -> {exit}"
+        );
+    }
+    println!("{}", report.join("\n"));
+}
+
+#[test]
+fn rope_arch_ropes_swing_away_from_the_marble_and_settle() {
+    for dir in [1.0_f32, -1.0] {
+        let (_, _, angles, _) = rope_pass(dir, 0.3);
+        assert!(angles[0].iter().all(|&a| a == 0), "ropes start at rest");
+        for rope in 0..8 {
+            let away = angles
+                .iter()
+                .map(|a| a[rope] as f32 * dir)
+                .fold(f32::MIN, f32::max);
+            assert!(
+                away >= ROPE_SWING_MIN_MDEG as f32 * 0.6 - 1.0,
+                "dir {dir} rope {rope} swings away only {away} mdeg"
+            );
+            // The swing reverses past rest before it dies out.
+            assert!(
+                angles.iter().any(|a| a[rope] as f32 * dir < -1_000.0),
+                "dir {dir} rope {rope} never swings back"
+            );
+            assert_eq!(
+                angles.last().unwrap()[rope],
+                0,
+                "dir {dir} rope {rope} settles"
+            );
+        }
+    }
+}
+
+#[test]
+fn rope_arch_drag_keeps_the_same_share_for_every_marble_size() {
+    // The zone a marble's centre crosses grows with its radius, and k shrinks with it.
+    for r in [0.005_f32, 0.008, 0.0125] {
+        let zone = 2.0 * (ROPE_ARCH_HALF_UM as f32 * 1.0e-6 + r);
+        let keep = libm::expf(-RopeArch::drag_k(r) * zone);
+        assert!(
+            (keep - ROPE_KEEP).abs() < 1.0e-5,
+            "radius {r}: keeps {keep}"
+        );
+    }
+    // The swing keyframes are integers that end at rest.
+    let k = rope_swing(0, 20_000);
+    assert_eq!(k.sample(0), 0);
+    assert_eq!(k.sample(u64::from(ROPE_PUSH_TICKS)), 20_000);
+    assert_eq!(k.sample(u64::from(ROPE_SWING_TICKS)), 0);
 }

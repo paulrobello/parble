@@ -96,6 +96,7 @@ const P1_APPROVED = new Set(["blk_straight_l3", "blk_curve90_l3", "blk_slope_gen
 const MECH_PARTS = {
   hopper: ["anim_gate"], finish: [], splitter: ["anim_flap"], toggle: ["anim_rocker"], checkpoint: [],
   gate_oneway: ["anim_flap"], hole_oneway: ["anim_trapdoor"], stepper_up1: ["anim_slats"],
+  arch_rope: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => `anim_rope_${i}`),
 };
 const PART_BUDGET = [1500, 500, 120];
 const mechShape = (id) => id.replace(/^mech_/, "").replace(/_l[0-3]$/, "");

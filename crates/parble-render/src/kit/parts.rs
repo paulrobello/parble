@@ -215,7 +215,7 @@ mod tests {
                 checked += 1;
             }
         }
-        assert_eq!(checked, 6, "mechanism parts");
+        assert_eq!(checked, 14, "mechanism parts");
     }
 
     /// The split LODs at the rest angle are exactly the old merged rest-pose meshes.

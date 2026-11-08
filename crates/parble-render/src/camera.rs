@@ -136,25 +136,33 @@ impl Cues {
         )])
     }
 
-    /// Mechanism showcase (P2-T6 `--scenario mechanisms`): one set shot from in front of and above
-    /// the row, all three mechanism lanes in frame, focused on its middle.
+    /// Mechanism showcase (P2-T6 `--scenario mechanisms`): a set shot from in front of and above
+    /// the row, the toggle, gate and lift lanes in frame, focused on its middle. At
+    /// `ROPE_CUT_TICK` it cuts to a close set shot looking down the rope lane (−Z) into the arch,
+    /// where the ropes hang under the bridge, as the marble rolls in, and at `ROPE_RETURN_TICK`
+    /// back to the row.
     pub fn mechanisms() -> Self {
-        use parble_sim::mech_showcase::{LIFT_CELL, TOGGLE_CELL};
+        use parble_sim::mech_showcase::{
+            LIFT_CELL, ROPE_CELL, ROPE_CUT_TICK, ROPE_RETURN_TICK, TOGGLE_CELL,
+        };
         let cell = scene::cell_m();
         let at = |c: [i32; 3]| Vec3::new(c[0] as f32, 0.0, c[2] as f32) * cell;
+        let set = |look: Vec3, eye: Vec3| Shot::Set {
+            eye: eye.to_array(),
+            look: look.to_array(),
+            focus_m: eye.distance(look),
+        };
         // From the toggle lane's first straight to the straight on the lift's high exit.
         let first = at(TOGGLE_CELL) - Vec3::X * cell;
         let last = at(LIFT_CELL) + Vec3::X * cell * 2.0;
         let look = (first + last) / 2.0 + Vec3::Y * 0.04;
-        let eye = look + Vec3::new(0.0, 0.60, 0.26);
-        Self(vec![(
-            0,
-            Shot::Set {
-                eye: eye.to_array(),
-                look: look.to_array(),
-                focus_m: eye.distance(look),
-            },
-        )])
+        let row = set(look, look + Vec3::new(0.0, 0.60, 0.26));
+        let rope = at(ROPE_CELL) + Vec3::Y * 0.03;
+        Self(vec![
+            (0, row),
+            (ROPE_CUT_TICK, set(rope, rope + Vec3::new(0.0, 0.09, 0.15))),
+            (ROPE_RETURN_TICK, row),
+        ])
     }
 
     /// All-pieces track (P2-T7 `--scenario allpieces`): one set shot from in front of and above the

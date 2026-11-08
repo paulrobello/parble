@@ -43,6 +43,7 @@ macro_rules! builtin_piece_ids {
             blk_straight_l2,
             blk_straight_l3,
             blk_tower_socket_l1,
+            mech_arch_rope_l1,
             mech_checkpoint_l1,
             mech_finish,
             mech_gate_oneway_l1,
@@ -73,7 +74,7 @@ macro_rules! sidecars {
 }
 
 /// Sidecars shipped in `assets/kit/`, in id order.
-const BUILTIN_SIDECARS: [&str; 30] = builtin_piece_ids!(sidecars);
+const BUILTIN_SIDECARS: [&str; 31] = builtin_piece_ids!(sidecars);
 
 /// [`BUILTIN_SIDECARS`] index of `blk_straight_l3`, the tests' reference sidecar.
 #[cfg(test)]
@@ -576,6 +577,7 @@ mod tests {
                 "blk_straight_l2",
                 "blk_straight_l3",
                 "blk_tower_socket_l1",
+                "mech_arch_rope_l1",
                 "mech_checkpoint_l1",
                 "mech_finish",
                 "mech_gate_oneway_l1",
@@ -727,6 +729,27 @@ mod tests {
                 matches!(parse_sidecar(&bad), Err(KitError::BadPart(0))),
                 "{bad:.80}"
             );
+        }
+    }
+
+    #[test]
+    fn rope_arch_hangs_two_rows_of_four_ropes() {
+        // PRD P2 item 18 (blender/kit/kitmech.py): ropes hinged about +Z at the arch underside,
+        // 35 mm above the L1 floor, rows at x = ±6 mm, ±45° each way.
+        let p = builtin().piece(&id("mech_arch_rope_l1")).unwrap();
+        assert_eq!(p.family, "mech");
+        let sensors: Vec<&str> = p.sensors.iter().map(|s| s.id.as_str()).collect();
+        assert_eq!(sensors, ["curtain_nx", "curtain_px"]);
+        assert_eq!(p.animated_parts.len(), 8);
+        for (i, a) in p.animated_parts.iter().enumerate() {
+            let x = if i < 4 { -6_000 } else { 6_000 };
+            let z = [-10_500, -4_500, 4_500, 10_500][i % 4];
+            assert_eq!(a.name, format!("anim_rope_{i}"));
+            assert_eq!(a.pivot_um, [x, 50_000, z]);
+            assert_eq!((a.axis, a.rest_mdeg), ([0, 0, 1], 0));
+            assert_eq!(a.limits_mdeg, [-45_000, 45_000]);
+            assert_eq!(a.collision.len(), 1);
+            assert!(!a.collision[0].triangles.is_empty());
         }
     }
 

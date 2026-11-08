@@ -11,7 +11,8 @@
 //! 0. reads every physical part's angle from its body;
 //! 1. updates every sensor's occupancy from the marble positions at `t` (sphere against the placed
 //!    box or sphere, so sensors add nothing to Rapier's broad phase);
-//! 2. calls [`Mechanism::step`] for each instance in [`InstanceId`] order;
+//! 2. calls [`Mechanism::step`] for each instance in [`InstanceId`] order, then applies the marble
+//!    drags it queued ([`MechContext::drag_marble`]);
 //! 3. sets each kinematic part's next pose to its angle at `t + 1` (a physical part instead takes
 //!    its brace, [`MechContext::brace_part`]);
 //! 4. on every multiple of [`crate::HASH_SAMPLE_TICKS`], absorbs every instance's state into
@@ -76,6 +77,12 @@ pub trait Mechanism: Send + Sync {
     /// kinematic pose. Asked once per part when the instance is added.
     fn part_physics(&self, _part: usize) -> Option<PartPhysics> {
         None
+    }
+    /// `false` for a kinematic part drawn and posed but given no collider, so marbles pass
+    /// through it (a cosmetic part). Asked once per part when the instance is added; ignored for a
+    /// physical part.
+    fn part_collides(&self, _part: usize) -> bool {
+        true
     }
 }
 
@@ -435,6 +442,8 @@ pub struct MechContext<'a> {
     signals: &'a mut Vec<(&'static str, i64)>,
     /// Every marble's `(centre, velocity, radius, collider)` after this step.
     balls: &'a [(Vector, Vector, f32, ColliderHandle)],
+    /// `(marble, k)` drags queued by [`MechContext::drag_marble`] this tick.
+    drags: &'a mut Vec<(usize, f32)>,
 }
 
 impl MechContext<'_> {
@@ -530,6 +539,35 @@ impl MechContext<'_> {
     /// Emit a [`MechEventKind::Signal`] (kept only while recording).
     pub fn emit(&mut self, name: &'static str, value: i64) {
         self.signals.push((name, value));
+    }
+
+    /// Marble `marble`'s speed (m/s) and radius (m) at this tick.
+    pub fn marble(&self, marble: usize) -> Option<(f32, f32)> {
+        self.balls
+            .get(marble)
+            .map(|&(_, v, r, _)| (libm::sqrtf(v.dot(v)), r))
+    }
+
+    /// Quadratic drag on marble `marble` before the next step: its linear and angular velocity are
+    /// both scaled by `exp(−k·|v|·dt)`, so a rolling marble keeps rolling and its speed falls by
+    /// the factor `exp(−k·d)` over a distance `d` travelled under the drag, whatever its speed.
+    /// `k` is per metre.
+    pub fn drag_marble(&mut self, marble: usize, k: f32) {
+        if marble < self.balls.len() {
+            self.drags.push((marble, k));
+        }
+    }
+}
+
+/// Apply queued [`MechContext::drag_marble`] drags.
+fn apply_drags(world: &mut PhysicsWorld, marbles: &[RigidBodyHandle], drags: &[(usize, f32)]) {
+    for &(m, k) in drags {
+        let body = &mut world.bodies[marbles[m]];
+        let v = body.linvel();
+        let f = libm::expf(-k * libm::sqrtf(v.dot(v)) * crate::DT);
+        let w = body.angvel();
+        body.set_linvel(v * f, true);
+        body.set_angvel(w * f, true);
     }
 }
 
@@ -720,6 +758,8 @@ impl Mechanisms {
                     ))
                     .build();
                 colliders = vec![(hull, surface)];
+            } else if !behaviour.part_collides(pi) {
+                colliders.clear();
             }
             let runtime = PartRuntime {
                 name: part.name.clone(),
@@ -833,6 +873,7 @@ impl Mechanisms {
             }
 
             let mut signals = Vec::new();
+            let mut drags = Vec::new();
             let mut ctx = MechContext {
                 tick,
                 id,
@@ -844,8 +885,10 @@ impl Mechanisms {
                 piece: &inst.piece,
                 signals: &mut signals,
                 balls: &balls,
+                drags: &mut drags,
             };
             inst.behaviour.step(&mut ctx);
+            apply_drags(world, marbles, &drags);
 
             for p in &inst.parts {
                 let body = &mut world.bodies[p.body];

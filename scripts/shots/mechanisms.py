@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""P2-T6 shots test: the mechanism showcase (`--scenario mechanisms`) at two fixed sim ticks.
+"""P2-T6 shots test: the mechanism showcase (`--scenario mechanisms`) at four fixed sim ticks.
 
 - toggle-mid-flip: the toggle's rocker part-way through its swing after the marble left
   (`TOGGLE_FLIP_SHOT_TICK` in crates/parble-sim/src/mech_showcase.rs).
@@ -7,6 +7,8 @@
   (`GATE_OPEN_SHOT_TICK`).
 - lift-climb: the stepper elevator's slats part-way up a stroke, carrying the marble
   (`LIFT_SHOT_TICK`).
+- rope-swing: the rope arch's near row swung away from the marble under it
+  (`ROPE_SWING_SHOT_TICK`).
 
 Each capture runs the native build in lockstep (`--lockstep-after`), so the tick is the same sim
 state on every run, and must exit 0 with a lit frame and no logged error. The part poses drawn on
@@ -125,6 +127,16 @@ def main() -> int:
     fail |= not ok
     print(f"{'ok  ' if ok else 'FAIL'} lift-climb tick {tick}: slats {sl['angleMdeg']} um "
           f"(prev tick {sl['prevMdeg']}), {travel:.2f} of the {hi} um stroke; {out / 'lift-climb.png'}")
+    tick = const(SHOWCASE, "ROPE_SWING_SHOT_TICK")
+    s = capture(binary, out / "rope-swing.png", a.quality, tick)
+    ropes = sorted((p for p in s.get("shotParts") or [] if p["piece"] == "mech_arch_rope_l1"),
+                   key=lambda p: p["part"])
+    want = 10_000  # the near row's inner ropes at the shot tick are pinned in mech_showcase.rs
+    ok = len(ropes) == 8 and all(ropes[i]["tickMdeg"] >= want for i in (1, 2))
+    fail |= not ok
+    print(f"{'ok  ' if ok else 'FAIL'} rope-swing tick {tick}: ropes "
+          f"{[r['angleMdeg'] for r in ropes]} mdeg (inner near ropes want >= {want}); "
+          f"{out / 'rope-swing.png'}")
     return 1 if fail else 0
 
 

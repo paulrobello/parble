@@ -11,9 +11,9 @@ sidecar stores the part's own collision in the piece-local frame at 0 mdeg, as c
 overhead and collider checks see only the piece body. Behaviour is P2-T5.
 
 Parts per piece (kit-check enforces the names): hopper `anim_gate` (release gate), splitter
-`anim_flap` and toggle `anim_rocker` (both a switch blade at the fork), one-way gate `anim_flap`, one-way hole `anim_trapdoor`. The
-finish cup and the checkpoint arch have no moving part, only sensors. The stepper elevators
-(kitstepper) have one slide part, `anim_slats`.
+`anim_flap` and toggle `anim_rocker` (both a switch blade at the fork), one-way gate `anim_flap`, one-way hole `anim_trapdoor`,
+rope-curtain arch `anim_rope_0` .. `anim_rope_7`. The finish cup and the checkpoint arch have no
+moving part, only sensors. The stepper elevators (kitstepper) have one slide part, `anim_slats`.
 """
 import math
 
@@ -30,7 +30,7 @@ PIECE_VERSION = 1
 PIECE_VERSIONS = {"mech_gate_oneway_l1": 2, "mech_hole_oneway_l1": 2, "mech_finish": 2, "mech_hopper": 2,
                   "mech_splitter_l3": 2, "mech_toggle_l3": 2, "mech_checkpoint_l1": 2}
 BUILD = ("mech_finish", "mech_hopper", "mech_splitter_l3", "mech_toggle_l3", "mech_checkpoint_l1",
-         "mech_gate_oneway_l1", "mech_hole_oneway_l1") + tuple(S.STEPPERS)
+         "mech_gate_oneway_l1", "mech_hole_oneway_l1", "mech_arch_rope_l1") + tuple(S.STEPPERS)
 
 TOP = K.CELL
 COLLISION_SEGS = 16
@@ -54,6 +54,20 @@ HOLE_R = 16.0
 TRAP_R = HOLE_R
 TRAP_T = 3.0
 TRAP_OPEN_MDEG = 90000
+# Rope-curtain arch (PRD P2 item 18): a bridge over the middle 2 * ARCH_X mm of the cell's length,
+# its underside 35 mm above the L1 floor (the §5.1 overhead rule asks 34), so the piece stays 1 cell
+# tall (an L2 or L3 arch needs 2 cells, §16 Q13). Two rows of four ropes hang from it into the
+# channel, each hinged about +Z at its top. A rope's sidecar collision is its whole strand, ready
+# for physical ropes; the cosmetic sim model gives the ropes no collider (behaviour.rs).
+ARCH_X = 12.0
+ARCH_Y = 50.0
+ROPE_ROWS_X = (-6.0, 6.0)
+ROPE_Z = (-10.5, -4.5, 4.5, 10.5)
+ROPE_R = 1.0
+ROPE_BOTTOM = 22.0      # 2.3 mm above the round floor under the outer ropes
+KNOT_R = 1.6
+KNOT_H = 3.0
+ROPE_LIMIT_MDEG = 45000  # at 45 degrees a rope's tip stays inside the inset cell
 
 
 def piece_version(piece_id):
@@ -105,6 +119,11 @@ def spec(piece_id):
         level, ports = 1, [_side(0, "-x", 1, "in"), _side(1, "+x", 1, "out")]
         sensors = [_box_sensor("approach", (-20000, 27500, 0), (6000, 12500, 14000)),
                    _box_sensor("exit", (20000, 27500, 0), (6000, 12500, 14000))]
+    elif shape == "arch_rope":  # one sensor per rope row; together they span the arch
+        level, ports = 1, [_side(0, "-x", 1, "both"), _side(1, "+x", 1, "both")]
+        h = int(ARCH_X * 500)
+        sensors = [_box_sensor("curtain_nx", (-h, 27500, 0), (h, 12500, 14000)),
+                   _box_sensor("curtain_px", (h, 27500, 0), (h, 12500, 14000))]
     elif shape == "hole_oneway":  # arriving from -x drops through the trapdoor; from +x rolls over
         level = 1
         ports = [_side(0, "-x", 1, "both"), _side(1, "+x", 1, "in"), _drop(2, "bottom", "out")]
@@ -180,6 +199,10 @@ def ops(piece_id, q, collision):
         cut(lambda bm: B.sweep(bm, B.extend(sts, True, True), oprof))
         # the arch: a bridge over the hinge pin, its underside 38 mm above the floor (§5.1)
         out.append(("UNION", _box_builder((-BRIDGE_X, BRIDGE_Y, -K.R - 2.0), (BRIDGE_X, top, K.R + 2.0))))
+    elif shape == "arch_rope":
+        sts = B.straight_x(-30.0, 30.0, lambda x: f0, 1, extra_x=ins)
+        cut(lambda bm: B.sweep(bm, B.extend(sts, True, True), oprof))
+        out.append(("UNION", _box_builder((-ARCH_X, ARCH_Y, -K.R - 2.0), (ARCH_X, top, K.R + 2.0))))
     elif shape == "hole_oneway":
         sts = B.straight_x(-30.0, 30.0, lambda x: f0, 1, extra_x=ins)
         cut(lambda bm: B.sweep(bm, B.extend(sts, True, True), oprof))
@@ -434,6 +457,22 @@ def parts(piece_id, segs=None):
                   "limits_mdeg": [0, 85000]}, _flap(0.0, f0, s))]
     if shape in ("splitter", "toggle"):
         return [_switch_blade(shape, f0, s)]
+    if shape == "arch_rope":  # each rope: a strand from the arch underside and a knot at its end
+        n = max(3, s)
+        out = []
+        for i, (x, z) in enumerate((x, z) for x in ROPE_ROWS_X for z in ROPE_Z):
+            def ring(r, x=x, z=z):
+                return [(x + r * math.cos(2 * math.pi * k / n), z + r * math.sin(2 * math.pi * k / n))
+                        for k in range(n)]
+            if n == 3:  # LOD2: one plain strand keeps all eight ropes inside the 120-tri part budget
+                solids = [_solid_prism(ring(ROPE_R), "y", ROPE_BOTTOM, ARCH_Y)]
+            else:
+                solids = [_solid_prism(ring(ROPE_R), "y", ROPE_BOTTOM + KNOT_H, ARCH_Y),
+                          _solid_prism(ring(KNOT_R), "y", ROPE_BOTTOM, ROPE_BOTTOM + KNOT_H)]
+            out.append(({"name": f"anim_rope_{i}", "pivot_um": [B.um(x), B.um(ARCH_Y), B.um(z)],
+                         "axis": [0, 0, 1], "rest_mdeg": 0,
+                         "limits_mdeg": [-ROPE_LIMIT_MDEG, ROPE_LIMIT_MDEG]}, solids))
+        return out
     if shape == "hole_oneway":  # trapdoor over the bore, hinged at its +x edge; drops the -x edge
         n = max(8, 2 * s)
         disc = [(TRAP_R * math.cos(2 * math.pi * k / n), TRAP_R * math.sin(2 * math.pi * k / n)) for k in range(n)]
