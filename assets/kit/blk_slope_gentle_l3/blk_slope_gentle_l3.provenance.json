@@ -195,8 +195,8 @@
     {
       "who": "Paul",
       "gate": "piece look",
-      "status": "pending",
-      "notes": "awaiting owner review of blender/kit/review/pieces.png and the PB_kit live scene"
+      "status": "approved",
+      "notes": "Paul approved the four-piece look 2026-11-07 (blender/kit/review/pieces.png; also seen textured in the kit2000 and playroom scenes)"
     }
   ]
 }
