@@ -30,15 +30,14 @@ use rapier3d::prelude::*;
 /// runs as. Saved tracks keep these ids (contract §10: ids are stable forever).
 pub const KIT_ALIASES: &[(&str, &str)] = &[
     ("blk_straight", "blk_straight_l3"),
-    // The block-family run terminal. The contract's finish mechanism is `mech_finish`.
-    ("blk_finish", "blk_end_l3"),
+    ("blk_finish", "mech_finish"),
     ("mech_toggle", "mech_toggle_l3"),
+    ("rail_curve_90", "rail_curve90_r90_l2"),
 ];
 
 /// Piece ids that are valid in a track but take no part in the run yet, with the reason. This list
 /// wins over the kit.
-pub const NO_COLLIDER: &[(&str, &str)] =
-    &[("rail_curve_90", "no rail-family sidecar is shipped yet")];
+pub const NO_COLLIDER: &[(&str, &str)] = &[];
 
 /// How a `.parble` placement reaches the sim.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -501,7 +500,7 @@ mod tests {
 
     #[test]
     fn placed_pieces_become_chunk_colliders_the_marble_meets() {
-        let bare = with_pieces(&[("rail_curve_90", [0, 4, 0], 0)]);
+        let bare = with_pieces(&[]);
         let run = TrackRun::new(&bare).unwrap();
         assert_eq!(run.sim.pieces.chunks().count(), 0);
         assert_eq!(
@@ -511,10 +510,7 @@ mod tests {
 
         // An end stop on the tray floor with its closed end (yaw 2: port on +X) facing the ramp.
         // Cell 6 spans x 330..390 mm.
-        let stop = with_pieces(&[
-            ("rail_curve_90", [0, 4, 0], 0),
-            ("blk_finish", [6, 0, 0], 2),
-        ]);
+        let stop = with_pieces(&[("blk_end_l3", [6, 0, 0], 2)]);
         let mut run = TrackRun::new(&stop).unwrap();
         assert_eq!(run.sim.pieces.chunks().count(), 1);
         assert_ne!(run_hash(&stop, 2_400), run_hash(&bare, 2_400));
@@ -536,5 +532,56 @@ mod tests {
             "tray-only marble stopped early: x = {}",
             furthest[1]
         );
+    }
+
+    /// `blk_finish` runs as the finish mechanism: the all-pieces track with its cups saved under
+    /// the old id runs to the same hash and every marble is counted.
+    #[test]
+    fn blk_finish_runs_as_mech_finish_and_counts_finishes() {
+        let kit = parble_kit::builtin();
+        assert_eq!(
+            kit_binding(kit, &id("blk_finish")),
+            Some(KitBinding::Kit(id(behaviour::FINISH)))
+        );
+        let shipped = crate::allpieces::track();
+        let mut saved = shipped.clone();
+        let mut renamed = 0;
+        for p in &mut saved.placements {
+            if p.piece.as_str() == behaviour::FINISH {
+                p.piece = id("blk_finish");
+                renamed += 1;
+            }
+        }
+        assert!(renamed > 0);
+        let mut run = TrackRun::new(&saved).unwrap();
+        run.tick(crate::allpieces::RUN_TICKS);
+        let counts = crate::allpieces::finish_counts(&run);
+        assert_eq!(
+            counts.iter().sum::<usize>(),
+            crate::allpieces::MARBLES,
+            "cups {counts:?}"
+        );
+        assert_eq!(
+            run.trajectory_hash(),
+            run_hash(&shipped, crate::allpieces::RUN_TICKS).unwrap()
+        );
+    }
+
+    /// `rail_curve_90` runs as the shipped rail curve: its collider is in the run, placed exactly
+    /// as the kit id is, and a marble rolling down the tray meets it.
+    #[test]
+    fn rail_curve_90_runs_as_the_shipped_rail_curve_with_its_collider() {
+        assert!(NO_COLLIDER.is_empty());
+        let kit = parble_kit::builtin();
+        assert_eq!(
+            kit_binding(kit, &id("rail_curve_90")),
+            Some(KitBinding::Kit(id("rail_curve90_r90_l2")))
+        );
+        let saved = with_pieces(&[("rail_curve_90", [5, 0, 0], 0)]);
+        let shipped = with_pieces(&[("rail_curve90_r90_l2", [5, 0, 0], 0)]);
+        let run = TrackRun::new(&saved).unwrap();
+        assert_eq!(run.sim.pieces.chunks().count(), 1);
+        assert_eq!(run_hash(&saved, 2_400), run_hash(&shipped, 2_400));
+        assert_ne!(run_hash(&saved, 2_400), run_hash(&with_pieces(&[]), 2_400));
     }
 }

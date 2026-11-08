@@ -202,7 +202,7 @@ mod tests {
         ));
     }
 
-    /// The demo's kit pieces are in the run: dropping its end stop (placement 4) changes the hash
+    /// The demo's kit pieces are in the run: dropping its finish cup (placement 4) changes the hash
     /// while the straight keeps the world on the chunk-collider path.
     #[test]
     fn the_demo_marbles_meet_its_kit_pieces() {
