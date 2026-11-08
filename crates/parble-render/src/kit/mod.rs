@@ -65,25 +65,46 @@ pub const LOD_REF_HEIGHT_PX: f32 = 1440.0;
 /// End of the last LOD's range (metres): far past any camera in the playroom.
 const LOD_FAR_M: f32 = 1.0e4;
 
-/// Kit GLBs, embedded (about 230 KB together).
-pub const PIECES: [(&str, &[u8]); 4] = [
-    (
-        "blk_straight_l3",
-        include_bytes!("../../../../assets/kit/blk_straight_l3/blk_straight_l3.glb"),
-    ),
-    (
-        "blk_curve90_l3",
-        include_bytes!("../../../../assets/kit/blk_curve90_l3/blk_curve90_l3.glb"),
-    ),
-    (
-        "blk_slope_gentle_l3",
-        include_bytes!("../../../../assets/kit/blk_slope_gentle_l3/blk_slope_gentle_l3.glb"),
-    ),
-    (
-        "blk_end_l3",
-        include_bytes!("../../../../assets/kit/blk_end_l3/blk_end_l3.glb"),
-    ),
+macro_rules! glbs {
+    ($($id:ident),* $(,)?) => {
+        [$((
+            stringify!($id),
+            include_bytes!(concat!(
+                "../../../../assets/kit/",
+                stringify!($id),
+                "/",
+                stringify!($id),
+                ".glb"
+            )) as &[u8],
+        )),*]
+    };
+}
+
+/// Every builtin kit piece's GLB, embedded (about 1.9 MB together), in the catalogue's id order
+/// ([`parble_kit::builtin_piece_ids`]), so the renderer and the editor palette cover exactly the
+/// pieces the sim loads.
+pub const PIECES: &[(&str, &[u8])] = &parble_kit::builtin_piece_ids!(glbs);
+
+/// The four 1-cell pieces of the P1-T4 showcase grid ([`stress_layout`]) and the editor's `fill`
+/// layout, in their original order: both pick a piece by `hash % 4`, so the 2,000-piece layouts,
+/// their chunk and draw bounds stay those of P1-T4 as the catalogue grows. Multi-cell pieces
+/// cannot sit on the grid's one-cell pitch.
+pub const SHOWCASE: [&str; 4] = [
+    "blk_straight_l3",
+    "blk_curve90_l3",
+    "blk_slope_gentle_l3",
+    "blk_end_l3",
 ];
+
+/// Index into [`PIECES`] of piece `id`.
+pub fn piece_index(id: &str) -> Option<usize> {
+    PIECES.iter().position(|(p, _)| *p == id)
+}
+
+/// [`PIECES`] index of [`SHOWCASE`] entry `i`.
+pub fn showcase_piece(i: usize) -> usize {
+    piece_index(SHOWCASE[i]).expect("showcase pieces are builtin")
+}
 
 /// Asset source for the served `assets/` tree (web: `dist/assets`, copied by Trunk).
 pub const ASSET_SOURCE: &str = "parble";
@@ -295,7 +316,7 @@ pub fn stress_layout() -> Vec<Placement> {
             let cell = IVec3::new(col, 0, row);
             let h = cell_hash(cell);
             out.push(Placement {
-                piece: (h % PIECES.len() as u32) as usize,
+                piece: showcase_piece((h % SHOWCASE.len() as u32) as usize),
                 cell,
                 origin: grid_origin(col, row),
                 yaw: ((h >> 8) % 4) as u8,
@@ -506,6 +527,13 @@ struct KitTextures {
     /// `materials[piece][lod][variant]`.
     materials: Vec<[[Handle<KitWoodMaterial>; 3]; LODS]>,
     images: Vec<(String, &'static str, Handle<Image>)>,
+    /// Each [`WOOD_SETS`] variant's [`WOOD_MAPS`], once the family is known.
+    wood: Vec<[Handle<Image>; 2]>,
+    /// Pieces whose baked maps are wanted: every piece of the layout, and every piece the editor
+    /// has placed. Baked maps load per piece on first use, so a scene fetches only its own.
+    wanted: BTreeSet<usize>,
+    /// Pieces whose baked maps are loading or loaded.
+    baked: BTreeSet<usize>,
 }
 
 pub struct KitPlugin;
@@ -591,6 +619,7 @@ fn spawn_kit(
             })
         })
         .collect();
+    tex.wanted.extend(layout.iter().map(|p| p.piece));
     let mut variant_pieces = vec![0; WOOD_SETS.len()];
 
     let ranges = lod_ranges(crate::camera::FOV_DEG.to_radians());
@@ -634,7 +663,11 @@ fn spawn_kit(
     }
     diag.pieces = layout.len();
     diag.chunks = chunks;
-    diag.piece_types = PIECES.len();
+    diag.piece_types = layout
+        .iter()
+        .map(|p| p.piece)
+        .collect::<BTreeSet<_>>()
+        .len();
     diag.variants = WOOD_SETS.len();
     diag.variant_pieces = variant_pieces;
     diag.draw_bound = bound;
@@ -650,8 +683,8 @@ fn spawn_kit(
     );
 }
 
-/// Picks the texture family once the render device exists, then loads every wood variant's maps and
-/// every piece's baked maps into the kit materials.
+/// Picks the texture family once the render device exists and loads every wood variant's maps,
+/// then loads each wanted piece's baked maps into its kit materials the first frame it is wanted.
 fn load_textures(
     scene: Res<KitScene>,
     cap: Res<TextureCap>,
@@ -661,21 +694,25 @@ fn load_textures(
     mut tex: ResMut<KitTextures>,
     mut materials: ResMut<Assets<KitWoodMaterial>>,
 ) {
-    let (None, Some(device)) = (diag.family, device) else {
-        return;
-    };
     if *scene == KitScene::None {
         return;
     }
-    let f = device.features();
-    let bc = f.contains(WgpuFeatures::TEXTURE_COMPRESSION_BC);
-    let astc = f.contains(WgpuFeatures::TEXTURE_COMPRESSION_ASTC);
-    let family = select_family_capped(bc, astc, cap.0);
-    diag.family = Some(family);
-    diag.device_bc = Some(bc);
-    diag.device_astc = Some(astc);
-    info!("kit: texture family {}", family.name());
-    let mut images = Vec::new();
+    let family = match (diag.family, device) {
+        (Some(f), _) => f,
+        (None, Some(device)) => {
+            let f = device.features();
+            let bc = f.contains(WgpuFeatures::TEXTURE_COMPRESSION_BC);
+            let astc = f.contains(WgpuFeatures::TEXTURE_COMPRESSION_ASTC);
+            let family = select_family_capped(bc, astc, cap.0);
+            diag.family = Some(family);
+            diag.device_bc = Some(bc);
+            diag.device_astc = Some(astc);
+            info!("kit: texture family {}", family.name());
+            family
+        }
+        (None, None) => return,
+    };
+    let tex = &mut *tex;
     let mut load = |rel: String, kind: &'static str, srgb: bool, repeat: bool| {
         let path = format!("{ASSET_SOURCE}://{rel}");
         let h: Handle<Image> = server
@@ -694,27 +731,31 @@ fn load_textures(
                 }
             })
             .load(path.clone());
-        images.push((path, kind, h.clone()));
+        tex.images.push((path, kind, h.clone()));
         h
     };
-    let wood: Vec<[Handle<Image>; 2]> = WOOD_SETS
-        .iter()
-        .map(|set| {
-            WOOD_MAPS.map(|map| {
-                load(
-                    wood_path(set, map, family),
-                    "wood",
-                    map == "base_color",
-                    true,
-                )
+    if tex.wood.is_empty() {
+        tex.wood = WOOD_SETS
+            .iter()
+            .map(|set| {
+                WOOD_MAPS.map(|map| {
+                    load(
+                        wood_path(set, map, family),
+                        "wood",
+                        map == "base_color",
+                        true,
+                    )
+                })
             })
-        })
-        .collect();
-    for (p, (piece, _)) in PIECES.iter().enumerate() {
+            .collect();
+    }
+    let todo: Vec<usize> = tex.wanted.difference(&tex.baked).copied().collect();
+    for p in todo {
+        let piece = PIECES[p].0;
         for lod in 0..LODS {
             let [ao, normal] =
                 BAKED_MAPS.map(|map| load(baked_path(piece, lod, map), "baked", false, false));
-            for (v, [base, orm]) in wood.iter().enumerate() {
+            for (v, [base, orm]) in tex.wood.iter().enumerate() {
                 let Some(mut m) = materials.get_mut(&tex.materials[p][lod][v]) else {
                     continue;
                 };
@@ -726,8 +767,8 @@ fn load_textures(
                 m.extension.params.enabled = 1.0;
             }
         }
+        tex.baked.insert(p);
     }
-    tex.images = images;
 }
 
 fn update_diag(
@@ -962,25 +1003,162 @@ mod tests {
     }
 
     #[test]
-    fn every_piece_decodes_three_lods_within_the_block_budget() {
-        // Kit contract §12: 1-cell block LOD0 ≤ 3,000, LOD1 ≤ 1,000, LOD2 ≤ 250 triangles.
-        const BUDGET: [usize; LODS] = [3_000, 1_000, 250];
+    fn every_piece_decodes_three_lods_within_its_footprint_and_budget() {
+        // Kit contract §12 budgets: a block 3,000 / 1,000 / 250 triangles per cell, a rail
+        // 1,500 / 500 / 120 per cell of centreline length, a mechanism the block budget plus
+        // 1,500 / 500 / 120 for its animated parts. kit-check holds the exact rail lengths; here a
+        // rail is bounded by its footprint cell count, which is never shorter.
+        const BLOCK: [usize; LODS] = [3_000, 1_000, 250];
+        const RAIL: [usize; LODS] = [1_500, 500, 120];
+        let kit = parble_kit::builtin();
+        assert_eq!(PIECES.len(), kit.len());
         for (id, bytes) in PIECES {
-            let lods = glb::decode_lods(bytes, id).expect(id);
-            for (l, m) in lods.iter().enumerate() {
+            let piece = kit
+                .iter()
+                .find(|p| p.def.id.as_str() == *id)
+                .unwrap_or_else(|| panic!("{id} is not in the catalogue"));
+            let cells = &piece.def.footprint;
+            let lo = cells
+                .iter()
+                .fold(IVec3::MAX, |a, c| a.min(IVec3::new(c.x, c.y, c.z)));
+            let hi = cells
+                .iter()
+                .fold(IVec3::MIN, |a, c| a.max(IVec3::new(c.x, c.y, c.z)));
+            // Cell (x, y, z) spans x ± half a cell, y .. y + 1 cell, z ± half a cell (§1, §2).
+            let mut min = lo.as_vec3() * CELL_M - Vec3::new(CELL_M / 2.0, 0.0, CELL_M / 2.0);
+            let mut max = hi.as_vec3() * CELL_M + Vec3::new(CELL_M / 2.0, CELL_M, CELL_M / 2.0);
+            // A spigot may leave the footprint into a socket (§5.5).
+            if let Some(s) = piece.spigot {
+                let a = Vec3::from_array(s.axis.map(|v| v as f32));
+                let c = Vec3::from_array(s.center_um.map(|v| v as f32 * 1e-6));
+                let end = c + a * (s.length_um as f32 * 1e-6);
+                let r = Vec3::splat(s.radius_um as f32 * 1e-6);
+                min = min.min(c.min(end) - r);
+                max = max.max(c.max(end) + r);
+            }
+            let n = cells.len();
+            let budget: [usize; LODS] = std::array::from_fn(|l| {
+                if id.starts_with("rail_") {
+                    RAIL[l] * n
+                } else if id.starts_with("mech_") {
+                    BLOCK[l] * n + RAIL[l]
+                } else {
+                    BLOCK[l] * n
+                }
+            });
+            let lods = glb::decode_lods_with_parts(bytes, id).expect(id);
+            let names: Vec<String> = piece
+                .animated_parts
+                .iter()
+                .map(|p| p.name.clone())
+                .collect();
+            for (l, (m, parts)) in lods.iter().enumerate() {
+                assert_eq!(parts, &names, "{id} lod{l}: animated parts");
                 assert!(m.triangles() > 0, "{id} lod{l} empty");
-                assert!(m.triangles() <= BUDGET[l], "{id} lod{l}: {}", m.triangles());
-                let half = CELL_M / 2.0 + 1e-4;
+                assert!(m.triangles() <= budget[l], "{id} lod{l}: {}", m.triangles());
                 for p in &m.positions {
+                    let p = Vec3::from_array(*p);
                     assert!(
-                        p[0].abs() <= half && p[2].abs() <= half,
-                        "{id} lod{l} {p:?}"
+                        p.cmpge(min - 1e-4).all() && p.cmple(max + 1e-4).all(),
+                        "{id} lod{l} {p} outside {min} .. {max}"
                     );
-                    assert!((-1e-4..=CELL_M + 1e-4).contains(&p[1]), "{id} lod{l} {p:?}");
                 }
             }
-            assert!(lods[0].triangles() > lods[1].triangles());
-            assert!(lods[1].triangles() > lods[2].triangles());
+            assert!(lods[0].0.triangles() > lods[1].0.triangles(), "{id}");
+            assert!(lods[1].0.triangles() > lods[2].0.triangles(), "{id}");
+        }
+    }
+
+    #[test]
+    fn animated_parts_draw_at_their_rest_pose_about_the_sidecar_pivot() {
+        // Each mechanism LOD is its body plus every part, and a part's vertices sit within a cell
+        // of its pivot: the `anim_<name>` node transform placed them, not the part's local frame.
+        let kit = parble_kit::builtin();
+        let mut checked = 0;
+        for (id, bytes) in PIECES {
+            let piece = kit.iter().find(|p| p.def.id.as_str() == *id).unwrap();
+            if piece.animated_parts.is_empty() {
+                continue;
+            }
+            let merged = glb::decode_lods(bytes, id).unwrap();
+            let plain = glb::rewrite_glb(bytes).unwrap();
+            for (l, m) in merged.iter().enumerate() {
+                let body = body_only(&plain, id, l);
+                assert!(
+                    m.triangles() > body,
+                    "{id} lod{l}: no part triangles merged"
+                );
+                let part_points = &m.positions[m.positions.len() - part_vertices(&plain, id, l)..];
+                let pivots: Vec<Vec3> = piece
+                    .animated_parts
+                    .iter()
+                    .map(|p| Vec3::from_array(p.pivot_um.map(|v| v as f32 * 1e-6)))
+                    .collect();
+                for p in part_points {
+                    let p = Vec3::from_array(*p);
+                    assert!(
+                        pivots.iter().any(|c| c.distance(p) <= CELL_M),
+                        "{id} lod{l}: part vertex {p} is not near a pivot {pivots:?}"
+                    );
+                }
+            }
+            checked += 1;
+        }
+        assert_eq!(checked, 5, "mechanisms with parts");
+    }
+
+    /// Triangles of `<id>_lod<l>` alone, read from the plain GLB's accessor counts.
+    fn body_only(plain: &[u8], id: &str, l: usize) -> usize {
+        accessor_count(plain, &format!("{id}_lod{l}"), "indices") / 3
+    }
+
+    /// Vertices of every `anim_*_lod<l>` mesh together.
+    fn part_vertices(plain: &[u8], _id: &str, l: usize) -> usize {
+        let json = glb_json(plain);
+        json["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|n| n["name"].as_str())
+            .filter(|n| n.starts_with("anim_") && n.ends_with(&format!("_lod{l}")))
+            .map(|n| accessor_count(plain, n, "POSITION"))
+            .sum()
+    }
+
+    fn glb_json(plain: &[u8]) -> serde_json::Value {
+        let len = u32::from_le_bytes([plain[12], plain[13], plain[14], plain[15]]) as usize;
+        serde_json::from_slice(&plain[20..20 + len]).unwrap()
+    }
+
+    /// Element count of node `name`'s first primitive's indices (`"indices"`) or attribute.
+    fn accessor_count(plain: &[u8], name: &str, what: &str) -> usize {
+        let json = glb_json(plain);
+        let node = json["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|n| n["name"] == name)
+            .unwrap_or_else(|| panic!("no node {name}"));
+        let prim = &json["meshes"][node["mesh"].as_u64().unwrap() as usize]["primitives"][0];
+        let a = if what == "indices" {
+            &prim["indices"]
+        } else {
+            &prim["attributes"][what]
+        };
+        json["accessors"][a.as_u64().unwrap() as usize]["count"]
+            .as_u64()
+            .unwrap() as usize
+    }
+
+    #[test]
+    fn pieces_are_the_builtin_catalogue_in_id_order() {
+        let ids: Vec<&str> = parble_kit::builtin()
+            .iter()
+            .map(|p| p.def.id.as_str())
+            .collect();
+        assert_eq!(PIECES.iter().map(|(id, _)| *id).collect::<Vec<_>>(), ids);
+        for (i, id) in SHOWCASE.iter().enumerate() {
+            assert_eq!(PIECES[showcase_piece(i)].0, *id);
         }
     }
 
@@ -991,7 +1169,7 @@ mod tests {
         assert_eq!((GRID_COLS * GRID_ROWS) as usize, layout.len());
         let keys: HashSet<_> = layout.iter().map(|p| p.cell.to_array()).collect();
         assert_eq!(keys.len(), 2_000, "one piece per grid slot");
-        for t in 0..PIECES.len() {
+        for t in (0..SHOWCASE.len()).map(showcase_piece) {
             assert!(layout.iter().any(|p| p.piece == t), "type {t} unused");
         }
         // One flat layer, every bottom face at the raise height.
@@ -1029,7 +1207,7 @@ mod tests {
         assert_eq!(chunks, 80);
         // 317 occupied (type, chunk) pairs: three thin edge chunks lack one piece type.
         assert_eq!(bound, 317 * LODS);
-        assert!(bound <= chunks * PIECES.len() * LODS);
+        assert!(bound <= chunks * SHOWCASE.len() * LODS);
         assert_eq!(stress_layout(), layout, "deterministic");
     }
 
@@ -1058,7 +1236,7 @@ mod tests {
     #[test]
     fn every_piece_type_uses_every_wood_variant_deterministically() {
         let layout = stress_layout();
-        for t in 0..PIECES.len() {
+        for t in (0..SHOWCASE.len()).map(showcase_piece) {
             for v in 0..WOOD_SETS.len() {
                 assert!(
                     layout

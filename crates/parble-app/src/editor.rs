@@ -1,7 +1,8 @@
 //! In-engine editor interaction (P3-T4), active in the `editor` scenario.
 //!
 //! - Track: a [`parble_core::Editor`] (P3-T1 commands, undo and redo) over the builtin kit
-//!   catalogue. The palette is the kit pieces the renderer has GLBs for ([`kit::PIECES`]).
+//!   catalogue. The palette is every builtin kit piece, in catalogue id order ([`kit::PIECES`]);
+//!   the brush starts on `blk_straight_l3`.
 //! - Incremental rebuild: after every command, undo or redo the editor diffs the placements by
 //!   anchor, removes and places only the changed ones in the live sim's chunk colliders, and hands
 //!   the renderer the new content of only the chunks those anchors sit in. Dirty colliders are
@@ -511,7 +512,7 @@ fn palette() -> Vec<&'static str> {
 }
 
 fn piece_index(id: &str) -> Option<usize> {
-    kit::PIECES.iter().position(|(p, _)| *p == id)
+    kit::piece_index(id)
 }
 
 fn pid(i: usize) -> PieceId {
@@ -535,14 +536,17 @@ fn mix(i: u32) -> u32 {
     h ^ (h >> 12)
 }
 
-/// The `fill` layout: `count` one-cell pieces in [`FILL_COLS`] columns behind the tray.
+/// The `fill` layout: `count` one-cell [`kit::SHOWCASE`] pieces in [`FILL_COLS`] columns behind
+/// the tray.
 pub fn fill_layout(count: u32) -> Vec<Placement> {
     (0..count)
         .map(|i| {
             let (col, row) = (i as i32 % FILL_COLS, i as i32 / FILL_COLS);
             let h = mix(i);
             Placement::new(
-                pid((h % kit::PIECES.len() as u32) as usize),
+                pid(kit::showcase_piece(
+                    (h % kit::SHOWCASE.len() as u32) as usize,
+                )),
                 CellCoord::new(col, 0, FILL_Z0 - row),
                 Yaw4::new(((h >> 8) % 4) as u8),
                 Mirror::Off,
@@ -558,7 +562,7 @@ impl EditState {
             kit: parble_kit::builtin(),
             tool: Tool::Place,
             brush: Brush {
-                piece: 0,
+                piece: kit::showcase_piece(0),
                 yaw: 0,
                 mirror: false,
             },

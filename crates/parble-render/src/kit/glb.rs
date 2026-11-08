@@ -1,6 +1,7 @@
 //! Kit GLB decode. `EXT_meshopt_compression` buffer views are decoded into a plain GLB (ported from
 //! hex-world `hex-assets::meshopt_glb`), then the single primitive of each `<id>_lod0..2` node is
 //! read into a [`LodMesh`]. The collider node belongs to parble-kit and is ignored here.
+use bevy::math::{Mat4, Quat, Vec3};
 use meshoptimizer_rs::codec::{BufferView, Filter, Mode};
 use meshoptimizer_rs::{Limits, Workspace};
 use serde_json::{Map, Value};
@@ -251,13 +252,61 @@ impl LodMesh {
         }
         m
     }
+
+    /// Append `other`'s triangles.
+    pub fn append(&mut self, other: &Self) {
+        let base = self.positions.len() as u32;
+        self.positions.extend_from_slice(&other.positions);
+        self.normals.extend_from_slice(&other.normals);
+        self.uvs.extend_from_slice(&other.uvs);
+        self.tangents.extend_from_slice(&other.tangents);
+        self.indices.extend(other.indices.iter().map(|i| i + base));
+    }
+
+    /// The mesh under the rigid transform `m` (normals and tangent directions rotate, the tangent
+    /// handedness `w` is kept).
+    pub fn transformed(&self, m: &Mat4) -> Self {
+        let dir = |v: [f32; 3]| {
+            m.transform_vector3(Vec3::from_array(v))
+                .normalize()
+                .to_array()
+        };
+        Self {
+            positions: self
+                .positions
+                .iter()
+                .map(|&p| m.transform_point3(Vec3::from_array(p)).to_array())
+                .collect(),
+            normals: self.normals.iter().map(|&n| dir(n)).collect(),
+            uvs: self.uvs.clone(),
+            tangents: self
+                .tangents
+                .iter()
+                .map(|t| {
+                    let [x, y, z] = dir([t[0], t[1], t[2]]);
+                    [x, y, z, t[3]]
+                })
+                .collect(),
+            indices: self.indices.clone(),
+        }
+    }
 }
 
 /// Number of render LODs per piece (kit contract §12).
 pub const LODS: usize = 3;
 
-/// `<id>_lod0`..`<id>_lod2` of a kit GLB, decoded.
+/// `<id>_lod0`..`<id>_lod2` of a kit GLB, decoded, with every animated part's
+/// `anim_<name>_lod<n>` mesh merged into LOD `n` at its rest pose (the `anim_<name>` node's
+/// transform, which kit-check holds at the sidecar pivot and rest angle).
 pub fn decode_lods(bytes: &[u8], id: &str) -> Result<[LodMesh; LODS], GlbError> {
+    Ok(decode_lods_with_parts(bytes, id)?.map(|(body, _)| body))
+}
+
+/// [`decode_lods`], and per LOD the animated part names merged into it, in node order.
+pub fn decode_lods_with_parts(
+    bytes: &[u8],
+    id: &str,
+) -> Result<[(LodMesh, Vec<String>); LODS], GlbError> {
     let plain = rewrite_glb(bytes)?;
     let json_len = u32_at(&plain, 12)? as usize;
     let json: Value = serde_json::from_slice(slice(&plain, 20, json_len, "JSON chunk")?)
@@ -265,37 +314,108 @@ pub fn decode_lods(bytes: &[u8], id: &str) -> Result<[LodMesh; LODS], GlbError> 
     let bin_off = 20 + json_len;
     let bin_len = u32_at(&plain, bin_off)? as usize;
     let bin = slice(&plain, bin_off + 8, bin_len, "BIN chunk")?;
-    let mut out: [LodMesh; LODS] = Default::default();
-    for (lod, slot) in out.iter_mut().enumerate() {
+    let nodes = json["nodes"]
+        .as_array()
+        .ok_or_else(|| GlbError::BadJson("no nodes".into()))?;
+    let mut out: [(LodMesh, Vec<String>); LODS] = Default::default();
+    for (lod, (slot, parts)) in out.iter_mut().enumerate() {
         let name = format!("{id}_lod{lod}");
-        let mesh = json["nodes"]
-            .as_array()
-            .and_then(|nodes| nodes.iter().find(|n| n["name"] == name.as_str()))
-            .and_then(|n| n["mesh"].as_u64())
+        let body = nodes
+            .iter()
+            .find(|n| n["name"] == name.as_str())
             .ok_or_else(|| GlbError::BadJson(format!("no node {name}")))?;
-        let prim = &json["meshes"][mesh as usize]["primitives"][0];
-        let attr = |key: &str| {
-            prim["attributes"][key]
-                .as_u64()
-                .ok_or_else(|| GlbError::BadJson(format!("{name} has no {key}")))
-        };
-        let index = prim["indices"]
-            .as_u64()
-            .ok_or_else(|| GlbError::BadJson(format!("{name} has no indices")))?;
-        *slot = LodMesh {
-            positions: floats::<3>(&json, bin, attr("POSITION")?)?,
-            normals: floats::<3>(&json, bin, attr("NORMAL")?)?,
-            uvs: floats::<2>(&json, bin, attr("TEXCOORD_0")?)?,
-            tangents: floats::<4>(&json, bin, attr("TANGENT")?)?,
-            indices: indices(&json, bin, index)?,
-        };
-        let n = slot.positions.len();
-        let streams_ok = slot.normals.len() == n && slot.uvs.len() == n && slot.tangents.len() == n;
-        if !streams_ok || slot.indices.iter().any(|&i| i as usize >= n) {
-            return Err(GlbError::Decode(format!("{name}: inconsistent streams")));
+        *slot = node_mesh(&json, bin, body, &name)?;
+        let suffix = format!("_lod{lod}");
+        for (i, n) in nodes.iter().enumerate() {
+            let Some(part) = n["name"]
+                .as_str()
+                .filter(|s| s.starts_with("anim_"))
+                .and_then(|s| s.strip_suffix(suffix.as_str()))
+            else {
+                continue;
+            };
+            let mesh = node_mesh(&json, bin, n, &format!("{part}{suffix}"))?;
+            slot.append(&mesh.transformed(&world_matrix(nodes, i)?));
+            parts.push(part.to_owned());
         }
     }
     Ok(out)
+}
+
+/// The mesh of `node`'s single primitive, untransformed.
+fn node_mesh(json: &Value, bin: &[u8], node: &Value, name: &str) -> Result<LodMesh, GlbError> {
+    let mesh = node["mesh"]
+        .as_u64()
+        .ok_or_else(|| GlbError::BadJson(format!("{name} has no mesh")))?;
+    let prim = &json["meshes"][mesh as usize]["primitives"][0];
+    let attr = |key: &str| {
+        prim["attributes"][key]
+            .as_u64()
+            .ok_or_else(|| GlbError::BadJson(format!("{name} has no {key}")))
+    };
+    let index = prim["indices"]
+        .as_u64()
+        .ok_or_else(|| GlbError::BadJson(format!("{name} has no indices")))?;
+    let m = LodMesh {
+        positions: floats::<3>(json, bin, attr("POSITION")?)?,
+        normals: floats::<3>(json, bin, attr("NORMAL")?)?,
+        uvs: floats::<2>(json, bin, attr("TEXCOORD_0")?)?,
+        tangents: floats::<4>(json, bin, attr("TANGENT")?)?,
+        indices: indices(json, bin, index)?,
+    };
+    let n = m.positions.len();
+    let streams_ok = m.normals.len() == n && m.uvs.len() == n && m.tangents.len() == n;
+    if !streams_ok || m.indices.iter().any(|&i| i as usize >= n) {
+        return Err(GlbError::Decode(format!("{name}: inconsistent streams")));
+    }
+    Ok(m)
+}
+
+/// A node's local TRS (`matrix` nodes are refused: the kit exporter writes TRS only).
+fn local_matrix(node: &Value) -> Result<Mat4, GlbError> {
+    if node.get("matrix").is_some() {
+        return Err(GlbError::BadJson("matrix nodes are not supported".into()));
+    }
+    let v = |key: &str, default: &[f32]| -> Vec<f32> {
+        node[key].as_array().map_or_else(
+            || default.to_vec(),
+            |a| a.iter().map(|x| x.as_f64().unwrap_or(0.0) as f32).collect(),
+        )
+    };
+    let (t, r, s) = (
+        v("translation", &[0.0; 3]),
+        v("rotation", &[0.0, 0.0, 0.0, 1.0]),
+        v("scale", &[1.0; 3]),
+    );
+    if t.len() != 3 || r.len() != 4 || s.len() != 3 {
+        return Err(GlbError::BadJson("bad node TRS".into()));
+    }
+    Ok(Mat4::from_scale_rotation_translation(
+        Vec3::new(s[0], s[1], s[2]),
+        Quat::from_xyzw(r[0], r[1], r[2], r[3]).normalize(),
+        Vec3::new(t[0], t[1], t[2]),
+    ))
+}
+
+/// Node `index`'s transform in the scene: its TRS composed with every ancestor's.
+fn world_matrix(nodes: &[Value], index: usize) -> Result<Mat4, GlbError> {
+    let parent = |i: usize| {
+        nodes.iter().position(|n| {
+            n["children"]
+                .as_array()
+                .is_some_and(|c| c.iter().any(|c| c.as_u64() == Some(i as u64)))
+        })
+    };
+    let mut m = local_matrix(&nodes[index])?;
+    let mut at = index;
+    for _ in 0..nodes.len() {
+        let Some(p) = parent(at) else {
+            return Ok(m);
+        };
+        m = local_matrix(&nodes[p])? * m;
+        at = p;
+    }
+    Err(GlbError::BadJson("node hierarchy has a cycle".into()))
 }
 
 /// The accessor's bytes, element count, stride and componentType.

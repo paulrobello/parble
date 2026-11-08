@@ -12,7 +12,7 @@ use bevy::prelude::*;
 use serde::Serialize;
 
 use super::{
-    CHUNK_CELLS, KitChunk, KitDiag, KitInstance, KitMeshes, KitScene, KitTextures, LODS, PIECES,
+    CHUNK_CELLS, KitChunk, KitDiag, KitInstance, KitMeshes, KitScene, KitTextures, LODS,
     cell_origin, variant_of,
 };
 
@@ -24,7 +24,7 @@ pub const MAX_MARKS: usize = 1024;
 /// Port hint markers drawn at most.
 const MAX_PORTS: usize = 8;
 
-/// One editor-placed piece: index into [`PIECES`], anchor cell, quarter turns and mirror.
+/// One editor-placed piece: index into [`super::PIECES`], anchor cell, quarter turns and mirror.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EditPiece {
     pub piece: usize,
@@ -210,7 +210,7 @@ fn apply_edits(
     mut commands: Commands,
     mut edits: ResMut<KitEdits>,
     kept: Res<KitMeshes>,
-    tex: Res<KitTextures>,
+    mut tex: ResMut<KitTextures>,
     mut diag: ResMut<KitDiag>,
 ) {
     if edits.pending.is_empty() {
@@ -231,6 +231,7 @@ fn apply_edits(
             edits.content.remove(&chunk);
             continue;
         }
+        tex.wanted.extend(pieces.iter().map(|p| p.piece));
         let root = commands
             .spawn((
                 KitChunk(IVec3::from_array(chunk)),
@@ -284,7 +285,11 @@ fn apply_edits(
     }
     diag.pieces = pieces;
     diag.chunks = edits.content.len();
-    diag.piece_types = PIECES.len();
+    diag.piece_types = pairs
+        .iter()
+        .map(|&(piece, _, _)| piece)
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
     diag.draw_bound = pairs.len() * LODS;
     let hidden = hidden_pieces(&edits);
     diag.edit = Some(KitEditStats {

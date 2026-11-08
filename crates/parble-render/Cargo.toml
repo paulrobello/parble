@@ -7,6 +7,8 @@ publish.workspace = true
 
 [dependencies]
 parble-sim = { path = "../parble-sim" }
+# The builtin piece ids (`builtin_piece_ids!`), so the renderer embeds a GLB for every kit piece.
+parble-kit = { path = "../parble-kit" }
 # P1-T4 kit GLBs use EXT_meshopt_compression.
 meshoptimizer-rs = { workspace = true }
 serde = { workspace = true }
@@ -22,10 +24,6 @@ bevy = { workspace = true, features = [
     "zstd_rust",
 ] }
 serde_json = { workspace = true }
-
-[dev-dependencies]
-# Port positions of the playroom run's pieces, to check the render poses against the sim's.
-parble-kit = { path = "../parble-kit" }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 bevy = { workspace = true, features = ["x11", "wayland"] }

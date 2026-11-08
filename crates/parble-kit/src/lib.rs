@@ -18,38 +18,61 @@ use serde::Deserialize;
 /// Sidecar schema version this loader reads (contract §11).
 pub const SIDECAR_SCHEMA: u32 = 1;
 
+/// Calls `$m!` with the id of every piece shipped in `assets/kit/`, in id order, as bare
+/// identifiers: the one list of builtin pieces. Each id names `assets/kit/<id>/<id>.*`, so a
+/// caller can embed any file of every piece (this crate embeds the sidecars, `parble-render` the
+/// GLBs) with `concat!` and `stringify!` in its own macro.
+#[macro_export]
+macro_rules! builtin_piece_ids {
+    ($m:ident) => {
+        $m!(
+            blk_curve90_l2,
+            blk_curve90_l3,
+            blk_drop_l2,
+            blk_drop_l3,
+            blk_end_l3,
+            blk_join_l2,
+            blk_join_l3,
+            blk_pillar,
+            blk_redirect_l2,
+            blk_redirect_l3,
+            blk_slope_gentle_l2,
+            blk_slope_gentle_l3,
+            blk_slope_steep_l3,
+            blk_straight_l1,
+            blk_straight_l2,
+            blk_straight_l3,
+            blk_tower_socket_l1,
+            mech_checkpoint_l1,
+            mech_finish,
+            mech_gate_oneway_l1,
+            mech_hole_oneway_l1,
+            mech_hopper,
+            mech_splitter_l3,
+            mech_toggle_l3,
+            rail_curve90_r90_l2,
+            rail_joint_l1,
+            rail_s_1x3_l2,
+            rail_straight_l1,
+            rail_straight_l2
+        )
+    };
+}
+
+macro_rules! sidecars {
+    ($($id:ident),* $(,)?) => {
+        [$(include_str!(concat!(
+            "../../../assets/kit/",
+            stringify!($id),
+            "/",
+            stringify!($id),
+            ".kit.json"
+        ))),*]
+    };
+}
+
 /// Sidecars shipped in `assets/kit/`, in id order.
-const BUILTIN_SIDECARS: [&str; 29] = [
-    include_str!("../../../assets/kit/blk_curve90_l2/blk_curve90_l2.kit.json"),
-    include_str!("../../../assets/kit/blk_curve90_l3/blk_curve90_l3.kit.json"),
-    include_str!("../../../assets/kit/blk_drop_l2/blk_drop_l2.kit.json"),
-    include_str!("../../../assets/kit/blk_drop_l3/blk_drop_l3.kit.json"),
-    include_str!("../../../assets/kit/blk_end_l3/blk_end_l3.kit.json"),
-    include_str!("../../../assets/kit/blk_join_l2/blk_join_l2.kit.json"),
-    include_str!("../../../assets/kit/blk_join_l3/blk_join_l3.kit.json"),
-    include_str!("../../../assets/kit/blk_pillar/blk_pillar.kit.json"),
-    include_str!("../../../assets/kit/blk_redirect_l2/blk_redirect_l2.kit.json"),
-    include_str!("../../../assets/kit/blk_redirect_l3/blk_redirect_l3.kit.json"),
-    include_str!("../../../assets/kit/blk_slope_gentle_l2/blk_slope_gentle_l2.kit.json"),
-    include_str!("../../../assets/kit/blk_slope_gentle_l3/blk_slope_gentle_l3.kit.json"),
-    include_str!("../../../assets/kit/blk_slope_steep_l3/blk_slope_steep_l3.kit.json"),
-    include_str!("../../../assets/kit/blk_straight_l1/blk_straight_l1.kit.json"),
-    include_str!("../../../assets/kit/blk_straight_l2/blk_straight_l2.kit.json"),
-    include_str!("../../../assets/kit/blk_straight_l3/blk_straight_l3.kit.json"),
-    include_str!("../../../assets/kit/blk_tower_socket_l1/blk_tower_socket_l1.kit.json"),
-    include_str!("../../../assets/kit/mech_checkpoint_l1/mech_checkpoint_l1.kit.json"),
-    include_str!("../../../assets/kit/mech_finish/mech_finish.kit.json"),
-    include_str!("../../../assets/kit/mech_gate_oneway_l1/mech_gate_oneway_l1.kit.json"),
-    include_str!("../../../assets/kit/mech_hole_oneway_l1/mech_hole_oneway_l1.kit.json"),
-    include_str!("../../../assets/kit/mech_hopper/mech_hopper.kit.json"),
-    include_str!("../../../assets/kit/mech_splitter_l3/mech_splitter_l3.kit.json"),
-    include_str!("../../../assets/kit/mech_toggle_l3/mech_toggle_l3.kit.json"),
-    include_str!("../../../assets/kit/rail_curve90_r90_l2/rail_curve90_r90_l2.kit.json"),
-    include_str!("../../../assets/kit/rail_joint_l1/rail_joint_l1.kit.json"),
-    include_str!("../../../assets/kit/rail_s_1x3_l2/rail_s_1x3_l2.kit.json"),
-    include_str!("../../../assets/kit/rail_straight_l1/rail_straight_l1.kit.json"),
-    include_str!("../../../assets/kit/rail_straight_l2/rail_straight_l2.kit.json"),
-];
+const BUILTIN_SIDECARS: [&str; 29] = builtin_piece_ids!(sidecars);
 
 /// [`BUILTIN_SIDECARS`] index of `blk_straight_l3`, the tests' reference sidecar.
 #[cfg(test)]
@@ -87,6 +110,15 @@ pub struct KitPiece {
     pub spigot: Option<Cylinder>,
     /// The socket volume a spigot enters (contract §5.5).
     pub receptacle: Option<Cylinder>,
+}
+
+impl KitPiece {
+    /// The surface of the static collision: the first group's, or wood for a piece without one.
+    /// Every builtin piece's static groups share one surface (a rail is all rail, a block or a
+    /// mechanism's frame all wood), so this is the surface of any static contact on the piece.
+    pub fn static_surface(&self) -> Surface {
+        self.collision.first().map_or(Surface::Wood, |g| g.surface)
+    }
 }
 
 /// A cylinder volume in the piece-local frame (contract §11 `spigot` / `receptacle`): the centre of
@@ -467,6 +499,25 @@ mod tests {
 
     fn id(s: &str) -> PieceId {
         PieceId::new(s).unwrap()
+    }
+
+    #[test]
+    fn every_builtin_piece_has_one_static_surface() {
+        // `static_surface` (the sim's contact surface lookup) relies on this.
+        for p in builtin().iter() {
+            let s = p.static_surface();
+            assert!(
+                p.collision.iter().all(|g| g.surface == s),
+                "{} mixes static surfaces",
+                p.def.id.as_str()
+            );
+            assert_eq!(
+                s == Surface::Rail,
+                p.def.id.as_str().starts_with("rail_"),
+                "{}",
+                p.def.id.as_str()
+            );
+        }
     }
 
     #[test]
