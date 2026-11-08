@@ -7,6 +7,8 @@ publish.workspace = true
 
 [dependencies]
 parble-sim = { path = "../parble-sim" }
+# P1-T4 kit GLBs use EXT_meshopt_compression.
+meshoptimizer-rs = { workspace = true }
 serde = { workspace = true }
 # hex-world's hex-render set without the UI and font features (the HUD is TypeScript, PRD §5.1).
 bevy = { workspace = true, features = [

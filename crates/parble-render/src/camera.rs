@@ -128,6 +128,19 @@ impl Cues {
     }
 
     /// One fixed overview of the whole tray (`--camera overview`).
+    /// The kit stress wall (P1-T4) from its near end: the near pieces draw LOD0 and the far end
+    /// LOD2, with both crossfade bands in frame.
+    pub fn kit() -> Self {
+        Self(vec![(
+            0,
+            Shot::Set {
+                eye: [-0.45, 0.55, -0.25],
+                look: [1.6, 0.22, -0.87],
+                focus_m: 1.5,
+            },
+        )])
+    }
+
     pub fn overview() -> Self {
         let len = scene::tray_length_m();
         Self(vec![(

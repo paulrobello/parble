@@ -10,6 +10,7 @@ use bevy::{
 use parble_render::{
     Environment, PlayroomView, Quality, ShadowLights,
     camera::{CameraDiag, CameraMode, Cues},
+    kit::{KitDiag, KitScene, TextureCap, family::TextureFamily},
     marble::MarbleLook,
     post::{PostOverrides, parse_tonemapping},
 };
@@ -42,6 +43,9 @@ pub enum Scenario {
     /// The same ramp and marble inside the night playroom (P1-T5). Render-only set dressing, so the
     /// sim and its golden hash are the ramp's.
     Playroom,
+    /// The P1-T4 kit stress wall: 2,000 instanced pieces beside the ramp. Render-only, so the sim
+    /// and its golden hash are the ramp's.
+    Kit2000,
 }
 
 impl Scenario {
@@ -50,6 +54,7 @@ impl Scenario {
             "ramp" => Some(Self::Ramp),
             "closeup" => Some(Self::Closeup),
             "playroom" => Some(Self::Playroom),
+            "kit2000" => Some(Self::Kit2000),
             _ => None,
         }
     }
@@ -59,6 +64,7 @@ impl Scenario {
             Self::Ramp => "ramp",
             Self::Closeup => "closeup",
             Self::Playroom => "playroom",
+            Self::Kit2000 => "kit2000",
         }
     }
 
@@ -66,16 +72,25 @@ impl Scenario {
     /// the golden run; `Some(kind)` uses that type's physical table (P1-T6).
     pub fn build(self, marble: Option<MarbleKind>) -> Sim {
         match (self, marble) {
-            (Self::Ramp | Self::Playroom, None) => Sim::ramp_scene(),
-            (Self::Ramp | Self::Playroom, Some(k)) => Sim::ramp_scene_with(k.spec()),
+            (Self::Ramp | Self::Playroom | Self::Kit2000, None) => Sim::ramp_scene(),
+            (Self::Ramp | Self::Playroom | Self::Kit2000, Some(k)) => {
+                Sim::ramp_scene_with(k.spec())
+            }
             (Self::Closeup, m) => Sim::closeup_scene(m.map_or(P0_LEGACY, MarbleKind::spec)),
         }
     }
 
     pub fn environment(self) -> Environment {
         match self {
-            Self::Ramp | Self::Closeup => Environment::Plain,
+            Self::Ramp | Self::Closeup | Self::Kit2000 => Environment::Plain,
             Self::Playroom => Environment::Playroom,
+        }
+    }
+
+    pub fn kit(self) -> KitScene {
+        match self {
+            Self::Kit2000 => KitScene::Stress2000,
+            _ => KitScene::None,
         }
     }
 }
@@ -114,6 +129,7 @@ impl CameraChoice {
     pub fn cues(self, scenario: Scenario, view: Option<PlayroomView>) -> Cues {
         match (self, scenario, view) {
             (Self::Overview, ..) => Cues::overview(),
+            (_, Scenario::Kit2000, _) => Cues::kit(),
             (_, Scenario::Playroom, Some(v)) => Cues::playroom(v),
             (_, Scenario::Ramp | Scenario::Playroom, _) => Cues::ramp(),
             (_, Scenario::Closeup, _) => Cues::closeup(),
@@ -144,6 +160,8 @@ pub struct AgentOpts {
     pub screenshot_tick: Option<u64>,
     /// Playroom fixed framing (`--view rug|blocks`) for the director; ignored by other scenarios.
     pub view: Option<PlayroomView>,
+    /// Texture family cap (`--tex bc7|astc|png`) for the kit material; unset picks by device.
+    pub tex: Option<TextureFamily>,
 }
 
 impl Default for AgentOpts {
@@ -162,6 +180,7 @@ impl Default for AgentOpts {
             lockstep_after: None,
             screenshot_tick: None,
             view: None,
+            tex: None,
         }
     }
 }
@@ -197,7 +216,7 @@ impl AgentOpts {
                 "scenario" => {
                     let v = need(value)?;
                     o.scenario = Scenario::parse(&v).ok_or_else(|| {
-                        format!("scenario: unknown {v:?} (known: ramp, closeup, playroom)")
+                        format!("scenario: unknown {v:?} (known: ramp, closeup, playroom, kit2000)")
                     })?;
                 }
                 "seed" => {
@@ -255,6 +274,13 @@ impl AgentOpts {
                     o.view = Some(
                         PlayroomView::parse(&v)
                             .ok_or_else(|| format!("view: unknown {v:?} (rug|blocks)"))?,
+                    );
+                }
+                "tex" => {
+                    let v = need(value)?;
+                    o.tex = Some(
+                        TextureFamily::parse(&v)
+                            .ok_or_else(|| format!("tex: unknown {v:?} (bc7|astc|png)"))?,
                     );
                 }
                 _ if strict => return Err(format!("unknown flag --{key}")),
@@ -365,6 +391,8 @@ struct DiagState<'a> {
     shadow_lights: usize,
     shadow_light_cap: usize,
     view: Option<&'static str>,
+    /// The P1-T4 kit renderer (pieces, chunks, draw counts, texture family); absent without a kit.
+    kit: Option<&'a KitDiag>,
     screenshot: &'a ShotState,
     camera: &'a CameraDiag,
     shot_camera: Option<&'a CameraDiag>,
@@ -377,6 +405,7 @@ fn diag<'a>(
     opts: &AgentOpts,
     camera: &'a CameraDiag,
     shadows: &ShadowLights,
+    kit: &'a KitDiag,
 ) -> DiagState<'a> {
     let tick = clock.sim.tick_count();
     DiagState {
@@ -413,6 +442,7 @@ fn diag<'a>(
         shadow_lights: shadows.casting,
         shadow_light_cap: shadows.cap,
         view: opts.view.map(PlayroomView::name),
+        kit: (opts.scenario.kit() != KitScene::None).then_some(kit),
         screenshot: &rt.shot,
         camera,
         shot_camera: rt.shot_camera.as_ref(),
@@ -475,6 +505,8 @@ impl Plugin for AgentPlugin {
         .insert_resource(opts.quality)
         .insert_resource(MarbleLook(opts.marble.unwrap_or_default()))
         .insert_resource(opts.scenario.environment())
+        .insert_resource(opts.scenario.kit())
+        .insert_resource(TextureCap(opts.tex))
         .insert_resource(opts)
         .add_systems(
             Last,
@@ -581,12 +613,14 @@ fn on_shot(ev: On<ScreenshotCaptured>, opts: Res<AgentOpts>, mut rt: ResMut<Agen
     rt.shot = ShotState::Done { lit, colors, ok };
 }
 
+#[allow(clippy::too_many_arguments)]
 fn auto_exit(
     time: Res<Time<Real>>,
     opts: Res<AgentOpts>,
     clock: Res<SimClock>,
     camera: Res<CameraDiag>,
     shadows: Res<ShadowLights>,
+    kit: Res<KitDiag>,
     mut rt: ResMut<AgentRuntime>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -621,8 +655,8 @@ fn auto_exit(
     };
     rt.exiting = true;
     if opts.dump_state {
-        let json =
-            serde_json::to_string(&diag(&clock, &rt, &opts, &camera, &shadows)).unwrap_or_default();
+        let json = serde_json::to_string(&diag(&clock, &rt, &opts, &camera, &shadows, &kit))
+            .unwrap_or_default();
         #[cfg(not(target_arch = "wasm32"))]
         println!("{json}");
         #[cfg(target_arch = "wasm32")]
@@ -638,9 +672,10 @@ fn publish(
     opts: Res<AgentOpts>,
     camera: Res<CameraDiag>,
     shadows: Res<ShadowLights>,
+    kit: Res<KitDiag>,
 ) {
     use js_sys::{JSON, JsString, Reflect};
-    let Ok(json) = serde_json::to_string(&diag(&clock, &rt, &opts, &camera, &shadows)) else {
+    let Ok(json) = serde_json::to_string(&diag(&clock, &rt, &opts, &camera, &shadows, &kit)) else {
         return;
     };
     if let Ok(v) = JSON::parse(&json) {
@@ -739,6 +774,26 @@ mod tests {
             (Scenario::Playroom, Some(PlayroomView::Rug))
         );
         let mut sim = Scenario::Playroom.build(None);
+        sim.tick(parble_sim::golden::RAMP_10S_TICKS);
+        assert_eq!(sim.trajectory_hash(), parble_sim::golden::ramp_10s_hash());
+    }
+
+    #[test]
+    fn kit2000_scenario_and_tex_cap_parse_and_keep_the_ramp_golden() {
+        let o = args("--scenario kit2000 --tex astc").unwrap();
+        assert_eq!(o.scenario, Scenario::Kit2000);
+        assert_eq!(o.scenario.kit(), KitScene::Stress2000);
+        assert_eq!(Scenario::Ramp.kit(), KitScene::None);
+        assert_eq!(o.tex, Some(TextureFamily::Astc));
+        assert_eq!(o.camera.cues(o.scenario, None), Cues::kit());
+        assert_eq!(o.scenario.environment(), Environment::Plain);
+        assert!(args("--tex etc2").is_err());
+        let q = AgentOpts::from_query("?scenario=kit2000&tex=png", str::to_owned).unwrap();
+        assert_eq!(
+            (q.scenario, q.tex),
+            (Scenario::Kit2000, Some(TextureFamily::Png))
+        );
+        let mut sim = Scenario::Kit2000.build(None);
         sim.tick(parble_sim::golden::RAMP_10S_TICKS);
         assert_eq!(sim.trajectory_hash(), parble_sim::golden::ramp_10s_hash());
     }

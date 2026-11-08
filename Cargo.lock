@@ -3621,6 +3621,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "meshoptimizer-rs"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5129e1eb5c99c73171287687c91461acc5036a1fff02c07090cabf2f09e14573"
+dependencies = [
+ "libm",
+]
+
+[[package]]
 name = "miniz_oxide"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4330,6 +4339,7 @@ name = "parble-render"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "meshoptimizer-rs",
  "parble-sim",
  "serde",
  "serde_json",

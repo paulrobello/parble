@@ -55,10 +55,19 @@ fn main() {
             bevy::window::WindowResolution::new(1280, 720).with_scale_factor_override(1.0);
     }
     let exit = App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(window),
-            ..default()
-        }))
+        .add_plugins(parble_render::kit::KitAssetSourcePlugin)
+        .add_plugins(
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(window),
+                    ..default()
+                })
+                // No `.meta` sidecars ship; probing for them 404s on the static web host.
+                .set(AssetPlugin {
+                    meta_check: bevy::asset::AssetMetaCheck::Never,
+                    ..default()
+                }),
+        )
         .add_plugins(ParbleRenderPlugin)
         .add_plugins(AgentPlugin(opts.clone()))
         .add_plugins(DirectorPlugin {

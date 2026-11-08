@@ -15,6 +15,7 @@ use bevy::{
 use parble_sim::{MarbleState, scene};
 
 pub mod camera;
+pub mod kit;
 pub mod marble;
 pub mod playroom;
 pub mod post;
@@ -88,6 +89,7 @@ impl Plugin for ParbleRenderPlugin {
             .init_resource::<Quality>()
             .add_plugins(marble::MarblePlugin)
             .add_plugins(playroom::PlayroomPlugin)
+            .add_plugins(kit::KitPlugin)
             .add_systems(Startup, spawn_scene)
             .add_systems(PostUpdate, sync_marbles.before(TransformSystems::Propagate));
     }
