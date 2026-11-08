@@ -122,8 +122,11 @@ impl Sim {
 }
 
 /// Ticks in one playroom run (4 s): the marbles reach the finish at about 2.75 s and the run
-/// restarts while the train rests there. A train left longer creeps back up the far leg at a few
-/// cm/s (slow off-centre marbles gain energy in the channel collider).
+/// restarts while the train rests there. A train left longer drifts back up the far leg: the
+/// marbles rebound off the stop and off each other, and two of them leave at 4–9 mm/s, slowing
+/// only slowly because the rolling-resistance damping is matched at 0.5 m/s ([`crate::marble`]).
+/// (Before 2026-11-07 they also gained energy from the bend contact, see
+/// [`crate::chunk::ChannelBend`].)
 pub const PLAYROOM_TICKS: u32 = 960;
 
 /// The committed hash of a [`PLAYROOM_TICKS`] playroom run (`tests/golden/playroom_4s.hash`).

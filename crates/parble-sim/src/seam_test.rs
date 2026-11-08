@@ -179,10 +179,11 @@ fn seams_without_the_fix_bump() {
 }
 
 /// Allowed peak kick ([`kick`]) at a curve join or inside a curve above the seamless straight's,
-/// mm/s. Measured 2026-11-07 at 0.3 m/s with the exact-tube bend contact ([`ChannelBend`]): joins
-/// 20.96, 16.19, 22.29 and 5.40, interiors 4.32 and 7.39, against the seamless straight's 19.26
-/// (+3.03 at most, the straight's own per-tick contact jitter under the extra curve load). The
-/// faceted bend without the fix kicks 45.24–59.75 (`curves_without_the_fix_kick`).
+/// mm/s. Measured 2026-11-07 at 0.3 m/s with the exact-tube bend contact ([`ChannelBend`]),
+/// evaluated at the end of the step on one manifold without hand-over bounce: joins 2.14, 0.94,
+/// 2.56 and 0.58, interiors 0.55 and 0.48, against the seamless straight's 19.26 (the
+/// start-of-step contact copied onto every manifold gave 20.96, 16.19, 22.29, 5.40, 4.32 and
+/// 7.39). The faceted bend without the fix kicks 45.24–59.75 (`curves_without_the_fix_kick`).
 ///
 /// [`ChannelBend`]: crate::chunk::ChannelBend
 const CURVE_KICK_MARGIN_MM_S: f32 = 5.0;
@@ -242,7 +243,7 @@ fn curve_and_slope_joins() {
     // swings up to 2 mm up the outer wall and back (the 30 mm bend radius starts at the port),
     // a smooth motion that peaks at 30–66 mm/s depending on the swing it enters with. That is the
     // curve's geometry, not a bump. Measured 2026-11-07 at 0.3 m/s, peak |vy| with the fix:
-    // joins 31.83, 24.02, 58.63, 28.25, interiors 38.66, 66.80 mm/s; without it 64.95, 44.09,
+    // joins 10.28, 27.61, 10.44, 16.78, interiors 35.90, 30.94 mm/s; without it 64.95, 44.09,
     // 49.81, 44.19 and 53.98, 38.77 mm/s (the facet chatter dissipates part of the swing).
     let layout = curve_layout();
     let start = Vector::new(-0.02, REST_Y, 0.0);
@@ -270,13 +271,13 @@ fn curve_and_slope_joins() {
         assert!(k <= limit, "{name}: kick {k:.2} mm/s over {limit:.2}");
     }
 
-    // The marble leaves the mirrored curve still swinging (about 1 mm up either wall, ±47 mm/s,
-    // measured 2026-11-07), so the slope entry here peaks at 46.38 mm/s upward from the swing
-    // alone: that is logged, not gated (before the bend fix the facet chatter damped the swing and
-    // slowed the marble to about 0.19 m/s, which is why this entry used to pass 15.15 mm/s). Its
-    // kick is gated: 5.49 mm/s, measured 2026-11-07, against 34.25 without the contact hooks
-    // (`curves_without_the_fix_kick`). With the hand-over bounce kept it kicks 25.15, only 0.89
-    // over the limit, too thin a margin for a control.
+    // The marble used to leave the mirrored curve still swinging (about 1 mm up either wall,
+    // ±47 mm/s), so the slope entry here peaked at 46.38 mm/s upward from the swing alone; with
+    // the end-of-step bend contact it peaks at 0.01 (measured 2026-11-07). That stays logged, not
+    // gated. Its kick is gated: 1.59 mm/s, measured 2026-11-07 (5.49 with the start-of-step bend
+    // contact), against 34.25 without the contact hooks (`curves_without_the_fix_kick`). With the
+    // slope's hand-over bounce kept it kicked 25.15, only 0.89 over the limit, too thin a margin
+    // for a control.
     let entry = CURVE_SLOPE_ENTRY;
     assert!(
         tr.iter().any(|m| at(m, entry[0], entry[1])),
@@ -474,4 +475,125 @@ fn curves_without_the_fix_kick() {
         k > limit,
         "slope entry: control kick {k:.2} not over {limit:.2}"
     );
+}
+
+/// Peak marble speed allowed over the last second of a 10 s rest, mm/s. Measured 2026-11-07 on the
+/// playroom run's far leg: 0.037 (one marble 4 mm off centre), 0.005 (the same beside the curve,
+/// on the exact tube contact) and 0.252 (the 4-marble train), against 189, 189 and 193 with the
+/// start-of-step bend contact.
+const REST_SPEED_MM_S: f32 = 1.0;
+/// Largest rise allowed in the marbles' total energy above its start, µJ. Measured 0.00 in every
+/// case, against 38.7, 38.1 and 411 with the start-of-step bend contact.
+const REST_ENERGY_RISE_UJ: f32 = 1.0;
+
+/// The playroom run with `starts` (centre, velocity) marbles of the run's types, ticked 10 s.
+/// Returns the peak speed over the last second (mm/s) and the largest rise of the marbles' total
+/// energy (kinetic + potential) above its value at tick 0 (µJ).
+fn rest_in_playroom(starts: &[(Vector, Vector)], legacy_bend_contact: bool) -> (f32, f32) {
+    let kit = parble_kit::builtin();
+    let mut sim = Sim::empty();
+    for p in crate::playroom_run::placements() {
+        sim.place_piece(kit, p).unwrap();
+    }
+    sim.rebuild_chunks(kit).unwrap();
+    sim.pieces.bend_contact_at_step_start = legacy_bend_contact;
+    for (i, &(at, v)) in starts.iter().enumerate() {
+        let (kind, size) = crate::playroom_run::MARBLES[i];
+        let spec = kind.spec_sized(size);
+        let (mut body, collider) = spec.build(at);
+        body.set_linvel(v, true);
+        body.set_angvel(Vector::Y.cross(v) / spec.radius_m, true);
+        let h = sim.world.bodies.insert(body);
+        sim.world
+            .colliders
+            .insert_with_parent(collider, h, &mut sim.world.bodies);
+        sim.marbles.push(h);
+    }
+    let energy = |sim: &Sim| -> f32 {
+        sim.marbles
+            .iter()
+            .map(|&h| {
+                let b = &sim.world.bodies[h];
+                b.kinetic_energy() + b.mass() * crate::marble::G * b.translation().y
+            })
+            .sum()
+    };
+    let e0 = energy(&sim);
+    let (mut rise, mut peak) = (0.0f32, 0.0f32);
+    for t in 1..=10 * crate::TICK_HZ {
+        sim.tick(1);
+        rise = rise.max(energy(&sim) - e0);
+        if t > 9 * crate::TICK_HZ {
+            for m in sim.marbles() {
+                let [x, y, z] = m.linvel;
+                peak = peak.max((x * x + y * y + z * z).sqrt());
+            }
+        }
+    }
+    (peak * 1_000.0, rise * 1.0e6)
+}
+
+/// Centre of a standard marble resting on the far leg's half-round `dz` metres off its centre
+/// line, `x` metres along the run.
+fn far_leg_at(x: f32, dz: f32) -> Vector {
+    let r = parble_core::contract::MARBLE_STANDARD_DIAMETER_UM as f32 * 0.5e-6;
+    let reach = 0.014 - r;
+    let row = crate::playroom_run::ROW_FAR as f32 * crate::scene::cell_m();
+    Vector::new(
+        x,
+        0.059 - (reach * reach - dz * dz).sqrt() + 0.0002,
+        row + dz,
+    )
+}
+
+/// One marble placed at rest 4 mm off the centre line of the far leg, three cells from the stop.
+fn off_centre_marble() -> Vec<(Vector, Vector)> {
+    vec![(far_leg_at(0.18, 0.004), Vector::ZERO)]
+}
+
+/// Four marbles rolling into the finish stop at 20 mm/s, 0.5 mm apart and 2 mm off centre on
+/// alternating sides: they gather into a train against the stop.
+fn train_into_the_stop() -> Vec<(Vector, Vector)> {
+    (0..4)
+        .map(|i| {
+            let dz = if i % 2 == 0 { 0.002 } else { -0.002 };
+            (
+                far_leg_at(0.04 + 0.0165 * i as f32, dz),
+                Vector::new(-0.02, 0.0, 0.0),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn marbles_at_rest_in_a_bend_row_stay_at_rest() {
+    for (name, starts) in [
+        ("off-centre marble", off_centre_marble()),
+        // 10 mm short of the curve's cell, where the exact tube contact still holds.
+        (
+            "off-centre marble beside the curve",
+            vec![(far_leg_at(0.38, 0.004), Vector::ZERO)],
+        ),
+        ("4-marble train at the stop", train_into_the_stop()),
+    ] {
+        let (fixed, fixed_rise) = rest_in_playroom(&starts, false);
+        let (legacy, legacy_rise) = rest_in_playroom(&starts, true);
+        eprintln!(
+            "{name}: peak speed 9-10 s {fixed:.3} mm/s (limit {REST_SPEED_MM_S}), energy rise \
+             {fixed_rise:.2} uJ; start-of-step bend contact: {legacy:.2} mm/s, {legacy_rise:.2} uJ"
+        );
+        assert!(
+            fixed < REST_SPEED_MM_S,
+            "{name}: still moving at {fixed:.3} mm/s after 9 s"
+        );
+        assert!(
+            fixed_rise < REST_ENERGY_RISE_UJ,
+            "{name}: gained {fixed_rise:.2} uJ"
+        );
+        // Negative control: the start-of-step bend contact keeps the marbles rocking.
+        assert!(
+            legacy > REST_SPEED_MM_S && legacy_rise > REST_ENERGY_RISE_UJ,
+            "{name}: control {legacy:.2} mm/s, {legacy_rise:.2} uJ not over the limits"
+        );
+    }
 }

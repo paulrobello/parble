@@ -197,6 +197,16 @@ pub const IN_BEND_CELL: u32 = 1 << 31;
 /// 30–40 mm/s on the smooth tube, and finer sampling does not help (16, 32 and 64 path segments
 /// peak at 81, 117 and 109 mm/s, measured 2026-11-07 in `seam_test`). The contact hook therefore
 /// replaces a contact on a bend's tube triangle with the contact against the exact tube.
+///
+/// That contact follows the slope contact's rules ([`ChannelSlope`]): evaluated at the ball's
+/// end-of-step position, put on one manifold per pair, with no restitution while penetrating, and
+/// on a straight only within a ball diameter of the bend's cell. Evaluated at the start of the
+/// step it pumped energy into slow marbles rocking across the channel (measured 2026-11-07, one
+/// marble at rest 4 mm off centre on a straight in a bend's row): the solver holds the contact
+/// normal for the whole step, so on the 6 mm tube-minus-ball radius the ball sank 250–440 µm
+/// into the wall, past Rapier's 300 µm allowed error, and the depth correction pushed it back
+/// out with energy gained on 147 of 240 ticks. The rocking grew to 5.1 mm and 0.19 m/s and
+/// held. Evaluated at the end of the step the depth stays at 57–69 µm and the marble settles.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ChannelBend {
     /// World µm `(x, z)` of the quarter circle's centre (the cell corner).
@@ -267,6 +277,15 @@ impl ChannelBend {
         } else {
             None
         }
+    }
+
+    /// Whether a ball centre lies over the bend's cell grown by `margin` metres on every side.
+    fn reaches(&self, c: Vector, margin: f32) -> bool {
+        let m = |v: i64| v as f32 * 1.0e-6;
+        let cell = m(i64::from(CELL_UM));
+        let (x0, z0) = (m(self.cell_min_um[0]), m(self.cell_min_um[1]));
+        (x0 - margin..=x0 + cell + margin).contains(&c.x)
+            && (z0 - margin..=z0 + cell + margin).contains(&c.z)
     }
 
     /// Whether a world µm plan point lies in the bend's cell.
@@ -783,6 +802,14 @@ pub struct ChunkColliders {
     /// bounce at every triangle hand-over that the hook removes), for the seam test's control.
     #[cfg(test)]
     pub(crate) slope_hand_over_bounces: bool,
+    /// Whether the contact pair being updated has received its exact bend contact, reset with
+    /// [`Self::slope_contact_claimed`].
+    bend_contact_claimed: std::sync::Mutex<bool>,
+    /// Test switch: the bend contact as it was before 2026-11-07, evaluated at the start of the
+    /// step, copied onto every touching manifold, bouncing at triangle hand-overs and reaching
+    /// along the whole straight continuation (the energy gain the seam test's control shows).
+    #[cfg(test)]
+    pub(crate) bend_contact_at_step_start: bool,
     dirty: BTreeSet<CellCoord>,
 }
 
@@ -1010,7 +1037,9 @@ impl ChunkColliders {
                 let mut collider = mesh
                     .collider(chunk_origin_um(chunk))
                     .map_err(|e| ChunkError::TriMesh(chunk, format!("{e:?}")))?;
-                if mesh.slope_of.iter().any(|k| !k.is_empty()) {
+                if mesh.slope_of.iter().any(|k| !k.is_empty())
+                    || mesh.bend_of.iter().any(|&b| b != 0)
+                {
                     collider.set_active_hooks(
                         ActiveHooks::MODIFY_SOLVER_CONTACTS | ActiveHooks::FILTER_CONTACT_PAIRS,
                     );
@@ -1042,6 +1071,10 @@ impl PhysicsHooks for ChunkColliders {
     fn filter_contact_pair(&self, _: &PairFilterContext) -> Option<SolverFlags> {
         *self
             .slope_contact_claimed
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = false;
+        *self
+            .bend_contact_claimed
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = false;
         Some(SolverFlags::default())
@@ -1142,18 +1175,35 @@ impl PhysicsHooks for ChunkColliders {
                 // A straight triangle can lie on the continuation of several bends: the bend
                 // whose cell holds the ball owns the contact. Off every bend cell a straight
                 // triangle's tube holds only along its own span, so a ball rolling past the next
-                // seam (onto a slope, say) keeps the mesh contact there.
+                // seam (onto a slope, say) keeps the mesh contact there, and only within a ball
+                // diameter of the bend's cell: the flat-vertex collapse welds a straight run into
+                // strips as long as the run, so without that reach every straight in a bend's
+                // row took the exact tube contact.
                 let um = |v: f32| (v * 1.0e6).round() as i64;
                 let t = colliders[handle]
                     .shape()
                     .as_trimesh()
                     .map(|m| m.triangle(tri));
                 let pose = colliders[handle].position();
+                #[cfg(test)]
+                let legacy = self.bend_contact_at_step_start;
+                #[cfg(not(test))]
+                let legacy = false;
+                // Evaluated where the ball will be at the end of the step and carried back along
+                // the normal, as on the slope: the solver holds the normal for the whole step, so
+                // a start-of-step contact on the tube lags the wall and pumps energy into a
+                // marble rocking across the channel (see [`ChannelBend`]).
+                let v = bodies[ball_body].linvel();
+                let ahead = if legacy { 0.0 } else { crate::DT };
+                let eval = |b: &ChannelBend| {
+                    b.contact(centre + v * ahead, ball.radius)
+                        .map(|(n, g)| (n, g - v.dot(n) * ahead))
+                };
                 match bends
                     .iter()
                     .find(|b| b.contains(um(centre.x), um(centre.z)))
                 {
-                    Some(b) => b.contact(centre, ball.radius),
+                    Some(b) => eval(b),
                     None => {
                         let b = &bends[(tag & !IN_BEND_CELL) as usize - 1];
                         let along = b.continuation_axis(centre);
@@ -1166,14 +1216,38 @@ impl PhysicsHooks for ChunkColliders {
                                 })
                         };
                         along
-                            .filter(|&i| spans(i))
-                            .and_then(|_| b.contact(centre, ball.radius))
+                            .filter(|&i| {
+                                spans(i) && (legacy || b.reaches(centre, 2.0 * ball.radius))
+                            })
+                            .and_then(|_| eval(b))
                     }
                 }
             }
         {
-            // One contact against the exact tube (see [`ChannelBend`]).
+            // One contact against the exact tube (see [`ChannelBend`]), on the pair's first bend
+            // manifold only and without a bounce at the triangle hand-overs, as on the slope.
+            #[cfg(test)]
+            let legacy = self.bend_contact_at_step_start;
+            #[cfg(not(test))]
+            let legacy = false;
+            if !legacy {
+                if rigid.solver_contacts.is_empty() {
+                    return;
+                }
+                let mut claimed = self
+                    .bend_contact_claimed
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner());
+                if *claimed {
+                    rigid.solver_contacts.clear();
+                    return;
+                }
+                *claimed = true;
+            }
             set_one_contact(rigid, first, centre, ball.radius, n, gap);
+            if !legacy && gap <= 0.0 {
+                *rigid.restitution = 0.0;
+            }
             return;
         }
         let bits = self.stitched[&handle.into_raw_parts()]
