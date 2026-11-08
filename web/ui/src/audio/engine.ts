@@ -285,6 +285,9 @@ export class AudioEngine {
     this.#stats.rollsCulled += cands.length - keep.length;
     const kept = new Set(keep.map((c) => c.id));
     for (const m of [...this.#rolls.keys()]) if (!kept.has(m)) this.#releaseRoll(m, now);
+    // One-shots may hold the roll slots while fewer rolls sound (a reset, culled or stale rolls);
+    // rolls coming back take them, quietest one-shot first, so the total never passes the cap.
+    this.#fitOneShots(this.#caps.total - keep.length, now);
     for (const c of keep) {
       let v = this.#rolls.get(c.id);
       if (!v) {
@@ -426,6 +429,19 @@ export class AudioEngine {
       duration: buffer.duration / playbackRate,
     });
     this.#stats.started++;
+  }
+
+  /** Stop the quietest one-shots (by decayed priority) until at most `cap` remain; each counts as stolen. */
+  #fitOneShots(cap: number, now: number): void {
+    const over = this.#oneShots.size - Math.max(0, cap);
+    if (over <= 0) return;
+    const ranked = [...this.#oneShots.values()]
+      .map((o) => ({ id: o.id, priority: oneShotPriority(o.base, o.start, o.duration, now) }))
+      .sort((a, b) => a.priority - b.priority || a.id - b.id);
+    for (const o of ranked.slice(0, over)) {
+      this.#stopOneShot(o.id, now);
+      this.#stats.stolen++;
+    }
   }
 
   #stopOneShot(id: number, now: number): void {

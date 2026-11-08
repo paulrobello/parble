@@ -408,6 +408,32 @@ describe("engine voice budget", () => {
     expect(s.stolen).toBeGreaterThan(0);
   });
 
+  it("holds the cap when one frame starts more voices than it, after one-shots filled the roll slots", () => {
+    const { ctx, e } = engine();
+    const loud = (n: number, from = 0) =>
+      Array.from({ length: n }, (_, i) => contact({ marble: from + i, impulse: 0.003, position: [0, 0.2, 0] }));
+    // No rolls: one-shots may take all 24 slots, including the 10 the rolls use.
+    e.consume(frame(4, { contacts: loud(30) }));
+    expect(e.stats().oneShotVoices).toBe(24);
+    ctx.currentTime += 0.01;
+    // Next frame: 12 rolls and 30 more one-shots start at once, 42 asks for 24 slots.
+    e.consume(frame(8, { rolls: Array.from({ length: 12 }, (_, i) => roll(i)), contacts: loud(30, 100) }));
+    const s = e.stats();
+    expect(s.errors).toBe(0);
+    expect(s.activeVoices).toBeLessThanOrEqual(24);
+    expect(s.peakVoices).toBeLessThanOrEqual(24);
+    expect(s.rollVoices).toBe(10);
+    expect(s.oneShotVoices).toBe(14);
+    expect(s.stolen).toBeGreaterThanOrEqual(10);
+    // A run restart clears the rolls but not the one-shots; the rolls coming back still fit.
+    ctx.currentTime += 0.01;
+    e.consume(frame(0, { contacts: loud(30, 200) }));
+    ctx.currentTime += 0.01;
+    e.consume(frame(4, { rolls: Array.from({ length: 12 }, (_, i) => roll(i)) }));
+    expect(e.stats().activeVoices).toBeLessThanOrEqual(24);
+    expect(e.stats().peakVoices).toBeLessThanOrEqual(24);
+  });
+
   it("lets a louder impact take the slot of the quietest one", () => {
     const { ctx, e } = engine();
     const quiet = Array.from({ length: 24 }, (_, i) => contact({ marble: i, impulse: 0.0003, position: [2, 0, 0] }));
