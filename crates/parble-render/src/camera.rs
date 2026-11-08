@@ -137,13 +137,16 @@ impl Cues {
     }
 
     /// Mechanism showcase (P2-T6 `--scenario mechanisms`): one set shot from in front of and above
-    /// the row, both mechanisms in frame, focused between them.
+    /// the row, all three mechanism lanes in frame, focused on its middle.
     pub fn mechanisms() -> Self {
-        use parble_sim::mech_showcase::{GATE_CELL, TOGGLE_CELL};
+        use parble_sim::mech_showcase::{LIFT_CELL, TOGGLE_CELL};
         let cell = scene::cell_m();
         let at = |c: [i32; 3]| Vec3::new(c[0] as f32, 0.0, c[2] as f32) * cell;
-        let look = (at(TOGGLE_CELL) + at(GATE_CELL)) / 2.0 + Vec3::Y * 0.03;
-        let eye = look + Vec3::new(0.0, 0.30, 0.12);
+        // From the toggle lane's first straight to the straight on the lift's high exit.
+        let first = at(TOGGLE_CELL) - Vec3::X * cell;
+        let last = at(LIFT_CELL) + Vec3::X * cell * 2.0;
+        let look = (first + last) / 2.0 + Vec3::Y * 0.04;
+        let eye = look + Vec3::new(0.0, 0.60, 0.26);
         Self(vec![(
             0,
             Shot::Set {

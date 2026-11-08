@@ -95,7 +95,7 @@ const P1_APPROVED = new Set(["blk_straight_l3", "blk_curve90_l3", "blk_slope_gen
 // cup and the checkpoint arch have no moving part. All parts of a piece share one budget (§12).
 const MECH_PARTS = {
   hopper: ["anim_gate"], finish: [], splitter: ["anim_flap"], toggle: ["anim_rocker"], checkpoint: [],
-  gate_oneway: ["anim_flap"], hole_oneway: ["anim_trapdoor"],
+  gate_oneway: ["anim_flap"], hole_oneway: ["anim_trapdoor"], stepper_up1: ["anim_slats"],
 };
 const PART_BUDGET = [1500, 500, 120];
 const mechShape = (id) => id.replace(/^mech_/, "").replace(/_l[0-3]$/, "");
@@ -325,15 +325,20 @@ async function checkPiece(runtime, source, id, opts) {
     if (!/^anim_[a-z0-9_]+$/.test(a.name)) errs.push(`${id}: animated part name ${a.name} lacks the anim_ prefix`);
     if (!intVec(a.pivot_um)) { errs.push(`${id}: animated part ${a.name} lacks pivot_um`); continue; }
     if (!intVec(a.axis) || a.axis.reduce((s, x) => s + Math.abs(x), 0) !== 1) { errs.push(`${id}: animated part ${a.name} axis ${a.axis} is not an axis-aligned unit vector`); continue; }
-    const lim = a.limits_mdeg;
-    if (!Number.isInteger(a.rest_mdeg) || !Array.isArray(lim) || lim.length !== 2 || !(lim[0] <= a.rest_mdeg && a.rest_mdeg <= lim[1]) || lim[0] === lim[1])
-      errs.push(`${id}: animated part ${a.name} rest ${a.rest_mdeg} / limits ${lim} invalid`);
+    // a hinge turns rest_mdeg about the axis at the pivot; a slide (joint "slide") moves rest_um
+    // along the axis from the pivot, unrotated
+    const slide = a.joint === "slide";
+    if (a.joint !== undefined && !slide) errs.push(`${id}: animated part ${a.name} joint ${a.joint} is not "slide"`);
+    const rest = slide ? a.rest_um : a.rest_mdeg, lim = slide ? a.limits_um : a.limits_mdeg;
+    if (!Number.isInteger(rest) || !Array.isArray(lim) || lim.length !== 2 || !(lim[0] <= rest && rest <= lim[1]) || lim[0] === lim[1])
+      errs.push(`${id}: animated part ${a.name} rest ${rest} / limits ${lim} invalid`);
     const t = node.getWorldTranslation();
-    if (a.pivot_um.some((c, k) => Math.abs(c * 1e-6 - t[k]) > 1e-6)) errs.push(`${id}: ${a.name} node at ${t} != pivot ${a.pivot_um} µm`);
-    const h = (a.rest_mdeg / 1000) * Math.PI / 360;
+    const at = a.pivot_um.map((c, k) => c + (slide ? a.axis[k] * rest : 0));
+    if (at.some((c, k) => Math.abs(c * 1e-6 - t[k]) > 1e-6)) errs.push(`${id}: ${a.name} node at ${t} != ${at} µm`);
+    const h = slide ? 0 : (rest / 1000) * Math.PI / 360;
     const q = [...a.axis.map((x) => x * Math.sin(h)), Math.cos(h)], r = node.getWorldRotation();
     const dot = Math.abs(q.reduce((s, x, k) => s + x * r[k], 0));
-    if (1 - dot > 1e-6) errs.push(`${id}: ${a.name} node rotation ${r} != rest ${a.rest_mdeg} mdeg about ${a.axis}`);
+    if (1 - dot > 1e-6) errs.push(`${id}: ${a.name} node rotation ${r} != rest ${rest} ${slide ? "µm" : "mdeg"} about ${a.axis}`);
     let ptris = 0;
     for (const g of a.collision ?? []) {
       if (g.surface !== "wood_end_grain") errs.push(`${id}: ${a.name} collision surface ${g.surface}`);
@@ -351,7 +356,7 @@ async function checkPiece(runtime, source, id, opts) {
         if (!fpKey.has(c.join(",")) || [0, 1, 2].some((k) => p[k] < lo[k] + INSET - 1e-6 || p[k] > lo[k] + CELL - INSET + 1e-6)) { errs.push(`${id}: ${n} vertex ${p.map((x) => x.toFixed(5))} outside the inset footprint at rest`); break; }
       }
     }
-    info.parts.push(`${a.name} pivot ${a.pivot_um} axis ${a.axis} rest ${a.rest_mdeg} limits ${lim} collider ${ptris}`);
+    info.parts.push(`${a.name}${slide ? " slide" : ""} pivot ${a.pivot_um} axis ${a.axis} rest ${rest} limits ${lim} collider ${ptris}`);
   }
   partTris.forEach((t, l) => { if (t > PART_BUDGET[l]) errs.push(`${id}: animated parts LOD${l} ${t} tris > ${PART_BUDGET[l]}`); });
   info.partTris = partTris;

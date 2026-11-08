@@ -1,5 +1,5 @@
-// P2-T6 mechanism parts in GPU Chromium: `?scenario=mechanisms` runs a toggle and a one-way gate with
-// one marble each (crates/parble-sim/src/mech_showcase.rs), restarting every 10 s. Sampled on every
+// P2-T6 mechanism parts in GPU Chromium: `?scenario=mechanisms` runs a toggle, a one-way gate and a
+// stepper elevator with one marble each (crates/parble-sim/src/mech_showcase.rs), restarting every 10 s. Sampled on every
 // animation frame through a run, each drawn part angle (`window.__parble.kit.parts`) is the sim's
 // angle interpolated between the last two physics ticks at the frame's alpha, and the gate flap's
 // fall back onto its stop is drawn as a smooth, monotonic sweep across frames, with angles between
@@ -22,13 +22,14 @@ test("mechanism parts interpolate between physics ticks and sweep smoothly", asy
   page.on("pageerror", (e) => errors.push(String(e)));
   page.on("requestfailed", (r) => errors.push(`request failed: ${r.url()}`));
   await page.goto("/?mute=1&scenario=mechanisms&quality=medium");
-  await page.waitForFunction(() => window.__parble?.ready === true && window.__parble.kit?.parts?.length === 2, null, {
+  await page.waitForFunction(() => window.__parble?.ready === true && window.__parble.kit?.parts?.length === 3, null, {
     timeout: 60_000,
   });
   const k = await page.evaluate(() => window.__parble.kit);
-  expect(k.parts.map((p) => p.piece)).toEqual(["mech_toggle_l3", "mech_gate_oneway_l1"]);
-  // The toggle and the gate each add one part mesh per (LOD, variant): the bound counts it.
-  expect(k.drawBound).toBe(3 * (1 + 2 + 1 + 2));
+  expect(k.parts.map((p) => p.piece)).toEqual(["mech_toggle_l3", "mech_gate_oneway_l1", "mech_stepper_up1_l3"]);
+  // The toggle, the gate and the stepper each add one part mesh per (LOD, variant): the bound
+  // counts it. The lift lane reaches the second chunk.
+  expect(k.drawBound).toBe(3 * (1 + 2 + 1 + 2 + 1 + 2));
 
   // Every animation frame for 11 s: the run restarts every 10 s, so one whole run is in the sample.
   const samples = await page.evaluate(

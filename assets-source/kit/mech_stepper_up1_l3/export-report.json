@@ -1,0 +1,113 @@
+{
+  "blender": "5.2.2 LTS",
+  "colliderTris": 646,
+  "generator": {
+    "path": "blender/kit/generate.py",
+    "sha256": "dcf7195a751790e68529e5ffcb2aedbaa27db37b748bb051a145fc6a1468df13"
+  },
+  "generatorDeps": [
+    {
+      "path": "blender/kit/kitgeom.py",
+      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+    },
+    {
+      "path": "blender/kit/kitblocks.py",
+      "sha256": "660a716bb5b6aacfc73d0247ef39e4a8c30387d314fa250e99e76aaa39d0d366"
+    },
+    {
+      "path": "blender/kit/kitmech.py",
+      "sha256": "5ad3aeec85a906415f4375022d8beed1884cfa3bccf29b702452466274eda6b7"
+    },
+    {
+      "path": "blender/kit/kitstepper.py",
+      "sha256": "b4f294e5df887af92a9113ffea91b7ee82ed59f9c190f1497bb3ddd696ae4ef9"
+    }
+  ],
+  "lodParams": {
+    "lod0": {
+      "bevel_segs": 3,
+      "n_fillet": 6,
+      "n_round": 32,
+      "path": {
+        "curve90": 20,
+        "end": 16,
+        "slope_gentle": 16,
+        "straight": 1
+      }
+    },
+    "lod1": {
+      "bevel_segs": 1,
+      "n_fillet": 2,
+      "n_round": 12,
+      "path": {
+        "curve90": 8,
+        "end": 8,
+        "slope_gentle": 6,
+        "straight": 1
+      }
+    },
+    "lod2": {
+      "bevel_segs": 0,
+      "n_fillet": 1,
+      "n_round": 6,
+      "path": {
+        "curve90": 4,
+        "end": 4,
+        "slope_gentle": 3,
+        "straight": 1
+      }
+    }
+  },
+  "lodTris": {
+    "mech_stepper_up1_l3_lod0": 1649,
+    "mech_stepper_up1_l3_lod1": 741,
+    "mech_stepper_up1_l3_lod2": 477
+  },
+  "mapSize": {
+    "lod0": 1024,
+    "lod1": 512,
+    "lod2": 256
+  },
+  "nodes": [
+    "mech_stepper_up1_l3",
+    "anim_slats",
+    "anim_slats_lod0",
+    "anim_slats_lod1",
+    "anim_slats_lod2",
+    "mech_stepper_up1_l3_collider",
+    "mech_stepper_up1_l3_lod0",
+    "mech_stepper_up1_l3_lod1",
+    "mech_stepper_up1_l3_lod2",
+    "port_0",
+    "port_1"
+  ],
+  "partTris": {
+    "lod0": {
+      "anim_slats_lod0": 48
+    },
+    "lod1": {
+      "anim_slats_lod1": 48
+    },
+    "lod2": {
+      "anim_slats_lod2": 48
+    }
+  },
+  "pieceId": "mech_stepper_up1_l3",
+  "texelDensityPxPerM": {
+    "lod0": {
+      "max": 3319.6,
+      "median": 3266.8,
+      "min": 2569.8
+    },
+    "lod1": {
+      "max": 1653.3,
+      "median": 1631.9,
+      "min": 1256.2
+    },
+    "lod2": {
+      "max": 832.3,
+      "median": 823.1,
+      "min": 733.3
+    }
+  }
+}

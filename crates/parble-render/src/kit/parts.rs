@@ -35,8 +35,10 @@ pub struct PartFrame {
 pub struct PartKit {
     /// Index of the part in the sidecar's `animated_parts` (and the sim's part angles).
     pub index: usize,
+    /// A slide part: its position is µm along `axis` instead of millidegrees about it.
+    pub slide: bool,
     pub pivot: Vec3,
-    /// Unit hinge axis, piece frame.
+    /// Unit hinge (or slide) axis, piece frame.
     pub axis: Vec3,
     pub rest_mdeg: i32,
     /// The GLB node's rest-pose transform into the piece frame, per LOD.
@@ -84,6 +86,11 @@ pub fn interpolated_mdeg(prev: Option<i32>, curr: i32, alpha: f32) -> f32 {
 /// about the hinge, which is the sim's pose (`pivot + R(axis, mdeg) · local`) for a node at the
 /// sidecar rest pose.
 pub fn part_matrix(kit: &PartKit, lod: usize, mdeg: f32) -> Mat4 {
+    if kit.slide {
+        // `mdeg` is µm along the axis here: the rest pose moved by the difference.
+        let d = (mdeg - kit.rest_mdeg as f32) * 1.0e-6;
+        return Mat4::from_translation(kit.axis * d) * kit.rest[lod];
+    }
     let turn = ((mdeg - kit.rest_mdeg as f32) * 1.0e-3).to_radians();
     Mat4::from_translation(kit.pivot)
         * Mat4::from_axis_angle(kit.axis, turn)
@@ -182,16 +189,25 @@ mod tests {
             assert_eq!(kits.len(), piece.animated_parts.len(), "{id}");
             for (k, part) in kits.iter().zip(&piece.animated_parts) {
                 let [lo, hi] = part.limits_mdeg;
+                let slide = part.joint == parble_kit::Joint::Slide;
                 for mdeg in [lo, part.rest_mdeg, hi, (lo + hi) / 2] {
                     let axis = Vec3::from_array(part.axis.map(|v| v as f32));
-                    let q = Quat::from_axis_angle(axis, (mdeg as f32 * 1e-3).to_radians());
+                    // A slide moves `mdeg` µm along the axis, unrotated.
+                    let (q, shift) = if slide {
+                        (Quat::IDENTITY, axis * mdeg as f32 * 1e-6)
+                    } else {
+                        (
+                            Quat::from_axis_angle(axis, (mdeg as f32 * 1e-3).to_radians()),
+                            Vec3::ZERO,
+                        )
+                    };
                     for (lod, l) in split.iter().enumerate() {
                         let m = part_matrix(k, lod, mdeg as f32);
                         let raw = &l.parts.iter().find(|p| p.name == part.name).unwrap().mesh;
                         for p in &raw.positions {
                             let local = Vec3::from_array(*p);
                             let got = m.transform_point3(local);
-                            let want = k.pivot + q * local;
+                            let want = k.pivot + shift + q * local;
                             assert!(got.distance(want) < 2e-5, "{id} {mdeg}: {got} vs {want}");
                         }
                     }
@@ -199,7 +215,7 @@ mod tests {
                 checked += 1;
             }
         }
-        assert_eq!(checked, 5, "mechanism parts");
+        assert_eq!(checked, 6, "mechanism parts");
     }
 
     /// The split LODs at the rest angle are exactly the old merged rest-pose meshes.

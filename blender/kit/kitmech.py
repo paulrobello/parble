@@ -12,12 +12,14 @@ overhead and collider checks see only the piece body. Behaviour is P2-T5.
 
 Parts per piece (kit-check enforces the names): hopper `anim_gate` (release gate), splitter
 `anim_flap` and toggle `anim_rocker` (both a switch blade at the fork), one-way gate `anim_flap`, one-way hole `anim_trapdoor`. The
-finish cup and the checkpoint arch have no moving part, only sensors.
+finish cup and the checkpoint arch have no moving part, only sensors. The stepper elevators
+(kitstepper) have one slide part, `anim_slats`.
 """
 import math
 
 import kitblocks as B
 import kitgeom as K
+import kitstepper as S
 
 PIECE_VERSION = 1
 # Pieces whose geometry changed since version 1 (contract §10: the id stays, the version bumps).
@@ -28,7 +30,7 @@ PIECE_VERSION = 1
 PIECE_VERSIONS = {"mech_gate_oneway_l1": 2, "mech_hole_oneway_l1": 2, "mech_finish": 2, "mech_hopper": 2,
                   "mech_splitter_l3": 2, "mech_toggle_l3": 2, "mech_checkpoint_l1": 2}
 BUILD = ("mech_finish", "mech_hopper", "mech_splitter_l3", "mech_toggle_l3", "mech_checkpoint_l1",
-         "mech_gate_oneway_l1", "mech_hole_oneway_l1")
+         "mech_gate_oneway_l1", "mech_hole_oneway_l1") + tuple(S.STEPPERS)
 
 TOP = K.CELL
 COLLISION_SEGS = 16
@@ -80,6 +82,8 @@ def spec(piece_id):
     """Ports, shape, level and sensors of a P2-T3 piece (contract §10 ids, all 1 cell)."""
     if not handles(piece_id):
         raise ValueError(f"{piece_id}: not a P2-T3 mechanism piece")
+    if S.handles(piece_id):
+        return S.spec(piece_id)
     shape = piece_id[len("mech_"):].rsplit("_l", 1)[0] if piece_id[-3:-1] == "_l" else piece_id[len("mech_"):]
     if shape == "hopper":      # bowl holding the queue, release gate on the exit channel
         level, ports = 1, [_side(0, "+x", 1, "out")]
@@ -113,10 +117,12 @@ def spec(piece_id):
 
 
 def cells(piece_id):
-    return 1
+    return S.cells(piece_id) if S.handles(piece_id) else 1
 
 
 def bounds_mm(piece_id):
+    if S.handles(piece_id):
+        return S.bounds_mm(piece_id)
     return (-K.CELL / 2, 0.0, -K.CELL / 2), (K.CELL / 2, K.CELL, K.CELL / 2)
 
 
@@ -135,6 +141,8 @@ def _box_builder(lo, hi):
 
 def ops(piece_id, q, collision):
     """[(boolean operation, bmesh builder)] in contract mm. `q` is a kitgeom LOD dict or None."""
+    if S.handles(piece_id):
+        return S.cutters(piece_id, collision, B, q)
     sp = spec(piece_id)
     shape = sp["shape"]
     f0 = K.LEVEL_STEP * sp["level"]
@@ -231,6 +239,12 @@ def _boolean_mesh(piece_id, q, name, collection, collision):
     bm.from_mesh(result)
     bmesh.ops.dissolve_degenerate(bm, edges=bm.edges, dist=1e-4)
     bmesh.ops.triangulate(bm, faces=bm.faces, quad_method="FIXED", ngon_method="EAR_CLIP")
+    if S.handles(piece_id) and not collision:
+        # The stepper's stepped wall tops and stub lips leave sliver triangles (zero UV area, so no
+        # tangent, a glTF validator error). Dropping them leaves no visible gap.
+        slivers = [f for f in bm.faces if f.calc_area() < S.SLIVER_MM2]
+        bmesh.ops.delete(bm, geom=slivers, context="FACES_ONLY")
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(result)
     bm.free()
@@ -238,6 +252,13 @@ def _boolean_mesh(piece_id, q, name, collection, collision):
 
 
 _COLLISION_CACHE = {}
+
+
+def _flat(a, b, c):
+    """Whether three µm points are collinear: a zero-area triangle the boolean can leave across the
+    stepper's evenly stepped wall tops, which has no normal (kit-check cannot place it in a cell)."""
+    e1, e2 = [b[k] - a[k] for k in range(3)], [c[k] - a[k] for k in range(3)]
+    return (e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]) == (0, 0, 0)
 
 
 def collision_mesh(piece_id):
@@ -256,7 +277,7 @@ def collision_mesh(piece_id):
         remap.append(idx_of[p])
     for poly in me.polygons:
         t = tuple(remap[i] for i in poly.vertices)
-        if len(set(t)) == 3:
+        if len(set(t)) == 3 and not (S.handles(piece_id) and _flat(*(verts[i] for i in t))):
             tris.append(t)
     bpy.data.objects.remove(ob)
     bpy.data.meshes.remove(me)
@@ -266,9 +287,10 @@ def collision_mesh(piece_id):
             continue
         ax, plane, open_ring, tunnel = B._expected_rings(p)
         other = 2 if ax == 0 else 0
-        floor = 15000 * p["level"]
+        base = 60000 * p["cell"][1]
+        floor = base + 15000 * p["level"]
         on = [v for v in verts if v[ax] == plane and abs(v[other]) <= 14000]
-        got_open = {(v[other], v[1]) for v in on if 0 <= v[1] <= 60000}
+        got_open = {(v[other], v[1]) for v in on if base <= v[1] <= base + 60000}
         got_tun = {(v[other], v[1]) for v in on if floor <= v[1] <= floor + 34000}
         if got_open != open_ring and got_tun != tunnel:
             raise RuntimeError(f"{piece_id}: port {p['index']} collision ring is not canonical: "
@@ -398,6 +420,8 @@ def _switch_blade(shape, f0, segs):
 def parts(piece_id, segs=None):
     """[(part dict without collision, [convex solids])], sorted by name. `segs` sets the curved
     outlines' segment count (collision: 8)."""
+    if S.handles(piece_id):
+        return S.parts(piece_id)
     sp = spec(piece_id)
     shape, f0 = sp["shape"], K.LEVEL_STEP * sp["level"]
     s = segs or 8
@@ -535,13 +559,20 @@ def build_part_objects(piece_id, collection, parent, material=None):
         e = bpy.data.objects.new(name, None)
         e.empty_display_type = "ARROWS"
         e.empty_display_size = 0.01
-        e.location = K.to_blender(pivot)
         ax = Vector(K.to_blender(part["axis"])) * 1000.0
         e.rotation_mode = "QUATERNION"
-        e.rotation_quaternion = Quaternion(ax, math.radians(part["rest_mdeg"] / 1000.0))
         e["axis"] = list(part["axis"])
-        e["limits_mdeg"] = list(part["limits_mdeg"])
-        e["rest_mdeg"] = part["rest_mdeg"]
+        if part.get("joint") == "slide":  # at the pivot moved rest_um along the axis, unrotated
+            e.location = K.to_blender([pivot[k] + part["axis"][k] * part["rest_um"] * 1e-6 for k in range(3)])
+            e.rotation_quaternion = Quaternion((1.0, 0.0, 0.0, 0.0))
+            e["joint"] = "slide"
+            e["limits_um"] = list(part["limits_um"])
+            e["rest_um"] = part["rest_um"]
+        else:
+            e.location = K.to_blender(pivot)
+            e.rotation_quaternion = Quaternion(ax, math.radians(part["rest_mdeg"] / 1000.0))
+            e["limits_mdeg"] = list(part["limits_mdeg"])
+            e["rest_mdeg"] = part["rest_mdeg"]
         collection.objects.link(e)
         e.parent = parent
         for lod, q in K.LODS.items():

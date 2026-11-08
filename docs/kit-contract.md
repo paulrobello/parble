@@ -359,6 +359,7 @@ MVP IDs (P1, P2):
 | Hopper, finish | `mech_hopper`, `mech_finish` |
 | Splitter, toggle, checkpoint | `mech_splitter_l3`, `mech_toggle_l3`, `mech_checkpoint_l1` (other levels as needed, arches at `L2`/`L3` are 2 tall) |
 | One-way gate, one-way hole | `mech_gate_oneway_l1`, `mech_hole_oneway_l1` (arches at `L2`/`L3` are 2 tall, §16 Q13) |
+| Stepper elevator (PRD P2 item 17) | `mech_stepper_up1_l3`: in at `L3` on the anchor's `−x` face, out at `L3` on the `+x` face of cell (1, 1, 0), one cell layer up over two cells (footprint 2 × 1 × 2). Other rises and lengths are `mech_stepper_up<n>_l<level>` variants of the same generator (`blender/kit/kitstepper.py` `STEPPERS`). |
 | Rail family | `rail_straight_l1`, `rail_straight_l2`, `rail_curve90_r90_l2`, `rail_s_1x3_l2`, `rail_joint_l1` |
 
 ## 11. Collision and port sidecar
@@ -378,7 +379,7 @@ One sidecar per piece: `assets/kit/<id>/<id>.kit.json`, next to `<id>.glb`. `par
 | `ports` | Ordered list. Index 0 is the anchor port. `kind` is `side` or `drop`. `level` exists only for `side`. `flow` is `in`, `out` or `both`. `inset_um` is 0 except for socket/spigot ports (10000). |
 | `collision` | Static collision groups: `surface` id plus flat `vertices_um` (x, y, z triples) and `indices` (triangle triples) in the piece-local frame |
 | `sensors` | Trigger volumes for mechanisms: `id`, `shape` (`box` with `center_um` + `half_extents_um`, or `sphere` with `center_um` + `radius_um`) |
-| `animated_parts` | One per kinematic part: `name` (the GLB node name, `anim_<name>`), `pivot_um`, `axis` (integer unit vector), `rest_mdeg`, `limits_mdeg`, and its own `collision` list (same shape as the top-level list) |
+| `animated_parts` | One per kinematic part: `name` (the GLB node name, `anim_<name>`), `pivot_um`, `axis` (integer unit vector), `rest_mdeg`, `limits_mdeg`, and its own `collision` list (same shape as the top-level list). A slide part (added 2026-11-08 for the stepper elevator) carries `"joint": "slide"` and `rest_um`, `limits_um` (µm along `axis` from `pivot_um`, unrotated) in place of the two mdeg fields; a part without `joint` is a hinge. |
 | `spigot` / `receptacle` | Optional cylinder volumes for §5.5: `axis` (integer unit vector), `center_um` (centre of the base), `length_um`, `radius_um` |
 | `surface` ids | `wood` (block), `rail` (rail), `wood_end_grain` (gate plates, flaps). They feed `RollSample` and `ContactEvent` in P2-T1. |
 
@@ -489,7 +490,7 @@ The dimensioned sections are inline above so every number is searchable:
 4. Render-mesh port position within ±0.1 mm and width 28.0 ±0.1 mm (§3.1).
 5. The footprint recomputed from the meshes equals the declared footprint, and no geometry leaves it except a declared spigot. A spigot volume exists exactly when the piece has a spigot port, and its radius clears the §5.5 bore by at least 1.5 mm.
 6. The collision mesh is present and within budget, LOD0 to LOD2 are present and within budget (§12). A rail's budget is per cell of centreline length: straight 60 mm, joint 70 mm, curve 141.4 mm, S-rail 193.1 mm.
-7. Animated parts named in the sidecar exist as GLB nodes, with pivot and axis present. Since P2-T3 kit-check also requires each mechanism shape's part set (hopper `anim_gate`, splitter and one-way gate `anim_flap`, toggle `anim_rocker`, one-way hole `anim_trapdoor`, none on the finish cup or the checkpoint arch), an integer pivot, an axis-aligned unit axis and limits that hold the rest angle, the `anim_<name>` node at the pivot rotated to the rest angle about the axis, `anim_<name>_lod0`–`lod2` children inside the inset footprint, non-empty `wood_end_grain` part collision, and all parts together within the §12 part budget.
+7. Animated parts named in the sidecar exist as GLB nodes, with pivot and axis present. Since P2-T3 kit-check also requires each mechanism shape's part set (hopper `anim_gate`, splitter and one-way gate `anim_flap`, toggle `anim_rocker`, one-way hole `anim_trapdoor`, stepper `anim_slats`, none on the finish cup or the checkpoint arch), an integer pivot, an axis-aligned unit axis and limits that hold the rest angle, the `anim_<name>` node at the pivot rotated to the rest angle about the axis (a slide part's node unrotated, `rest_um` along the axis from the pivot), `anim_<name>_lod0`–`lod2` children inside the inset footprint, non-empty `wood_end_grain` part collision, and all parts together within the §12 part budget.
 8. Overhead clearance of at least 34 mm above every channel floor for static geometry and for animated parts in their open pose (§5.1). Kit-check measures each upward collision hit against the lowest upward hit within ±14 mm across and 14 mm below it, credited as twice the height difference, so a round bore's crown counts from the floor beneath it rather than from the curved bore wall.
 9. Provenance file present.
 10. No emissive material or inlay slot on any non-mechanical piece, and every mechanical piece's inlay defaults to off (§5.6).

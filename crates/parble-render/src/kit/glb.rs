@@ -549,9 +549,23 @@ mod tests {
                     let name = format!("{}_lod{l}", part.name);
                     let raw = node_mesh(&json, bin, node(&name), &name).unwrap();
                     let axis = Vec3::from_array(part.axis.map(|v| v as f32));
-                    let rest =
-                        Quat::from_axis_angle(axis, (part.rest_mdeg as f32 * 1e-3).to_radians());
-                    let pivot = Vec3::from_array(part.pivot_um.map(|v| v as f32 * 1e-6));
+                    // A slide part's node sits rest µm along its axis from the pivot, unrotated.
+                    let slide = part.joint == parble_kit::Joint::Slide;
+                    let (rest, pivot) = if slide {
+                        let shift = axis * part.rest_mdeg as f32 * 1e-6;
+                        (
+                            Quat::IDENTITY,
+                            Vec3::from_array(part.pivot_um.map(|v| v as f32 * 1e-6)) + shift,
+                        )
+                    } else {
+                        (
+                            Quat::from_axis_angle(
+                                axis,
+                                (part.rest_mdeg as f32 * 1e-3).to_radians(),
+                            ),
+                            Vec3::from_array(part.pivot_um.map(|v| v as f32 * 1e-6)),
+                        )
+                    };
                     let mut moved = 0.0f32;
                     for (k, p) in raw.positions.iter().enumerate() {
                         let local = Vec3::from_array(*p);
@@ -563,14 +577,18 @@ mod tests {
                         );
                         moved = moved.max(got.distance(local));
                     }
-                    // The part frame is not the piece frame: the pose moved every part.
-                    assert!(moved > 1e-3, "{name} was not moved off its local frame");
+                    // The part frame is not the piece frame: the pose moved every hinge part
+                    // (a slide from the piece origin at rest 0 keeps the piece frame).
+                    assert!(
+                        moved > 1e-3 || (slide && pivot == Vec3::ZERO),
+                        "{name} was not moved off its local frame"
+                    );
                     at += raw.positions.len();
                 }
                 assert_eq!(at, m.positions.len(), "{id} lod{l}: only body and parts");
             }
             checked += 1;
         }
-        assert_eq!(checked, 5, "mechanisms with parts");
+        assert_eq!(checked, 6, "mechanisms with parts");
     }
 }

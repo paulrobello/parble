@@ -19,6 +19,7 @@
 //! | `mech_checkpoint_l1` | `gate` | — | split tick and a camera cue per pass |
 //! | `mech_gate_oneway_l1` | `approach`, `exit` | `anim_flap` (physical) | marbles from `approach` push the hinged flap open; the flap's closed stop holds the others back |
 //! | `mech_hole_oneway_l1` | `trap`, `over` | `anim_trapdoor` | opens under marbles that reach `trap` first; marbles from `over` roll across the shut door |
+//! | `mech_stepper_up1_l3` | `lift` | `anim_slats` (slide) | cycles up and down while a marble is on the lift, eases back to rest once it is empty ([`crate::stepper`]) |
 //!
 //! Both fork parts are a switch blade hinged about +Y with its tip upstream; at its ±25° limits
 //! the tip is 10.1 mm off the channel centre, so the marble meets the blade's face and is steered
@@ -41,6 +42,10 @@ pub fn registry() -> MechanismRegistry {
     r.register(id(CHECKPOINT), Checkpoint::factory);
     r.register(id(GATE), OneWayGate::factory);
     r.register(id(HOLE), OneWayHole::factory);
+    r.register(
+        id(crate::stepper::STEPPER),
+        crate::stepper::Stepper::factory,
+    );
     r
 }
 

@@ -720,7 +720,7 @@ fn registry_covers_every_mechanism_piece() {
         .filter(|p| p.family == "mech")
         .map(|p| p.def.id.clone())
         .collect();
-    assert_eq!(mech.len(), 7);
+    assert_eq!(mech.len(), 8);
     for id in mech {
         assert!(reg.get(&id).is_some(), "{id} has no behaviour");
     }

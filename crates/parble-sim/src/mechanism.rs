@@ -41,7 +41,7 @@ use parble_core::{
     CellCoord, MechConfig, MechanismState, Mirror, Orientation, PieceId, Placement, SeededRng,
     SubStream, Track,
 };
-use parble_kit::{KitCatalog, KitPiece, SensorShape, Surface};
+use parble_kit::{Joint, KitCatalog, KitPiece, SensorShape, Surface};
 use rapier3d::prelude::*;
 
 use crate::chunk::place_point_um;
@@ -372,8 +372,10 @@ struct PartRuntime {
     name: String,
     body: RigidBodyHandle,
     pivot: Vector,
-    /// World hinge axis.
+    /// World hinge (or slide) axis.
     axis: Vector,
+    /// A slide part: its position is µm along `axis`, unrotated ([`Joint::Slide`]).
+    slide: bool,
     /// −1 when mirrored: a reflection turns a rotation by θ into one by −θ about the image axis.
     sign: f32,
     limits: [i32; 2],
@@ -396,6 +398,11 @@ impl PartRuntime {
     }
 
     fn pose_at(&self, tick: u64) -> Pose {
+        if self.slide {
+            // A reflection maps a translation along the axis to one along the image axis.
+            let d = self.angle_at(tick) as f32 * 1.0e-6;
+            return Pose::from_parts(self.pivot + self.axis * d, Rotation::IDENTITY);
+        }
         let theta = self.sign * self.angle_at(tick) as f32 * (core::f32::consts::PI / 180_000.0);
         let (s, c) = (libm::sinf(theta / 2.0), libm::cosf(theta / 2.0));
         let a = self.axis * s;
@@ -476,9 +483,14 @@ impl MechContext<'_> {
             .or_insert_with(|| MechRng::new(root.stream(&stream_key(piece, anchor, name))))
     }
 
-    /// The angle of part `index` at this tick, millidegrees.
+    /// The angle of part `index` at this tick, millidegrees (µm along its axis for a slide part).
     pub fn part_angle(&self, index: usize) -> Option<i32> {
         self.parts.get(index).map(|p| p.angle_at(self.tick))
+    }
+
+    /// The sidecar `[min, max]` of part `index`, in the part's unit.
+    pub fn part_limits(&self, index: usize) -> Option<[i32; 2]> {
+        self.parts.get(index).map(|p| p.limits)
     }
 
     /// Start `motion` on part `index` now: the part is at `motion.sample(0)` at this tick (the
@@ -683,7 +695,9 @@ impl Mechanisms {
                     .build();
                 colliders.push((collider, g.surface));
             }
-            let physics = behaviour.part_physics(pi);
+            // A slide part is always kinematic.
+            let slide = part.joint == Joint::Slide;
+            let physics = behaviour.part_physics(pi).filter(|_| !slide);
             if let Some(ph) = physics {
                 // One convex hull over every group carries the whole mass, with the first group's
                 // surface.
@@ -712,6 +726,7 @@ impl Mechanisms {
                 body: RigidBodyHandle::invalid(),
                 pivot: um_m(pivot_um),
                 axis: um_m(place_point_um(o, origin, part.axis)) * 1.0e6,
+                slide,
                 sign: if mirrored { -1.0 } else { 1.0 },
                 limits: part.limits_mdeg,
                 start: tick,

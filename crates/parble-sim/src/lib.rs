@@ -26,6 +26,7 @@ pub mod mechanism;
 pub mod playroom_run;
 pub mod rail_arc;
 pub mod scene;
+pub mod stepper;
 pub mod track_run;
 
 #[cfg(test)]

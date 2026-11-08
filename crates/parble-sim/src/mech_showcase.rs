@@ -8,8 +8,11 @@
 //!   The marble pushes the hinged flap open from the in port, rolls under it, and the flap falls
 //!   shut behind it ([`crate::behaviour::GATE_FLAP`]).
 //!
-//! Both marbles leave their lane onto the open floor ([`scene::floor_collider`]). The row sits
-//! behind the tray (−Z), so the plain environment's tray never overlaps it.
+//! - Lift lane: an L3 straight into `mech_stepper_up1_l3`, and an L3 straight on its exit one
+//!   layer up. The marble climbs the slats ([`crate::stepper`]) and the slats ease back to rest.
+//!
+//! All three marbles leave their lane onto the open floor ([`scene::floor_collider`]). The row
+//! sits behind the tray (−Z), so the plain environment's tray never overlaps it.
 
 use parble_core::{CellCoord, Mirror, PieceId, Placement, Yaw4};
 use rapier3d::prelude::*;
@@ -22,23 +25,30 @@ pub const ROW: i32 = -5;
 /// First cell (x) of the toggle lane and of the gate lane.
 pub const TOGGLE_X: i32 = 0;
 pub const GATE_X: i32 = 3;
+/// First cell (x) of the lift lane.
+pub const LIFT_X: i32 = 7;
 
 /// The showcase's pieces: id, anchor cell, yaw in quarter turns.
-pub const LAYOUT: [(&str, [i32; 3], u8); 5] = [
+pub const LAYOUT: [(&str, [i32; 3], u8); 8] = [
     ("blk_straight_l3", [TOGGLE_X, 0, ROW], 0),
     (behaviour::TOGGLE, [TOGGLE_X + 1, 0, ROW], 0),
     ("blk_straight_l1", [GATE_X, 0, ROW], 0),
     (behaviour::GATE, [GATE_X + 1, 0, ROW], 0),
     ("blk_straight_l1", [GATE_X + 2, 0, ROW], 0),
+    ("blk_straight_l3", [LIFT_X, 0, ROW], 0),
+    (crate::stepper::STEPPER, [LIFT_X + 1, 0, ROW], 0),
+    ("blk_straight_l3", [LIFT_X + 3, 1, ROW], 0),
 ];
 
 /// The toggle's anchor cell (its mechanism instance id) and the gate's.
 pub const TOGGLE_CELL: [i32; 3] = [TOGGLE_X + 1, 0, ROW];
 pub const GATE_CELL: [i32; 3] = [GATE_X + 1, 0, ROW];
+pub const LIFT_CELL: [i32; 3] = [LIFT_X + 1, 0, ROW];
 
 /// Launch speeds along +X, m/s, those of the P2-T5 fork and one-way rigs.
 pub const TOGGLE_LAUNCH_M_S: f32 = 0.6;
 pub const GATE_LAUNCH_M_S: f32 = 0.3;
+pub const LIFT_LAUNCH_M_S: f32 = 0.3;
 
 /// Ticks in one showcase run before it restarts (10 s).
 pub const SHOWCASE_TICKS: u32 = crate::golden::RAMP_10S_TICKS;
@@ -48,6 +58,8 @@ pub const SHOWCASE_TICKS: u32 = crate::golden::RAMP_10S_TICKS;
 /// the marble under it. The tests below pin both against the sim.
 pub const TOGGLE_FLIP_SHOT_TICK: u64 = 60;
 pub const GATE_OPEN_SHOT_TICK: u64 = 72;
+/// The lift's slats part-way up their second stroke, carrying the marble (pinned below).
+pub const LIFT_SHOT_TICK: u64 = 392;
 
 /// The showcase as kit placements.
 pub fn placements() -> Vec<Placement> {
@@ -96,6 +108,7 @@ impl Sim {
         for (x, level, speed) in [
             (TOGGLE_X, 3, TOGGLE_LAUNCH_M_S),
             (GATE_X, 1, GATE_LAUNCH_M_S),
+            (LIFT_X, 3, LIFT_LAUNCH_M_S),
         ] {
             sim.add_marble(
                 CATS_EYE,
@@ -184,5 +197,44 @@ mod tests {
             marbles.last().unwrap()[1].position[0] > (GATE_X as f32 + 2.5) * cell,
             "the gate marble stayed in its lane"
         );
+    }
+    #[test]
+    fn lift_shot_tick_catches_the_slats_carrying_the_marble_up() {
+        assert_eq!(LIFT_SHOT_TICK % 4, 0);
+        let stroke = parble_kit::builtin()
+            .piece(&PieceId::new(crate::stepper::STEPPER).unwrap())
+            .unwrap()
+            .animated_parts[0]
+            .limits_mdeg[1];
+        let mut sim = Sim::mech_showcase_scene();
+        let (mut slats, mut marbles) = (Vec::new(), Vec::new());
+        for _ in 0..SHOWCASE_TICKS {
+            slats.push(part(&sim, LIFT_CELL));
+            marbles.push(sim.marbles()[2].position);
+            sim.tick(1);
+        }
+        assert_eq!(slats[0], 0, "the slats start at rest");
+        let t = LIFT_SHOT_TICK as usize;
+        let travel = slats[t] as f32 / stroke as f32;
+        assert!(
+            (0.25..=0.75).contains(&travel),
+            "slats at tick {t}: {} um, {travel} of the stroke",
+            slats[t]
+        );
+        assert!(slats[t - 1] < slats[t] && slats[t] < slats[t + 1], "rising");
+        let cell = scene::cell_m();
+        let [x, y, _] = marbles[t];
+        assert!(
+            ((LIFT_CELL[0] as f32 - 0.5) * cell..(LIFT_CELL[0] as f32 + 1.5) * cell).contains(&x),
+            "lift marble at {:?}",
+            marbles[t]
+        );
+        assert!(y > rest_m(3) + 0.01, "the marble is already a step up: {y}");
+        // The marble leaves by the high port and the slats ease back to rest.
+        let out = marbles
+            .iter()
+            .position(|m| m[0] > (LIFT_X + 3) as f32 * cell && m[1] > rest_m(3) + 0.03);
+        assert!(out.is_some(), "the lift marble reached the high straight");
+        assert_eq!(*slats.last().unwrap(), 0, "the slats rest again");
     }
 }

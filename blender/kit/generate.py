@@ -25,6 +25,7 @@ sys.path.insert(0, str(HERE))
 import kitgeom as K  # noqa: E402
 import kitblocks as B  # noqa: E402
 import kitmech as M  # noqa: E402
+import kitstepper as S  # noqa: E402
 import kitrails as R  # noqa: E402
 
 SKIP_BAKE = os.environ.get("PARBLE_SKIP_BAKE") == "1"
@@ -253,7 +254,7 @@ def build_piece(pid, out):
         "mapSize": {f"lod{k}": map_size(pid, k) for k in MAP_SIZE},
         "generator": {"path": rel(__file__), "sha256": sha256(__file__)},
         "generatorDeps": [{"path": rel(m.__file__), "sha256": sha256(m.__file__)}
-                          for m in ((K, B, R) if G is R else (K, B, M)[:3 if G is M else 2])],
+                          for m in ((K, B, R) if G is R else (K, B, M, S) if G is M else (K, B))],
         "blender": bpy.app.version_string,
         "lodParams": {f"lod{k}": v for k, v in lod_params.items()},
     }

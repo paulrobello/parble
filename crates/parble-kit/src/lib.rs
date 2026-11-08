@@ -49,6 +49,7 @@ macro_rules! builtin_piece_ids {
             mech_hole_oneway_l1,
             mech_hopper,
             mech_splitter_l3,
+            mech_stepper_up1_l3,
             mech_toggle_l3,
             rail_curve90_r90_l2,
             rail_joint_l1,
@@ -72,7 +73,7 @@ macro_rules! sidecars {
 }
 
 /// Sidecars shipped in `assets/kit/`, in id order.
-const BUILTIN_SIDECARS: [&str; 29] = builtin_piece_ids!(sidecars);
+const BUILTIN_SIDECARS: [&str; 30] = builtin_piece_ids!(sidecars);
 
 /// [`BUILTIN_SIDECARS`] index of `blk_straight_l3`, the tests' reference sidecar.
 #[cfg(test)]
@@ -152,18 +153,34 @@ pub enum SensorShape {
     },
 }
 
-/// One kinematic part (contract §11 `animated_parts`): a hinge about `axis` through `pivot_um`.
+/// How a part moves (contract §11 `joint`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Joint {
+    /// Turns about `axis` through `pivot_um`; positions are millidegrees (sidecar `rest_mdeg`,
+    /// `limits_mdeg`).
+    #[default]
+    Hinge,
+    /// Slides along `axis` from `pivot_um`, unrotated; positions are µm (sidecar `rest_um`,
+    /// `limits_um`).
+    Slide,
+}
+
+/// One kinematic part (contract §11 `animated_parts`): a hinge about `axis` through `pivot_um`,
+/// or a slide along `axis` ([`Joint`]).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AnimatedPart {
     /// GLB node name, `anim_<name>`.
     pub name: String,
+    pub joint: Joint,
     pub pivot_um: [i32; 3],
     /// Axis-aligned integer unit vector.
     pub axis: [i32; 3],
+    /// Rest position in the joint's unit: millidegrees for a hinge, µm for a slide.
     pub rest_mdeg: i32,
-    /// `[min, max]`, with `rest_mdeg` inside.
+    /// `[min, max]` in the joint's unit, with `rest_mdeg` inside.
     pub limits_mdeg: [i32; 2],
-    /// The part's collision in the piece-local frame at 0 mdeg about the pivot.
+    /// The part's collision in the piece-local frame at position 0.
     pub collision: Vec<CollisionGroup>,
 }
 
@@ -260,10 +277,18 @@ struct RawSensor {
 #[serde(deny_unknown_fields)]
 struct RawPart {
     name: String,
+    #[serde(default)]
+    joint: Joint,
     pivot_um: [i32; 3],
     axis: [i32; 3],
-    rest_mdeg: i32,
-    limits_mdeg: [i32; 2],
+    #[serde(default)]
+    rest_mdeg: Option<i32>,
+    #[serde(default)]
+    limits_mdeg: Option<[i32; 2]>,
+    #[serde(default)]
+    rest_um: Option<i32>,
+    #[serde(default)]
+    limits_um: Option<[i32; 2]>,
     collision: Vec<RawCollision>,
 }
 
@@ -421,9 +446,15 @@ fn animated_parts(raw: Vec<RawPart>) -> Result<Vec<AnimatedPart>, KitError> {
     let mut out: Vec<AnimatedPart> = Vec::with_capacity(raw.len());
     for (i, p) in raw.into_iter().enumerate() {
         let unit = p.axis.iter().map(|a| a.abs()).sum::<i32>() == 1;
-        let [lo, hi] = p.limits_mdeg;
+        // A hinge carries only the mdeg fields, a slide only the µm ones.
+        let (rest, limits) = match (p.joint, p.rest_mdeg, p.limits_mdeg, p.rest_um, p.limits_um) {
+            (Joint::Hinge, Some(r), Some(l), None, None)
+            | (Joint::Slide, None, None, Some(r), Some(l)) => (r, l),
+            _ => return Err(KitError::BadPart(i)),
+        };
+        let [lo, hi] = limits;
         if !unit
-            || !(lo <= p.rest_mdeg && p.rest_mdeg <= hi)
+            || !(lo <= rest && rest <= hi)
             || !p.name.starts_with("anim_")
             || out.iter().any(|o| o.name == p.name)
         {
@@ -431,10 +462,11 @@ fn animated_parts(raw: Vec<RawPart>) -> Result<Vec<AnimatedPart>, KitError> {
         }
         out.push(AnimatedPart {
             name: p.name,
+            joint: p.joint,
             pivot_um: p.pivot_um,
             axis: p.axis,
-            rest_mdeg: p.rest_mdeg,
-            limits_mdeg: p.limits_mdeg,
+            rest_mdeg: rest,
+            limits_mdeg: limits,
             collision: collision_groups(p.collision)?,
         });
     }
@@ -550,6 +582,7 @@ mod tests {
                 "mech_hole_oneway_l1",
                 "mech_hopper",
                 "mech_splitter_l3",
+                "mech_stepper_up1_l3",
                 "mech_toggle_l3",
                 "rail_curve90_r90_l2",
                 "rail_joint_l1",
@@ -647,6 +680,53 @@ mod tests {
                 assert_eq!(a.collision[0].surface, Surface::WoodEndGrain);
                 assert!(!a.collision[0].triangles.is_empty(), "{pid}");
             }
+        }
+    }
+
+    #[test]
+    fn stepper_carries_one_slide_part_and_climbs_a_layer() {
+        // blender/kit/kitstepper.py: the moving slats are one part sliding up +Y from rest 0.
+        let p = builtin().piece(&id("mech_stepper_up1_l3")).unwrap();
+        assert_eq!(p.family, "mech");
+        assert_eq!(p.sensors.len(), 1);
+        assert_eq!(p.animated_parts.len(), 1);
+        let a = &p.animated_parts[0];
+        assert_eq!(a.name, "anim_slats");
+        assert_eq!(a.joint, Joint::Slide);
+        assert_eq!((a.pivot_um, a.axis, a.rest_mdeg), ([0, 0, 0], [0, 1, 0], 0));
+        assert_eq!(a.limits_mdeg, [0, 22_375]);
+        assert_eq!(a.collision[0].surface, Surface::WoodEndGrain);
+        // In at L3 of the anchor layer, out at L3 one layer up, two cells along +x.
+        let (i, o) = (&p.def.ports[0], &p.def.ports[1]);
+        assert_eq!(
+            (i.face, i.level, i.flow),
+            (PortFace::NegX, Some(PortLevel::L3), PortFlow::In)
+        );
+        assert_eq!(
+            (o.face, o.level, o.flow),
+            (PortFace::PosX, Some(PortLevel::L3), PortFlow::Out)
+        );
+        assert_eq!(o.cell, CellCoord::new(1, 1, 0));
+        assert_eq!(p.def.footprint.len(), 4);
+        for q in builtin().iter().filter(|q| q.def.id != p.def.id) {
+            assert!(q.animated_parts.iter().all(|a| a.joint == Joint::Hinge));
+        }
+    }
+
+    #[test]
+    fn a_part_needs_the_fields_of_its_joint() {
+        let base =
+            include_str!("../../../assets/kit/mech_stepper_up1_l3/mech_stepper_up1_l3.kit.json");
+        assert!(parse_sidecar(base).is_ok());
+        for bad in [
+            base.replacen("\"joint\": \"slide\",", "", 1),
+            base.replacen("\"rest_um\": 0", "\"rest_mdeg\": 0", 1),
+            base.replacen("\"rest_um\": 0", "\"rest_um\": 0, \"rest_mdeg\": 0", 1),
+        ] {
+            assert!(
+                matches!(parse_sidecar(&bad), Err(KitError::BadPart(0))),
+                "{bad:.80}"
+            );
         }
     }
 

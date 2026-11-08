@@ -5,6 +5,8 @@
   (`TOGGLE_FLIP_SHOT_TICK` in crates/parble-sim/src/mech_showcase.rs).
 - gate-open: the one-way gate's flap pushed well open (past 30°) by the passing marble
   (`GATE_OPEN_SHOT_TICK`).
+- lift-climb: the stepper elevator's slats part-way up a stroke, carrying the marble
+  (`LIFT_SHOT_TICK`).
 
 Each capture runs the native build in lockstep (`--lockstep-after`), so the tick is the same sim
 state on every run, and must exit 0 with a lit frame and no logged error. The part poses drawn on
@@ -36,7 +38,9 @@ def const(path: Path, name: str) -> int:
 
 def limits(piece: str) -> list[int]:
     sidecar = json.loads((ROOT / f"assets/kit/{piece}/{piece}.kit.json").read_text())
-    return sidecar["animated_parts"][0]["limits_mdeg"]
+    p = sidecar["animated_parts"][0]
+    # A slide part (the stepper's slats) carries its limits in µm.
+    return p["limits_um"] if p.get("joint") == "slide" else p["limits_mdeg"]
 
 
 def capture(binary: Path, out: Path, quality: str, tick: int) -> dict:
@@ -110,6 +114,17 @@ def main() -> int:
     fail |= not ok
     print(f"{'ok  ' if ok else 'FAIL'} gate-open tick {tick}: flap {g['angleMdeg']} mdeg "
           f"(want >= {want}); {out / 'gate-open.png'}")
+
+    tick = const(SHOWCASE, "LIFT_SHOT_TICK")
+    s = capture(binary, out / "lift-climb.png", a.quality, tick)
+    sl = part(s, "mech_stepper_up1_l3")
+    lo, hi = limits("mech_stepper_up1_l3")
+    travel = (sl["angleMdeg"] - lo) / (hi - lo)
+    moving = sl["prevMdeg"] is not None and sl["prevMdeg"] != sl["tickMdeg"]
+    ok = 0.25 <= travel <= 0.75 and moving
+    fail |= not ok
+    print(f"{'ok  ' if ok else 'FAIL'} lift-climb tick {tick}: slats {sl['angleMdeg']} um "
+          f"(prev tick {sl['prevMdeg']}), {travel:.2f} of the {hi} um stroke; {out / 'lift-climb.png'}")
     return 1 if fail else 0
 
 

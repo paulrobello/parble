@@ -598,6 +598,7 @@ fn part_kits(
             }
             PartKit {
                 index,
+                slide: part.joint == parble_kit::Joint::Slide,
                 pivot: Vec3::from_array(part.pivot_um.map(|v| v as f32 * 1.0e-6)),
                 axis: Vec3::from_array(part.axis.map(|v| v as f32)).normalize(),
                 rest_mdeg: part.rest_mdeg,
@@ -1346,9 +1347,10 @@ mod tests {
             assert_eq!(PIECES[r.piece].0, p.piece.as_str());
             assert_eq!(r.cell.to_array(), [p.anchor.x, p.anchor.y, p.anchor.z]);
         }
-        // One chunk: two blocks at 3 draws each, the toggle and the gate at 3 for the body and 3
-        // for their one part each.
-        assert_eq!(chunk_stats(&layout), (1, 3 + 3 + 6 + 6));
+        // Two chunks, the lift lane crossing into the second: three (block type, chunk) pairs at 3
+        // draws each, and the toggle, the gate and the stepper at 3 for the body and 3 for their
+        // one part each.
+        assert_eq!(chunk_stats(&layout), (2, 3 * 3 + 3 * 6));
         // No parts, no change: the P1-T4 bounds stay.
         for l in [playroom_layout(), stress_layout()] {
             assert!(l.iter().all(|p| piece_parts(p.piece) == 0));

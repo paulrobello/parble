@@ -136,7 +136,7 @@ impl Scenario {
                 .map(|&(k, s)| (k, s.radius_m()))
                 .collect(),
             Self::Mechanisms => {
-                vec![(MarbleKind::CatsEye, parble_sim::marble::CATS_EYE.radius_m); 2]
+                vec![(MarbleKind::CatsEye, parble_sim::marble::CATS_EYE.radius_m); 3]
             }
             Self::AllPieces => ALLPIECES_LOOKS
                 .iter()
@@ -1073,7 +1073,7 @@ mod tests {
         let looks = o.scenario.looks(None, MarbleSize::Standard);
         assert_eq!(looks.len(), sim.marbles().len());
         let kinds: Vec<_> = sim.mechanisms().iter().map(|m| m.kind).collect();
-        assert_eq!(kinds, ["toggle", "gate_oneway"]);
+        assert_eq!(kinds, ["toggle", "gate_oneway", "stepper"]);
     }
 
     #[test]
