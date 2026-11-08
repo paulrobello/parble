@@ -24,7 +24,7 @@
 //! In a 90° bend the same hook replaces facet contacts with one contact against the exact channel
 //! tube ([`ChannelBend`]), since the faceted tube chatters under the marble's outward load. On a
 //! slope it replaces them with one contact against the exact smoothstep channel
-//! ([`ChannelSlope`]).
+//! ([`ChannelSlope`]), and on a curved rail against the exact rail tube ([`ChannelArc`]).
 //!
 //! [`ChunkColliders`] is the incremental API: insert or remove placements, then
 //! [`ChunkColliders::rebuild`] replaces the collider of each dirty chunk, in chunk order.
@@ -36,6 +36,7 @@ use parble_core::{CellCoord, Mirror, Orientation, PieceId, Placement, PortClass,
 use parble_kit::{KitCatalog, KitPiece};
 use rapier3d::prelude::*;
 
+use crate::rail_arc::{self, ChannelArc};
 use crate::scene;
 
 /// The chunk holding a cell (floor division, so negative cells land in negative chunks).
@@ -182,6 +183,11 @@ pub struct ChunkMesh {
     /// Per triangle, the indices `k` of the [`Self::slopes`] whose channel (or its flat
     /// continuation past either port) the triangle lies on. Empty for meshes built outside a chunk.
     pub slope_of: Vec<Vec<u32>>,
+    /// Curved rail centrelines of the chunk's placements (see [`ChannelArc`]).
+    pub arcs: Vec<ChannelArc>,
+    /// Per triangle, `k + 1` when it lies on the tube of `arcs[k]` (or its straight continuation),
+    /// else 0. Empty for meshes built outside a chunk or without curved rails.
+    pub arc_of: Vec<u32>,
 }
 
 /// [`ChunkMesh::bend_of`] flag: the triangle lies in its bend's cell.
@@ -351,7 +357,7 @@ impl ChannelBend {
 /// midline of a collision facet, 14 mm × cos(5.625°) for the contract's 16 half-round segments
 /// (§5.4). A marble on a straight rests on the two facets beside the bottom crease at their
 /// midlines, so where it passes from facet contacts to the exact tube the floor does not move.
-const FACET_TUBE_RADIUS_M: f32 = 0.013_932_586;
+pub(crate) const FACET_TUBE_RADIUS_M: f32 = 0.013_932_586;
 
 /// A one-cell channel slope: the channel half-round, in vertical cross-sections across the path,
 /// lowered along the path by the contract's cubic smoothstep from the entry floor to the exit
@@ -683,6 +689,7 @@ impl ChunkMesh {
         self.stitched.clear();
         self.bend_of.clear();
         self.slope_of.clear();
+        self.arc_of.clear();
     }
 
     /// Tag every triangle whose three vertices lie on one of [`Self::bends`]' tubes.
@@ -794,6 +801,11 @@ pub struct ChunkColliders {
     bends: BTreeMap<(u32, u32), (Vec<ChannelBend>, Vec<u32>)>,
     /// Slopes and per-triangle slope tags ([`ChunkMesh::slope_of`]) of each chunk collider.
     slopes: BTreeMap<(u32, u32), SlopeTags>,
+    /// Curved rails and per-triangle arc tags ([`ChunkMesh::arc_of`]) of each chunk collider.
+    arcs: BTreeMap<(u32, u32), (Vec<ChannelArc>, Vec<u32>)>,
+    /// Whether the contact pair being updated has received its exact rail arc contact, reset with
+    /// [`Self::slope_contact_claimed`].
+    arc_contact_claimed: std::sync::Mutex<bool>,
     /// Whether the contact pair being updated has received its exact slope contact. Reset by
     /// [`PhysicsHooks::filter_contact_pair`], which the narrow phase calls before it builds and
     /// modifies the pair's manifolds, one pair at a time.
@@ -947,6 +959,7 @@ impl ChunkColliders {
             mesh.bends.extend(ChannelBend::of(piece, &placed.placement));
             mesh.slopes
                 .extend(ChannelSlope::of(piece, &placed.placement));
+            mesh.arcs.extend(ChannelArc::of(piece, &placed.placement));
         }
         mesh
     }
@@ -957,6 +970,7 @@ impl ChunkColliders {
         self.mark_stitched(mesh, chunk);
         mesh.mark_bends();
         mesh.mark_slopes();
+        mesh.arc_of = rail_arc::tag(&mesh.arcs, &mesh.vertices_um, &mesh.triangles);
     }
 
     /// Mark open edges that lie in a cell-face plane with a placement from another chunk across.
@@ -1137,12 +1151,16 @@ impl ChunkColliders {
             self.stitched.remove(&h.into_raw_parts());
             self.bends.remove(&h.into_raw_parts());
             self.slopes.remove(&h.into_raw_parts());
+            self.arcs.remove(&h.into_raw_parts());
         }
         if !mesh.triangles.is_empty() {
             let mut collider = mesh
                 .collider(chunk_origin_um(chunk))
                 .map_err(|e| ChunkError::TriMesh(chunk, format!("{e:?}")))?;
-            if mesh.slope_of.iter().any(|k| !k.is_empty()) || mesh.bend_of.iter().any(|&b| b != 0) {
+            if mesh.slope_of.iter().any(|k| !k.is_empty())
+                || mesh.bend_of.iter().any(|&b| b != 0)
+                || mesh.arc_of.iter().any(|&a| a != 0)
+            {
                 collider.set_active_hooks(
                     ActiveHooks::MODIFY_SOLVER_CONTACTS | ActiveHooks::FILTER_CONTACT_PAIRS,
                 );
@@ -1157,6 +1175,8 @@ impl ChunkColliders {
                 .insert(h.into_raw_parts(), (mesh.bends, mesh.bend_of));
             self.slopes
                 .insert(h.into_raw_parts(), (mesh.slopes, mesh.slope_of));
+            self.arcs
+                .insert(h.into_raw_parts(), (mesh.arcs, mesh.arc_of));
         }
         self.dirty.remove(&chunk);
         Ok(())
@@ -1176,6 +1196,10 @@ impl PhysicsHooks for ChunkColliders {
             .unwrap_or_else(|e| e.into_inner()) = false;
         *self
             .bend_contact_claimed
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = false;
+        *self
+            .arc_contact_claimed
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = false;
         Some(SolverFlags::default())
@@ -1347,6 +1371,41 @@ impl PhysicsHooks for ChunkColliders {
             }
             set_one_contact(rigid, first, centre, ball.radius, n, gap);
             if !legacy && gap <= 0.0 {
+                *rigid.restitution = 0.0;
+            }
+            return;
+        }
+        if let Some((arcs, arc_of)) = self.arcs.get(&handle.into_raw_parts())
+            && let Some(&tag @ 1..) = arc_of.get(tri as usize)
+            && let Some((n, gap)) = {
+                // One contact against the exact rail tube (see [`ChannelArc`]): the rail whose
+                // footprint holds the ball owns it, else the tagged rail within a ball diameter,
+                // evaluated at the end of the step, on the first manifold, without the bounce.
+                let v = bodies[ball_body].linvel();
+                arcs.iter()
+                    .find(|a| a.reaches(centre, 0.0))
+                    .or_else(|| {
+                        let a = &arcs[tag as usize - 1];
+                        a.reaches(centre, 2.0 * ball.radius).then_some(a)
+                    })
+                    .and_then(|a| a.contact(centre + v * crate::DT, ball.radius))
+                    .map(|(n, g)| (n, g - v.dot(n) * crate::DT))
+            }
+        {
+            if rigid.solver_contacts.is_empty() {
+                return;
+            }
+            let mut claimed = self
+                .arc_contact_claimed
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            if *claimed {
+                rigid.solver_contacts.clear();
+                return;
+            }
+            *claimed = true;
+            set_one_contact(rigid, first, centre, ball.radius, n, gap);
+            if gap <= 0.0 {
                 *rigid.restitution = 0.0;
             }
             return;

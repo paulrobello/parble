@@ -21,11 +21,14 @@ pub mod hash;
 pub mod marble;
 pub mod mechanism;
 pub mod playroom_run;
+pub mod rail_arc;
 pub mod scene;
 pub mod track_run;
 
 #[cfg(test)]
 mod kit_pieces_test;
+#[cfg(test)]
+mod rail_test;
 #[cfg(test)]
 mod seam_test;
 
