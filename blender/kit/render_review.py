@@ -8,6 +8,7 @@ Evidence only: Blender's view transform is not the engine's tonemapper.
 """
 import json
 import math
+import os
 import pathlib
 import sys
 
@@ -19,12 +20,16 @@ import kitgeom as K  # noqa: E402
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 runtime, out = pathlib.Path(argv[0]).resolve(), pathlib.Path(argv[1]).resolve()
-SPACING = 0.085
+SPACING = float(os.environ.get("PARBLE_REVIEW_SPACING", "0.085"))
 # Optional piece ids after the output path, laid out in rows of COLS; "<id>:m" adds a mirrored
-# copy (contract §8 mirror, x -> -x). Without ids: the four P1-T2 pieces in one row, as before.
+# copy (contract §8 mirror, x -> -x), and "<id>:next" places the piece one cell (+x) past the
+# previous one instead of in its own slot (a rail joint seated in a socket block). Without ids:
+# the four P1-T2 pieces in one row, as before. PARBLE_REVIEW_SPACING / _ROW / _COLS size the grid
+# and PARBLE_REVIEW_DIST scales the camera distance, for multi-cell pieces.
 IDS = argv[2:] or list(K.BUILD)
-COLS = 7 if argv[2:] else len(IDS)
-ROW = 0.12
+SLOTS = [e for e in IDS if not e.endswith(":next")]
+COLS = int(os.environ.get("PARBLE_REVIEW_COLS", "7")) if argv[2:] else len(IDS)
+ROW = float(os.environ.get("PARBLE_REVIEW_ROW", "0.12"))
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scn = bpy.context.scene
@@ -32,13 +37,15 @@ bead_mat = bpy.data.materials.new("review_port")
 bsdf = bead_mat.node_tree.nodes["Principled BSDF"]
 bsdf.inputs["Base Color"].default_value = (0.1, 0.8, 1.0, 1.0)
 
-for i, entry in enumerate(IDS):
-    pid, mirrored = entry.split(":")[0], entry.endswith(":m")
+i = -1
+for entry in IDS:
+    pid, mirrored, joined = entry.split(":")[0], entry.endswith(":m"), entry.endswith(":next")
+    i += 0 if joined else 1
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=str(runtime / pid / f"{pid}.glb"))
     new = [o for o in bpy.data.objects if o not in before]
     root = next(o for o in new if o.parent is None)
-    root.location.x += (i % COLS) * SPACING
+    root.location.x += (i % COLS) * SPACING + (0.06 if joined else 0.0)
     root.location.y += (i // COLS) * ROW
     if mirrored:
         root.scale.x = -1.0
@@ -83,8 +90,8 @@ world = bpy.data.worlds.new("review_world")
 world.node_tree.nodes["Background"].inputs["Color"].default_value = (0.03, 0.045, 0.09, 1.0)
 world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.8
 scn.world = world
-cx = (min(COLS, len(IDS)) - 1) * SPACING / 2
-cy = ((len(IDS) - 1) // COLS) * ROW / 2
+cx = (min(COLS, len(SLOTS)) - 1) * SPACING / 2
+cy = ((len(SLOTS) - 1) // COLS) * ROW / 2
 target = (cx, cy, 0.03)
 
 
@@ -107,7 +114,8 @@ cam = bpy.data.objects.new("cam", bpy.data.cameras.new("cam"))
 cam.data.lens = 50
 scn.collection.objects.link(cam)
 if argv[2:]:
-    aim(cam, (cx - 0.12, cy - 0.70, 0.55))
+    k = float(os.environ.get("PARBLE_REVIEW_DIST", "1.0"))   # camera distance scale
+    aim(cam, (cx - 0.12 * k, cy - 0.70 * k, 0.55 * k))
 else:
     aim(cam, (cx - 0.16, -0.40, 0.40))
 scn.camera = cam

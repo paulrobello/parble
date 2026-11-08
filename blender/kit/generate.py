@@ -25,6 +25,7 @@ sys.path.insert(0, str(HERE))
 import kitgeom as K  # noqa: E402
 import kitblocks as B  # noqa: E402
 import kitmech as M  # noqa: E402
+import kitrails as R  # noqa: E402
 
 SKIP_BAKE = os.environ.get("PARBLE_SKIP_BAKE") == "1"
 DEVICE = os.environ.get("PARBLE_BAKE_DEVICE", "GPU")
@@ -80,8 +81,13 @@ def texel_density(ob, px):
     return {"min": round(min(vals), 1), "median": round(statistics.median(vals), 1), "max": round(max(vals), 1)}
 
 
+def family(pid):
+    """The generator module that owns a piece id (kitgeom pieces go through kitblocks' helpers)."""
+    return R if R.handles(pid) else M if M.handles(pid) else B
+
+
 def check_render_bounds(ob, pid):
-    lo, hi = (M if M.handles(pid) else B).bounds_mm(pid)  # contract frame mm; Blender (x, y, z) = contract (x, -z, y)
+    lo, hi = family(pid).bounds_mm(pid)  # contract frame mm; Blender (x, y, z) = contract (x, -z, y)
     lo = [(c + K.INSET) * 0.001 - 1e-6 for c in lo]
     hi = [(c - K.INSET) * 0.001 + 1e-6 for c in hi]
     for v in ob.data.vertices:
@@ -94,7 +100,7 @@ def check_render_bounds(ob, pid):
 def map_size(pid, lod):
     """§12: 512² per 1-cell piece at LOD0; a multi-cell piece's atlas scales with its footprint
     (next power of two of 512 × sqrt(cells)), capped at 2,048²."""
-    n = (M if M.handles(pid) else B).cells(pid)
+    n = family(pid).cells(pid)
     s = MAP_SIZE[lod]
     while s * s < MAP_SIZE[lod] ** 2 * n:
         s *= 2
@@ -166,13 +172,14 @@ def build_piece(pid, out):
     coll.objects.link(root)
 
     lods = {}
-    G = M if M.handles(pid) else B if B.handles(pid) else K
-    ncells = (M if M.handles(pid) else B).cells(pid)
-    for lod, q in K.LODS.items():
+    G = R if R.handles(pid) else M if M.handles(pid) else B if B.handles(pid) else K
+    ncells = family(pid).cells(pid)
+    lod_params, high_params = (R.LODS, R.HIGH) if G is R else (K.LODS, K.HIGH)
+    for lod, q in lod_params.items():
         ob = G.build_render_object(pid, q, f"{pid}_lod{lod}", coll, mat)
         check_render_bounds(ob, pid)
         tris = tri_count(ob)
-        budget = K.BUDGET_1CELL_BLOCK[lod] * ncells
+        budget = R.budget(pid, lod) if G is R else K.BUDGET_1CELL_BLOCK[lod] * ncells
         print(f"[kit] {pid} LOD{lod}: {tris} tris (budget {budget})")
         if tris > budget:
             raise RuntimeError(f"{pid} LOD{lod}: {tris} tris > budget {budget}")
@@ -201,7 +208,7 @@ def build_piece(pid, out):
 
     bake_rep = {"skipped": True}
     if not SKIP_BAKE:
-        high = G.build_render_object(pid, K.HIGH, f"{pid}_high", coll, mat)
+        high = G.build_render_object(pid, high_params, f"{pid}_high", coll, mat)
         select_only([high])
         bpy.ops.wm.save_as_mainfile(filepath=str(out / f"{pid}_high.blend"), compress=True, copy=True)
         setup_cycles()
@@ -220,7 +227,7 @@ def build_piece(pid, out):
                 channels[name] = {"size": s, "colorspace": "Non-Color", "sha256": sha256(path)}
         mat.node_tree.nodes.remove(mat.node_tree.nodes["BAKE_TARGET"])
         bpy.data.objects.remove(high)
-        bake_rep = dict(BAKE, device=DEVICE, channels=channels, highPoly=K.HIGH, skipped=False,
+        bake_rep = dict(BAKE, device=DEVICE, channels=channels, highPoly=high_params, skipped=False,
                         blender=bpy.app.version_string)
         (out / "bake-report.json").write_text(json.dumps(bake_rep, indent=2, sort_keys=True) + "\n")
 
@@ -245,9 +252,10 @@ def build_piece(pid, out):
         "texelDensityPxPerM": density,
         "mapSize": {f"lod{k}": map_size(pid, k) for k in MAP_SIZE},
         "generator": {"path": rel(__file__), "sha256": sha256(__file__)},
-        "generatorDeps": [{"path": rel(m.__file__), "sha256": sha256(m.__file__)} for m in (K, B, M)[:3 if G is M else 2]],
+        "generatorDeps": [{"path": rel(m.__file__), "sha256": sha256(m.__file__)}
+                          for m in ((K, B, R) if G is R else (K, B, M)[:3 if G is M else 2])],
         "blender": bpy.app.version_string,
-        "lodParams": {f"lod{k}": v for k, v in K.LODS.items()},
+        "lodParams": {f"lod{k}": v for k, v in lod_params.items()},
     }
     if part_tris:
         rep["partTris"] = part_tris
@@ -262,7 +270,7 @@ def main():
     if not argv:
         raise SystemExit("usage: generate.py -- <stage_dir> [piece_id ...]")
     stage = pathlib.Path(argv[0]).resolve()
-    for pid in argv[1:] or B.BUILD + M.BUILD:
+    for pid in argv[1:] or B.BUILD + M.BUILD + R.BUILD:
         out = stage / pid
         out.mkdir(parents=True, exist_ok=True)
         build_piece(pid, out)

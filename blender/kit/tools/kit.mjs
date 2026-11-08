@@ -52,6 +52,31 @@ function tunnelRing(floorUm) {
   }
   return pts;
 }
+// §5.4 rail port ring (blender/kit/kitrails.py collision_ring): the canonical half-round with the
+// wall tops at floor + 18 mm (§5.3 lip height) instead of the block's cell top.
+function railRing(floorUm) {
+  const pts = canonicalRing(floorUm);
+  pts[0] = [-14000, floorUm + 18000];
+  pts[pts.length - 1] = [14000, floorUm + 18000];
+  return pts;
+}
+// A rail section's inner trough lies within 14.6 mm of the half-round centre (floor + 14 mm),
+// its outer shell at 18 mm or more; port checks on rails look only inside this radius.
+const RAIL_INNER_UM = 16000;
+// §12 rail budget per cell of centreline length; centreline lengths (mm) per rail shape (§9).
+const RAIL_BUDGET = [1500, 500, 120];
+const RAIL_CENTRELINE_MM = { straight: 60, curve90_r90: 90 * Math.PI / 2, s_1x3: 300 * Math.atan2(0.6, 0.8), joint: 70 };
+const railShape = (id) => id.replace(/^rail_/, "").replace(/_l[0-3]$/, "");
+// §5.5: a spigot must clear the 40 mm socket bore by at least 1.5 mm radially.
+const SOCKET_BORE_R_UM = 20000, SPIGOT_CLEARANCE_UM = 1500;
+// Whether a piece-local point (µm) lies inside the declared spigot cylinder (§5.5, §9 rule 3).
+function inSpigot(sp, p) {
+  if (!sp) return false;
+  const ax = sp.axis.findIndex((a) => a !== 0), sgn = sp.axis[ax];
+  const t = (p[ax] - sp.center_um[ax]) * sgn;
+  const r = Math.hypot(...[0, 1, 2].filter((k) => k !== ax).map((k) => p[k] - sp.center_um[k]));
+  return t >= -1 && t <= sp.length_um + 1 && r <= sp.radius_um + 1;
+}
 function sortKeys(v) {
   if (Array.isArray(v)) return v.map(sortKeys);
   if (v && typeof v === "object") return Object.fromEntries(Object.keys(v).sort().map((k) => [k, sortKeys(v[k])]));
@@ -220,21 +245,24 @@ async function checkPiece(runtime, source, id, opts) {
     if (!fpKey.has(p.cell.join(","))) errs.push(`${id}: port ${p.index} cell not in footprint`);
     if (fpKey.has(nb.join(","))) errs.push(`${id}: port ${p.index} faces a footprint cell (§9 rule 5)`);
     // socket ports: the collision port plane sits inset_um inside the face (§5.5)
-    const plane = p.cell[ax] * 60000 + sgn * (30000 - p.inset_um), uC = p.cell[other] * 60000, vB = p.cell[1] * 60000;
+    // a spigot's plane is inset_um past the rail's own face, inside the socket block (§5.5)
+    const inset = p.class === "spigot" ? -p.inset_um : p.inset_um;
+    const plane = p.cell[ax] * 60000 + sgn * (30000 - inset), uC = p.cell[other] * 60000, vB = p.cell[1] * 60000;
     const fl = 15000 * p.level;
-    const onPlane = colVerts.filter((v) => v[ax] === plane && Math.abs(v[other] - uC) <= 14000);
+    const onPlane = colVerts.filter((v) => v[ax] === plane && Math.abs(v[other] - uC) <= 14000
+      && (sc.family !== "rail" || Math.hypot(v[other] - uC, v[1] - vB - fl - 14000) < RAIL_INNER_UM));
     // open channel: wall tops at the cell top; tunnel: floor to crown apex (may rise past the cell)
-    const rings = [
+    const rings = (sc.family === "rail" ? [[railRing(fl), onPlane]] : [
       [canonicalRing(fl), onPlane.filter((v) => v[1] >= vB && v[1] <= vB + 60000)],
       [tunnelRing(fl), onPlane.filter((v) => v[1] >= vB + fl && v[1] <= vB + fl + 34000)],
-    ].map(([ring, vs]) => {
+    ]).map(([ring, vs]) => {
       const got = new Set(vs.map((v) => `${v[other] - uC},${v[1] - vB}`));
       const want = new Set(ring.map(([u, v]) => `${u},${v}`));
       return { missing: [...want].filter((k) => !got.has(k)), extra: [...got].filter((k) => !want.has(k)) };
     });
     if (!rings.some((r) => !r.missing.length && !r.extra.length)) {
       const { missing, extra } = rings[0];
-      errs.push(`${id}: port ${p.index} ring != canonical open or tunnel ring (open: missing ${missing.slice(0, 3)}, extra ${extra.slice(0, 3)})`);
+      errs.push(`${id}: port ${p.index} ring != canonical ${sc.family === "rail" ? "rail" : "open or tunnel"} ring (open: missing ${missing.slice(0, 3)}, extra ${extra.slice(0, 3)})`);
     }
   }
   // 5. collision footprint
@@ -246,12 +274,18 @@ async function checkPiece(runtime, source, id, opts) {
     const n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
     const len = Math.hypot(...n) || 1;
     const cen = [0, 1, 2].map((k) => (A[k] + B[k] + C[k]) / 3 - n[k] / len);
-    if (!fpKey.has(cellOf(cen, 60000).join(","))) { errs.push(`${id}: collision triangle outside footprint`); break; }
+    if (!fpKey.has(cellOf(cen, 60000).join(",")) && !inSpigot(sc.spigot, cen)) { errs.push(`${id}: collision triangle outside footprint`); break; }
   }
   // 6. collision budget
   if (colTris.length === 0) errs.push(`${id}: no collision mesh`);
   if (colTris.length > COLLISION_TRIS_PER_CELL * fp.length) errs.push(`${id}: collision ${colTris.length} tris > ${COLLISION_TRIS_PER_CELL * fp.length}`);
   info.colliderTris = colTris.length;
+  // §5.5 spigot volume: only on a spigot port's piece, and it clears the socket bore
+  const hasSpigotPort = sc.ports.some((p) => p.class === "spigot");
+  if (hasSpigotPort !== Boolean(sc.spigot)) errs.push(`${id}: spigot volume ${sc.spigot ? "without" : "missing for"} a spigot port`);
+  if (sc.spigot && sc.spigot.radius_um > SOCKET_BORE_R_UM - SPIGOT_CLEARANCE_UM)
+    errs.push(`${id}: spigot radius ${sc.spigot.radius_um} µm leaves under ${SPIGOT_CLEARANCE_UM} µm in the ${2 * SOCKET_BORE_R_UM} µm bore`);
+  if (sc.spigot) info.spigot = `radius ${sc.spigot.radius_um} µm, clearance ${SOCKET_BORE_R_UM - sc.spigot.radius_um} µm in the bore`;
   // 8. overhead clearance
   info.overheadMinUm = overhead(colVerts, colTris, fp, errs, id);
   // 10. no emissive / inlay on non-mechanical pieces (sidecar side)
@@ -333,6 +367,12 @@ async function checkPiece(runtime, source, id, opts) {
     if (t < 0) return;
     // multi-cell block pieces get the 1-cell budget per footprint cell (P2-T2)
     if ((sc.family === "blk" || sc.family === "mech") && t > BUDGET_1CELL_BLOCK[l] * fp.length) errs.push(`${id}: LOD${l} ${t} tris > ${BUDGET_1CELL_BLOCK[l] * fp.length}`);
+    // rails: per cell of centreline length (§12)
+    if (sc.family === "rail") {
+      const len = RAIL_CENTRELINE_MM[railShape(id)];
+      if (!len) errs.push(`${id}: no centreline length for rail shape ${railShape(id)}`);
+      else if (t > Math.floor(RAIL_BUDGET[l] * len / 60)) errs.push(`${id}: LOD${l} ${t} tris > ${Math.floor(RAIL_BUDGET[l] * len / 60)}`);
+    }
     if (l > 0 && t >= info.lodTris[l - 1]) errs.push(`${id}: LOD${l} (${t}) not below LOD${l - 1}`);
     if (report.lodTris[lodNames[l]] !== t) errs.push(`${id}: LOD${l} ${t} tris != export report ${report.lodTris[lodNames[l]]}`);
   });
@@ -348,7 +388,7 @@ async function checkPiece(runtime, source, id, opts) {
       const has = (k, d) => { const n = [...c]; n[k] += d; return fpKey.has(n.join(",")); };
       const inset = [0, 1, 2].every((k) => p[k] >= lo[k] + (has(k, -1) ? 0 : INSET) - 1e-6
         && p[k] <= lo[k] + CELL - (has(k, 1) ? 0 : INSET) + 1e-6);
-      if (!fpKey.has(c.join(",")) || !inset) { errs.push(`${id}: ${n} vertex ${p.map((x) => x.toFixed(5))} outside the inset footprint`); break; }
+      if ((!fpKey.has(c.join(",")) || !inset) && !inSpigot(sc.spigot, p.map((x) => x * 1e6))) { errs.push(`${id}: ${n} vertex ${p.map((x) => x.toFixed(5))} outside the inset footprint`); break; }
     }
   }
   // 4. render-mesh port position and width, every LOD
@@ -356,7 +396,8 @@ async function checkPiece(runtime, source, id, opts) {
   for (const p of sc.ports.filter((p) => p.kind === "side")) {
     const [ax, sgn] = FACE[p.face];
     const other = ax === 0 ? 2 : 0;
-    const plane = p.cell[ax] * CELL + sgn * (CELL / 2 - INSET), uC = p.cell[other] * CELL;
+    // a spigot's render end is its full length past the face (the 0.5 mm seam is the socket's)
+    const plane = p.cell[ax] * CELL + sgn * (p.class === "spigot" ? CELL / 2 + p.inset_um * 1e-6 : CELL / 2 - INSET), uC = p.cell[other] * CELL;
     const floor = p.cell[1] * CELL + 0.015 * p.level, cy = floor + 0.014;
     for (const n of lodNames) {
       if (p.class === "socket") {
@@ -370,7 +411,8 @@ async function checkPiece(runtime, source, id, opts) {
         info.ports.push({ lod: n.slice(-4), port: p.index, floorErrMm: +(low * 1000).toFixed(4), centreErrMm: 0, widthMm: +(2000 * r.reduce((a, b) => a + b, 0) / r.length).toFixed(4) });
         continue;
       }
-      const vs = (md[n]?.pos ?? []).filter((v) => Math.abs(v[ax] - plane) < 1e-6 && Math.abs(v[other] - uC) < 0.0145 && v[1] < cy + 1e-6);
+      const vs = (md[n]?.pos ?? []).filter((v) => Math.abs(v[ax] - plane) < 1e-6 && Math.abs(v[other] - uC) < 0.0145 && v[1] < cy + 1e-6
+        && (sc.family !== "rail" || Math.hypot(v[other] - uC, v[1] - cy) < RAIL_INNER_UM * 1e-6));
       if (!vs.length) { errs.push(`${id}: ${n} port ${p.index} has no render channel vertices on the face`); continue; }
       const low = vs.reduce((a, b) => (b[1] < a[1] ? b : a));
       const fErr = low[1] - floor, uErr = low[other] - uC;
@@ -420,6 +462,7 @@ async function check(runtime, source, ids, opts) {
     console.log(`${errs.length ? "FAIL" : "ok  "} ${id}: LOD tris ${info.lodTris.join("/")}, collider ${info.colliderTris}, overhead min ${info.overheadMinUm} µm, glb ${info.glbBytes} B, validator ${info.validator.errors}E/${info.validator.warnings}W`);
     console.log(`     render ports (mm): ${ports}`);
     if (info.parts?.length) console.log(`     parts (tris ${info.partTris.join("/")}): ${info.parts.join("; ")}`);
+    if (info.spigot) console.log(`     spigot: ${info.spigot}`);
     for (const e of errs) console.log(`  - ${e}`);
     bad += errs.length;
   }
@@ -442,7 +485,7 @@ async function provenance(runtime, source, ids, checks) {
       pieceId: id,
       pieceVersion: JSON.parse(fs.readFileSync(path.join(dir, `${id}.kit.json`), "utf8")).piece_version,
       route: "scripted",
-      card: P1_APPROVED.has(id) ? "P1-T2" : id.startsWith("mech_") ? "P2-T3" : "P2-T2",
+      card: P1_APPROVED.has(id) ? "P1-T2" : id.startsWith("mech_") ? "P2-T3" : id.startsWith("rail_") ? "P2-T4" : "P2-T2",
       contract: { path: "docs/kit-contract.md", version: CONTRACT_VERSION, sha256: sha256(path.join(REPO, "docs/kit-contract.md")), approved: "Paul, 2026-11-07 (contract status line)" },
       generator: exp.generator,
       generatorDeps: exp.generatorDeps,
@@ -459,7 +502,8 @@ async function provenance(runtime, source, ids, checks) {
       derivedFiles: files(dir, (f) => f.endsWith(".glb") || f.endsWith(".png") || f.endsWith(".kit.json"))
         .concat(files(src, (f) => f.endsWith(".blend")))
         .map((p) => ({ path: rel(p), sha256: sha256(p), bytes: fs.statSync(p).size })),
-      references: ["docs/reference/ref-02.webp", "docs/reference/ref-01.webp", "docs/reference/ref-06-rail-into-block-tower.png"]
+      references: (id.startsWith("rail_") ? ["docs/reference/ref-05-corkscrew-funnel.webp", "docs/reference/ref-06-rail-into-block-tower.png"]
+        : ["docs/reference/ref-02.webp", "docs/reference/ref-01.webp", "docs/reference/ref-06-rail-into-block-tower.png"])
         .map((p) => ({ path: p, sha256: sha256(path.join(REPO, p)), role: "look reference (owner-supplied)" })),
       license: "MIT (repository licence); geometry is generated by the repository's own generator",
       validation: { pass: true, checks },
@@ -467,6 +511,8 @@ async function provenance(runtime, source, ids, checks) {
         ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the four-piece look 2026-11-07 (blender/kit/review/pieces.png; also seen textured in the kit2000 and playroom scenes)" }
         : id.startsWith("mech_")
           ? { who: "Paul", gate: "piece look", status: "pending", notes: "P2-T3 mechanism piece; review sheet blender/kit/review/p2t3-mechanisms.png" }
+          : id.startsWith("rail_")
+            ? { who: "Paul", gate: "piece look", status: "pending", notes: "P2-T4 rail piece; review sheet blender/kit/review/p2t4-rails.png" }
           : { who: "Paul", gate: "piece look", status: "pending", notes: "P2-T2 piece; review sheet blender/kit/review/p2t2-pieces.png" }],
     };
     fs.writeFileSync(path.join(dir, `${id}.provenance.json`), JSON.stringify(pv, null, 2) + "\n");
