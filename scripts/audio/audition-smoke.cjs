@@ -19,7 +19,7 @@ const port = 20000 + Math.floor(Math.random() * 20000);
   try {
     await new Promise((r) => setTimeout(r, 800));
     const browser = await chromium.launch({ channel: "chromium", headless: true,
-      args: ["--autoplay-policy=no-user-gesture-required"] });
+      args: ["--autoplay-policy=no-user-gesture-required", "--mute-audio"] });
     const page = await browser.newPage({ acceptDownloads: true });
     page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
     page.on("pageerror", (e) => errors.push(String(e)));

@@ -63,6 +63,7 @@ export interface AudioHandle {
 }
 
 export function startAudio(win: Window): AudioHandle {
+  const muted = new URLSearchParams(win.location.search).get("mute") === "1";
   const Ctx = win.AudioContext ?? win.webkitAudioContext;
   const probe = win.document.createElement("audio");
   const format: "ogg" | "m4a" = probe.canPlayType('audio/ogg; codecs="opus"') !== "" ? "ogg" : "m4a";
@@ -105,7 +106,7 @@ export function startAudio(win: Window): AudioHandle {
     if (!res.ok) throw new Error(`sfx.json: HTTP ${res.status}`);
     catalog = decodeCatalog(await res.json());
     if (!catalog) throw new Error("sfx.json is not a parble.sfx-runtime/1 catalog");
-    if (ctx && !engine) engine = new AudioEngine(ctx, { catalog });
+    if (ctx && !engine) engine = new AudioEngine(ctx, { catalog, muted });
     const variants = Object.values(catalog.cues).flatMap((c) => c.variants);
     diag.cues = Object.keys(catalog.cues).length;
     diag.files = variants.length;
@@ -136,7 +137,7 @@ export function startAudio(win: Window): AudioHandle {
       c = ctx = new Ctx({ latencyHint: "interactive" });
       c.onstatechange = syncState;
       diag.state = "starting";
-      if (catalog) engine = new AudioEngine(c, { catalog });
+      if (catalog) engine = new AudioEngine(c, { catalog, muted });
       for (const [stem, bytes] of [...raw]) decode(stem, bytes);
     }
     if (c.state !== "running")

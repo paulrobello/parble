@@ -104,6 +104,8 @@ interface Tail {
 }
 
 export interface EngineOptions {
+  /** Route the output through a zero gain: the engine runs but is silent. */
+  muted?: boolean;
   catalog: Catalog;
   seed?: number;
   caps?: VoiceCaps;
@@ -144,7 +146,15 @@ export class AudioEngine {
     master.gain.value = BUS_DEFAULTS.master;
     const limiter = ctx.createDynamicsCompressor();
     master.connect(limiter);
-    limiter.connect(ctx.destination);
+    if (opts.muted) {
+      // `mute=1` (tests, headless and agent runs): the engine runs and counts voices, but nothing is heard.
+      const silent = ctx.createGain();
+      silent.gain.value = 0;
+      limiter.connect(silent);
+      silent.connect(ctx.destination);
+    } else {
+      limiter.connect(ctx.destination);
+    }
     const sfx = ctx.createGain();
     sfx.gain.value = BUS_DEFAULTS.sfx;
     sfx.connect(master);

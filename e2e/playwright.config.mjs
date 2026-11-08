@@ -20,7 +20,7 @@ export default defineConfig({
     headless: true,
     viewport: { width: 1280, height: 720 },
     acceptDownloads: true,
-    launchOptions: { args: GPU_ARGS },
+    launchOptions: { args: [...GPU_ARGS, "--mute-audio"] },
   },
   webServer: {
     // Not `python3 -m http.server`: its backlog of 5 resets kit2000's burst of texture fetches.

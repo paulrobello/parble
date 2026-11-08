@@ -3,6 +3,7 @@ import { Bridge, type WasmBindings } from "./bridge";
 import { mountFiles } from "./files";
 import { applyEvents, emptyHud, formatHud, mountControlsHint, mountHud } from "./hud";
 import { Library } from "./library";
+import { mountFlyPointerLock } from "./pointer-lock";
 
 declare global {
   interface Window {
@@ -14,6 +15,10 @@ function start(bindings: WasmBindings): void {
   const bridge = new Bridge(new bindings.Bridge());
   const el = mountHud(document);
   mountControlsHint(document);
+  mountFlyPointerLock(document, () => {
+    const p = (window as unknown as { __parble?: { camera?: { mode?: string } } }).__parble;
+    return p?.camera?.mode ?? null;
+  });
   const library = "indexedDB" in window ? Library.open({ indexedDB: window.indexedDB }) : null;
   library?.catch((err) => console.warn("track library unavailable", err));
   const files = mountFiles(document, (cmd) => bridge.post(cmd), library);

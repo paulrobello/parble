@@ -33,7 +33,7 @@ const BAD_TEXT = (t) => /%cERROR%c|\bERROR\b/.test(t) || /uncaptured|invalid|pan
   const errors = [];
   let code = 1;
   try {
-    const browser = await chromium.launch({ channel: "chromium", headless: true, args: GPU_ARGS });
+    const browser = await chromium.launch({ channel: "chromium", headless: true, args: [...GPU_ARGS, "--mute-audio"] });
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     page.on("console", (m) => { if (m.type() === "error" || BAD_TEXT(m.text())) errors.push(m.text()); });
     page.on("pageerror", (e) => errors.push(String(e)));
