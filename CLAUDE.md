@@ -20,7 +20,7 @@ make lint           # clippy -D warnings, native (--all-targets) and wasm32
 make typecheck      # cargo check native + wasm32, plus web/ui Biome/tsc once it exists
 
 make checkall       # fast gate: fmt-check → clippy (native + wasm32) → Biome/tsc → cargo test → Vitest
-make checkall-ci    # push gate: checkall + wasm32 --locked build + gitleaks history scan
+make checkall-ci    # push gate: actionlint (pinned, target/tools) + checkall + wasm32 --locked build + gitleaks history scan + web-test + determinism-wasm + web-size
 make pre-commit     # pre-commit run --all-files
 
 make dev            # trunk serve on 127.0.0.1:5310 (needs index.html, added in P0-T5)
@@ -30,7 +30,7 @@ make web-size       # build-web + wasm ≤ 15 MB gzip budget
 ```
 
 - `checkall` legs run in fail-fast order. The web/ui legs (Biome, tsc, Vitest) print `SKIP` until `web/ui/package.json` exists (P0-T7).
-- `checkall-ci` grows as Phase 0 lands: P0-T4 adds `determinism-wasm`, P0-T5 adds `web-size`, P0-T8 adds `actionlint`. Keep it a superset of what CI runs.
+- `checkall-ci` grows as Phase 0 lands: P0-T4 added `determinism-wasm`, P0-T5 `web-size`, P0-T8 `actionlint` (first leg). Keep it a superset of what `.github/workflows/ci.yml` runs.
 - Capture real exit codes when running a gate: `make checkall > /tmp/x.log 2>&1; echo EXIT=$?`. Never trust a piped exit status.
 
 ## Ports

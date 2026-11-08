@@ -53,9 +53,15 @@ checkall:
 	@$(MAKE) --no-print-directory test
 	@$(MAKE) --no-print-directory ui-test
 
-# Push gate: checkall + the CI-parity legs that exist today. P0-T8 adds actionlint.
+# Push gate: actionlint (cheap, first) + checkall + the CI-parity legs.
 # web-size is a full Trunk release build: ~3.5 min cold, ~15 s warm.
-checkall-ci: checkall wasm-build-check secrets-scan web-test determinism-wasm web-size
+checkall-ci: actionlint checkall wasm-build-check secrets-scan web-test determinism-wasm web-size
+
+# P0-T8: lint .github/workflows with the pinned actionlint (scripts/fetch-actionlint.sh, never PATH).
+.PHONY: actionlint
+actionlint:
+	@bash scripts/fetch-actionlint.sh
+	target/tools/actionlint-1.7.12/actionlint
 
 # P0-T4: the wasm build of the golden ramp run must hash the same as the native golden.
 .PHONY: determinism-wasm
