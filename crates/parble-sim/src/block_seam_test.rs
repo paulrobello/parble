@@ -986,3 +986,39 @@ fn tower_drop_mesh_landing_leaves_the_rails() {
     eprintln!("tower drop on the mesh landing: off the rails {off:?}");
     assert!(!off.is_empty(), "control: every run stayed on the rails");
 }
+
+/// Diagnostic, not a gate: dumps the sweep's marble traces as JSON for the q14 landing figure
+/// (`PARBLE_TOWER_TRACE=path cargo test -p parble-sim --release dump_tower_traces -- --ignored`).
+#[test]
+#[ignore]
+fn dump_tower_traces() {
+    let Ok(path) = std::env::var("PARBLE_TOWER_TRACE") else {
+        return;
+    };
+    let runs: Vec<String> = tower_sweep()
+        .into_iter()
+        .map(|(v, dz)| {
+            let (side, on, tr) = tower_run(v, dz, &Control::default());
+            let pts: Vec<String> = tr
+                .iter()
+                .enumerate()
+                .map(|(i, m)| {
+                    format!(
+                        "[{i},{},{},{},{},{},{}]",
+                        m.position[0],
+                        m.position[1],
+                        m.position[2],
+                        m.linvel[0],
+                        m.linvel[1],
+                        m.linvel[2]
+                    )
+                })
+                .collect();
+            format!(
+                "{{\"v\":{v},\"dz\":{dz},\"side\":{side},\"on\":{on},\"trace\":[{}]}}",
+                pts.join(",")
+            )
+        })
+        .collect();
+    std::fs::write(path, format!("[{}]", runs.join(","))).unwrap();
+}
