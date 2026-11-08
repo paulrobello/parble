@@ -48,8 +48,10 @@ ui-static: $(UI_NPM)
 ui-test: $(UI_NPM)
 	cd $(UI) && ./node_modules/.bin/vitest run
 
+# The runtime SFX (scripts/web/stage-audio.mjs) are staged after Vite, which empties dist.
 ui-build: $(UI_NPM)
 	cd $(UI) && ./node_modules/.bin/vite build
+	node scripts/web/stage-audio.mjs $(UI)/dist/audio
 
 # Fast gate, fail-fast order: fmt → clippy (native + wasm32) → Biome/tsc → cargo test → Vitest → audio tests + provenance.
 checkall:
