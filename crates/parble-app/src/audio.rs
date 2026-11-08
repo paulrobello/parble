@@ -135,6 +135,9 @@ pub struct AudioRoll {
     /// Any sample in the frame touched something.
     pub contact: bool,
     pub position: [f32; 3],
+    /// The marble is inside a redirect's bored tunnel ([`in_redirect_tunnel`]) at the frame's
+    /// last tick: the engine layers the tunnel rumble over its roll.
+    pub tunnel: bool,
 }
 
 /// A mechanism event with its instance's anchor cell and piece id (empty when the instance is
@@ -260,12 +263,14 @@ fn fold_by_marble<T: Copy>(
     acc
 }
 
-/// One marble as the coalescer sees it: type, size and centre at the frame's last tick.
+/// One marble as the coalescer sees it: type, size and centre at the frame's last tick, and
+/// whether that centre is in a redirect tunnel.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct MarbleAt {
     pub kind: MarbleKind,
     pub size: MarbleSize,
     pub position: [f32; 3],
+    pub tunnel: bool,
 }
 
 /// `sim`'s marbles in spawn order: the type from `kinds` (a cat's eye past its end), the size from
@@ -279,8 +284,33 @@ pub fn marbles_at(sim: &Sim, kinds: &[MarbleKind]) -> Vec<MarbleAt> {
             kind: kinds.get(i).copied().unwrap_or_default(),
             size: size_of_radius(r),
             position: m.position,
+            tunnel: in_redirect_tunnel(sim, m.position),
         })
         .collect()
+}
+
+/// The redirect drop pieces: 1 × 1 × 2, the marble enters the top cell, drops through a hole and
+/// rolls out of the lower cell through a tunnel bored in the block (kit contract §9 rule 7).
+pub const REDIRECT_PIECES: [&str; 2] = ["blk_redirect_l2", "blk_redirect_l3"];
+
+/// The cell holding the world point `p`: cells are centred on `x · cell` and `z · cell` and span
+/// `y · cell … (y + 1) · cell` vertically.
+pub fn cell_of(p: [f32; 3]) -> parble_core::CellCoord {
+    let c = parble_sim::scene::cell_m();
+    parble_core::CellCoord::new(
+        (p[0] / c + 0.5).floor() as i32,
+        (p[1] / c).floor() as i32,
+        (p[2] / c + 0.5).floor() as i32,
+    )
+}
+
+/// Whether `p` is in the lower cell of a redirect placement, the cell its tunnel runs through.
+/// The footprint's lower cell is the anchor's (0, −1, 0) at every yaw and mirror.
+pub fn in_redirect_tunnel(sim: &Sim, p: [f32; 3]) -> bool {
+    let cell = cell_of(p);
+    sim.chunk_colliders()
+        .placement_at(cell)
+        .is_some_and(|pl| REDIRECT_PIECES.contains(&pl.piece.as_str()) && cell.y == pl.anchor.y - 1)
 }
 
 fn index(i: usize) -> u32 {
@@ -334,6 +364,7 @@ pub fn coalesce(
                     surface: surface.map(WireSurface::from),
                     contact: surface.is_some(),
                     position: m.position,
+                    tunnel: m.tunnel,
                 });
             }
             SimEvent::Mechanism(m) => {
@@ -424,11 +455,13 @@ mod tests {
                 kind: MarbleKind::Steel,
                 size: MarbleSize::Shooter,
                 position: [0.5, 0.25, 0.0],
+                tunnel: false,
             },
             MarbleAt {
                 kind: MarbleKind::Glazed,
                 size: MarbleSize::Mini,
                 position: [1.0, 0.0, -0.5],
+                tunnel: true,
             },
         ]
     }
@@ -503,6 +536,7 @@ mod tests {
                     surface: Some(WireSurface::Rail),
                     contact: true,
                     position: [0.5, 0.25, 0.0],
+                    tunnel: false,
                 },
                 AudioRoll {
                     marble: 1,
@@ -512,6 +546,7 @@ mod tests {
                     surface: None,
                     contact: false,
                     position: [1.0, 0.0, -0.5],
+                    tunnel: true,
                 },
             ]
         );
@@ -684,6 +719,7 @@ mod tests {
                 kind,
                 size,
                 position: m.position,
+                tunnel: false,
             })
             .collect()
     }
@@ -897,6 +933,7 @@ mod tests {
                     kind: MarbleKind::CatsEye,
                     size: parble_sim::marble::MarbleSize::Standard,
                     position: m.position,
+                    tunnel: false,
                 })
                 .collect();
             let f = coalesce(&run.drain_events(), &marbles, no_piece, run.tick_count());
@@ -933,5 +970,90 @@ mod tests {
         assert!(rail > 5, "{rail} roll frames on the rails");
         assert!(wood > 5, "{wood} roll frames on the blocks");
         assert!(wire_rail, "an audioFrame carries surface \"rail\"");
+    }
+
+    /// A redirect's tunnel is its lower cell, at any yaw: the cell above it (the entry channel and
+    /// the drop hole) and the neighbouring cells are not.
+    #[test]
+    fn the_redirect_tunnel_is_the_lower_cell_of_the_piece() {
+        use parble_core::{PieceId, Placement, Yaw4};
+        for (piece, yaw) in [
+            ("blk_redirect_l3", 0),
+            ("blk_redirect_l2", 1),
+            ("blk_redirect_l3", 3),
+        ] {
+            let mut track = parble_core::Track::new(3);
+            track.placements = vec![Placement::new(
+                PieceId::new(piece).unwrap(),
+                CellCoord::new(2, 2, -1),
+                Yaw4::new(yaw),
+                false.into(),
+            )];
+            let run = parble_sim::track_run::TrackRun::new(&track).unwrap();
+            let c = parble_sim::scene::cell_m();
+            let at = |x: f32, y: f32, z: f32| [x * c, y * c, z * c];
+            let inside = |p| in_redirect_tunnel(&run, p);
+            assert!(
+                inside(at(2.0, 1.75, -1.0)),
+                "{piece} yaw {yaw}: tunnel floor"
+            );
+            assert!(
+                inside(at(2.4, 1.1, -0.6)),
+                "{piece} yaw {yaw}: tunnel corner"
+            );
+            assert!(
+                !inside(at(2.0, 2.75, -1.0)),
+                "{piece} yaw {yaw}: entry cell"
+            );
+            assert!(!inside(at(3.0, 1.75, -1.0)), "{piece} yaw {yaw}: next cell");
+            assert!(
+                !inside(at(2.0, 0.75, -1.0)),
+                "{piece} yaw {yaw}: cell below"
+            );
+            assert_eq!(cell_of(at(2.49, 1.99, -1.49)), CellCoord::new(2, 1, -1));
+        }
+    }
+
+    /// The all-pieces track: every marble that passes a redirect rolls through its tunnel, and the
+    /// audio frames flag those rolls `tunnel` (on the wire too), only while the marble is in a
+    /// redirect's lower cell.
+    #[test]
+    fn rolls_through_the_all_pieces_redirects_are_flagged_tunnel() {
+        use parble_sim::allpieces;
+        let redirects: Vec<CellCoord> = allpieces::placements()
+            .into_iter()
+            .filter(|p| REDIRECT_PIECES.contains(&p.piece.as_str()))
+            .map(|p| p.anchor + CellCoord::new(0, -1, 0))
+            .collect();
+        assert_eq!(redirects.len(), 3);
+        let mut run = allpieces::run().unwrap();
+        run.set_event_recording(true);
+        let mut seen = std::collections::BTreeSet::new();
+        let (mut flagged, mut moving, mut wire) = (0, 0, false);
+        while run.tick_count() < u64::from(allpieces::RUN_TICKS) && seen.len() < redirects.len() {
+            run.tick(4);
+            let marbles = marbles_at(&run, &[]);
+            let f = coalesce(&run.drain_events(), &marbles, no_piece, run.tick_count());
+            for r in &f.rolls {
+                let cell = cell_of(r.position);
+                assert_eq!(r.tunnel, redirects.contains(&cell), "{r:?}");
+                if r.tunnel {
+                    seen.insert(cell);
+                    flagged += 1;
+                    if r.speed > 0.05 {
+                        moving += 1;
+                    }
+                }
+            }
+            wire |= serde_json::to_string(&f)
+                .unwrap()
+                .contains(r#""tunnel":true"#);
+        }
+        assert_eq!(seen.len(), redirects.len(), "tunnels entered: {seen:?}");
+        assert!(
+            moving > 0 && moving * 2 > flagged,
+            "{moving} of {flagged} moving"
+        );
+        assert!(wire, "an audioFrame carries \"tunnel\":true");
     }
 }

@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { buildCatalog, isRuntimeCue, MECHANISM_CUES, stage } from "./stage-audio.mjs";
+import { buildCatalog, isRuntimeCue, MECHANISM_CUES, stage, TUNNEL_CUE } from "./stage-audio.mjs";
 
 const sha = (s) => createHash("sha256").update(s).digest("hex");
 
@@ -42,7 +42,7 @@ const PICKS = {
   ui_click: ["ui_click_v01"],
 };
 
-test("runtime cues are rolls, impacts, clacks and the mechanism signal cues, never rug", () => {
+test("runtime cues are rolls, impacts, clacks, the mechanism signal cues and the tunnel rumble, never rug", () => {
   assert.ok(isRuntimeCue("roll_steel_rail"));
   assert.ok(isRuntimeCue("impact_glass_block_light"));
   assert.ok(isRuntimeCue("clack_glass_steel_medium"));
@@ -50,7 +50,8 @@ test("runtime cues are rolls, impacts, clacks and the mechanism signal cues, nev
   assert.ok(!isRuntimeCue("roll_glass_rug"));
   assert.ok(!isRuntimeCue("impact_solid_rug_heavy"));
   assert.ok(!isRuntimeCue("ui_click"));
-  assert.ok(!isRuntimeCue("tunnel_rumble"));
+  assert.ok(isRuntimeCue("tunnel_rumble"));
+  assert.ok(!isRuntimeCue("tunnel_rumble_rug"));
 });
 
 test("the catalog holds only picked stems of runtime cues", () => {
@@ -97,12 +98,18 @@ test("the real picks resolve against the real manifest", () => {
   const picks = JSON.parse(readFileSync(new URL("docs/audio/audition-picks.json", root), "utf8"));
   const manifest = JSON.parse(readFileSync(new URL("audition/sfx/manifest.json", root), "utf8"));
   const c = buildCatalog(picks, manifest);
-  // 6 roll loops (3 materials x block, rail), 18 impact sets, 18 clack sets and the 10 mechanism cues.
+  // 6 roll loops (3 materials x block, rail), 18 impact sets, 18 clack sets, the 10 mechanism cues and
+  // the tunnel rumble loop.
   const ids = Object.keys(c.cues);
   assert.equal(ids.filter((id) => id.startsWith("roll_")).length, 6);
   assert.equal(ids.filter((id) => id.startsWith("impact_")).length, 18);
   assert.equal(ids.filter((id) => id.startsWith("clack_")).length, 18);
   for (const id of MECHANISM_CUES) assert.ok(ids.includes(id), id);
-  assert.equal(ids.length, 6 + 18 + 18 + MECHANISM_CUES.length);
+  assert.equal(c.cues[TUNNEL_CUE].loop, true);
+  assert.deepEqual(
+    c.cues[TUNNEL_CUE].variants.map((v) => v.stem),
+    ["tunnel_rumble_v01m", "tunnel_rumble_v02m", "tunnel_rumble_v03m"],
+  );
+  assert.equal(ids.length, 6 + 18 + 18 + MECHANISM_CUES.length + 1);
   assert.ok(ids.every((id) => c.cues[id].variants.length > 0));
 });

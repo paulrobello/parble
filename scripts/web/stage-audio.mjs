@@ -4,7 +4,8 @@
 // copy against the manifest's SHA-256, and writes <out>/sfx.json, the catalog the engine fetches.
 // Only picked stems ship: the manifest also holds rejected takes. The rug cues are left out because
 // no wire surface maps to them: the sim has no rug collider (the tray and the open floor are wood
-// slabs and report `wood`), so the audio stream carries only kit surfaces and `marble`.
+// slabs and report `wood`), so the audio stream carries only kit surfaces and `marble`. The tunnel rumble
+// ships as a loop layered over a roll while the marble is in a redirect tunnel (`TUNNEL_CUE`).
 // Runs from `make ui-build` (Trunk's pre_build hook) after Vite, into web/ui/dist/audio.
 // Usage: node scripts/web/stage-audio.mjs <out-dir>
 import { createHash } from "node:crypto";
@@ -28,10 +29,13 @@ export const MECHANISM_CUES = [
   "trapdoor_drop",
 ];
 
-/** Cue ids the engine selects (web/ui/src/audio/mapping.ts). */
+/** The redirect tunnel layer's loop (web/ui/src/audio/engine.ts `TUNNEL_CUE`). */
+export const TUNNEL_CUE = "tunnel_rumble";
+
+/** Cue ids the engine selects (web/ui/src/audio/mapping.ts, and `TUNNEL_CUE`). */
 export function isRuntimeCue(id) {
   if (id.includes("_rug")) return false;
-  return /^(roll|impact|clack)_/.test(id) || MECHANISM_CUES.includes(id);
+  return /^(roll|impact|clack)_/.test(id) || MECHANISM_CUES.includes(id) || id === TUNNEL_CUE;
 }
 
 /** The runtime catalog for `picks` over `manifest`: cue id -> { loop, variants }. Throws on a picked stem the manifest lacks. */

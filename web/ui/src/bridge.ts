@@ -49,7 +49,10 @@ export interface AudioContact {
   position: Vec3;
 }
 
-/** One marble's roll state in a frame: latest speed (m/s), latest touching surface, any contact. */
+/**
+ * One marble's roll state in a frame: latest speed (m/s), latest touching surface, any contact, and
+ * whether the marble is inside a redirect's tunnel (a missing `tunnel` reads as false).
+ */
 export interface AudioRoll {
   marble: number;
   kind: MarbleKind;
@@ -58,6 +61,7 @@ export interface AudioRoll {
   surface: Surface | null;
   contact: boolean;
   position: Vec3;
+  tunnel: boolean;
 }
 
 /** A mechanism event at its instance's anchor cell; `piece` is the kit piece id ("" when unknown). */
@@ -164,15 +168,18 @@ function decodeContact(v: unknown): AudioContact | null {
 }
 
 function decodeRoll(v: unknown): AudioRoll | null {
-  if (!isObj(v) || !hasOnly(v, ["marble", "kind", "size", "speed", "surface", "contact", "position"])) return null;
+  if (!isObj(v) || !hasOnly(v, ["marble", "kind", "size", "speed", "surface", "contact", "position", "tunnel"]))
+    return null;
   const surface = v.surface ?? null;
+  const tunnel = v.tunnel ?? false;
   return isU32(v.marble) &&
     isKind(v.kind) &&
     isSize(v.size) &&
     isNum(v.speed) &&
     (surface === null || isSurface(surface)) &&
     typeof v.contact === "boolean" &&
-    isVec3(v.position)
+    isVec3(v.position) &&
+    typeof tunnel === "boolean"
     ? {
         marble: v.marble,
         kind: v.kind,
@@ -181,6 +188,7 @@ function decodeRoll(v: unknown): AudioRoll | null {
         surface,
         contact: v.contact,
         position: [...v.position],
+        tunnel,
       }
     : null;
 }

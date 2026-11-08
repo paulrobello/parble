@@ -8,7 +8,7 @@
   "repair_loop_sha256": "24255459e18bf4372dae3b49a061c79dea2bdc8ac393c18d5b5a8295aa6715fe",
   "process_py_sha256": "77da7b469d9bc8523a274e5d3e43942220209cacc1e09ced083307728426f650"
  },
- "cue_sheet_sha256": "99e9050f09073525dad7764345079799f6a87580bdeb73fea528be6388ba78b7",
+ "cue_sheet_sha256": "8534c4675846e366a7f094dfd00eb6f0fbe92086101da7d9a07c1167fa47735c",
  "parameters": {
   "sample_rate": 48000,
   "channels": 1,
@@ -1009,6 +1009,109 @@
   {
    "cue_id": "tunnel_rumble",
    "family": "drop_tunnel",
+   "stem": "tunnel_rumble_v01m",
+   "source": {
+    "file": "assets-source/audio/sfx/drop_tunnel/tunnel_rumble_v01m.flac",
+    "provenance": "assets-source/audio/sfx/provenance-group-f.json",
+    "sha256_recorded": "e8949d4f2e08df40c0b1f99a7f9ab226a0b47a20e7769fd30516630f2e8aae52",
+    "provider": "parble tunnel DSP (scripts/audio/tunnel.py)",
+    "output_format": "flac_48000_24 mono",
+    "sha256": "e8949d4f2e08df40c0b1f99a7f9ab226a0b47a20e7769fd30516630f2e8aae52",
+    "bytes": 241762
+   },
+   "prompt": "tunnel DSP of tunnel_rumble_v01 (no generation)",
+   "issues": [
+    "ogg loudness -33.1 LUFS outside -26.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -33.2 LUFS outside -26.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
+   ],
+   "warnings": [],
+   "processing": [
+    "decode -> 48000 Hz mono (channel average), 7.560s",
+    "interior dropouts in take; loop region limited to longest clean run 2.00s + 5.50s",
+    "repair-loop.py equal-power tail-over-head crossfade 0.5s",
+    "linear gain -3.30 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
+   ],
+   "loop": true,
+   "target": {
+    "lufs": -26.0,
+    "tolerance_lu": 1.0,
+    "true_peak_ceiling_db": -6.0,
+    "duration_s": [
+     4.0,
+     6.0
+    ],
+    "lufs_method": "integrated over whole loop"
+   },
+   "loop_check_master": {
+    "pass": true,
+    "crossfade_s": 0.5,
+    "attempts": [
+     {
+      "mode": "plain",
+      "crossfade_s": 0.5,
+      "pass": true
+     }
+    ],
+    "output": "tunnel_rumble_v01m.wav wrap     81 / p99.9    836   head  -24.5 dB   tail  -25.0 dB   min  -40.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
+   },
+   "gain_db": -3.3,
+   "master": {
+    "path": "_masters/drop_tunnel/tunnel_rumble_v01m.wav",
+    "sha256": "cab28fe59925db1b99277a4c41da5ad5d1bc58bdc144083bf8051b1c5a608ed7",
+    "samples": 240000,
+    "duration_s": 5.0,
+    "lufs": -33.2,
+    "true_peak_db": -6.3,
+    "leading_silence_ms": 0.0
+   },
+   "samples": 240000,
+   "duration_s": 5.0,
+   "files": {
+    "ogg": {
+     "path": "drop_tunnel/tunnel_rumble_v01m.ogg",
+     "sha256": "e9dd322fd4e35ff9239df6002b3f3cab1a4957f6a89048995f705b3c4cb27c69",
+     "bytes": 70053,
+     "lufs": -33.1,
+     "true_peak_db": -6.3,
+     "decoded_samples": 240000,
+     "duration_s": 5.0,
+     "leading_silence_ms": 0.0,
+     "loop_check": {
+      "pass": true,
+      "output": "dec_ogg.wav wrap     73 / p99.9    835   head  -24.5 dB   tail  -25.0 dB   min  -40.8 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+     }
+    },
+    "m4a": {
+     "path": "drop_tunnel/tunnel_rumble_v01m.m4a",
+     "sha256": "1ebc5495841cc79a1192577855c327e9b5853dfd4e48b37adee76eb9809da5d6",
+     "bytes": 62337,
+     "lufs": -33.2,
+     "true_peak_db": -6.3,
+     "decoded_samples": 240000,
+     "duration_s": 5.0,
+     "leading_silence_ms": 0.0,
+     "loop_check": {
+      "pass": true,
+      "output": "dec_m4a.wav wrap     86 / p99.9    830   head  -24.7 dB   tail  -25.1 dB   min  -40.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+     }
+    }
+   },
+   "lufs": -33.1,
+   "true_peak_db": -6.3,
+   "loop_check": {
+    "pass": true,
+    "master_pass": true,
+    "aac_pass": true,
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": null,
+    "leveler": null
+   }
+  },
+  {
+   "cue_id": "tunnel_rumble",
+   "family": "drop_tunnel",
    "stem": "tunnel_rumble_v02",
    "source": {
     "file": "assets-source/audio/sfx/drop_tunnel/tunnel_rumble_v02.mp3",
@@ -1133,6 +1236,106 @@
      ],
      "passes": 4
     },
+    "leveler": null
+   }
+  },
+  {
+   "cue_id": "tunnel_rumble",
+   "family": "drop_tunnel",
+   "stem": "tunnel_rumble_v02m",
+   "source": {
+    "file": "assets-source/audio/sfx/drop_tunnel/tunnel_rumble_v02m.flac",
+    "provenance": "assets-source/audio/sfx/provenance-group-f.json",
+    "sha256_recorded": "71f701de1176f25161123a8271b3c8d015bcd54686d9d8e28abd6c94a1e1441e",
+    "provider": "parble tunnel DSP (scripts/audio/tunnel.py)",
+    "output_format": "flac_48000_24 mono",
+    "sha256": "71f701de1176f25161123a8271b3c8d015bcd54686d9d8e28abd6c94a1e1441e",
+    "bytes": 279433
+   },
+   "prompt": "tunnel DSP of tunnel_rumble_v02 (no generation)",
+   "issues": [],
+   "warnings": [],
+   "processing": [
+    "decode -> 48000 Hz mono (channel average), 7.560s",
+    "interior dropouts in take; loop region limited to longest clean run 1.80s + 5.70s",
+    "repair-loop.py equal-power tail-over-head crossfade 0.5s",
+    "linear gain -3.30 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
+   ],
+   "loop": true,
+   "target": {
+    "lufs": -26.0,
+    "tolerance_lu": 1.0,
+    "true_peak_ceiling_db": -6.0,
+    "duration_s": [
+     4.0,
+     6.0
+    ],
+    "lufs_method": "integrated over whole loop"
+   },
+   "loop_check_master": {
+    "pass": true,
+    "crossfade_s": 0.5,
+    "attempts": [
+     {
+      "mode": "plain",
+      "crossfade_s": 0.5,
+      "pass": true
+     }
+    ],
+    "output": "tunnel_rumble_v02m.wav wrap     26 / p99.9   1239   head  -21.5 dB   tail  -27.4 dB   min  -41.4 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
+   },
+   "gain_db": -3.3,
+   "master": {
+    "path": "_masters/drop_tunnel/tunnel_rumble_v02m.wav",
+    "sha256": "233c759d3a5c2e10eba78be1f4508564b2b6588c17661d5d18c0da88b8042179",
+    "samples": 249600,
+    "duration_s": 5.2,
+    "lufs": -26.0,
+    "true_peak_db": -6.3,
+    "leading_silence_ms": 0.0
+   },
+   "samples": 249600,
+   "duration_s": 5.2,
+   "files": {
+    "ogg": {
+     "path": "drop_tunnel/tunnel_rumble_v02m.ogg",
+     "sha256": "be86858ddacb33571f4ceb3a233945201bd66877feb4fcf4948280d0c475a534",
+     "bytes": 80327,
+     "lufs": -26.0,
+     "true_peak_db": -6.3,
+     "decoded_samples": 249600,
+     "duration_s": 5.2,
+     "leading_silence_ms": 0.0,
+     "loop_check": {
+      "pass": true,
+      "output": "dec_ogg.wav wrap     54 / p99.9   1235   head  -21.5 dB   tail  -27.5 dB   min  -41.6 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+     }
+    },
+    "m4a": {
+     "path": "drop_tunnel/tunnel_rumble_v02m.m4a",
+     "sha256": "1d52ccb93fea922f6bbe019113b4d1adb4ee11bfe546b73c488fb4eda40c7415",
+     "bytes": 64810,
+     "lufs": -26.0,
+     "true_peak_db": -6.3,
+     "decoded_samples": 249600,
+     "duration_s": 5.2,
+     "leading_silence_ms": 0.0,
+     "loop_check": {
+      "pass": true,
+      "output": "dec_m4a.wav wrap     53 / p99.9   1234   head  -21.6 dB   tail  -27.4 dB   min  -41.4 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+     }
+    }
+   },
+   "lufs": -26.0,
+   "true_peak_db": -6.3,
+   "loop_check": {
+    "pass": true,
+    "master_pass": true,
+    "aac_pass": true,
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": null,
     "leveler": null
    }
   },
@@ -1272,6 +1475,137 @@
      "ceil_db": 6.0,
      "max_boost_db": 19.1,
      "max_cut_db": 7.6
+    }
+   }
+  },
+  {
+   "cue_id": "tunnel_rumble",
+   "family": "drop_tunnel",
+   "stem": "tunnel_rumble_v03m",
+   "source": {
+    "file": "assets-source/audio/sfx/drop_tunnel/tunnel_rumble_v03m.flac",
+    "provenance": "assets-source/audio/sfx/provenance-group-f.json",
+    "sha256_recorded": "7484f44c840d776ce1656d2616c7c379575fbf2fc5ccc7f4d1d43f28f5fa2a62",
+    "provider": "parble tunnel DSP (scripts/audio/tunnel.py)",
+    "output_format": "flac_48000_24 mono",
+    "sha256": "7484f44c840d776ce1656d2616c7c379575fbf2fc5ccc7f4d1d43f28f5fa2a62",
+    "bytes": 212626
+   },
+   "prompt": "tunnel DSP of tunnel_rumble_v03 (no generation)",
+   "issues": [
+    "ogg loudness -29.6 LUFS outside -26.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)",
+    "m4a loudness -29.7 LUFS outside -26.0\u00b11.0 (true-peak ceiling bound the gain: transient crest too high)"
+   ],
+   "warnings": [],
+   "processing": [
+    "decode -> 48000 Hz mono (channel average), 7.560s",
+    "interior dropouts in take; loop region limited to longest clean run 5.90s + 1.60s",
+    "envelope swing needed levelling: {'ref_db': -32.7, 'floor_db': -12.0, 'ceil_db': 6.0, 'max_boost_db': 14.7, 'max_cut_db': 2.3}",
+    "extended loop: 1 crossfaded passes of 0.5-7.5s",
+    "repair-loop.py equal-power tail-over-head crossfade 0.5s",
+    "linear gain +8.20 dB; export Opus 96k + AAC 96k (Opus loop-aware: context-padded encode, pre-skip and final granule patched)"
+   ],
+   "loop": true,
+   "target": {
+    "lufs": -26.0,
+    "tolerance_lu": 1.0,
+    "true_peak_ceiling_db": -6.0,
+    "duration_s": [
+     4.0,
+     6.0
+    ],
+    "lufs_method": "integrated over whole loop"
+   },
+   "loop_check_master": {
+    "pass": true,
+    "crossfade_s": 0.5,
+    "attempts": [
+     {
+      "mode": "extended",
+      "crossfade_s": 0.5,
+      "pass": true
+     }
+    ],
+    "leveler": {
+     "ref_db": -32.7,
+     "floor_db": -12.0,
+     "ceil_db": 6.0,
+     "max_boost_db": 14.7,
+     "max_cut_db": 2.3
+    },
+    "extended": {
+     "region_s": [
+      0.5,
+      7.5
+     ],
+     "passes": 1
+    },
+    "output": "tunnel_rumble_v03m.wav wrap     37 / p99.9   1200   head  -20.0 dB   tail  -23.8 dB   min  -34.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout",
+    "variant": "as built"
+   },
+   "gain_db": 8.2,
+   "master": {
+    "path": "_masters/drop_tunnel/tunnel_rumble_v03m.wav",
+    "sha256": "63c12fe46cb7515d921a9d4d914a77c084a7c772b673d9d2c13bda6b8a59b3b2",
+    "samples": 288000,
+    "duration_s": 6.0,
+    "lufs": -29.6,
+    "true_peak_db": -6.3,
+    "leading_silence_ms": 0.0
+   },
+   "samples": 288000,
+   "duration_s": 6.0,
+   "files": {
+    "ogg": {
+     "path": "drop_tunnel/tunnel_rumble_v03m.ogg",
+     "sha256": "49c17214da38ab274ef09f10284474c71091ac0ae059a4a0677e8e8a483f642f",
+     "bytes": 71650,
+     "lufs": -29.6,
+     "true_peak_db": -6.3,
+     "decoded_samples": 288000,
+     "duration_s": 6.0,
+     "leading_silence_ms": 0.0,
+     "loop_check": {
+      "pass": true,
+      "output": "dec_ogg.wav wrap     78 / p99.9   1207   head  -20.0 dB   tail  -23.8 dB   min  -34.8 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+     }
+    },
+    "m4a": {
+     "path": "drop_tunnel/tunnel_rumble_v03m.m4a",
+     "sha256": "4612d35b20e93de73d7a850b370e99623791d61ca5cc9948885c6c65542621c4",
+     "bytes": 75997,
+     "lufs": -29.7,
+     "true_peak_db": -6.4,
+     "decoded_samples": 288000,
+     "duration_s": 6.0,
+     "leading_silence_ms": 0.0,
+     "loop_check": {
+      "pass": true,
+      "output": "dec_m4a.wav wrap     83 / p99.9   1203   head  -19.9 dB   tail  -23.8 dB   min  -34.9 dB   ok\n\nPASS: 1 file(s) wrap cleanly with no interior dropout"
+     }
+    }
+   },
+   "lufs": -29.6,
+   "true_peak_db": -6.3,
+   "loop_check": {
+    "pass": true,
+    "master_pass": true,
+    "aac_pass": true,
+    "crossfade_s": 0.5,
+    "variant": "as built",
+    "extended": {
+     "region_s": [
+      0.5,
+      7.5
+     ],
+     "passes": 1
+    },
+    "leveler": {
+     "ref_db": -32.7,
+     "floor_db": -12.0,
+     "ceil_db": 6.0,
+     "max_boost_db": 14.7,
+     "max_cut_db": 2.3
     }
    }
   },

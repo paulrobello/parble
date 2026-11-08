@@ -1,6 +1,7 @@
 // The Web Audio engine (P4-T4): consumes one bridge AudioFrame per HUD frame and drives
 // - a roll loop voice per marble, its pitch, gain and low-pass mapped from speed, crossfading between
-//   surface loops when the marble changes surface;
+//   surface loops when the marble changes surface, with the tunnel rumble layered in while the
+//   marble is inside a redirect's tunnel;
 // - impact one-shots per coalesced contact, the cue picked by the band of the velocity change the
 //   impulse gives the marble's real mass, the variant at random (seeded) with pitch jitter on top of
 //   the marble size's pitch offset (rolls get the same offset);
@@ -37,6 +38,10 @@ const SMOOTH_TC = 0.03;
 /** Impact pitch jitter, ± semitones. */
 export const JITTER_SEMITONES = 0.6;
 const ROLL_LEVEL = 0.5;
+/** The loop layered over a roll while its marble is in a redirect tunnel (`AudioRoll.tunnel`). */
+export const TUNNEL_CUE = "tunnel_rumble";
+/** Tunnel layer level inside its roll voice, before the voice's speed-driven gain. */
+const TUNNEL_LEVEL = 1;
 const IMPACT_LEVEL = 0.8;
 export const BUS_DEFAULTS = { master: 0.9, sfx: 1, music: 0.6 } as const;
 export type Bus = keyof typeof BUS_DEFAULTS;
@@ -46,6 +51,8 @@ export interface AudioStats {
   activeVoices: number;
   rollVoices: number;
   oneShotVoices: number;
+  /** Roll voices with the tunnel rumble layered in now (part of their roll voice, not extra voices). */
+  tunnelLayers: number;
   /** Most voices at once since start. */
   peakVoices: number;
   cap: VoiceCaps;
@@ -81,6 +88,8 @@ interface RollVoice {
   gain: GainNode;
   panner: PannerNode;
   layer: Layer | null;
+  /** The tunnel rumble, into the same filter, while the marble is in a redirect tunnel. */
+  tunnel: Layer | null;
 }
 
 interface OneShot extends Ranked {
@@ -166,6 +175,7 @@ export class AudioEngine {
       activeVoices: 0,
       rollVoices: 0,
       oneShotVoices: 0,
+      tunnelLayers: 0,
       peakVoices: 0,
       cap: { ...this.#caps },
       started: 0,
@@ -240,6 +250,7 @@ export class AudioEngine {
     }
     s.rollVoices = this.#rolls.size;
     s.oneShotVoices = this.#oneShots.size;
+    s.tunnelLayers = [...this.#rolls.values()].filter((v) => v.tunnel !== null).length;
     s.activeVoices = s.rollVoices + s.oneShotVoices;
     s.peakVoices = Math.max(s.peakVoices, s.activeVoices);
   }
@@ -295,10 +306,12 @@ export class AudioEngine {
         this.#rolls.set(c.id, v);
       }
       this.#setSurface(v, c.cue, now);
+      this.#setTunnel(v, c.held.roll.tunnel, now);
       const p = rollParams(c.held.roll.speed, c.held.roll.size);
       v.gain.gain.setTargetAtTime(c.gain * ROLL_LEVEL, now, SMOOTH_TC);
       v.filter.frequency.setTargetAtTime(p.cutoffHz, now, SMOOTH_TC);
       v.layer?.src.playbackRate.setTargetAtTime(p.rate, now, SMOOTH_TC);
+      v.tunnel?.src.playbackRate.setTargetAtTime(p.rate, now, SMOOTH_TC);
       setPosition(v.panner, c.held.roll.position);
     }
   }
@@ -322,7 +335,32 @@ export class AudioEngine {
     filter.connect(gain);
     gain.connect(panner);
     panner.connect(this.#bus.sfx);
-    return { marble, filter, gain, panner, layer: null };
+    return { marble, filter, gain, panner, layer: null, tunnel: null };
+  }
+
+  /** Fade the tunnel rumble layer of `v` in when `on`, out when not. */
+  #setTunnel(v: RollVoice, on: boolean, now: number): void {
+    if (on === (v.tunnel !== null)) return;
+    if (v.tunnel) {
+      const old = v.tunnel;
+      old.gain.gain.setTargetAtTime(0, now, XFADE_TC);
+      old.src.stop(now + XFADE_S);
+      this.#tails.push({ until: now + XFADE_S, nodes: [old.src, old.gain] });
+      v.tunnel = null;
+      return;
+    }
+    const buffer = this.#pickBuffer(TUNNEL_CUE);
+    if (!buffer) return;
+    const src = this.#ctx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    const gain = this.#ctx.createGain();
+    gain.gain.value = 0;
+    gain.gain.setTargetAtTime(TUNNEL_LEVEL, now, XFADE_TC);
+    src.connect(gain);
+    gain.connect(v.filter);
+    src.start(now, this.#rng() * buffer.duration);
+    v.tunnel = { cue: TUNNEL_CUE, src, gain };
   }
 
   /** Start `cue`'s loop on `v`, crossfading out the loop it replaces. */
@@ -355,9 +393,10 @@ export class AudioEngine {
     this.#rolls.delete(marble);
     v.gain.gain.setTargetAtTime(0, now, RELEASE_S / 4);
     const nodes: AudioNode[] = [v.filter, v.gain, v.panner];
-    if (v.layer) {
-      v.layer.src.stop(now + RELEASE_S);
-      nodes.push(v.layer.src, v.layer.gain);
+    for (const l of [v.layer, v.tunnel]) {
+      if (!l) continue;
+      l.src.stop(now + RELEASE_S);
+      nodes.push(l.src, l.gain);
     }
     this.#tails.push({ until: now + RELEASE_S, nodes });
   }

@@ -25,6 +25,10 @@
     "roll_steel_rug"
    ]
   },
+  "tunnel_rumble_swap": {
+   "changed_on": "2026-11-08",
+   "note": "not an approval: Paul heard tunnel_rumble v01-v03 as too high, so the runtime picks are the lowered, muffled derived variants (v01m-v03m, scripts/audio/tunnel.py, provenance-group-f.json) pending his re-listen; the originals stay live on the board for comparison"
+  },
   "loop_check_failures": {
    "note": "resolved: all approved loops pass the master and Opus seamless-loop check after make audio-process (P4-T2 criterion 2); see audition/sfx/processing-report.md Loop checks",
    "resolved_stems": [
@@ -459,9 +463,9 @@
   "trapdoor_drop_v04"
  ],
  "tunnel_rumble": [
-  "tunnel_rumble_v01",
-  "tunnel_rumble_v02",
-  "tunnel_rumble_v03"
+  "tunnel_rumble_v01m",
+  "tunnel_rumble_v02m",
+  "tunnel_rumble_v03m"
  ],
  "ui_click": [
   "ui_click_v01",

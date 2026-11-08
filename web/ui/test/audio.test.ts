@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import picks from "../../../docs/audio/audition-picks.json";
 import type { AudioContact, AudioFrame, AudioMechanism, AudioRoll, MarbleKind, Surface, Vec3 } from "../src/bridge";
 import { type Catalog, decodeCatalog, VariantPicker } from "../src/audio/catalog";
-import { AudioEngine, JITTER_SEMITONES, STALE_TICKS } from "../src/audio/engine";
+import { AudioEngine, JITTER_SEMITONES, STALE_TICKS, TUNNEL_CUE } from "../src/audio/engine";
 import {
   distanceGain,
   IMPACT_BANDS,
@@ -232,6 +232,7 @@ describe("voice allocation", () => {
 function testCatalog(): Catalog {
   const mats = ["glass", "solid", "steel"];
   const ids: [string, boolean][] = SIGNAL_CUE_IDS.map((id) => [id, false]);
+  ids.push([TUNNEL_CUE, true]);
   for (const m of mats) {
     for (const f of ["block", "rail"]) {
       ids.push([`roll_${m}_${f}`, true]);
@@ -262,7 +263,7 @@ function testCatalog(): Catalog {
 
 describe("catalog and variants", () => {
   it("decodes the staged catalog shape and refuses others", () => {
-    expect(Object.keys(testCatalog().cues)).toHaveLength(SIGNAL_CUE_IDS.length + 6 + 18 + 18);
+    expect(Object.keys(testCatalog().cues)).toHaveLength(SIGNAL_CUE_IDS.length + 6 + 18 + 18 + 1);
     expect(decodeCatalog({ schema: "other", cues: {} })).toBeNull();
     expect(decodeCatalog({ schema: "parble.sfx-runtime/1", cues: { a: { loop: 1, variants: [] } } })).toBeNull();
   });
@@ -360,6 +361,7 @@ const roll = (marble: number, o: Partial<AudioRoll> = {}): AudioRoll => ({
   surface: "wood" as Surface,
   contact: true,
   position: [marble * 0.1, 0, 0] as Vec3,
+  tunnel: false,
   ...o,
 });
 
@@ -460,6 +462,38 @@ describe("engine voice budget", () => {
     expect(ctx.sources[first - 1]?.stopped).toBe(true);
     e.consume(frame(8 + STALE_TICKS + 1));
     expect(e.stats().rollVoices).toBe(0);
+  });
+
+  it("layers the tunnel rumble on a marble's roll voice while it is in a redirect tunnel", () => {
+    const { ctx, e } = engine();
+    const tunnelSources = () => ctx.sources.filter((s) => s.buffer?.stem.startsWith(`${TUNNEL_CUE}_`));
+    e.consume(frame(4, { rolls: [roll(0), roll(1)] }));
+    expect(tunnelSources()).toHaveLength(0);
+    expect(e.stats().tunnelLayers).toBe(0);
+
+    e.consume(frame(8, { rolls: [roll(0, { tunnel: true, speed: 0.3 }), roll(1)] }));
+    const [layer] = tunnelSources();
+    expect(layer?.loop).toBe(true);
+    // A layer of the roll voice: no extra voice, same speed-driven rate as the roll loop.
+    expect(e.stats()).toMatchObject({ tunnelLayers: 1, rollVoices: 2, activeVoices: 2 });
+    expect(layer?.playbackRate.value).toBeCloseTo(rollParams(0.3).rate, 10);
+    e.consume(frame(12, { rolls: [roll(0, { tunnel: true, speed: 1.2 }), roll(1)] }));
+    expect(layer?.playbackRate.value).toBeCloseTo(rollParams(1.2).rate, 10);
+    expect(layer?.playbackRate.value).toBeGreaterThan(rollParams(0.3).rate);
+    expect(tunnelSources()).toHaveLength(1);
+
+    // Leaving the tunnel fades the layer out; the roll keeps sounding.
+    e.consume(frame(16, { rolls: [roll(0, { speed: 1.2 }), roll(1)] }));
+    expect(layer?.stopped).toBe(true);
+    expect(e.stats()).toMatchObject({ tunnelLayers: 0, rollVoices: 2 });
+
+    // Back in, then a run restart stops the new layer with its roll voice.
+    e.consume(frame(20, { rolls: [roll(0, { tunnel: true })] }));
+    const again = tunnelSources().at(-1);
+    expect(again).not.toBe(layer);
+    e.consume(frame(0));
+    expect(again?.stopped).toBe(true);
+    expect(e.stats()).toMatchObject({ tunnelLayers: 0, rollVoices: 0 });
   });
 
   it("silences an airborne marble without losing its slot, then a run restart clears every roll", () => {

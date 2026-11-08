@@ -1,0 +1,176 @@
+{
+  "provider": "parble tunnel DSP (scripts/audio/tunnel.py)",
+  "group": "F (tunnel_rumble lowered and muffled after Paul's 2026-11-08 listen: the pitch was too high; it should sound like a marble rolling through an enclosed wooden tunnel)",
+  "cue_sheet": "docs/audio/cue-sheet.md",
+  "total_requests": 0,
+  "billed_generations": 0,
+  "credits_used": "0 (no generation)",
+  "derived_count": 3,
+  "processing": "Derived rows (stem suffix m): scripts/audio/tunnel.py derive --loop, recipe in each row's processing field: varispeed -4 semitones, 24 dB/oct low-pass at 1 kHz, +3 dB low shelf at 180 Hz, +2.5 dB peak at 260 Hz. The parent takes in provenance-group-a.json are unchanged.",
+  "qc": "Every derived file decodes fully with ffmpeg. No listening audition was done; creative review is pending Paul's re-listen on the audition board.",
+  "rights_note": "Derived rows inherit their parent take's rights (provenance-group-a.json).",
+  "approval": {
+    "technical": "pending",
+    "creative": "pending",
+    "rights": "unresolved",
+    "owner": "pending"
+  },
+  "files": [
+    {
+      "cue_id": "tunnel_rumble",
+      "family": "drop_tunnel",
+      "file": "assets-source/audio/sfx/drop_tunnel/tunnel_rumble_v01m.flac",
+      "sha256": "e8949d4f2e08df40c0b1f99a7f9ab226a0b47a20e7769fd30516630f2e8aae52",
+      "bytes": 241762,
+      "route": "derived",
+      "loop": true,
+      "provider": "parble tunnel DSP (scripts/audio/tunnel.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/drop_tunnel/tunnel_rumble_v01.mp3",
+        "sha256": "933d4e6bbd0ebe5c5a5d75b38cbe1ec6676d5ca9f403b6bc975f55d763165765"
+      },
+      "processing": {
+        "samples": 362857,
+        "recipe": "tunnel",
+        "recipe_version": 1,
+        "script": "scripts/audio/tunnel.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "varispeed": {
+          "semitones": -4.0,
+          "interpolation": "Catmull-Rom, wrapped on loops"
+        },
+        "low_pass": {
+          "hz": 1000.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 2,
+          "slope_db_per_octave": 24
+        },
+        "low_shelf": {
+          "hz": 180.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "peak": {
+          "hz": 260.0,
+          "gain_db": 2.5,
+          "q": 1.2,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/tunnel.py derive assets-source/audio/sfx/drop_tunnel/tunnel_rumble_v01.mp3 assets-source/audio/sfx/drop_tunnel/tunnel_rumble_v01m.flac --loop",
+      "prompt": "tunnel DSP of tunnel_rumble_v01 (no generation)"
+    },
+    {
+      "cue_id": "tunnel_rumble",
+      "family": "drop_tunnel",
+      "file": "assets-source/audio/sfx/drop_tunnel/tunnel_rumble_v02m.flac",
+      "sha256": "71f701de1176f25161123a8271b3c8d015bcd54686d9d8e28abd6c94a1e1441e",
+      "bytes": 279433,
+      "route": "derived",
+      "loop": true,
+      "provider": "parble tunnel DSP (scripts/audio/tunnel.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/drop_tunnel/tunnel_rumble_v02.mp3",
+        "sha256": "aeb8ac1bff2a56d39766a34298ab99a8a12f125c6481d6dc22a1f3e3216609d8"
+      },
+      "processing": {
+        "samples": 362857,
+        "recipe": "tunnel",
+        "recipe_version": 1,
+        "script": "scripts/audio/tunnel.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "varispeed": {
+          "semitones": -4.0,
+          "interpolation": "Catmull-Rom, wrapped on loops"
+        },
+        "low_pass": {
+          "hz": 1000.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 2,
+          "slope_db_per_octave": 24
+        },
+        "low_shelf": {
+          "hz": 180.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "peak": {
+          "hz": 260.0,
+          "gain_db": 2.5,
+          "q": 1.2,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/tunnel.py derive assets-source/audio/sfx/drop_tunnel/tunnel_rumble_v02.mp3 assets-source/audio/sfx/drop_tunnel/tunnel_rumble_v02m.flac --loop",
+      "prompt": "tunnel DSP of tunnel_rumble_v02 (no generation)"
+    },
+    {
+      "cue_id": "tunnel_rumble",
+      "family": "drop_tunnel",
+      "file": "assets-source/audio/sfx/drop_tunnel/tunnel_rumble_v03m.flac",
+      "sha256": "7484f44c840d776ce1656d2616c7c379575fbf2fc5ccc7f4d1d43f28f5fa2a62",
+      "bytes": 212626,
+      "route": "derived",
+      "loop": true,
+      "provider": "parble tunnel DSP (scripts/audio/tunnel.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/drop_tunnel/tunnel_rumble_v03.mp3",
+        "sha256": "8645bf724446cdcc5af2d5cbe2004b27dd52331600bbff8afa7699aa9bec29e9"
+      },
+      "processing": {
+        "samples": 362857,
+        "recipe": "tunnel",
+        "recipe_version": 1,
+        "script": "scripts/audio/tunnel.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "varispeed": {
+          "semitones": -4.0,
+          "interpolation": "Catmull-Rom, wrapped on loops"
+        },
+        "low_pass": {
+          "hz": 1000.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 2,
+          "slope_db_per_octave": 24
+        },
+        "low_shelf": {
+          "hz": 180.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "peak": {
+          "hz": 260.0,
+          "gain_db": 2.5,
+          "q": 1.2,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/tunnel.py derive assets-source/audio/sfx/drop_tunnel/tunnel_rumble_v03.mp3 assets-source/audio/sfx/drop_tunnel/tunnel_rumble_v03m.flac --loop",
+      "prompt": "tunnel DSP of tunnel_rumble_v03 (no generation)"
+    }
+  ]
+}
