@@ -18,7 +18,7 @@ use bevy::{
     post_process::dof::DepthOfField,
     prelude::*,
     transform::TransformSystems,
-    window::PrimaryWindow,
+    window::{CursorGrabMode, CursorOptions, PrimaryWindow},
 };
 use parble_sim::{MarbleState, scene};
 use serde::Serialize;
@@ -493,21 +493,34 @@ fn toggle_mode(keys: Option<Res<ButtonInput<KeyCode>>>, mut mode: ResMut<CameraM
     }
 }
 
-/// `F` enters fly from the current view; `F` or `Esc` returns to the mode it replaced.
+/// `F` enters fly from the current view and locks the cursor; `F` or `Esc` returns to the mode it
+/// replaced and releases it.
 fn fly_toggle(
     keys: Option<Res<ButtonInput<KeyCode>>>,
     mut mode: ResMut<CameraMode>,
     mut st: ResMut<DirectorState>,
     cams: Query<&Transform, With<MainCamera>>,
+    mut cursors: Query<&mut CursorOptions, With<PrimaryWindow>>,
 ) {
     let Some(keys) = keys else {
         return;
+    };
+    let mut lock = |locked: bool| {
+        if let Ok(mut c) = cursors.single_mut() {
+            c.grab_mode = if locked {
+                CursorGrabMode::Locked
+            } else {
+                CursorGrabMode::None
+            };
+            c.visible = !locked;
+        }
     };
     if *mode == CameraMode::Fly {
         if keys.any_just_pressed([KeyCode::KeyF, KeyCode::Escape]) {
             *mode = st.fly.back;
             // Re-enter the director's current cue as a cut.
             st.cue = None;
+            lock(false);
         }
     } else if keys.just_pressed(KeyCode::KeyF)
         && let Ok(tf) = cams.single()
@@ -518,6 +531,7 @@ fn fly_toggle(
             ..Fly::from_view(tf.translation, tf.forward().as_vec3(), *mode)
         };
         *mode = CameraMode::Fly;
+        lock(true);
     }
 }
 
@@ -530,7 +544,8 @@ fn fly_input(
     keys: Option<Res<ButtonInput<KeyCode>>>,
     buttons: Option<Res<ButtonInput<MouseButton>>>,
     scroll: Option<Res<AccumulatedMouseScroll>>,
-    windows: Query<&Window, With<PrimaryWindow>>,
+    motion: Option<Res<AccumulatedMouseMotion>>,
+    windows: Query<(&Window, &CursorOptions), With<PrimaryWindow>>,
     mut last_cursor: Local<Option<Vec2>>,
     mut st: ResMut<DirectorState>,
 ) {
@@ -554,9 +569,20 @@ fn fly_input(
         );
         st.fly.step(axes, dt);
     }
-    // Cursor deltas rather than raw mouse motion: the browser reports them without pointer lock.
-    let cursor = windows.single().ok().and_then(Window::cursor_position);
-    let dragging = buttons.is_some_and(|b| b.any_pressed([MouseButton::Left, MouseButton::Right]));
+    let locked = windows
+        .single()
+        .is_ok_and(|(_, c)| c.grab_mode == CursorGrabMode::Locked);
+    if locked
+        && let Some(m) = motion
+        && m.delta != Vec2::ZERO
+    {
+        // Pointer lock: the mouse looks without a drag, from raw motion (the cursor stays put).
+        st.fly.look(m.delta);
+    }
+    // Without the lock, cursor deltas while dragging: the browser reports them without pointer lock.
+    let cursor = windows.single().ok().and_then(|(w, _)| w.cursor_position());
+    let dragging =
+        !locked && buttons.is_some_and(|b| b.any_pressed([MouseButton::Left, MouseButton::Right]));
     if let (true, Some(now), Some(before)) = (dragging, cursor, *last_cursor) {
         st.fly.look(now - before);
     }

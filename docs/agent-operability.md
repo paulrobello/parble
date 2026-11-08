@@ -18,7 +18,7 @@ parble can be launched, observed and stopped from a script, on native and on the
 | `--seed <u64>` | `seed=<u64>` | `0` | Recorded and reported. No P0 scenario uses it yet. Procedural tracks consume it from P3. |
 | `--quality <tier>` | `quality=<tier>` | `medium` | `low`, `medium`, `high` or `ultra`. Per-tier AA (MSAA or TAA), SSAO, bloom, DoF and shadows are in `docs/adr/0001-post-stack-and-tiers.md`. The glass marbles (cat's eye, swirl, onionskin, opal, glow) use fallback shaders on `low` and `medium` (the vane march takes 16 and 32 steps), and screen-space specular transmission on `high` and `ultra`. Shadow-casting lights are capped per tier: 0 on Low, 1 on Medium, 3 on High and Ultra. |
 | `--camera <c>` | `camera=<c>` | `director` | `director`: the follow-marble director with the scenario's cued cuts. `orbit`: the editor orbit camera (left drag, wheel). `overview`: the fixed P0 top-down view. `C` toggles director and orbit. `F` enters the free-fly camera in every scenario ([Camera controls](#camera-controls)). |
-| `--taa <0\|1>`, `--dof <0\|1>`, `--bloom <0\|1>`, `--aperture <f>`, `--tonemap <name>` | same keys | tier | Look-dev and test overrides of the tier's post stack. `bloom` (P5-T1) exists for the glow marble's bloom check. `tonemap`: `tony`, `agx`, `aces`, `filmic`, `sbdt`, `reinhard`. |
+| `--taa <0\|1>`, `--dof <0\|1>`, `--bloom <0\|1>`, `--aperture <f>`, `--tonemap <name>` | same keys | tier | Look-dev and test overrides of the tier's post stack. The piece showcases (`kit2000`, `mechanisms`, `allpieces`) default to `dof=0` so every piece is sharp; `dof=1` turns it back on. `bloom` (P5-T1) exists for the glow marble's bloom check. `tonemap`: `tony`, `agx`, `aces`, `filmic`, `sbdt`, `reinhard`. |
 | `--lockstep-after <s>` | `lockstep-after=<s>` | off | Hold the sim at tick 0 for `<s>` real seconds, then advance exactly 4 ticks (1/60 s) per frame, so a frame shows the same state on every run. The run hash is unchanged. |
 | `--screenshot-tick <n>` | `screenshot-tick=<n>` | off | Capture on the first frame at or past sim tick `<n>` instead of by time, then exit as soon as the PNG is written. Native captures with `--screenshot` use a 1280x720 window at scale factor 1. |
 | `--dump-state` | `dump-state` (or `=1`) | off | At auto-exit, print the state JSON. Natively it goes to stdout as one line. On the web it is logged to the console as `parble state: {...}`. |
@@ -112,11 +112,11 @@ Every scenario, `kit2000` and `lineup` included, has a free-fly camera (`Fly` in
 
 | Input | Effect |
 |---|---|
-| `F` | Enter fly from the current view. In fly, `F` returns to the camera it replaced. |
-| `Esc` | Leave fly, back to the director (or orbit). The director cuts straight back to its current cue. |
+| `F` | Enter fly from the current view and lock and hide the cursor (pointer lock on the web). In fly, `F` returns to the camera it replaced and releases the cursor. |
+| `Esc` | Leave fly, back to the director (or orbit), and release the cursor. The director cuts straight back to its current cue. On the web the browser also releases pointer lock on `Esc`. |
 | `W` `A` `S` `D` | Forward, left, back, right along the view. |
 | `E` or `Space`, `Q` or `Shift` | Up, down (world Y). |
-| Left or right drag | Look (yaw and pitch). It uses cursor movement, so no pointer lock is needed. |
+| Mouse | Look (yaw and pitch) from raw mouse motion while the cursor is locked. If the lock is refused, left or right drag looks instead, from cursor movement. |
 | Wheel | Fly speed, ×1.25 per line, 0.02 to 5 m/s (starts at 0.3 m/s). |
 | `C` | Director and orbit toggle (ignored while flying). |
 

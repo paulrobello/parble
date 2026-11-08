@@ -410,6 +410,15 @@ impl AgentOpts {
                 _ => {}
             }
         }
+        if o.post.dof.is_none()
+            && matches!(
+                o.scenario,
+                Scenario::Kit2000 | Scenario::Mechanisms | Scenario::AllPieces
+            )
+        {
+            // Owner direction 2026-11-08: the piece showcases are judged sharp, with no depth of field.
+            o.post.dof = Some(false);
+        }
         Ok(o)
     }
 
@@ -984,6 +993,23 @@ mod tests {
         assert_eq!(looks.len(), sim.marbles().len());
         let kinds: Vec<_> = sim.mechanisms().iter().map(|m| m.kind).collect();
         assert_eq!(kinds, ["toggle", "gate_oneway"]);
+    }
+
+    #[test]
+    fn showcases_default_to_no_depth_of_field() {
+        for s in ["kit2000", "mechanisms", "allpieces"] {
+            assert_eq!(
+                args(&format!("--scenario {s}")).unwrap().post.dof,
+                Some(false),
+                "{s}"
+            );
+            assert_eq!(
+                args(&format!("--scenario {s} --dof 1")).unwrap().post.dof,
+                Some(true),
+                "{s}"
+            );
+        }
+        assert_eq!(args("--scenario playroom").unwrap().post.dof, None);
     }
 
     #[test]
