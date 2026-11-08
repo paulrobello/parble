@@ -52,6 +52,26 @@ fn trace(sim: &mut Sim, ticks: u32) -> Vec<MarbleState> {
 
 /// A run over `layout` through the real API: chunk merge, simplification and the seam hook.
 fn roll_track(layout: &[Placement], at: Vector, dir: Vector, ticks: u32) -> Vec<MarbleState> {
+    roll_track_with(layout, at, dir, ticks, false)
+}
+
+/// [`roll_track`], optionally keeping the bounce at each slope contact hand-over
+/// (`ChunkColliders::slope_hand_over_bounces`).
+fn roll_track_with(
+    layout: &[Placement],
+    at: Vector,
+    dir: Vector,
+    ticks: u32,
+    hand_over_bounces: bool,
+) -> Vec<MarbleState> {
+    let mut sim = track_sim(layout);
+    sim.pieces.slope_hand_over_bounces = hand_over_bounces;
+    launch(&mut sim, at, dir);
+    trace(&mut sim, ticks)
+}
+
+/// A sim holding `layout`'s chunk colliders and no marble.
+fn track_sim(layout: &[Placement]) -> Sim {
     let kit = parble_kit::builtin();
     let mut sim = Sim::empty();
     for p in layout {
@@ -59,8 +79,7 @@ fn roll_track(layout: &[Placement], at: Vector, dir: Vector, ticks: u32) -> Vec<
     }
     sim.rebuild_chunks(kit).unwrap();
     assert!(!sim.world.integration_parameters.contact_clustering);
-    launch(&mut sim, at, dir);
-    trace(&mut sim, ticks)
+    sim
 }
 
 /// A run over hand-built colliders, with the same solver settings as [`roll_track`].
@@ -199,6 +218,9 @@ fn at(m: &MarbleState, lo: [f32; 2], hi: [f32; 2]) -> bool {
     (lo[0]..hi[0]).contains(&m.position[0]) && (lo[1]..hi[1]).contains(&m.position[2])
 }
 
+/// The slope entry of [`curve_layout`], 15 mm either side of the seam at x = 390 mm.
+const CURVE_SLOPE_ENTRY: [[f32; 2]; 2] = [[0.375, 0.21], [0.405, 0.27]];
+
 /// Curve joins and interiors as `(name, plan min, plan max)` in metres, 15 mm either side of a
 /// seam. Curve (4, 0, 0) arcs from (210, 0) to (240, 30) mm; the mirrored curve (4, 0, 4) from
 /// (240, 210) to (270, 240) mm.
@@ -249,18 +271,26 @@ fn curve_and_slope_joins() {
     }
 
     // The marble leaves the mirrored curve still swinging (about 1 mm up either wall, ±47 mm/s,
-    // measured 2026-11-07), so the slope entry here peaks at 51.31 mm/s upward from the swing
-    // alone. Before the bend fix the facet chatter damped the swing and slowed the marble to
-    // about 0.19 m/s, which is why this entry used to pass 15.15 mm/s. Its kick, 25.15 with the
-    // exact slope contact, is the swinging marble's hand-over from the straight's
-    // facets to that contact and sits on the curve limit (24.26), so it is logged, not gated; the
-    // centred run in `straight_to_slope_join` gates the slope entry.
-    let entry = [[0.375, 0.21], [0.405, 0.27]];
+    // measured 2026-11-07), so the slope entry here peaks at 46.38 mm/s upward from the swing
+    // alone: that is logged, not gated (before the bend fix the facet chatter damped the swing and
+    // slowed the marble to about 0.19 m/s, which is why this entry used to pass 15.15 mm/s). Its
+    // kick is gated: 5.49 mm/s, measured 2026-11-07, against 34.25 without the contact hooks
+    // (`curves_without_the_fix_kick`). With the hand-over bounce kept it kicks 25.15, only 0.89
+    // over the limit, too thin a margin for a control.
+    let entry = CURVE_SLOPE_ENTRY;
+    assert!(
+        tr.iter().any(|m| at(m, entry[0], entry[1])),
+        "slope entry after the curves never crossed"
+    );
+    let k = kick(&tr, |m| at(m, entry[0], entry[1]));
     eprintln!(
         "straight to slope after the curves: peak upward {:.2} mm/s (ungated, p_base {p_base:.2}), \
-         kick {:.2} (limit {limit:.2})",
+         kick {k:.2} (limit {limit:.2})",
         upward(&tr, |m| at(m, entry[0], entry[1])),
-        kick(&tr, |m| at(m, entry[0], entry[1]))
+    );
+    assert!(
+        k <= limit,
+        "slope entry after the curves: kick {k:.2} mm/s over {limit:.2}"
     );
 }
 
@@ -298,12 +328,12 @@ fn slope_limits() -> (f32, f32) {
 #[test]
 fn straight_to_slope_join() {
     // A centred marble at 0.3 m/s, gated on both peak upward speed (limit 13.15 + 2 = 15.15) and
-    // kick (19.26 + 5 = 24.26). Measured 2026-11-07 with the exact slope contact
-    // ([`ChannelSlope`]): upward 7.31, kick 18.01; the kick is the hand-over from the straight's
-    // facets to the exact contact a ball diameter before the seam, not the seam. Without the
-    // contact the entry peaks at 32.32 upward with kick 43.62 (`slope_without_the_fix_bumps`).
-    // The slope interior (405..445 mm) is logged, not gated: kick 48.55, from the concave lower
-    // half (425..445 mm; 0.16 and 8.56 over 405..425), against 134.06 without the contact.
+    // kick (19.26 + 5 = 24.26) at the entry, and on kick inside the slope (405..445 mm). Measured
+    // 2026-11-07 with the exact slope contact ([`ChannelSlope`]): entry upward 0.00, kick 8.66;
+    // interior kick 4.28. With the contact but the bounce at each triangle hand-over kept, the
+    // entry kicks 18.01 and the interior 48.55, all from the concave lower half
+    // (`slope_hand_overs_without_the_fix_bounce`). Without the contact the entry peaks at 32.32
+    // upward with kick 43.62 and the interior kicks 134.06 (`slope_without_the_fix_bumps`).
     //
     // [`ChannelSlope`]: crate::chunk::ChannelSlope
     let (layout, entry) = slope_layout();
@@ -314,12 +344,11 @@ fn straight_to_slope_join() {
         "marble must leave the slope exit"
     );
     assert!(tr.iter().any(&entry), "slope entry never crossed");
-    let (p, k) = (upward(&tr, &entry), kick(&tr, &entry));
+    let (p, k, k_in) = (upward(&tr, &entry), kick(&tr, &entry), kick(&tr, in_slope));
     let (p_limit, k_limit) = slope_limits();
     eprintln!(
         "straight to slope: peak upward {p:.2} mm/s (limit {p_limit:.2}), kick {k:.2} \
-         (limit {k_limit:.2}), slope interior kick {:.2} (ungated)",
-        kick(&tr, |m| (0.405..0.445).contains(&m.position[0])),
+         (limit {k_limit:.2}), slope interior kick {k_in:.2} (limit {k_limit:.2})",
     );
     assert!(
         p <= p_limit,
@@ -328,6 +357,65 @@ fn straight_to_slope_join() {
     assert!(
         k <= k_limit,
         "slope entry: kick {k:.2} mm/s over {k_limit:.2}"
+    );
+    assert!(
+        k_in <= k_limit,
+        "slope interior: kick {k_in:.2} mm/s over {k_limit:.2}"
+    );
+}
+
+/// The slope interior: cell x = 7 past the entry window, short of the exit seam.
+fn in_slope(m: &MarbleState) -> bool {
+    (0.405..0.445).contains(&m.position[0])
+}
+
+#[test]
+fn slope_hand_overs_without_the_fix_bounce() {
+    // Negative control: the exact slope contact with the marble's restitution kept on it. The
+    // contact moves to a fresh manifold, which Rapier treats as a new contact, each time the ball
+    // crosses a triangle edge; in the concave lower half the ball approaches it along the normal
+    // and bounces, so the interior exceeds the kick limit.
+    let (layout, _) = slope_layout();
+    let start = Vector::new(-0.02, REST_Y, 0.0);
+    let control = roll_track_with(&layout, start, Vector::X, RUN_TICKS, true);
+    let k_in = kick(&control, in_slope);
+    let (_, k_limit) = slope_limits();
+    eprintln!("slope interior with the hand-over bounce: kick {k_in:.2} mm/s (limit {k_limit:.2})");
+    assert!(
+        k_in > k_limit,
+        "control interior kick {k_in:.2} not over {k_limit:.2}"
+    );
+}
+
+#[test]
+fn a_marble_dropped_on_the_slope_still_bounces() {
+    // The hand-over fix drops restitution only on a contact the ball already penetrates: a ball
+    // falling onto the slope meets it first as a speculative contact and bounces as it would
+    // with the bounce kept.
+    let (layout, _) = slope_layout();
+    let drop = |keep: bool| {
+        let mut sim = track_sim(&layout);
+        sim.pieces.slope_hand_over_bounces = keep;
+        // 5 mm over the rest height at the middle of the slope (x = 420 mm).
+        let (body, collider) = CATS_EYE.build(Vector::new(0.42, 0.0455 + 0.005, 0.0));
+        let h = sim.world.bodies.insert(body);
+        sim.world
+            .colliders
+            .insert_with_parent(collider, h, &mut sim.world.bodies);
+        sim.marbles.push(h);
+        let tr = trace(&mut sim, 60);
+        upward(&tr, |_| true)
+    };
+    // Measured 2026-11-07: 116.47 mm/s both ways (impact at about 313 mm/s).
+    let (fixed, kept) = (drop(false), drop(true));
+    eprintln!("drop on the slope: peak upward {fixed:.2} mm/s, {kept:.2} with the bounce kept");
+    assert!(
+        fixed > 100.0,
+        "dropped marble did not bounce: {fixed:.2} mm/s"
+    );
+    assert!(
+        (fixed - kept).abs() < 0.01,
+        "bounce {fixed:.2} mm/s differs from {kept:.2}"
     );
 }
 
@@ -360,8 +448,8 @@ fn slope_without_the_fix_bumps() {
 #[test]
 fn curves_without_the_fix_kick() {
     // Negative control: the same layout merged into one welded, simplified trimesh but without
-    // the bend contact hook kicks well over the limit at every curve join and interior, so the
-    // metric does detect the facet chatter.
+    // the bend and slope contact hooks kicks well over the limit at every curve join and
+    // interior and at the slope entry after them, so the metric does detect the facet chatter.
     let layout = curve_layout();
     let mut mesh = ChunkMesh::from_triangles(&triangles(&layout));
     mesh.simplify_flat();
@@ -379,4 +467,11 @@ fn curves_without_the_fix_kick() {
         eprintln!("{name} without the fix: kick {k:.2} mm/s, limit {limit:.2}");
         assert!(k > limit, "{name}: control kick {k:.2} not over {limit:.2}");
     }
+    let [lo, hi] = CURVE_SLOPE_ENTRY;
+    let k = kick(&control, |m| at(m, lo, hi));
+    eprintln!("straight to slope after the curves without the fix: kick {k:.2} mm/s");
+    assert!(
+        k > limit,
+        "slope entry: control kick {k:.2} not over {limit:.2}"
+    );
 }

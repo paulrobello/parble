@@ -779,6 +779,10 @@ pub struct ChunkColliders {
     /// [`PhysicsHooks::filter_contact_pair`], which the narrow phase calls before it builds and
     /// modifies the pair's manifolds, one pair at a time.
     slope_contact_claimed: std::sync::Mutex<bool>,
+    /// Test switch: keep the marble's restitution on a rolling ball's exact slope contact (the
+    /// bounce at every triangle hand-over that the hook removes), for the seam test's control.
+    #[cfg(test)]
+    pub(crate) slope_hand_over_bounces: bool,
     dirty: BTreeSet<CellCoord>,
 }
 
@@ -1083,8 +1087,7 @@ impl PhysicsHooks for ChunkColliders {
                 // the normal: the solver holds a contact's normal for the whole step, and on a
                 // curved floor a start-of-step contact lags the surface, so the ball sinks and
                 // chatters on alternate ticks (measured 2026-11-07: kick 29.19 at the entry and
-                // 29.06 inside the slope). With this the entry kicks 18.01 and the upper half of
-                // the slope is smooth, but the concave lower half kicks 48.55 (an open follow-up).
+                // 29.06 inside the slope).
                 let v = bodies[ball_body].linvel();
                 slopes[k]
                     .contact(centre + v * crate::DT, ball.radius)
@@ -1113,6 +1116,23 @@ impl PhysicsHooks for ChunkColliders {
             } else {
                 *claimed = true;
                 set_one_contact(rigid, first, centre, ball.radius, n, gap);
+                // No bounce while the ball rolls on the surface. Rapier applies restitution to a
+                // contact whose manifold point holds no warm-start impulse, and the claim moves to
+                // a fresh manifold whenever the ball crosses a triangle edge. In the concave lower
+                // half the floor turns into the motion, so the ball approaches the new contact
+                // at 11–64 mm/s along its normal and bounced off it at 0.66 of that: kicks 15–73
+                // mm/s on exactly the hand-over ticks, 48.55 over 405–445 mm (measured
+                // 2026-11-07; in the convex upper half the approach is +2–6 mm/s, separating, and
+                // the hand-overs did nothing). A rolling ball's contact is penetrating (−35 to
+                // −200 µm here), while a ball dropped onto the slope first meets it as a
+                // speculative contact with a positive gap and still bounces.
+                #[cfg(test)]
+                let keep = self.slope_hand_over_bounces;
+                #[cfg(not(test))]
+                let keep = false;
+                if gap <= 0.0 && !keep {
+                    *rigid.restitution = 0.0;
+                }
             }
             return;
         }
