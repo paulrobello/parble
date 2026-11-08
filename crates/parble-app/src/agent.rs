@@ -13,6 +13,7 @@ use parble_render::{
     kit::{KitDiag, KitScene, TextureCap, family::TextureFamily, parts::PartDiag},
     marble::MarbleLook,
     post::{PostOverrides, parse_tonemapping},
+    sensors::{SensorFrame, SensorOverlay},
 };
 use parble_sim::{
     Sim,
@@ -262,6 +263,8 @@ pub struct AgentOpts {
     /// Editor only (`--editor-fill <n>`): start with an `n`-piece cell grid behind the tray, laid as
     /// one undoable paste (the 2,000-piece edit perf track).
     pub editor_fill: Option<u32>,
+    /// Start with the mechanism sensor overlay on (`--sensors`, `?sensors=1`); `G` toggles it.
+    pub sensors: bool,
 }
 
 impl Default for AgentOpts {
@@ -283,6 +286,7 @@ impl Default for AgentOpts {
             view: None,
             tex: None,
             editor_fill: None,
+            sensors: false,
         }
     }
 }
@@ -378,6 +382,7 @@ impl AgentOpts {
                     })?;
                 }
                 "dump-state" => o.dump_state = parse_bool(&key, value.as_deref())?,
+                "sensors" => o.sensors = parse_bool(&key, value.as_deref())?,
                 "view" => {
                     let v = need(value)?;
                     o.view = Some(
@@ -433,7 +438,7 @@ impl AgentOpts {
             };
             if let Some((k, v)) = flag.split_once('=') {
                 pairs.push((k.to_owned(), Some(v.to_owned())));
-            } else if flag == "dump-state" {
+            } else if flag == "dump-state" || flag == "sensors" {
                 pairs.push((flag.to_owned(), None));
             } else {
                 pairs.push((flag.to_owned(), args.next()));
@@ -536,7 +541,16 @@ struct DiagState<'a> {
     shot_camera: Option<&'a CameraDiag>,
     #[serde(skip_serializing_if = "Option::is_none")]
     shot_parts: Option<&'a Vec<PartDiag>>,
+    /// The mechanism sensor overlay: whether it is drawn, and the sensors and occupied sensors.
+    sensors: SensorsDiag,
     exited: bool,
+}
+
+#[derive(Serialize, Default)]
+struct SensorsDiag {
+    on: bool,
+    volumes: usize,
+    occupied: usize,
 }
 
 fn diag<'a>(
@@ -597,7 +611,16 @@ fn diag<'a>(
         camera,
         shot_camera: rt.shot_camera.as_ref(),
         shot_parts: rt.shot_parts.as_ref(),
+        sensors: SensorsDiag::default(),
         exited: rt.exiting,
+    }
+}
+
+fn sensors_diag(overlay: &SensorOverlay, frame: &SensorFrame) -> SensorsDiag {
+    SensorsDiag {
+        on: overlay.0,
+        volumes: frame.0.len(),
+        occupied: frame.0.iter().filter(|s| s.occupied).count(),
     }
 }
 
@@ -805,6 +828,8 @@ fn auto_exit(
     shadows: Res<ShadowLights>,
     kit: Res<KitDiag>,
     editor: Res<EditorDiag>,
+    sensor_overlay: Res<SensorOverlay>,
+    sensor_frame: Res<SensorFrame>,
     mut rt: ResMut<AgentRuntime>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -839,9 +864,9 @@ fn auto_exit(
     };
     rt.exiting = true;
     if opts.dump_state {
-        let json =
-            serde_json::to_string(&diag(&clock, &rt, &opts, &camera, &shadows, &kit, &editor))
-                .unwrap_or_default();
+        let mut state = diag(&clock, &rt, &opts, &camera, &shadows, &kit, &editor);
+        state.sensors = sensors_diag(&sensor_overlay, &sensor_frame);
+        let json = serde_json::to_string(&state).unwrap_or_default();
         #[cfg(not(target_arch = "wasm32"))]
         println!("{json}");
         #[cfg(target_arch = "wasm32")]
@@ -851,6 +876,7 @@ fn auto_exit(
 }
 
 #[cfg(target_arch = "wasm32")]
+#[allow(clippy::too_many_arguments)]
 fn publish(
     clock: Res<SimClock>,
     rt: Res<AgentRuntime>,
@@ -859,11 +885,13 @@ fn publish(
     shadows: Res<ShadowLights>,
     kit: Res<KitDiag>,
     editor: Res<EditorDiag>,
+    sensor_overlay: Res<SensorOverlay>,
+    sensor_frame: Res<SensorFrame>,
 ) {
     use js_sys::{JSON, JsString, Reflect};
-    let Ok(json) =
-        serde_json::to_string(&diag(&clock, &rt, &opts, &camera, &shadows, &kit, &editor))
-    else {
+    let mut state = diag(&clock, &rt, &opts, &camera, &shadows, &kit, &editor);
+    state.sensors = sensors_diag(&sensor_overlay, &sensor_frame);
+    let Ok(json) = serde_json::to_string(&state) else {
         return;
     };
     if let Ok(v) = JSON::parse(&json) {
@@ -891,7 +919,7 @@ mod tests {
     fn every_flag_parses_in_both_spellings() {
         let o = args(
             "--screenshot out/a.png --screenshot-after=1.5 --exit-after 4 --scenario ramp \
-             --seed=42 --quality low --marble steel --dump-state",
+             --seed=42 --quality low --marble steel --dump-state --sensors",
         )
         .unwrap();
         assert_eq!(o.screenshot.as_deref(), Some("out/a.png"));
@@ -902,6 +930,9 @@ mod tests {
         assert_eq!(o.quality, Quality::Low);
         assert_eq!(o.marble, Some(MarbleKind::Steel));
         assert!(o.dump_state);
+        assert!(o.sensors);
+        assert!(!args("--sensors=0").unwrap().sensors);
+        assert!(args("--sensors=1 --scenario mechanisms").unwrap().sensors);
     }
 
     #[test]
@@ -1098,7 +1129,7 @@ mod tests {
     #[test]
     fn query_matches_argv_and_ignores_unknown_keys() {
         let q = AgentOpts::from_query(
-            "?screenshot=a%2Fb.png&exit-after=4&seed=7&quality=high&marble=cats-eye&dump-state&utm=x",
+            "?screenshot=a%2Fb.png&exit-after=4&seed=7&quality=high&marble=cats-eye&dump-state&sensors=1&utm=x",
             |s| s.replace("%2F", "/"),
         )
         .unwrap();
@@ -1108,6 +1139,7 @@ mod tests {
         assert_eq!(q.quality, Quality::High);
         assert_eq!(q.marble, Some(MarbleKind::CatsEye));
         assert!(q.dump_state);
+        assert!(q.sensors);
         assert!(
             !AgentOpts::from_query("?dump-state=0", str::to_owned)
                 .unwrap()

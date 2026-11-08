@@ -830,6 +830,25 @@ pub struct MechanismView {
     pub part_angles: Vec<i32>,
 }
 
+/// A sensor volume in world metres, for the debug overlay. Boxes are axis-aligned: placement has
+/// already applied the anchor, yaw and mirror.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SensorVolume {
+    Box { center: [f32; 3], half: [f32; 3] },
+    Sphere { center: [f32; 3], radius: f32 },
+}
+
+/// One sensor of one instance at the current tick.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SensorView {
+    pub id: InstanceId,
+    /// Sensor index in the piece's sidecar order.
+    pub index: usize,
+    pub volume: SensorVolume,
+    /// Marbles inside at the last tick.
+    pub occupants: usize,
+}
+
 impl Sim {
     /// Add a mechanism instance for `placement` of `piece`: its sensors, a kinematic body per
     /// animated part (at the part's rest angle) and `behaviour`. `seed` roots its RNG streams
@@ -881,6 +900,35 @@ impl Sim {
                 kind: inst.behaviour.kind(),
                 state: inst.save(self.tick),
                 part_angles: inst.parts.iter().map(|p| p.angle_at(self.tick)).collect(),
+            })
+            .collect()
+    }
+
+    /// Every sensor of every instance, in [`InstanceId`] then sidecar order. Read-only.
+    pub fn sensors(&self) -> Vec<SensorView> {
+        let a = |v: Vector| [v.x, v.y, v.z];
+        self.mechanisms
+            .instances
+            .iter()
+            .flat_map(|(&id, inst)| {
+                inst.sensors
+                    .iter()
+                    .enumerate()
+                    .map(move |(index, s)| SensorView {
+                        id,
+                        index,
+                        volume: match s.shape {
+                            PlacedShape::Box { center, half } => SensorVolume::Box {
+                                center: a(center),
+                                half: a(half),
+                            },
+                            PlacedShape::Sphere { center, radius } => SensorVolume::Sphere {
+                                center: a(center),
+                                radius,
+                            },
+                        },
+                        occupants: s.status.occupants.len(),
+                    })
             })
             .collect()
     }

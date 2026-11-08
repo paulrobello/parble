@@ -18,11 +18,13 @@ use parble_render::{
     camera::{self, DirectorClock, DirectorPlugin, MainCamera},
     kit::parts::PartFrame,
     marble::MarbleLook,
+    sensors::{SensorDraw, SensorFrame, SensorOverlayPlugin, SensorShape},
 };
 use parble_sim::{
     DT, Sim,
     golden::RAMP_10S_TICKS,
     marble::{MarbleKind, MarbleSize},
+    mechanism::SensorVolume,
     track_run::TrackRun,
 };
 use persist::{After, Tracks};
@@ -90,6 +92,7 @@ fn main() {
             mode: opts.camera.mode(),
             cues: opts.camera.cues(opts.scenario, opts.view),
         })
+        .add_plugins(SensorOverlayPlugin { on: opts.sensors })
         .add_plugins(editor::EditorPlugin {
             active: opts.scenario == Scenario::Editor,
             fill: opts.editor_fill,
@@ -106,7 +109,7 @@ fn main() {
             restarts: 0,
         })
         .add_systems(Startup, (spawn_camera, publish_initial, announce_bridge))
-        .add_systems(Update, (advance_sim, pump_bridge).chain())
+        .add_systems(Update, (advance_sim, pump_bridge, publish_sensors).chain())
         .add_systems(PostUpdate, pump_audio.after(TransformSystems::Propagate))
         .run();
     // The web build's `run` returns at once while the browser drives the loop.
@@ -232,6 +235,26 @@ fn advance_sim(
             time.delta_secs()
         },
     };
+}
+
+/// The sim's sensor volumes and occupancy for the debug overlay.
+fn publish_sensors(clock: Res<SimClock>, mut frame: ResMut<SensorFrame>) {
+    frame.0.clear();
+    frame
+        .0
+        .extend(clock.sim.sensors().into_iter().map(|s| SensorDraw {
+            shape: match s.volume {
+                SensorVolume::Box { center, half } => SensorShape::Box {
+                    center: Vec3::from_array(center),
+                    half: Vec3::from_array(half),
+                },
+                SensorVolume::Sphere { center, radius } => SensorShape::Sphere {
+                    center: Vec3::from_array(center),
+                    radius,
+                },
+            },
+            occupied: s.occupants > 0,
+        }));
 }
 
 fn announce_bridge() {

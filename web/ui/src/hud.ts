@@ -46,9 +46,9 @@ export function mountHud(doc: Document): HTMLElement {
   return el;
 }
 
-/** Camera controls (crates/parble-render/src/camera.rs); keys reach the game only while the canvas has focus. */
+/** Camera controls (crates/parble-render/src/camera.rs) and the sensor overlay (sensors.rs); keys reach the game only while the canvas has focus. */
 export const CONTROLS_HINT =
-  "click the scene, then F: fly camera  WASD move  Q/E down/up  drag look  wheel speed  F/Esc back";
+  "click the scene, then F: fly camera  WASD move  Q/E down/up  drag look  wheel speed  F/Esc back  G sensors";
 
 /** A fixed, non-interactive controls line in the bottom-left corner, apart from the readout. */
 export function mountControlsHint(doc: Document): HTMLElement {

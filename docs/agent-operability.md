@@ -22,9 +22,10 @@ parble can be launched, observed and stopped from a script, on native and on the
 | `--taa <0\|1>`, `--dof <0\|1>`, `--bloom <0\|1>`, `--aperture <f>`, `--tonemap <name>` | same keys | tier | Look-dev and test overrides of the tier's post stack. The piece showcases (`kit2000`, `mechanisms`, `allpieces`) default to `dof=0` so every piece is sharp; `dof=1` turns it back on. `bloom` (P5-T1) exists for the glow marble's bloom check. `tonemap`: `tony`, `agx`, `aces`, `filmic`, `sbdt`, `reinhard`. |
 | `--lockstep-after <s>` | `lockstep-after=<s>` | off | Hold the sim at tick 0 for `<s>` real seconds, then advance exactly 4 ticks (1/60 s) per frame, so a frame shows the same state on every run. The run hash is unchanged. |
 | `--screenshot-tick <n>` | `screenshot-tick=<n>` | off | Capture on the first frame at or past sim tick `<n>` instead of by time, then exit as soon as the PNG is written. Native captures with `--screenshot` use a 1280x720 window at scale factor 1. |
+| `--sensors` (or `--sensors=0\|1`) | `sensors=1` | off | Start with the mechanism sensor overlay on: every sensor volume of every mechanism instance (boxes and spheres from the sidecars, placed with the piece's anchor, yaw and mirror) drawn as a world-space wireframe over the scene, cyan while idle and magenta while a marble is inside. `G` toggles it in any scenario ([Camera controls](#camera-controls)). It is drawn with Bevy gizmos (`crates/parble-render/src/sensors.rs`) from the read-only `Sim::sensors`, so it cannot change a hash. |
 | `--dump-state` | `dump-state` (or `=1`) | off | At auto-exit, print the state JSON. Natively it goes to stdout as one line. On the web it is logged to the console as `parble state: {...}`. |
 
-Native flags accept both `--key value` and `--key=value`. An unknown flag or a bad value prints an error and exits with code 2. Unknown query keys are ignored on the web. A bad query value logs an error and the app falls back to the defaults.
+Native flags accept both `--key value` and `--key=value`. `--dump-state` and `--sensors` take no value; give one with `=`. An unknown flag or a bad value prints an error and exits with code 2. Unknown query keys are ignored on the web. A bad query value logs an error and the app falls back to the defaults.
 
 When `--screenshot` or `--exit-after` is set, the app redraws continuously even if its window never gets focus.
 
@@ -63,6 +64,7 @@ The web build replaces `window.__parble` every frame. `--dump-state` prints the 
   "screenshot": {
     "state": "none"
   },
+  "sensors": {"on": false, "volumes": 0, "occupied": 0},
   "exited": true
 }
 ```
@@ -83,6 +85,7 @@ The web build replaces `window.__parble` every frame. `--dump-state` prints the 
 - `screenshot`: `state` is one of `none`, `pending`, `capturing`, `done` (with `lit`, `colors` and `ok`), or `failed` (with `error`).
 - `camera`: the main camera this frame: `mode` (`director`, `orbit` or `fly`), `shot`, `cuts`, `eye`, `forward` (unit view direction), `flySpeed` (m/s), the marble's screen position over the last frames (`marblePx`, physical pixels, newest first), `marbleRadiusPx`, and `post`, which holds the post components the live camera carries (`msaa`, `taa`, `ssao`, `bloom`, `dof`, `aperture`, `focusM`, `tonemapping`).
 - `kit.parts` (P2-T6, only when a mechanism with animated parts is drawn): one entry per part, by anchor `cell`, `piece` and sidecar `part` index. `angleMdeg` is the angle drawn this frame, `prevMdeg` and `tickMdeg` the sim's angles at the previous and the current tick (`null` for an editor-placed piece, which has no behaviour and holds its sidecar rest angle), `alpha` the frame's interpolation factor (`angleMdeg` = `prevMdeg` + (`tickMdeg` − `prevMdeg`) × `alpha`, as for the marbles; 1 in lockstep), and `rotation` the LOD0 part's rotation in the piece frame.
+- `sensors`: the sensor overlay. `on` is whether it is drawn (`--sensors`, `G`), `volumes` the sensors of every mechanism instance and `occupied` how many hold a marble at the current tick.
 - `shotCamera`: the same object captured on the screenshot frame. `shotParts` is `kit.parts` on that frame.
 - `editor` (only with `--scenario editor`): see [Editor](#editor).
 - `camera.orbit`: the orbit camera's `target`, `yaw`, `pitch` and `radius`.
@@ -120,6 +123,7 @@ Every scenario, `kit2000` and `lineup` included, has a free-fly camera (`Fly` in
 | Mouse | Look (yaw and pitch) from raw mouse motion while the cursor is locked. If the lock is refused, left or right drag looks instead, from cursor movement. |
 | Wheel | Fly speed, ×1.25 per line, 0.02 to 5 m/s (starts at 0.3 m/s). |
 | `C` | Director and orbit toggle (ignored while flying). |
+| `G` | Mechanism sensor overlay on or off, in every camera mode (see `--sensors`). |
 
 The camera moves only on input and uses real time, so it keeps working while `--lockstep-after` holds the sim. With no input it never leaves the director, so `--screenshot`, `--exit-after`, `?screenshot=` and `window.__parble` runs frame exactly as before. Keys typed into the HUD (the Import, Export, Run and Save controls) stay there, because the browser only delivers keys to the canvas while it has focus. The HUD shows the controls in its bottom-left line. `make web-e2e` drives the fly camera with the keyboard and mouse in GPU Chromium (`e2e/tests/flycam.spec.mjs`).
 
