@@ -407,6 +407,75 @@ fn one_way_hole_drops_from_the_trap_side_and_carries_from_the_other() {
     assert_eq!(state(&sim)["overs"], 1);
 }
 
+/// An over-side marble stopped on the shut door, between the sensors, for well past
+/// [`HEADING_FORGET_TICKS`] keeps its heading: rolled on into `trap`, it crosses the shut door
+/// and leaves by −X. Forgotten, it read as a fresh trap-side arrival and the door opened under it.
+#[test]
+fn one_way_hole_keeps_the_heading_of_a_marble_parked_on_the_door() {
+    let layout = [
+        place("blk_straight_l1", 0, 0, 0, 0),
+        place(HOLE, 1, 0, 0, 0),
+        place("blk_straight_l1", 2, 0, 0, 0),
+    ];
+    let mut sim = rig(&layout, 1);
+    launch(&mut sim, Vector::new(0.14, rest(1), 0.0), Vector::X * -0.3);
+    let (mut tr, mut ev) = (Vec::new(), Vec::new());
+    // Stop it on the door once it has left `over` and before it reaches `trap`.
+    let mut parked = false;
+    for _ in 0..600 {
+        run(&mut sim, 1, &mut tr, &mut ev);
+        let x = tr.last().unwrap()[0].position[0];
+        if !sensor_events(&ev, false, 1).is_empty() && (x - CELL).abs() < 0.004 {
+            parked = true;
+            break;
+        }
+    }
+    assert!(parked, "marble never reached the door");
+    let body = &mut sim.world.bodies[sim.marbles[0]];
+    body.set_linvel(Vector::ZERO, true);
+    body.set_angvel(Vector::ZERO, true);
+    run(&mut sim, 3 * HEADING_FORGET_TICKS as u32, &mut tr, &mut ev);
+    let p = tr.last().unwrap()[0].position;
+    assert!(
+        (p[0] - CELL).abs() < 0.008 && libm::fabsf(p[1] - rest(1)) < 0.002,
+        "marble did not stay on the door: {p:?}"
+    );
+    let body = &mut sim.world.bodies[sim.marbles[0]];
+    body.set_linvel(Vector::X * -0.3, true);
+    body.set_angvel(
+        Vector::Y.cross(-Vector::X) * (0.3 / CATS_EYE.radius_m),
+        true,
+    );
+    run(&mut sim, 480, &mut tr, &mut ev);
+
+    let left_over = sensor_events(&ev, false, 1)[0].0;
+    let reached_trap = sensor_events(&ev, true, 0).first().map(|e| e.0);
+    let reached_trap = reached_trap.expect("parked marble never reached trap");
+    assert!(
+        reached_trap - left_over > HEADING_FORGET_TICKS as u64,
+        "parked only {} ticks",
+        reached_trap - left_over
+    );
+    assert!(
+        signals(&ev, "open").is_empty(),
+        "the trapdoor opened under it"
+    );
+    assert!(signals(&ev, "drop").is_empty());
+    assert_eq!(signals(&ev, "over").len(), 1);
+    let s = state(&sim);
+    assert_eq!((s["drops"], s["overs"], s["open"]), (0, 1, 0));
+    let out = first(&tr, 0, |s| s.position[0] < CELL / 2.0)
+        .unwrap_or_else(|| panic!("parked marble stuck at {:?}", tr.last().unwrap()[0]));
+    let lowest = tr[..out]
+        .iter()
+        .map(|s| s[0].position[1])
+        .fold(f32::MAX, f32::min);
+    assert!(
+        lowest > rest(1) - 0.002,
+        "parked marble dipped to y = {lowest}"
+    );
+}
+
 // ---------------------------------------------------------------------------------------------
 // Checkpoint and finish
 // ---------------------------------------------------------------------------------------------

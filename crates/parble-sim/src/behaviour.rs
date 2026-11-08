@@ -456,19 +456,22 @@ impl Mechanism for Toggle {
 }
 
 /// Which sensor of a two-sensor piece each marble touched first, kept until the marble has been
-/// in neither sensor for [`HEADING_FORGET_TICKS`].
+/// in neither sensor for [`HEADING_FORGET_TICKS`] (a behaviour can keep marbles longer, see
+/// [`Heading::update`]).
 #[derive(Debug, Clone, Default)]
 struct Heading {
     /// marble → (first sensor, last tick seen in either sensor)
     seen: BTreeMap<usize, (usize, i64)>,
 }
 
-/// A marble that has been out of both sensors this long is forgotten (it left the piece).
+/// A marble that has been out of both sensors this long is forgotten (it left the piece), unless
+/// the behaviour keeps it.
 pub const HEADING_FORGET_TICKS: i64 = 240;
 
 impl Heading {
-    /// Update from both sensors and return the marbles newly seen at each sensor.
-    fn update(&mut self, ctx: &MechContext<'_>) -> [Vec<usize>; 2] {
+    /// Update from both sensors and return the marbles newly seen at each sensor. A marble for
+    /// which `keep` holds is never forgotten, however long it has been out of both sensors.
+    fn update(&mut self, ctx: &MechContext<'_>, keep: impl Fn(usize) -> bool) -> [Vec<usize>; 2] {
         let t = ctx.tick() as i64;
         let mut new: [Vec<usize>; 2] = Default::default();
         for (si, fresh) in new.iter_mut().enumerate() {
@@ -483,7 +486,8 @@ impl Heading {
                 }
             }
         }
-        self.seen.retain(|_, e| t - e.1 < HEADING_FORGET_TICKS);
+        self.seen
+            .retain(|&m, e| t - e.1 < HEADING_FORGET_TICKS || keep(m));
         new
     }
 
@@ -565,7 +569,8 @@ fn one_way_step(
     names: [&'static str; 4],
 ) {
     let t = ctx.tick() as i64;
-    let fresh = heading.update(ctx);
+    // A marble resting on the piece between the sensors keeps its heading until it leaves.
+    let fresh = heading.update(ctx, |m| ctx.between_sensors(0, 1, m));
     for &m in &fresh[trigger] {
         *passes += 1;
         ctx.emit(names[0], m as i64);
@@ -597,7 +602,7 @@ impl Mechanism for OneWayGate {
     }
 
     fn step(&mut self, ctx: &mut MechContext<'_>) {
-        let fresh = self.heading.update(ctx);
+        let fresh = self.heading.update(ctx, |_| false);
         for &m in &fresh[0] {
             self.passes += 1;
             ctx.emit("forward", m as i64);
@@ -654,6 +659,8 @@ pub const HOLE_HOLD_TICKS: i64 = 72;
 
 /// One-way hole: a marble that reaches `trap` (−X) first drops through the opened trapdoor to the
 /// bottom port; a marble that reaches `over` (+X) first rolls across the shut door and leaves by −X.
+/// A marble keeps its heading while it is in or between the two sensors, so one parked on the
+/// shut door never opens it.
 #[derive(Debug, Clone, Default)]
 pub struct OneWayHole {
     heading: Heading,

@@ -355,6 +355,17 @@ impl PlacedShape {
             }
         }
     }
+
+    /// World-aligned bounds `(min, max)`.
+    fn bounds(&self) -> (Vector, Vector) {
+        match *self {
+            Self::Box { center, half } => (center - half, center + half),
+            Self::Sphere { center, radius } => (
+                center - Vector::splat(radius),
+                center + Vector::splat(radius),
+            ),
+        }
+    }
 }
 
 struct PartRuntime {
@@ -415,6 +426,8 @@ pub struct MechContext<'a> {
     root: SeededRng,
     piece: &'a PieceId,
     signals: &'a mut Vec<(&'static str, i64)>,
+    /// Every marble's `(centre, velocity, radius, collider)` after this step.
+    balls: &'a [(Vector, Vector, f32, ColliderHandle)],
 }
 
 impl MechContext<'_> {
@@ -434,6 +447,25 @@ impl MechContext<'_> {
     /// The sensor at `index` in the sidecar list.
     pub fn sensor(&self, index: usize) -> Option<&SensorStatus> {
         self.sensors.get(index).map(|s| &s.status)
+    }
+
+    /// Whether `marble` touches the world-aligned box spanning sensors `a` and `b`: in either of
+    /// them or anywhere between them.
+    pub fn between_sensors(&self, a: usize, b: usize, marble: usize) -> bool {
+        let (Some(sa), Some(sb), Some(&(p, _, r, _))) = (
+            self.sensors.get(a),
+            self.sensors.get(b),
+            self.balls.get(marble),
+        ) else {
+            return false;
+        };
+        let ((amin, amax), (bmin, bmax)) = (sa.shape.bounds(), sb.shape.bounds());
+        let (min, max) = (amin.min(bmin), amax.max(bmax));
+        PlacedShape::Box {
+            center: (min + max) * 0.5,
+            half: (max - min) * 0.5,
+        }
+        .touches(p, r)
     }
 
     /// The instance's stream `name`, derived on first use and kept for the run.
@@ -796,6 +828,7 @@ impl Mechanisms {
                 root: inst.root,
                 piece: &inst.piece,
                 signals: &mut signals,
+                balls: &balls,
             };
             inst.behaviour.step(&mut ctx);
 
