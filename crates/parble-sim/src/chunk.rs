@@ -1654,7 +1654,9 @@ impl ChunkColliders {
     /// normal, reads a positive gap while the ball is still pressed into the floor, and the bounce
     /// kept there threw it off: 78 mm/s upward at the steep slope's exit seam and contact on
     /// alternate ticks in a `blk_curve90_l2` taken at 0.53 m/s (kick 62.55), measured 2026-11-08.
-    /// A ball falling onto the surface has a positive gap at both and still bounces.
+    /// A ball falling slowly onto the surface has a positive gap at both and still bounces. One
+    /// falling fast meets the contact already penetrating and loses its bounce here, so a landing
+    /// floor also checks the approach speed ([`LANDING_ROLLING_M_S`]).
     fn rolling(&self, gap: f32, now: impl FnOnce() -> Option<(Vector, f32)>) -> bool {
         #[cfg(test)]
         if self.end_gap_hand_over {
@@ -1850,8 +1852,10 @@ impl PhysicsHooks for ChunkColliders {
                 // mm/s on exactly the hand-over ticks, 48.55 over 405–445 mm (measured
                 // 2026-11-07; in the convex upper half the approach is +2–6 mm/s, separating, and
                 // the hand-overs did nothing). A rolling ball's contact is penetrating (−35 to
-                // −200 µm here), while a ball dropped onto the slope first meets it as a
-                // speculative contact with a positive gap and still bounces.
+                // −200 µm here), while a ball dropped slowly onto the slope first meets it as a
+                // speculative contact with a positive gap and still bounces. One falling at about
+                // 1 m/s or more meets it already penetrating, so the rule drops its bounce too:
+                // only a landing floor guards against that (below).
                 #[cfg(test)]
                 let keep = self.slope_hand_over_bounces;
                 #[cfg(not(test))]

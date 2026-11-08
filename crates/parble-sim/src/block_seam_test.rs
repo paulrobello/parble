@@ -945,7 +945,7 @@ fn tower_drop_stays_on_the_rails() {
     // the 24 runs climbed off the rails past the rail joint (0.325 m/s, centred and 2 mm off;
     // `tower_drop_mesh_landing_leaves_the_rails`) and the marble left the socket at up to
     // 0.640 m/s sideways. With the exact landing floor, measured 2026-11-08: 0 of 24 off the
-    // rails, peak sideways 0.003-0.544 m/s (3 of 24 under 0.1 m/s).
+    // rails, peak sideways 0.003-0.544 m/s (2 of 24 under 0.1 m/s).
     //
     // Not under 0.1 m/s sideways. The marble reaches the landing 1-5 mm off centre: the drop's
     // and the pillar's faceted bores turn even a centred entry sideways (0.04-0.07 m/s seeded on
