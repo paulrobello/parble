@@ -143,6 +143,10 @@ shots-p1t7:
 	python3 scripts/shots/p1t7.py
 
 # P1-T6: the marble spec alone (GPU Chromium, every type on Low and High) against an existing dist/.
+.PHONY: web-editor-perf
+web-editor-perf: $(E2E_STAMP)
+	cd e2e && PARBLE_PERF=1 ./node_modules/.bin/playwright test tests/editor-perf.spec.mjs
+
 .PHONY: web-marbles
 web-marbles: $(E2E_STAMP)
 	cd e2e && ./node_modules/.bin/playwright test tests/marbles.spec.mjs

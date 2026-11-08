@@ -9,7 +9,8 @@ parble can be launched, observed and stopped from a script, on native and on the
 | `--screenshot <path>` | `screenshot=<name>` | off | Capture the primary window once. Natively the PNG is written to `<path>` and parent directories are created. On the web the browser downloads `<name>`. |
 | `--screenshot-after <s>` | `screenshot-after=<s>` | `3` | Seconds of real time after startup before the capture. The first frames show only the backdrop while pipelines compile, so stay at 3 s or more. |
 | `--exit-after <s>` | `exit-after=<s>` | off | Exit after `<s>` seconds of real time. If a screenshot is still pending, the app waits for it, up to 10 s longer. |
-| `--scenario <name>` | `scenario=<name>` | `ramp` | Scene to load. `ramp` is the tray ramp with one marble, restarted every 10 s. `closeup` (P1-T6) rests one marble on the tray floor under a close fixed camera, for judging marble materials. `playroom` (P1-T5) is the night playroom: rug, room shell, paper lanterns, a warm lamp, toy blocks, the backdrop plate and the baked environment probe. In place of the tray it stands a U-shaped marble run of 18 shipped kit pieces on the rug (`blk_end_l3` at both ends, `blk_straight_l3`, two `blk_curve90_l3`; `crates/parble-sim/src/playroom_run.rs`), drawn by the P1-T4 kit renderer and simulated on the P1-T3 chunk colliders. Four standard marbles (swirl, opal, onionskin, glow) start rolling at 0.34 m/s, run both curves and gather against the finish stop by about 2.75 s. The run restarts every 4 s (960 ticks) and has its own committed hash, `crates/parble-sim/tests/golden/playroom_4s.hash`, checked natively and by `make determinism-wasm`. It ignores `--marble` and `--marble-size`. `blk_slope_gentle_l3` is not in the run: its exit is `L2` and every other shipped port is `L3`, so no shipped piece can take a marble from it without a level mismatch. `kit2000` (P1-T4) adds a 2,000-piece showcase of the four kit blocks behind the ramp: one flat 50 × 40 grid with a half-cell gap between neighbours on both axes (1.5-cell, 0.09 m pitch), floating two cells (0.12 m) above the floor so the undersides show from the fly camera. It spans 4.47 × 3.57 m in 80 chunks, and the floor grows to cover it. A fixed `set` shot (`Cues::kit`) from beside the grid's near corner shows all three LODs and both crossfade bands. It is render-only too, so it keeps the ramp's golden hash. `lineup` (P5-T1) rests every marble type side by side on the floor in front of the tray, with a mini and a shooter swirl at the two ends, under one fixed set shot. It ignores `--marble` and `--marble-size`. |
+| `--scenario <name>` | `scenario=<name>` | `ramp` | Scene to load. `ramp` is the tray ramp with one marble, restarted every 10 s. `closeup` (P1-T6) rests one marble on the tray floor under a close fixed camera, for judging marble materials. `playroom` (P1-T5) is the night playroom: rug, room shell, paper lanterns, a warm lamp, toy blocks, the backdrop plate and the baked environment probe. In place of the tray it stands a U-shaped marble run of 18 shipped kit pieces on the rug (`blk_end_l3` at both ends, `blk_straight_l3`, two `blk_curve90_l3`; `crates/parble-sim/src/playroom_run.rs`), drawn by the P1-T4 kit renderer and simulated on the P1-T3 chunk colliders. Four standard marbles (swirl, opal, onionskin, glow) start rolling at 0.34 m/s, run both curves and gather against the finish stop by about 2.75 s. The run restarts every 4 s (960 ticks) and has its own committed hash, `crates/parble-sim/tests/golden/playroom_4s.hash`, checked natively and by `make determinism-wasm`. It ignores `--marble` and `--marble-size`. `blk_slope_gentle_l3` is not in the run: its exit is `L2` and every other shipped port is `L3`, so no shipped piece can take a marble from it without a level mismatch. `kit2000` (P1-T4) adds a 2,000-piece showcase of the four kit blocks behind the ramp: one flat 50 × 40 grid with a half-cell gap between neighbours on both axes (1.5-cell, 0.09 m pitch), floating two cells (0.12 m) above the floor so the undersides show from the fly camera. It spans 4.47 × 3.57 m in 80 chunks, and the floor grows to cover it. A fixed `set` shot (`Cues::kit`) from beside the grid's near corner shows all three LODs and both crossfade bands. It is render-only too, so it keeps the ramp's golden hash. `lineup` (P5-T1) rests every marble type side by side on the floor in front of the tray, with a mini and a shooter swirl at the two ends, under one fixed set shot. It ignores `--marble` and `--marble-size`. `editor` (P3-T4) is the in-engine editor: the tray, no marble, the orbit camera with the editor input scheme, and kit pieces edited in place ([Editor](#editor)). It never restarts, so edits keep their incremental colliders. |
+| `--editor-fill <n>` | `editor-fill=<n>` | off | Editor only: start with an `n`-piece grid (at most 4,000) behind the tray, laid as one undoable paste. `2000` is the edit perf track (42 dense chunks). |
 | `--marble <type>` | `marble=<type>` | legacy | Marble type ([marbles.md](marbles.md)): `cats-eye`, `glazed`, `steel` (P1-T6), `swirl`, `onionskin`, `opal` or `glow` (P5-T1), each with its real physical values and its own look. Without it the scene uses the P0 legacy marble (golden physics, cat's eye look), so `ramp` still reproduces the golden hash. |
 | `--marble-size <size>` | `marble-size=<size>` | `standard` | Marble size (P5-T1): `mini` (10 mm), `standard` (16 mm) or `shooter` (25 mm). The type keeps its material, and its mass follows from density × volume. Without `--marble`, `standard` is still the legacy marble and the other sizes are a cat's eye at that size. |
 | `--view <name>` | `view=<name>` | none | Playroom fixed framing, played by the director as one `set` shot (`Cues::playroom` in `camera.rs`) whose DoF focus stays on the view's lantern instead of the marble. `rug` looks low across the rug towards the big lantern (ref-07). `blocks` looks at the toy-block arches and towers around the small lantern (ref-08). Without it the playroom follows the lead marble round the kit run and cuts to a set shot over the whole run at tick 600 (`Cues::playroom_run`). `--camera overview` and `orbit` take precedence. Other scenarios ignore it. |
@@ -81,6 +82,8 @@ The web build replaces `window.__parble` every frame. `--dump-state` prints the 
 - `screenshot`: `state` is one of `none`, `pending`, `capturing`, `done` (with `lit`, `colors` and `ok`), or `failed` (with `error`).
 - `camera`: the main camera this frame: `mode` (`director`, `orbit` or `fly`), `shot`, `cuts`, `eye`, `forward` (unit view direction), `flySpeed` (m/s), the marble's screen position over the last frames (`marblePx`, physical pixels, newest first), `marbleRadiusPx`, and `post`, which holds the post components the live camera carries (`msaa`, `taa`, `ssao`, `bloom`, `dof`, `aperture`, `focusM`, `tonemapping`).
 - `shotCamera`: the same object captured on the screenshot frame.
+- `editor` (only with `--scenario editor`): see [Editor](#editor).
+- `camera.orbit`: the orbit camera's `target`, `yaw`, `pitch` and `radius`.
 - `exited`: set when auto-exit fires.
 
 All timing (screenshot, exit, fps) is real time in the app layer. The sim never receives wall-clock input, so none of these switches can change a trajectory hash.
@@ -101,6 +104,51 @@ Every scenario, `kit2000` and `lineup` included, has a free-fly camera (`Fly` in
 
 The camera moves only on input and uses real time, so it keeps working while `--lockstep-after` holds the sim. With no input it never leaves the director, so `--screenshot`, `--exit-after`, `?screenshot=` and `window.__parble` runs frame exactly as before. Keys typed into the HUD (the Import, Export, Run and Save controls) stay there, because the browser only delivers keys to the canvas while it has focus. The HUD shows the controls in its bottom-left line. `make web-e2e` drives the fly camera with the keyboard and mouse in GPU Chromium (`e2e/tests/flycam.spec.mjs`).
 
+## Editor
+
+`--scenario editor` (P3-T4, `crates/parble-app/src/editor.rs`) edits a track of kit pieces through the P3-T1 commands, with undo and redo. The palette is the kit pieces the renderer has GLBs for: `blk_straight_l3`, `blk_curve90_l3`, `blk_slope_gentle_l3` and `blk_end_l3`. The editor UI overlay is P3-T5, and a `loadTrack` or `runTrack` in this scenario replaces the live sim without updating the editor.
+
+Every command, undo and redo diffs the placements by anchor. Only the changed placements are removed and placed in the live sim's chunk colliders, and only the render chunks holding their anchors are respawned. Dirty colliders are rebuilt in stages (gather, simplify, tag, install), as many as fit 4 ms a frame. A dense 64-piece chunk is about 17 ms of work natively, so one chunk spreads over a few frames instead of stalling one. `crates/parble-sim/tests/incremental_edit.rs` checks that 400 random edits, rebuilt in place and in stages, leave exactly the colliders a fresh build of the final track has.
+
+Mouse and keys (click the canvas first):
+
+| Input | Effect |
+|---|---|
+| Left click | Place: the brush at the ghost. Select: select the piece (Shift toggles), or clear on the ground. Delete: remove the piece. |
+| Left drag (select tool) | From a selected piece: move the group by the cell offset on its level's plane. Elsewhere: box select the pieces whose centres fall in the rectangle (Shift adds). |
+| Right drag, middle or Shift + right drag, wheel | Orbit, pan along the ground, zoom. |
+| `1` `2` `3` | Place, select, delete tool. |
+| `R`, `M`, `Tab` | Rotate and mirror (chiral pieces only) the brush in the place tool, the selection in the others, next palette piece. |
+| `Delete` or `Backspace`, `Esc` | Remove the selection, clear it. |
+| `Ctrl`/`Cmd` + `Z`, + `Shift` + `Z` or + `Y` | Undo, redo. |
+| `[`, `]`, `X` | Slice one level down, up, show all. |
+
+Picking walks the camera ray through the occupied cells, skipping pieces above the slice, and otherwise lands on the ground plane at the slice level. The place target is the empty cell in front of the hit face, or the ground cell. The ghost is the brush there, green when `Editor::check` accepts the placement and red when not, with one dot per port: green when a mating port across links, amber when nothing is across, red for a fault.
+
+Agent actions: `window.wasmBindings.parbleEdit(json)` queues one action for the next frame. It throws on JSON that is not an action. Each action is an object with an `op` and an optional `id`. Pixels are CSS pixels from the canvas's top-left corner.
+
+| `op` | Fields | Effect |
+|---|---|---|
+| `tool` | `tool`: `place`, `select`, `delete` | Switch tool. |
+| `brush` | `piece`, `yaw`, `mirror` | Set the brush. |
+| `hover`, `hoverCell`, `unhover` | `x`, `y` / `cell` | Pin the hover to a pixel or the place target to a cell, until the real cursor moves. |
+| `click` | `x`, `y`, `shift` | The tool at a pixel. |
+| `place` | `piece`, `cell`, `yaw`, `mirror` | Place directly. |
+| `boxSelect` | `a`, `b`, `shift` | Select by inclusive cell box (pieces above the slice excluded). |
+| `boxSelectScreen` | `x0`, `y0`, `x1`, `y1`, `shift` | Select by pixel rectangle. |
+| `drag` | `x0`, `y0`, `x1`, `y1` | Move-group drag between two pixels. |
+| `move`, `rotate`, `mirror`, `remove`, `clearSelection` | `offset` / `by` | Act on the selection (`rotate` and `mirror` act on the brush in the place tool). |
+| `undo`, `redo` | | |
+| `slice` | `level` (or `null`) | Show levels at most `level`. |
+| `camera` | `target`, `yaw`, `pitch`, `radius` | Set the orbit. |
+| `project` | `cells` | Answer `last.projected`: `[centreX, centreY, floorX, floorY]` per cell, or `null`. |
+| `fill` | `count` | The `--editor-fill` grid as one undoable paste. |
+| `clear` | | Remove every piece. |
+
+`window.__parble.editor` holds `tool`, `brush`, `palette`, `pieces`, `visiblePieces`, `slice`, `selection` (count), `selected` (up to 64 anchors), `canUndo`, `canRedo`, `hover` (`source`, `hit`, `hitCell`, `hitAnchor`, `target`, `valid`, `error`, `ports`), `drag` (the live move drag's `offset` and `valid`), `colliderChunks`, `dirtyColliderChunks`, `seq`, `edits`, `last` (the last action's `id`, `op`, `ok`, `error`), `lastEdit` (`editMs` for the command, diff and hand-off, `changed`, `renderChunks`, `colliderMs`, `colliderChunks` and `colliderFrames` summed until its colliders are done) and `stats` (maxima over every edit, with the `fill` that laid the track kept apart). `kit.edit` has the renderer's `pieces`, `chunks`, `hiddenPieces` and the last respawn's `lastChunks` and `lastMs`.
+
+`e2e/tests/editor.spec.mjs` (in `make web-e2e`) places 50 pieces with the real mouse and checks the ghost, picking, slicing, box select and a move drag. `make web-editor-perf` runs `e2e/tests/editor-perf.spec.mjs`, the 2,000-piece edit frame-time trace, into `target/perf/p3t4-editor.json`. It waits for the 1-minute load average to reach 15 or less and reports the sample as not taken when it does not.
+
 ## Make targets
 
 ```bash
@@ -110,7 +158,8 @@ make run-diag                        # native: run 3 s, print the state JSON, ex
 make playroom-shots                  # native High shots of both playroom views into target/shots/
 make shots-p1t7                      # native: per-tier shots, TAA ghost check, DoF side-by-side (P1-T7)
 make marble-shots                    # native: closeup PNG per marble type and tier, two sizes, the lineup per tier and the glow bloom check, to target/shots/marbles (P1-T6, P5-T1)
-make web-e2e                         # release build, then the Playwright suites (smoke, persistence, marbles, kit, flycam) in GPU Chromium on 5311
+make web-e2e                         # release build, then the Playwright suites (smoke, persistence, marbles, kit, flycam, editor) in GPU Chromium on 5311
+make web-editor-perf                 # the P3-T4 2,000-piece edit frame-time trace against an existing dist/ (load-guarded)
 make web-marbles                     # the marbles spec alone against an existing dist/ (P1-T6)
 make web-smoke                       # the P0-T5 single-script smoke (random port)
 ```

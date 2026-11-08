@@ -126,7 +126,7 @@ pub enum Action {
     Move {
         offset: [i32; 3],
     },
-    /// Rotate the selection by quarter turns, or the brush when nothing is selected.
+    /// Rotate the brush (place tool) or the selection (other tools) by quarter turns.
     Rotate {
         #[serde(default = "one")]
         by: u8,
@@ -947,7 +947,7 @@ fn apply_action(st: &mut EditState, ctx: &mut Ctx, action: Action) -> Result<Las
             )?;
         }
         Action::Rotate { by } => {
-            if st.editor.selection.is_empty() {
+            if st.tool == Tool::Place {
                 st.brush.yaw = (st.brush.yaw + by) % 4;
             } else {
                 let selection = st.editor.selection.clone();
@@ -963,7 +963,7 @@ fn apply_action(st: &mut EditState, ctx: &mut Ctx, action: Action) -> Result<Las
             }
         }
         Action::Mirror {} => {
-            if st.editor.selection.is_empty() {
+            if st.tool == Tool::Place {
                 let chiral = st.kit.get(&pid(st.brush.piece)).is_some_and(|d| d.chiral);
                 if !chiral {
                     return Err("the brush piece is not chiral".into());
@@ -1234,7 +1234,9 @@ fn apply_actions(
     mut editor_cam: ResMut<EditorCamera>,
     cams: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
 ) {
-    let actions: Vec<_> = inbox().drain(..).collect();
+    let mut actions: Vec<_> = inbox().drain(..).collect();
+    // The frame's mouse and key actions (no id) first, so `last` ends on the agent's action.
+    actions.sort_by_key(|(id, _)| id.is_some());
     let camera = cams.single().ok();
     let st = &mut *st;
     let mut ctx = Ctx {
