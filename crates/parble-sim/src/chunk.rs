@@ -557,139 +557,9 @@ impl ChunkMesh {
     /// every rewritten triangle keeps its plane and orientation (integer µm, exact arithmetic), and
     /// vertices on an open boundary or a corner of three or more planes are kept.
     pub fn simplify_flat(&mut self) {
-        let nv = self.vertices_um.len();
-        let mut tris: Vec<Option<[u32; 3]>> = self.triangles.iter().copied().map(Some).collect();
-        let mut incident: Vec<Vec<usize>> = vec![Vec::new(); nv];
-        for (i, t) in self.triangles.iter().enumerate() {
-            for &v in t {
-                incident[v as usize].push(i);
-            }
-        }
-        let pos = |v: u32| self.vertices_um[v as usize].map(i128::from);
-        let normal = |t: [u32; 3]| {
-            let [a, b, c] = t.map(pos);
-            cross(sub(b, a), sub(c, a))
-        };
-
-        let mut changed = true;
-        while changed {
-            changed = false;
-            for v in 0..nv as u32 {
-                let live: Vec<usize> = incident[v as usize]
-                    .iter()
-                    .copied()
-                    .filter(|&i| tris[i].is_some())
-                    .collect();
-                if live.is_empty() {
-                    continue;
-                }
-                // Edge (v, x) → triangles using it. Interior vertices have exactly two per edge.
-                let mut edges: BTreeMap<u32, Vec<usize>> = BTreeMap::new();
-                for &i in &live {
-                    for &x in tris[i].as_ref().unwrap() {
-                        if x != v {
-                            edges.entry(x).or_default().push(i);
-                        }
-                    }
-                }
-                if edges.values().any(|ts| ts.len() != 2) {
-                    continue;
-                }
-                let same_plane = |i: usize, j: usize| {
-                    let (a, b) = (normal(tris[i].unwrap()), normal(tris[j].unwrap()));
-                    cross(a, b) == [0; 3] && dot(a, b) > 0
-                };
-                let mut planes: Vec<usize> = Vec::new();
-                for &i in &live {
-                    if !planes.iter().any(|&p| same_plane(p, i)) {
-                        planes.push(i);
-                    }
-                }
-                let candidates: Vec<u32> = match planes.len() {
-                    1 => edges.keys().copied().collect(),
-                    2 => {
-                        let crease: Vec<u32> = edges
-                            .iter()
-                            .filter(|(_, ts)| !same_plane(ts[0], ts[1]))
-                            .map(|(&x, _)| x)
-                            .collect();
-                        let pv = pos(v);
-                        match crease[..] {
-                            [a, b]
-                                if cross(sub(pos(a), pv), sub(pos(b), pv)) == [0; 3]
-                                    && dot(sub(pos(a), pv), sub(pos(b), pv)) < 0 =>
-                            {
-                                crease
-                            }
-                            _ => continue,
-                        }
-                    }
-                    _ => continue,
-                };
-                for u in candidates {
-                    // Link condition: v and u share exactly the two vertices opposite edge (v, u).
-                    let opposite: BTreeSet<u32> = edges[&u]
-                        .iter()
-                        .flat_map(|&i| tris[i].unwrap())
-                        .filter(|&x| x != u && x != v)
-                        .collect();
-                    let u_nbrs: BTreeSet<u32> = incident[u as usize]
-                        .iter()
-                        .filter_map(|&i| tris[i])
-                        .flatten()
-                        .collect();
-                    let shared = edges
-                        .keys()
-                        .filter(|&&x| x != u && u_nbrs.contains(&x))
-                        .count();
-                    if opposite.len() != 2 || shared != 2 {
-                        continue;
-                    }
-                    let rewritten: Vec<(usize, [u32; 3])> = live
-                        .iter()
-                        .filter(|&&i| !tris[i].unwrap().contains(&u))
-                        .map(|&i| (i, tris[i].unwrap().map(|x| if x == v { u } else { x })))
-                        .collect();
-                    let keeps_plane = rewritten.iter().all(|&(i, t)| {
-                        let (old, new) = (normal(tris[i].unwrap()), normal(t));
-                        new != [0; 3] && cross(old, new) == [0; 3] && dot(old, new) > 0
-                    });
-                    if !keeps_plane {
-                        continue;
-                    }
-                    for &i in &edges[&u] {
-                        tris[i] = None;
-                    }
-                    for (i, t) in rewritten {
-                        tris[i] = Some(t);
-                        incident[u as usize].push(i);
-                    }
-                    incident[v as usize].clear();
-                    changed = true;
-                    break;
-                }
-            }
-        }
-
-        // Compact: keep triangle order, renumber vertices by first use.
-        let mut remap = vec![u32::MAX; nv];
-        let mut vertices = Vec::new();
-        let mut triangles = Vec::new();
-        for t in tris.into_iter().flatten() {
-            triangles.push(t.map(|v| {
-                if remap[v as usize] == u32::MAX {
-                    remap[v as usize] = vertices.len() as u32;
-                    vertices.push(self.vertices_um[v as usize]);
-                }
-                remap[v as usize]
-            }));
-        }
-        self.vertices_um = vertices;
-        self.triangles = triangles;
-        self.stitched.clear();
-        self.bend_of.clear();
-        self.slope_of.clear();
-        self.arc_of.clear();
+        let mut s = FlatSimplify::new(self);
+        while !s.step(self, usize::MAX) {}
+        s.finish(self);
     }
 
     /// Tag every triangle whose three vertices lie on one of [`Self::bends`]' tubes.
@@ -751,6 +621,189 @@ impl ChunkMesh {
         .friction(scene::WOOD_FRICTION)
         .restitution(scene::WOOD_RESTITUTION)
         .build())
+    }
+}
+
+/// [`ChunkMesh::simplify_flat`] as resumable work: [`Self::step`] visits vertices in the same
+/// order and passes as one uninterrupted run, so the result does not depend on how the work is
+/// split. The editor's staged rebuild ([`ChunkColliders::rebuild_step`]) bounds each step, since
+/// a dense chunk's full simplify took 15 ms in wasm (P3-T4).
+#[derive(Debug)]
+pub struct FlatSimplify {
+    tris: Vec<Option<[u32; 3]>>,
+    incident: Vec<Vec<usize>>,
+    /// The next vertex of the current pass.
+    next: u32,
+    /// Whether the current pass collapsed a vertex, so another pass follows.
+    changed: bool,
+}
+
+impl FlatSimplify {
+    pub fn new(mesh: &ChunkMesh) -> Self {
+        let mut incident: Vec<Vec<usize>> = vec![Vec::new(); mesh.vertices_um.len()];
+        for (i, t) in mesh.triangles.iter().enumerate() {
+            for &v in t {
+                incident[v as usize].push(i);
+            }
+        }
+        Self {
+            tris: mesh.triangles.iter().copied().map(Some).collect(),
+            incident,
+            next: 0,
+            changed: false,
+        }
+    }
+
+    /// Visit vertices until about `work` units (a vertex plus its incident triangles) are spent or
+    /// the simplify is done. Returns whether it is done. `mesh` is the one passed to [`Self::new`].
+    pub fn step(&mut self, mesh: &ChunkMesh, work: usize) -> bool {
+        let nv = mesh.vertices_um.len() as u32;
+        let mut spent = 0usize;
+        loop {
+            if self.next == nv {
+                if !self.changed {
+                    return true;
+                }
+                self.next = 0;
+                self.changed = false;
+            }
+            if spent >= work {
+                return false;
+            }
+            let v = self.next;
+            self.next += 1;
+            spent = spent.saturating_add(1 + self.incident[v as usize].len());
+            if self.visit(&mesh.vertices_um, v) {
+                self.changed = true;
+            }
+        }
+    }
+
+    /// Collapse `v` into a neighbour when that keeps the surface; returns whether it did.
+    fn visit(&mut self, vertices_um: &[[i64; 3]], v: u32) -> bool {
+        let tris = &mut self.tris;
+        let incident = &mut self.incident;
+        let pos = |v: u32| vertices_um[v as usize].map(i128::from);
+        let normal = |t: [u32; 3]| {
+            let [a, b, c] = t.map(pos);
+            cross(sub(b, a), sub(c, a))
+        };
+        let live: Vec<usize> = incident[v as usize]
+            .iter()
+            .copied()
+            .filter(|&i| tris[i].is_some())
+            .collect();
+        if live.is_empty() {
+            return false;
+        }
+        // Edge (v, x) → triangles using it. Interior vertices have exactly two per edge.
+        let mut edges: BTreeMap<u32, Vec<usize>> = BTreeMap::new();
+        for &i in &live {
+            for &x in tris[i].as_ref().unwrap() {
+                if x != v {
+                    edges.entry(x).or_default().push(i);
+                }
+            }
+        }
+        if edges.values().any(|ts| ts.len() != 2) {
+            return false;
+        }
+        let same_plane = |tris: &[Option<[u32; 3]>], i: usize, j: usize| {
+            let (a, b) = (normal(tris[i].unwrap()), normal(tris[j].unwrap()));
+            cross(a, b) == [0; 3] && dot(a, b) > 0
+        };
+        let mut planes: Vec<usize> = Vec::new();
+        for &i in &live {
+            if !planes.iter().any(|&p| same_plane(tris, p, i)) {
+                planes.push(i);
+            }
+        }
+        let candidates: Vec<u32> = match planes.len() {
+            1 => edges.keys().copied().collect(),
+            2 => {
+                let crease: Vec<u32> = edges
+                    .iter()
+                    .filter(|(_, ts)| !same_plane(tris, ts[0], ts[1]))
+                    .map(|(&x, _)| x)
+                    .collect();
+                let pv = pos(v);
+                match crease[..] {
+                    [a, b]
+                        if cross(sub(pos(a), pv), sub(pos(b), pv)) == [0; 3]
+                            && dot(sub(pos(a), pv), sub(pos(b), pv)) < 0 =>
+                    {
+                        crease
+                    }
+                    _ => return false,
+                }
+            }
+            _ => return false,
+        };
+        for u in candidates {
+            // Link condition: v and u share exactly the two vertices opposite edge (v, u).
+            let opposite: BTreeSet<u32> = edges[&u]
+                .iter()
+                .flat_map(|&i| tris[i].unwrap())
+                .filter(|&x| x != u && x != v)
+                .collect();
+            let u_nbrs: BTreeSet<u32> = incident[u as usize]
+                .iter()
+                .filter_map(|&i| tris[i])
+                .flatten()
+                .collect();
+            let shared = edges
+                .keys()
+                .filter(|&&x| x != u && u_nbrs.contains(&x))
+                .count();
+            if opposite.len() != 2 || shared != 2 {
+                continue;
+            }
+            let rewritten: Vec<(usize, [u32; 3])> = live
+                .iter()
+                .filter(|&&i| !tris[i].unwrap().contains(&u))
+                .map(|&i| (i, tris[i].unwrap().map(|x| if x == v { u } else { x })))
+                .collect();
+            let keeps_plane = rewritten.iter().all(|&(i, t)| {
+                let (old, new) = (normal(tris[i].unwrap()), normal(t));
+                new != [0; 3] && cross(old, new) == [0; 3] && dot(old, new) > 0
+            });
+            if !keeps_plane {
+                continue;
+            }
+            for &i in &edges[&u] {
+                tris[i] = None;
+            }
+            for (i, t) in rewritten {
+                tris[i] = Some(t);
+                incident[u as usize].push(i);
+            }
+            incident[v as usize].clear();
+            return true;
+        }
+        false
+    }
+
+    /// Write the simplified mesh into `mesh` once [`Self::step`] is done: triangle order kept,
+    /// vertices renumbered by first use, per-triangle tags cleared.
+    pub fn finish(self, mesh: &mut ChunkMesh) {
+        let mut remap = vec![u32::MAX; mesh.vertices_um.len()];
+        let mut vertices = Vec::new();
+        let mut triangles = Vec::new();
+        for t in self.tris.into_iter().flatten() {
+            triangles.push(t.map(|v| {
+                if remap[v as usize] == u32::MAX {
+                    remap[v as usize] = vertices.len() as u32;
+                    vertices.push(mesh.vertices_um[v as usize]);
+                }
+                remap[v as usize]
+            }));
+        }
+        mesh.vertices_um = vertices;
+        mesh.triangles = triangles;
+        mesh.stitched.clear();
+        mesh.bend_of.clear();
+        mesh.slope_of.clear();
+        mesh.arc_of.clear();
     }
 }
 
@@ -836,9 +889,20 @@ pub struct ChunkColliders {
     /// gates' control (a port face cap put back).
     #[cfg(test)]
     pub(crate) extra_triangles: Vec<[[i64; 3]; 3]>,
+    /// Test switch: [`FlatSimplify::step`] work per staged simplify step in place of
+    /// [`SIMPLIFY_STEP_WORK`], to split the simplify at every vertex or every few.
+    #[cfg(test)]
+    pub(crate) simplify_step_work: Option<usize>,
+    /// Test count of staged rebuilds that reused [`Self::simplified`].
+    #[cfg(test)]
+    pub(crate) simplify_reused: usize,
     dirty: BTreeSet<CellCoord>,
     /// The chunk [`Self::rebuild_step`] is part way through, and its mesh so far.
     in_flight: Option<InFlight>,
+    /// Per chunk, the gathered geometry of its last staged build and that geometry simplified
+    /// ([`ChunkMesh::simplify_flat`] is a pure function of it). A chunk dirtied only because a
+    /// neighbour's stitched-edge tags may change gathers the same geometry and skips the simplify.
+    simplified: BTreeMap<CellCoord, (Geometry, Geometry)>,
 }
 
 /// A staged chunk rebuild ([`ChunkColliders::rebuild_step`]).
@@ -847,14 +911,23 @@ struct InFlight {
     chunk: CellCoord,
     stage: Stage,
     mesh: ChunkMesh,
+    /// The gathered mesh's welded geometry, the key of [`ChunkColliders::simplified`].
+    gathered: Option<Geometry>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug)]
 enum Stage {
-    Simplify,
+    Simplify(Option<Box<FlatSimplify>>),
     Mark,
     Install,
 }
+
+/// A mesh's welded vertices (µm) and triangles.
+type Geometry = (Vec<[i64; 3]>, Vec<[u32; 3]>);
+
+/// Work units ([`FlatSimplify::step`]) per staged simplify step: about 1 ms in wasm on the
+/// 2,000-piece fill's densest chunk (P3-T4).
+const SIMPLIFY_STEP_WORK: usize = 4_000;
 
 impl ChunkColliders {
     pub fn new() -> Self {
@@ -1127,18 +1200,47 @@ impl ChunkColliders {
             let Some(chunk) = self.dirty.first().copied() else {
                 return Ok(None);
             };
+            let mut mesh = self.gathered(kit, chunk);
+            let mut gathered = None;
+            let stage = match self.simplified.get(&chunk) {
+                Some((key, done)) if key.0 == mesh.vertices_um && key.1 == mesh.triangles => {
+                    mesh.vertices_um.clone_from(&done.0);
+                    mesh.triangles.clone_from(&done.1);
+                    #[cfg(test)]
+                    {
+                        self.simplify_reused += 1;
+                    }
+                    Stage::Mark
+                }
+                _ => {
+                    gathered = Some((mesh.vertices_um.clone(), mesh.triangles.clone()));
+                    Stage::Simplify(None)
+                }
+            };
             self.in_flight = Some(InFlight {
                 chunk,
-                stage: Stage::Simplify,
-                mesh: self.gathered(kit, chunk),
+                stage,
+                mesh,
+                gathered,
             });
             return Ok(Some((chunk, false)));
         };
         let chunk = f.chunk;
-        match f.stage {
-            Stage::Simplify => {
-                f.mesh.simplify_flat();
-                f.stage = Stage::Mark;
+        match &mut f.stage {
+            Stage::Simplify(state) => {
+                let s = state.get_or_insert_with(|| Box::new(FlatSimplify::new(&f.mesh)));
+                #[cfg(test)]
+                let work = self.simplify_step_work.unwrap_or(SIMPLIFY_STEP_WORK);
+                #[cfg(not(test))]
+                let work = SIMPLIFY_STEP_WORK;
+                if s.step(&f.mesh, work) {
+                    state.take().unwrap().finish(&mut f.mesh);
+                    if let Some(key) = f.gathered.take() {
+                        let done = (f.mesh.vertices_um.clone(), f.mesh.triangles.clone());
+                        self.simplified.insert(chunk, (key, done));
+                    }
+                    f.stage = Stage::Mark;
+                }
             }
             Stage::Mark => {
                 self.marked(&mut f.mesh, chunk);
@@ -1790,6 +1892,79 @@ mod tests {
             let h = cc.handles[&c];
             let fh = fresh.handles[&c];
             assert_eq!(tri(&world, h), tri(&fresh_world, fh));
+        }
+    }
+
+    /// The staged rebuild, with its simplify split at every vertex or every few, and with a chunk
+    /// that reuses its cached simplify after a diagonal neighbour's edit, installs what a fresh
+    /// build does.
+    #[test]
+    fn split_staged_rebuild_matches_a_fresh_build() {
+        let kit = parble_kit::builtin();
+        let ids = [
+            "blk_straight_l3",
+            "blk_curve90_l3",
+            "blk_slope_gentle_l3",
+            "blk_end_l3",
+        ];
+        // A dense 12 x 12 cell slab across four chunks.
+        let layout: Vec<Placement> = (0..144)
+            .map(|i: i32| {
+                let (x, z) = (i % 12 + 2, i / 12 + 2);
+                place(ids[(i * 7 % 4) as usize], x, 0, z, (i * 5 % 4) as u8, false)
+            })
+            .collect();
+        let cut = CellCoord::new(7, 0, 7);
+        let rest: Vec<Placement> = layout.iter().filter(|p| p.anchor != cut).cloned().collect();
+        let (fresh, fresh_world) = build(&rest);
+        let tags = |cc: &ChunkColliders| {
+            cc.chunks()
+                .map(|(c, h)| {
+                    let (st, b, s, a) = cc.hook_tags(h).unwrap();
+                    (c, st.to_vec(), b.clone(), s.clone(), a.clone())
+                })
+                .collect::<Vec<_>>()
+        };
+        let tri = |w: &PhysicsWorld, cc: &ChunkColliders| {
+            cc.chunks()
+                .map(|(_, h)| {
+                    let c = &w.colliders[h];
+                    let m = c.shape().as_trimesh().unwrap();
+                    (
+                        m.vertices().to_vec(),
+                        m.indices().to_vec(),
+                        c.active_hooks(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        for work in [1, 37] {
+            let mut cc = ChunkColliders::new();
+            cc.simplify_step_work = Some(work);
+            let mut world = PhysicsWorld::new();
+            for p in &layout {
+                cc.insert(kit, p.clone()).unwrap();
+            }
+            let mut steps = 0;
+            while cc.rebuild_step(kit, &mut world).unwrap().is_some() {
+                steps += 1;
+            }
+            assert!(steps > 100, "work {work}: {steps} steps");
+            // The piece at a chunk corner: chunk (1, 0, 1) is dirtied only for its stitched tags
+            // and reuses its simplified geometry.
+            cc.remove(cut).unwrap();
+            assert_eq!(cc.dirty_chunks().count(), 4);
+            while cc.rebuild_step(kit, &mut world).unwrap().is_some() {}
+            assert!(cc.simplify_reused >= 1, "work {work}: no reuse");
+            for (c, _) in fresh.chunks() {
+                assert_eq!(
+                    cc.chunk_mesh(kit, c),
+                    fresh.chunk_mesh(kit, c),
+                    "chunk {c:?}"
+                );
+            }
+            assert_eq!(tri(&world, &cc), tri(&fresh_world, &fresh), "work {work}");
+            assert_eq!(tags(&cc), tags(&fresh), "work {work}");
         }
     }
 
