@@ -1,6 +1,6 @@
 # parble SFX cue sheet
 
-Status: P4-T1 draft for Paul's approval. Scope comes from `plans/phase-4-audio.md` P4-T1 and PRD §5.7. Generation, processing and provenance belong to P4-T2; the generated takes, their audition verdicts and prompt revision 2 are recorded below and in `assets-source/audio/sfx/provenance-group-*.json`.
+Status: P4-T1 draft for Paul's approval. Scope comes from `plans/phase-4-audio.md` P4-T1 and PRD §5.7. Generation, processing and provenance belong to P4-T2; the generated takes, their audition verdicts and prompt revisions 2 and 3 are recorded below and in `assets-source/audio/sfx/provenance-group-*.json`.
 
 ## Conventions
 
@@ -13,6 +13,47 @@ Status: P4-T1 draft for Paul's approval. Scope comes from `plans/phase-4-audio.m
 - **Surfaces.** `block` is the carved hardwood block channel (all block pieces and mechanism bodies). `rail` is the round hardwood rail trough (rail family). `rug` is the floor rug for marbles that leave the track.
 - **Impulse bands.** `light`, `medium` and `heavy` are chosen by the engine from contact impulse, with thresholds set in P4-T4. Each band keeps its natural level difference in the file, so the engine's per-hit gain only fine-tunes it.
 - **Marble-on-marble pairs** are unordered: `clack_glass_steel` serves both glass-hits-steel and steel-hits-glass.
+
+## Prompt revision 3 (2026-11-07)
+
+Paul auditioned the revision 2 rug takes later on 2026-11-07 and rejected all of them (`impact_{glass,solid,steel}_rug_{light,medium,heavy}` v05–v08 and `roll_{glass,solid,steel}_rug` v04–v06): "the rug samples still sound like rolling on wood, it should sound like felt". Those 45 rows now carry `"status": "rejected"` in `provenance-group-d.json`. The `one_way_gate_swing` v05–v08 takes are not judged yet and are unchanged.
+
+Diagnosis. The revision 2 prompts led with the action ("a small hard ball rolling", "a drop of a small hard ball"), and the model seems to render that action from a hard-surface recording whatever the surface words say. The measurements agree: the revision 2 rolls were already dark (centroid about 300–350 Hz, almost nothing above 2 kHz), but they had a crest factor near 24 dB and 7.5–10.6 click onsets per second, which is the rhythmic ticking of a ball on a hard floor. A ball on thick felt is close to silent: a low, dull brushing with no clicks, and a landing is a small soft "pff" with no attack.
+
+Revision 3 describes the sound instead of the action and drops the words that point at wood ("rolling", "track", "floor", "tap", "knock", "drop", "ball"). Prompt influence is 0.7 (revision 2 used 0.6), so the model follows the felt description more literally. Two routes are on the audition board side by side:
+
+- **Route A, generated** (impacts v09–v12, rolls v07–v09). Rolls: "very soft muffled brushing hush of thick wool felt being gently rubbed, a continuous steady low and dull fabric whisper, almost silent, no clicks, no hard surface, no wood, no ring, no music", with "very lightly rubbed" for glass and "gently rubbed with a little more weight, slightly deeper" for steel. Impacts: "one single very soft dull muffled thud of a small weight settling into a thick wool felt cushion, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb", with "light weight" or "heavy weight" for glass and steel, and "barely touching down" or "landing a little firmer but still soft" for the light and heavy bands. The exact prompt of every take is in its cue below and in `provenance-group-e.json`.
+- **Route B, derived** (stem suffix `f`, for example `roll_glass_rug_v07f`). Each route A take run through `scripts/audio/felt.py derive`, a deterministic felt treatment: a transient limiter that holds the fast peak envelope to 3 dB over the 20 ms RMS level, a 12 ms raised-cosine attack smear on one-shots, an 8th-order (48 dB/octave) Butterworth low-pass at 1.5 kHz, a +3 dB low shelf at 250 Hz, then peak normalization to -3 dBFS. Loops are filtered circularly (the last 0.5 s runs through first and is discarded), so the wrap stays continuous. The output is 24-bit 48 kHz mono FLAC under `assets-source/audio/sfx/<family>/`, and each provenance row records the parent file and hash plus the full recipe. `scripts/audio/test_felt.py` covers it.
+
+Prompt selection. Before the full set, each idea got two test takes on `roll_solid_rug` or `impact_solid_rug_medium` (14 requests). The roll candidates were A (above), B ("felt pad sliding over a felt blanket ... breathy fabric hush"), C ("like breath through thick wool cloth") and D (A with "deep, low ... murmur, no hiss, no airy noise"). B had a 25 dB crest factor. C had the fewest clicks (1.4–1.8 per second) but both takes were bright hiss (centroid 1.5–2.0 kHz). D was the darkest but had 5.5–7.9 clicks per second. A had 4.6–5.9 clicks per second and a 13–15 dB crest factor, with one dark take (266 Hz) and one bright one (2.0 kHz), so A went ahead. The impact candidates were A (the "tiny soft muffled pff ... on a thick felt pad" prompt), B (above) and C ("a small cloth pouch landing on a thick felt blanket ... puff of air and fabric"). C had the softest attack but read as broadband air noise (centroid up to 1.9 kHz, 30 % above 2 kHz). B was the darkest (centroid 305 Hz on take 1) and had the fewest clicks, so B went ahead. The prompt-test takes of the chosen ideas are kept as `roll_solid_rug_v07`/`v08` and `impact_solid_rug_medium_v09`/`v10`. The other 10 are listed under `discarded` in `provenance-group-e.json` and are not committed.
+
+Medians per cue, measured on the source files with `scripts/audio/felt.py measure`. One-shots are measured over their active region (process.py's onset and tail rule), loops over the whole file. Crest is peak over RMS. Attack is the time from onset to the loudest 2 ms window, so longer means a softer landing. Clicks per second counts 5 ms windows of the first difference that stand 8 dB over the median of the previous 200 ms, counted in the band under 1.5 kHz for every file so that a bright noise floor cannot hide them. Share above 2 kHz and the centroid use energy above 150 Hz. Every cell is round 2 → round 3 generated → round 3 derived.
+
+| cue | crest (dB) | attack (ms) | clicks per second | share above 2 kHz (%) | centroid (Hz) |
+| --- | --- | --- | --- | --- | --- |
+| `impact_glass_rug_heavy` | 24.45 → 22.34 → 20.73 | 9 → 17 → 18.5 | 6.58 → 4.85 → 2.45 | 0.2 → 0.97 → 0 | 434.3 → 360.2 → 245.8 |
+| `impact_glass_rug_light` | 23.25 → 17.7 → 17.58 | 15 → 10.5 → 19 | 3.55 → 1.1 → 1.6 | 1.78 → 32.75 → 0.01 | 793.35 → 2867.65 → 354.65 |
+| `impact_glass_rug_medium` | 28.84 → 23.78 → 21.54 | 19.5 → 270.5 → 203 | 10.34 → 3.12 → 3.98 | 0.28 → 1.97 → 0 | 778.7 → 762.35 → 250.85 |
+| `impact_solid_rug_heavy` | 20.73 → 25.55 → 21.75 | 15.5 → 11 → 15.5 | 2.5 → 3.36 → 2.48 | 4.22 → 4.48 → 0.01 | 650.2 → 724.1 → 286.7 |
+| `impact_solid_rug_light` | 25.34 → 23.52 → 22.85 | 13.5 → 13 → 20 | 2.48 → 1.39 → 1.65 | 4.83 → 1.66 → 0 | 1139.4 → 464 → 257.2 |
+| `impact_solid_rug_medium` | 18.16 → 25.43 → 21.75 | 12 → 23 → 210.5 | 0.5 → 2.8 → 3.21 | 12.33 → 0.93 → 0 | 993.05 → 677.15 → 442.35 |
+| `impact_steel_rug_heavy` | 19.16 → 22.15 → 18.52 | 26 → 180.5 → 364.5 | 0.62 → 4.92 → 5.26 | 2.4 → 0.09 → 0 | 448.35 → 299.55 → 253.35 |
+| `impact_steel_rug_light` | 20.66 → 20.46 → 18.72 | 82 → 13.5 → 16.5 | 6.28 → 2.05 → 2 | 0.11 → 0.69 → 0 | 370.8 → 300.25 → 265.65 |
+| `impact_steel_rug_medium` | 19.81 → 21.07 → 20.52 | 14.5 → 14 → 16 | 5.39 → 0.98 → 0.96 | 0.4 → 13.73 → 0.01 | 481.8 → 1296.5 → 303.8 |
+| `roll_glass_rug` | 24.02 → 15.03 → 14.27 | n/a (loop) | 7.5 → 4.75 → 5.62 | 0.38 → 5.06 → 0 | 350.7 → 551.5 → 251.7 |
+| `roll_solid_rug` | 24.55 → 14.85 → 14.8 | n/a (loop) | 10.62 → 4.75 → 6.25 | 0.14 → 27.69 → 0.02 | 323.9 → 2036.8 → 319.2 |
+| `roll_steel_rug` | 23.74 → 16.03 → 16.77 | n/a (loop) | 8.5 → 8 → 8.12 | 0.28 → 5.21 → 0 | 301.4 → 562.2 → 304.9 |
+
+What the numbers show:
+
+- **Rolls.** Route A cut the median crest factor from 23.7–24.6 dB to 14.9–16.0 dB and the click rate from 7.5–10.6 to 4.8–8.0 per second, so the rolls lost most of their hard-surface ticking. The new prompts let some high-frequency hiss back in (centroid 552–2037 Hz, 5–28 % above 2 kHz). Route B removes that hiss (0 % above 2 kHz, centroid 252–319 Hz) and keeps the lower crest factor. Its click count does not fall below route A's: the click detector reads the envelope ripple of narrow-band low noise as onsets, so on these dark files that number is less trustworthy than the crest factor.
+- **Impacts.** Route A is mixed. It is darker than round 2 in 6 of 9 cues, has fewer clicks in 6 of 9 and a lower crest factor in 5 of 9. Several takes still came back bright (`impact_glass_rug_light` 2.9 kHz centroid, `impact_steel_rug_medium` 1.3 kHz). Route B is the darkest in every cue (centroid 246–442 Hz, 0 % above 2 kHz) and has the lowest crest factor of the three in 6 of 9.
+- None of these numbers can show whether a take sounds like felt, so Paul judges both routes on the audition board.
+
+Loudness and loops after `make audio-process`:
+
+- **Loudness.** Most rug takes cannot reach their LUFS target under the true-peak ceiling. This also held in round 2, where 7 of 36 impacts and 1 of 9 rolls were in target. In round 3, 4 of 36 route A impacts and 6 of 36 route B impacts are in target, with median shortfalls of 5.1 LU and 3.7 LU. For the rolls, 0 of 9 route A takes and 1 of 9 route B takes are in target (median shortfalls 6.1 LU and 5.5 LU). Felt is quiet and low-frequency, and K-weighted loudness discounts the low band while the true peak does not, so linear gain stops at the ceiling first. The pipeline flags these rows ("true-peak ceiling bound the gain") and does not limit or compress them. Getting to target would need compression, which is a decision for Paul.
+- **Loops.** 7 of 9 route A rolls pass the loop check at 6–8 s. `roll_glass_rug_v09` fails the check on the Opus encode, and `roll_steel_rug_v07` is only 4.5 s because an interior dropout limits the clean region. 5 of 9 route B rolls pass. `roll_glass_rug_v07f` and `roll_solid_rug_v07f` fail on the Opus seam although their parents pass, `roll_glass_rug_v09f` fails like its parent, and `roll_steel_rug_v07f` is 4.5 s like its parent. The passing loops are `roll_glass_rug_v07`, `v08`, `v08f`, `roll_solid_rug_v07`, `v08`, `v08f`, `v09`, `v09f` and `roll_steel_rug_v08`, `v08f`, `v09`, `v09f`. These counts use the Opus runtime file. The AAC fallback also fails the check on `roll_glass_rug_v08`, `v08f`, `v09` and `roll_solid_rug_v08f` (AAC priming and padding). No round 3 one-shot has leading silence over 5 ms or a duration outside its range.
 
 ## Prompt revision 2 (2026-11-07)
 
@@ -188,6 +229,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - loudness: -24 LUFS integrated ±1, true peak ≤ -6 dBTP
 - output: `roll_glass_rug_vNN.ogg` (Opus, 48 kHz mono) and `roll_glass_rug_vNN.m4a` (AAC fallback)
 - ElevenLabs prompt (revision 2): "A small light hard ball rolling steadily at constant medium speed across a thick soft wool carpet, only the soft fibrous hush and gentle rustle of carpet pile brushing past, very light and airy, muffled and dark, continuous with no start or stop, no ring, no click, no glassy or metallic tone, no wood knock, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 3, prompt influence 0.7): "very soft muffled brushing hush of thick wool felt being very lightly rubbed, a continuous steady low and dull fabric whisper, almost silent, no clicks, no hard surface, no wood, no ring, no music"
 
 ### `roll_solid_block`
 
@@ -224,6 +266,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - loudness: -24 LUFS integrated ±1, true peak ≤ -6 dBTP
 - output: `roll_solid_rug_vNN.ogg` (Opus, 48 kHz mono) and `roll_solid_rug_vNN.m4a` (AAC fallback)
 - ElevenLabs prompt (revision 2): "A small dense hard ball rolling steadily at constant medium speed across a thick soft wool carpet, only the soft fibrous hush and gentle rustle of carpet pile brushing past, soft with a little more body, muffled and dark, continuous with no start or stop, no ring, no click, no glassy or metallic tone, no wood knock, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 3, prompt influence 0.7): "very soft muffled brushing hush of thick wool felt being gently rubbed, a continuous steady low and dull fabric whisper, almost silent, no clicks, no hard surface, no wood, no ring, no music"
 
 ### `roll_steel_block`
 
@@ -260,6 +303,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - loudness: -24 LUFS integrated ±1, true peak ≤ -6 dBTP
 - output: `roll_steel_rug_vNN.ogg` (Opus, 48 kHz mono) and `roll_steel_rug_vNN.m4a` (AAC fallback)
 - ElevenLabs prompt (revision 2): "A small heavy hard ball rolling steadily at constant medium speed across a thick soft wool carpet, only the soft fibrous hush and gentle rustle of carpet pile brushing past, slightly heavier and deeper, pressing into the pile, muffled and dark, continuous with no start or stop, no ring, no click, no glassy or metallic tone, no wood knock, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 3, prompt influence 0.7): "very soft muffled brushing hush of thick wool felt being gently rubbed with a little more weight, slightly deeper, a continuous steady low and dull fabric whisper, almost silent, no clicks, no hard surface, no wood, no ring, no music"
 
 ## Family `impact`: impacts (marble × surface × band) and marble-on-marble clacks (6 pairings × band)
 
@@ -346,6 +390,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - loudness: -30 LUFS (active region) ±2, true peak ≤ -12 dBTP
 - output: `impact_glass_rug_light_vNN.ogg` (Opus, 48 kHz mono) and `impact_glass_rug_light_vNN.m4a` (AAC fallback)
 - ElevenLabs prompt (revision 2): "A light soft drop of a small light hard ball onto a thick soft wool carpet, the deep carpet pile swallows the hit: one single light, small, soft thump, muffled and dark, no ring, no click, no glassy or metallic tone, no wood knock, no bounce, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 3, prompt influence 0.7): "one single very soft dull muffled thud of a small light weight settling into a thick wool felt cushion, barely touching down, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb"
 
 ### `impact_glass_rug_medium`
 
@@ -358,6 +403,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - loudness: -24 LUFS (active region) ±2, true peak ≤ -6 dBTP
 - output: `impact_glass_rug_medium_vNN.ogg` (Opus, 48 kHz mono) and `impact_glass_rug_medium_vNN.m4a` (AAC fallback)
 - ElevenLabs prompt (revision 2): "A firm drop of a small light hard ball onto a thick soft wool carpet, the deep carpet pile swallows the hit: one single light, small, soft thump, muffled and dark, no ring, no click, no glassy or metallic tone, no wood knock, no bounce, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 3, prompt influence 0.7): "one single very soft dull muffled thud of a small light weight settling into a thick wool felt cushion, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb"
 
 ### `impact_glass_rug_heavy`
 
@@ -370,6 +416,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - loudness: -18 LUFS (active region) ±2, true peak ≤ -1 dBTP
 - output: `impact_glass_rug_heavy_vNN.ogg` (Opus, 48 kHz mono) and `impact_glass_rug_heavy_vNN.m4a` (AAC fallback)
 - ElevenLabs prompt (revision 2): "A hard drop from about 30 cm of a small light hard ball onto a thick soft wool carpet, the deep carpet pile swallows the hit: one single light, small, soft thump, muffled and dark, no ring, no click, no glassy or metallic tone, no wood knock, no bounce, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 3, prompt influence 0.7): "one single very soft dull muffled thud of a small light weight settling into a thick wool felt cushion, landing a little firmer but still soft, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb"
 
 ### `impact_solid_block_light`
 
@@ -454,6 +501,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - loudness: -30 LUFS (active region) ±2, true peak ≤ -12 dBTP
 - output: `impact_solid_rug_light_vNN.ogg` (Opus, 48 kHz mono) and `impact_solid_rug_light_vNN.m4a` (AAC fallback)
 - ElevenLabs prompt (revision 2): "A light soft drop of a small dense hard ball onto a thick soft wool carpet, the deep carpet pile swallows the hit: one single soft, dull, padded thump, muffled and dark, no ring, no click, no glassy or metallic tone, no wood knock, no bounce, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 3, prompt influence 0.7): "one single very soft dull muffled thud of a small weight settling into a thick wool felt cushion, barely touching down, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb"
 
 ### `impact_solid_rug_medium`
 
@@ -466,6 +514,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - loudness: -24 LUFS (active region) ±2, true peak ≤ -6 dBTP
 - output: `impact_solid_rug_medium_vNN.ogg` (Opus, 48 kHz mono) and `impact_solid_rug_medium_vNN.m4a` (AAC fallback)
 - ElevenLabs prompt (revision 2): "A firm drop of a small dense hard ball onto a thick soft wool carpet, the deep carpet pile swallows the hit: one single soft, dull, padded thump, muffled and dark, no ring, no click, no glassy or metallic tone, no wood knock, no bounce, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 3, prompt influence 0.7): "one single very soft dull muffled thud of a small weight settling into a thick wool felt cushion, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb"
 
 ### `impact_solid_rug_heavy`
 
@@ -478,6 +527,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - loudness: -18 LUFS (active region) ±2, true peak ≤ -1 dBTP
 - output: `impact_solid_rug_heavy_vNN.ogg` (Opus, 48 kHz mono) and `impact_solid_rug_heavy_vNN.m4a` (AAC fallback)
 - ElevenLabs prompt (revision 2): "A hard drop from about 30 cm of a small dense hard ball onto a thick soft wool carpet, the deep carpet pile swallows the hit: one single soft, dull, padded thump, muffled and dark, no ring, no click, no glassy or metallic tone, no wood knock, no bounce, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 3, prompt influence 0.7): "one single very soft dull muffled thud of a small weight settling into a thick wool felt cushion, landing a little firmer but still soft, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb"
 
 ### `impact_steel_block_light`
 
@@ -562,6 +612,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - loudness: -30 LUFS (active region) ±2, true peak ≤ -12 dBTP
 - output: `impact_steel_rug_light_vNN.ogg` (Opus, 48 kHz mono) and `impact_steel_rug_light_vNN.m4a` (AAC fallback)
 - ElevenLabs prompt (revision 2): "A light soft drop of a small heavy hard ball onto a thick soft wool carpet, the deep carpet pile swallows the hit: one single heavier, deeper, padded thud, muffled and dark, no ring, no click, no glassy or metallic tone, no wood knock, no bounce, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 3, prompt influence 0.7): "one single very soft dull muffled thud of a small heavy weight settling into a thick wool felt cushion, barely touching down, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb"
 
 ### `impact_steel_rug_medium`
 
@@ -574,6 +625,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - loudness: -24 LUFS (active region) ±2, true peak ≤ -6 dBTP
 - output: `impact_steel_rug_medium_vNN.ogg` (Opus, 48 kHz mono) and `impact_steel_rug_medium_vNN.m4a` (AAC fallback)
 - ElevenLabs prompt (revision 2): "A firm drop of a small heavy hard ball onto a thick soft wool carpet, the deep carpet pile swallows the hit: one single heavier, deeper, padded thud, muffled and dark, no ring, no click, no glassy or metallic tone, no wood knock, no bounce, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 3, prompt influence 0.7): "one single very soft dull muffled thud of a small heavy weight settling into a thick wool felt cushion, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb"
 
 ### `impact_steel_rug_heavy`
 
@@ -586,6 +638,7 @@ Generation estimate: 270 kept candidates. Allow a 25% retry margin for takes tha
 - loudness: -18 LUFS (active region) ±2, true peak ≤ -1 dBTP
 - output: `impact_steel_rug_heavy_vNN.ogg` (Opus, 48 kHz mono) and `impact_steel_rug_heavy_vNN.m4a` (AAC fallback)
 - ElevenLabs prompt (revision 2): "A hard drop from about 30 cm of a small heavy hard ball onto a thick soft wool carpet, the deep carpet pile swallows the hit: one single heavier, deeper, padded thud, muffled and dark, no ring, no click, no glassy or metallic tone, no wood knock, no bounce, close mic, dry room, real recording, no music, no reverb"
+- ElevenLabs prompt (revision 3, prompt influence 0.7): "one single very soft dull muffled thud of a small heavy weight settling into a thick wool felt cushion, landing a little firmer but still soft, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb"
 
 ### `clack_glass_glass_light`
 

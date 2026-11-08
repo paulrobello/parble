@@ -1,0 +1,3761 @@
+{
+  "provider": "ElevenLabs text-to-sound-effects",
+  "endpoint": "POST /v1/sound-generation",
+  "model": "eleven_text_to_sound_v2",
+  "tier": "starter",
+  "generator": "elevenlabs skill generate.py",
+  "group": "E (rug prompt revision 3 after the second 2026-11-07 audition: felt-first prompts (route A) and a deterministic felt DSP variant of each new take (route B))",
+  "output_format": "mp3_44100_128",
+  "prompt_influence": 0.7,
+  "cue_sheet": "docs/audio/cue-sheet.md",
+  "replaces": "rug rows marked status \"rejected\" in provenance-group-d.json",
+  "total_requests": 55,
+  "billed_generations": 55,
+  "kept_count": 45,
+  "discarded_count": 10,
+  "derived_count": 45,
+  "credits_used": "700 (account character_count 6295 before, 6995 after, read from GET /v1/user/subscription)",
+  "qc": "Every take decodes fully with ffmpeg. Softness and darkness were compared against the round-2 takes with scripts/audio/felt.py measure (crest factor, steepest 2 ms envelope rise, attack time, click onsets per second in the band under 1.5 kHz, share of energy above 2 kHz, spectral centroid above 150 Hz); see docs/audio/cue-sheet.md, prompt revision 3. No listening audition was done; creative review is pending on the audition board.",
+  "processing": "generated rows: none, files are the unchanged provider response bytes (only renamed). Derived rows (stem suffix f): scripts/audio/felt.py derive, recipe in each row's processing field.",
+  "rights_note": "Generated under ElevenLabs paid-plan terms, which grant commercial use of outputs on paid subscriptions. Verify the account's current plan and terms before release; rights gate unresolved until verified. Derived rows inherit their parent take's rights.",
+  "approval": {
+    "technical": "pending",
+    "creative": "pending",
+    "rights": "unresolved",
+    "owner": "pending"
+  },
+  "prompt_tests": {
+    "t_rollA_2": {
+      "idea": "rollA",
+      "cue_id": "roll_solid_rug",
+      "sha256": "1a3f8964be94acc3d2a5a169529038c6bc0d0aafa0a81b39f8abbeb9ffae1032",
+      "duration_s": 8.0,
+      "crest_db": 14.85,
+      "max_rise_db_per_ms": 10.76,
+      "attack_ms": null,
+      "clicks_per_s": 5.88,
+      "share_above_2k_pct": 0.77,
+      "centroid_hp_hz": 266.3
+    },
+    "t_rollA_1": {
+      "idea": "rollA",
+      "cue_id": "roll_solid_rug",
+      "sha256": "3facfaa3a908aaee34d35fcd433b653f6968fa6bf6df0d8ffd087b863daa1332",
+      "duration_s": 8.0,
+      "crest_db": 12.83,
+      "max_rise_db_per_ms": 11.33,
+      "attack_ms": null,
+      "clicks_per_s": 4.62,
+      "share_above_2k_pct": 27.69,
+      "centroid_hp_hz": 2036.8
+    },
+    "t_rollB_1": {
+      "idea": "rollB",
+      "cue_id": "roll_solid_rug",
+      "sha256": "e5e2b7db1afbd62891d170573ed05af3013cb1c6aebe7982766ee44fed145482",
+      "duration_s": 8.0,
+      "crest_db": 25.35,
+      "max_rise_db_per_ms": 7.46,
+      "attack_ms": null,
+      "clicks_per_s": 1.5,
+      "share_above_2k_pct": 24.44,
+      "centroid_hp_hz": 2056.6
+    },
+    "t_rollB_2": {
+      "idea": "rollB",
+      "cue_id": "roll_solid_rug",
+      "sha256": "9ab1ea748604c2aa4fa67346e48548bc460f7ae5421e2c757cad059f57989989",
+      "duration_s": 8.0,
+      "crest_db": 25.11,
+      "max_rise_db_per_ms": 12.97,
+      "attack_ms": null,
+      "clicks_per_s": 3.5,
+      "share_above_2k_pct": 43.91,
+      "centroid_hp_hz": 3293.1
+    },
+    "t_rollC_1": {
+      "idea": "rollC",
+      "cue_id": "roll_solid_rug",
+      "sha256": "68584c040b3f344f26032d7a229e29fc24e12abdbf9c497ce343114d723b63ca",
+      "duration_s": 8.0,
+      "crest_db": 12.53,
+      "max_rise_db_per_ms": 8.53,
+      "attack_ms": null,
+      "clicks_per_s": 1.38,
+      "share_above_2k_pct": 18.96,
+      "centroid_hp_hz": 1547.7
+    },
+    "t_rollC_2": {
+      "idea": "rollC",
+      "cue_id": "roll_solid_rug",
+      "sha256": "27ce6bcad58c981b3b3731716d8625cf3ee89bf499c8660b023b6356a157f9bc",
+      "duration_s": 8.0,
+      "crest_db": 12.19,
+      "max_rise_db_per_ms": 8.22,
+      "attack_ms": null,
+      "clicks_per_s": 1.75,
+      "share_above_2k_pct": 21.59,
+      "centroid_hp_hz": 2011.7
+    },
+    "t_impA_1": {
+      "idea": "impA",
+      "cue_id": "impact_solid_rug_medium",
+      "sha256": "7283bcbf31c262b94dacb42bef5ce25831bce21f2629b9e433748ed4c1b6bbd6",
+      "duration_s": 0.925,
+      "crest_db": 23.51,
+      "max_rise_db_per_ms": 10.95,
+      "attack_ms": 264.0,
+      "clicks_per_s": 7.57,
+      "share_above_2k_pct": 2.44,
+      "centroid_hp_hz": 706.4
+    },
+    "t_impA_2": {
+      "idea": "impA",
+      "cue_id": "impact_solid_rug_medium",
+      "sha256": "2fbceec5763cde41eeccb4c3ff151206f8689595660409da6240bc21961fa32d",
+      "duration_s": 0.82,
+      "crest_db": 24.19,
+      "max_rise_db_per_ms": 13.15,
+      "attack_ms": 24.0,
+      "clicks_per_s": 2.44,
+      "share_above_2k_pct": 0.04,
+      "centroid_hp_hz": 516.2
+    },
+    "t_impB_1": {
+      "idea": "impB",
+      "cue_id": "impact_solid_rug_medium",
+      "sha256": "d714c1fa99d9308b9846e5a3bc3fc2075e140062cfbad5db2f52564b29153bd9",
+      "duration_s": 0.41,
+      "crest_db": 23.15,
+      "max_rise_db_per_ms": 10.25,
+      "attack_ms": 16.0,
+      "clicks_per_s": 2.44,
+      "share_above_2k_pct": 0.24,
+      "centroid_hp_hz": 304.5
+    },
+    "t_impB_2": {
+      "idea": "impB",
+      "cue_id": "impact_solid_rug_medium",
+      "sha256": "c29fc8fa227d994f5ae1cee151e8d8854983f23a136151bf202ba1bbd8a8f1e4",
+      "duration_s": 0.955,
+      "crest_db": 29.78,
+      "max_rise_db_per_ms": 11.14,
+      "attack_ms": 30.0,
+      "clicks_per_s": 5.24,
+      "share_above_2k_pct": 0.4,
+      "centroid_hp_hz": 1218.3
+    },
+    "t_impC_1": {
+      "idea": "impC",
+      "cue_id": "impact_solid_rug_medium",
+      "sha256": "610e9dba384b8698c019425ca7e48a6bf9fa3c5b0afab31e7efead1e4d14d291",
+      "duration_s": 0.91,
+      "crest_db": 17.55,
+      "max_rise_db_per_ms": 4.41,
+      "attack_ms": 331.0,
+      "clicks_per_s": 6.59,
+      "share_above_2k_pct": 29.87,
+      "centroid_hp_hz": 1866.2
+    },
+    "t_impC_2": {
+      "idea": "impC",
+      "cue_id": "impact_solid_rug_medium",
+      "sha256": "d0c781cc5fce874004f5826d8678f616979951055537abf59aab28c9b1c274f4",
+      "duration_s": 0.575,
+      "crest_db": 21.16,
+      "max_rise_db_per_ms": 6.43,
+      "attack_ms": 200.0,
+      "clicks_per_s": 6.96,
+      "share_above_2k_pct": 4.76,
+      "centroid_hp_hz": 621.2
+    },
+    "t_rollD_2": {
+      "idea": "rollD",
+      "cue_id": "roll_solid_rug",
+      "sha256": "d094fe312a6db180f082552f2cce8e62122337067d58882027d1c77e31ce0b70",
+      "duration_s": 8.0,
+      "crest_db": 15.59,
+      "max_rise_db_per_ms": 11.14,
+      "attack_ms": null,
+      "clicks_per_s": 7.88,
+      "share_above_2k_pct": 0.23,
+      "centroid_hp_hz": 225.0
+    },
+    "t_rollD_1": {
+      "idea": "rollD",
+      "cue_id": "roll_solid_rug",
+      "sha256": "5185384113269269c597580ba259b4ab970519a5dc1b8e61321afcd6ffd34f54",
+      "duration_s": 8.0,
+      "crest_db": 14.03,
+      "max_rise_db_per_ms": 10.64,
+      "attack_ms": null,
+      "clicks_per_s": 5.5,
+      "share_above_2k_pct": 13.21,
+      "centroid_hp_hz": 888.4
+    }
+  },
+  "measurement_medians": {
+    "impact_glass_rug_heavy": {
+      "round2": {
+        "crest_db": 24.45,
+        "max_rise_db_per_ms": 9.35,
+        "attack_ms": 9.0,
+        "clicks_per_s": 6.58,
+        "share_above_2k_pct": 0.2,
+        "centroid_hp_hz": 434.3
+      },
+      "round3_generated": {
+        "crest_db": 22.34,
+        "max_rise_db_per_ms": 10.09,
+        "attack_ms": 17.0,
+        "clicks_per_s": 4.85,
+        "share_above_2k_pct": 0.97,
+        "centroid_hp_hz": 360.2
+      },
+      "round3_derived": {
+        "crest_db": 20.73,
+        "max_rise_db_per_ms": 9.95,
+        "attack_ms": 18.5,
+        "clicks_per_s": 2.45,
+        "share_above_2k_pct": 0.0,
+        "centroid_hp_hz": 245.8
+      }
+    },
+    "impact_glass_rug_light": {
+      "round2": {
+        "crest_db": 23.25,
+        "max_rise_db_per_ms": 7.26,
+        "attack_ms": 15.0,
+        "clicks_per_s": 3.55,
+        "share_above_2k_pct": 1.78,
+        "centroid_hp_hz": 793.35
+      },
+      "round3_generated": {
+        "crest_db": 17.7,
+        "max_rise_db_per_ms": 8.69,
+        "attack_ms": 10.5,
+        "clicks_per_s": 1.1,
+        "share_above_2k_pct": 32.75,
+        "centroid_hp_hz": 2867.65
+      },
+      "round3_derived": {
+        "crest_db": 17.58,
+        "max_rise_db_per_ms": 8.55,
+        "attack_ms": 19.0,
+        "clicks_per_s": 1.6,
+        "share_above_2k_pct": 0.01,
+        "centroid_hp_hz": 354.65
+      }
+    },
+    "impact_glass_rug_medium": {
+      "round2": {
+        "crest_db": 28.84,
+        "max_rise_db_per_ms": 12.7,
+        "attack_ms": 19.5,
+        "clicks_per_s": 10.34,
+        "share_above_2k_pct": 0.28,
+        "centroid_hp_hz": 778.7
+      },
+      "round3_generated": {
+        "crest_db": 23.78,
+        "max_rise_db_per_ms": 10.11,
+        "attack_ms": 270.5,
+        "clicks_per_s": 3.12,
+        "share_above_2k_pct": 1.97,
+        "centroid_hp_hz": 762.35
+      },
+      "round3_derived": {
+        "crest_db": 21.54,
+        "max_rise_db_per_ms": 8.55,
+        "attack_ms": 203.0,
+        "clicks_per_s": 3.98,
+        "share_above_2k_pct": 0.0,
+        "centroid_hp_hz": 250.85
+      }
+    },
+    "impact_solid_rug_heavy": {
+      "round2": {
+        "crest_db": 20.73,
+        "max_rise_db_per_ms": 8.88,
+        "attack_ms": 15.5,
+        "clicks_per_s": 2.5,
+        "share_above_2k_pct": 4.22,
+        "centroid_hp_hz": 650.2
+      },
+      "round3_generated": {
+        "crest_db": 25.55,
+        "max_rise_db_per_ms": 7.87,
+        "attack_ms": 11.0,
+        "clicks_per_s": 3.36,
+        "share_above_2k_pct": 4.48,
+        "centroid_hp_hz": 724.1
+      },
+      "round3_derived": {
+        "crest_db": 21.75,
+        "max_rise_db_per_ms": 8.64,
+        "attack_ms": 15.5,
+        "clicks_per_s": 2.48,
+        "share_above_2k_pct": 0.01,
+        "centroid_hp_hz": 286.7
+      }
+    },
+    "impact_solid_rug_light": {
+      "round2": {
+        "crest_db": 25.34,
+        "max_rise_db_per_ms": 9.22,
+        "attack_ms": 13.5,
+        "clicks_per_s": 2.48,
+        "share_above_2k_pct": 4.83,
+        "centroid_hp_hz": 1139.4
+      },
+      "round3_generated": {
+        "crest_db": 23.52,
+        "max_rise_db_per_ms": 8.34,
+        "attack_ms": 13.0,
+        "clicks_per_s": 1.39,
+        "share_above_2k_pct": 1.66,
+        "centroid_hp_hz": 464.0
+      },
+      "round3_derived": {
+        "crest_db": 22.85,
+        "max_rise_db_per_ms": 9.65,
+        "attack_ms": 20.0,
+        "clicks_per_s": 1.65,
+        "share_above_2k_pct": 0.0,
+        "centroid_hp_hz": 257.2
+      }
+    },
+    "impact_solid_rug_medium": {
+      "round2": {
+        "crest_db": 18.16,
+        "max_rise_db_per_ms": 8.29,
+        "attack_ms": 12.0,
+        "clicks_per_s": 0.5,
+        "share_above_2k_pct": 12.33,
+        "centroid_hp_hz": 993.05
+      },
+      "round3_generated": {
+        "crest_db": 25.43,
+        "max_rise_db_per_ms": 10.19,
+        "attack_ms": 23.0,
+        "clicks_per_s": 2.8,
+        "share_above_2k_pct": 0.93,
+        "centroid_hp_hz": 677.15
+      },
+      "round3_derived": {
+        "crest_db": 21.75,
+        "max_rise_db_per_ms": 7.75,
+        "attack_ms": 210.5,
+        "clicks_per_s": 3.21,
+        "share_above_2k_pct": 0.0,
+        "centroid_hp_hz": 442.35
+      }
+    },
+    "impact_steel_rug_heavy": {
+      "round2": {
+        "crest_db": 19.16,
+        "max_rise_db_per_ms": 7.72,
+        "attack_ms": 26.0,
+        "clicks_per_s": 0.62,
+        "share_above_2k_pct": 2.4,
+        "centroid_hp_hz": 448.35
+      },
+      "round3_generated": {
+        "crest_db": 22.15,
+        "max_rise_db_per_ms": 9.49,
+        "attack_ms": 180.5,
+        "clicks_per_s": 4.92,
+        "share_above_2k_pct": 0.09,
+        "centroid_hp_hz": 299.55
+      },
+      "round3_derived": {
+        "crest_db": 18.52,
+        "max_rise_db_per_ms": 9.59,
+        "attack_ms": 364.5,
+        "clicks_per_s": 5.26,
+        "share_above_2k_pct": 0.0,
+        "centroid_hp_hz": 253.35
+      }
+    },
+    "impact_steel_rug_light": {
+      "round2": {
+        "crest_db": 20.66,
+        "max_rise_db_per_ms": 9.56,
+        "attack_ms": 82.0,
+        "clicks_per_s": 6.28,
+        "share_above_2k_pct": 0.11,
+        "centroid_hp_hz": 370.8
+      },
+      "round3_generated": {
+        "crest_db": 20.46,
+        "max_rise_db_per_ms": 7.46,
+        "attack_ms": 13.5,
+        "clicks_per_s": 2.05,
+        "share_above_2k_pct": 0.69,
+        "centroid_hp_hz": 300.25
+      },
+      "round3_derived": {
+        "crest_db": 18.72,
+        "max_rise_db_per_ms": 8.87,
+        "attack_ms": 16.5,
+        "clicks_per_s": 2.0,
+        "share_above_2k_pct": 0.0,
+        "centroid_hp_hz": 265.65
+      }
+    },
+    "impact_steel_rug_medium": {
+      "round2": {
+        "crest_db": 19.81,
+        "max_rise_db_per_ms": 8.6,
+        "attack_ms": 14.5,
+        "clicks_per_s": 5.39,
+        "share_above_2k_pct": 0.4,
+        "centroid_hp_hz": 481.8
+      },
+      "round3_generated": {
+        "crest_db": 21.07,
+        "max_rise_db_per_ms": 8.45,
+        "attack_ms": 14.0,
+        "clicks_per_s": 0.98,
+        "share_above_2k_pct": 13.73,
+        "centroid_hp_hz": 1296.5
+      },
+      "round3_derived": {
+        "crest_db": 20.52,
+        "max_rise_db_per_ms": 8.42,
+        "attack_ms": 16.0,
+        "clicks_per_s": 0.96,
+        "share_above_2k_pct": 0.01,
+        "centroid_hp_hz": 303.8
+      }
+    },
+    "roll_glass_rug": {
+      "round2": {
+        "crest_db": 24.02,
+        "max_rise_db_per_ms": 10.96,
+        "attack_ms": null,
+        "clicks_per_s": 7.5,
+        "share_above_2k_pct": 0.38,
+        "centroid_hp_hz": 350.7
+      },
+      "round3_generated": {
+        "crest_db": 15.03,
+        "max_rise_db_per_ms": 9.57,
+        "attack_ms": null,
+        "clicks_per_s": 4.75,
+        "share_above_2k_pct": 5.06,
+        "centroid_hp_hz": 551.5
+      },
+      "round3_derived": {
+        "crest_db": 14.27,
+        "max_rise_db_per_ms": 10.94,
+        "attack_ms": null,
+        "clicks_per_s": 5.62,
+        "share_above_2k_pct": 0.0,
+        "centroid_hp_hz": 251.7
+      }
+    },
+    "roll_solid_rug": {
+      "round2": {
+        "crest_db": 24.55,
+        "max_rise_db_per_ms": 11.99,
+        "attack_ms": null,
+        "clicks_per_s": 10.62,
+        "share_above_2k_pct": 0.14,
+        "centroid_hp_hz": 323.9
+      },
+      "round3_generated": {
+        "crest_db": 14.85,
+        "max_rise_db_per_ms": 10.76,
+        "attack_ms": null,
+        "clicks_per_s": 4.75,
+        "share_above_2k_pct": 27.69,
+        "centroid_hp_hz": 2036.8
+      },
+      "round3_derived": {
+        "crest_db": 14.8,
+        "max_rise_db_per_ms": 12.1,
+        "attack_ms": null,
+        "clicks_per_s": 6.25,
+        "share_above_2k_pct": 0.02,
+        "centroid_hp_hz": 319.2
+      }
+    },
+    "roll_steel_rug": {
+      "round2": {
+        "crest_db": 23.74,
+        "max_rise_db_per_ms": 11.97,
+        "attack_ms": null,
+        "clicks_per_s": 8.5,
+        "share_above_2k_pct": 0.28,
+        "centroid_hp_hz": 301.4
+      },
+      "round3_generated": {
+        "crest_db": 16.03,
+        "max_rise_db_per_ms": 8.96,
+        "attack_ms": null,
+        "clicks_per_s": 8.0,
+        "share_above_2k_pct": 5.21,
+        "centroid_hp_hz": 562.2
+      },
+      "round3_derived": {
+        "crest_db": 16.77,
+        "max_rise_db_per_ms": 9.96,
+        "attack_ms": null,
+        "clicks_per_s": 8.12,
+        "share_above_2k_pct": 0.0,
+        "centroid_hp_hz": 304.9
+      }
+    }
+  },
+  "discarded": [
+    {
+      "name": "t_rollB_1",
+      "prompt_idea": "rollB",
+      "cue_id": "roll_solid_rug",
+      "sha256": "e5e2b7db1afbd62891d170573ed05af3013cb1c6aebe7982766ee44fed145482",
+      "bytes": 129192,
+      "generated_at": "2026-11-08T01:27:21+00:00",
+      "prompt": "steady soft whisper of a felt pad sliding slowly and continuously over a thick wool felt blanket, a low muffled breathy fabric hush, dull and dark, very quiet, no clicks, no crackle, no hard surface, no wood, no ring, no music",
+      "prompt_influence": 0.7,
+      "loop": true,
+      "duration_seconds": 8,
+      "reason": "prompt test of an idea that was not chosen; see prompt_tests",
+      "archived": "not committed (discarded prompt-test take)"
+    },
+    {
+      "name": "t_rollB_2",
+      "prompt_idea": "rollB",
+      "cue_id": "roll_solid_rug",
+      "sha256": "9ab1ea748604c2aa4fa67346e48548bc460f7ae5421e2c757cad059f57989989",
+      "bytes": 129192,
+      "generated_at": "2026-11-08T01:27:21+00:00",
+      "prompt": "steady soft whisper of a felt pad sliding slowly and continuously over a thick wool felt blanket, a low muffled breathy fabric hush, dull and dark, very quiet, no clicks, no crackle, no hard surface, no wood, no ring, no music",
+      "prompt_influence": 0.7,
+      "loop": true,
+      "duration_seconds": 8,
+      "reason": "prompt test of an idea that was not chosen; see prompt_tests",
+      "archived": "not committed (discarded prompt-test take)"
+    },
+    {
+      "name": "t_rollC_1",
+      "prompt_idea": "rollC",
+      "cue_id": "roll_solid_rug",
+      "sha256": "68584c040b3f344f26032d7a229e29fc24e12abdbf9c497ce343114d723b63ca",
+      "bytes": 129192,
+      "generated_at": "2026-11-08T01:27:24+00:00",
+      "prompt": "soft continuous low hush, like breath through thick wool cloth, a gentle muffled fabric rustle of felt brushing felt, dark and dull, almost inaudible, steady with no start or stop, no clicks, no hard surface, no wood, no ring, no music",
+      "prompt_influence": 0.7,
+      "loop": true,
+      "duration_seconds": 8,
+      "reason": "prompt test of an idea that was not chosen; see prompt_tests",
+      "archived": "not committed (discarded prompt-test take)"
+    },
+    {
+      "name": "t_rollC_2",
+      "prompt_idea": "rollC",
+      "cue_id": "roll_solid_rug",
+      "sha256": "27ce6bcad58c981b3b3731716d8625cf3ee89bf499c8660b023b6356a157f9bc",
+      "bytes": 129192,
+      "generated_at": "2026-11-08T01:27:24+00:00",
+      "prompt": "soft continuous low hush, like breath through thick wool cloth, a gentle muffled fabric rustle of felt brushing felt, dark and dull, almost inaudible, steady with no start or stop, no clicks, no hard surface, no wood, no ring, no music",
+      "prompt_influence": 0.7,
+      "loop": true,
+      "duration_seconds": 8,
+      "reason": "prompt test of an idea that was not chosen; see prompt_tests",
+      "archived": "not committed (discarded prompt-test take)"
+    },
+    {
+      "name": "t_impA_1",
+      "prompt_idea": "impA",
+      "cue_id": "impact_solid_rug_medium",
+      "sha256": "7283bcbf31c262b94dacb42bef5ce25831bce21f2629b9e433748ed4c1b6bbd6",
+      "bytes": 17179,
+      "generated_at": "2026-11-08T01:27:27+00:00",
+      "prompt": "a tiny soft muffled pff of something small landing on a thick felt pad, no attack, no click, no wood, no ring, no hard surface, no bounce, one single sound, no music, no reverb",
+      "prompt_influence": 0.7,
+      "loop": false,
+      "duration_seconds": 1.0,
+      "reason": "prompt test of an idea that was not chosen; see prompt_tests",
+      "archived": "not committed (discarded prompt-test take)"
+    },
+    {
+      "name": "t_impA_2",
+      "prompt_idea": "impA",
+      "cue_id": "impact_solid_rug_medium",
+      "sha256": "2fbceec5763cde41eeccb4c3ff151206f8689595660409da6240bc21961fa32d",
+      "bytes": 17179,
+      "generated_at": "2026-11-08T01:27:27+00:00",
+      "prompt": "a tiny soft muffled pff of something small landing on a thick felt pad, no attack, no click, no wood, no ring, no hard surface, no bounce, one single sound, no music, no reverb",
+      "prompt_influence": 0.7,
+      "loop": false,
+      "duration_seconds": 1.0,
+      "reason": "prompt test of an idea that was not chosen; see prompt_tests",
+      "archived": "not committed (discarded prompt-test take)"
+    },
+    {
+      "name": "t_impC_1",
+      "prompt_idea": "impC",
+      "cue_id": "impact_solid_rug_medium",
+      "sha256": "610e9dba384b8698c019425ca7e48a6bf9fa3c5b0afab31e7efead1e4d14d291",
+      "bytes": 17179,
+      "generated_at": "2026-11-08T01:27:30+00:00",
+      "prompt": "soft fabric foley: a small cloth pouch landing on a thick felt blanket, one quiet low muffled puff of air and fabric, soft onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "prompt_influence": 0.7,
+      "loop": false,
+      "duration_seconds": 1.0,
+      "reason": "prompt test of an idea that was not chosen; see prompt_tests",
+      "archived": "not committed (discarded prompt-test take)"
+    },
+    {
+      "name": "t_impC_2",
+      "prompt_idea": "impC",
+      "cue_id": "impact_solid_rug_medium",
+      "sha256": "d0c781cc5fce874004f5826d8678f616979951055537abf59aab28c9b1c274f4",
+      "bytes": 17179,
+      "generated_at": "2026-11-08T01:27:31+00:00",
+      "prompt": "soft fabric foley: a small cloth pouch landing on a thick felt blanket, one quiet low muffled puff of air and fabric, soft onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "prompt_influence": 0.7,
+      "loop": false,
+      "duration_seconds": 1.0,
+      "reason": "prompt test of an idea that was not chosen; see prompt_tests",
+      "archived": "not committed (discarded prompt-test take)"
+    },
+    {
+      "name": "t_rollD_2",
+      "prompt_idea": "rollD",
+      "cue_id": "roll_solid_rug",
+      "sha256": "d094fe312a6db180f082552f2cce8e62122337067d58882027d1c77e31ce0b70",
+      "bytes": 129192,
+      "generated_at": "2026-11-08T01:28:08+00:00",
+      "prompt": "very soft muffled brushing of thick wool felt being gently and steadily rubbed, a continuous deep, low and dull fabric murmur, dark and padded, almost silent, no hiss, no airy noise, no clicks, no hard surface, no wood, no ring, no music",
+      "prompt_influence": 0.7,
+      "loop": true,
+      "duration_seconds": 8,
+      "reason": "prompt test of an idea that was not chosen; see prompt_tests",
+      "archived": "not committed (discarded prompt-test take)"
+    },
+    {
+      "name": "t_rollD_1",
+      "prompt_idea": "rollD",
+      "cue_id": "roll_solid_rug",
+      "sha256": "5185384113269269c597580ba259b4ab970519a5dc1b8e61321afcd6ffd34f54",
+      "bytes": 129192,
+      "generated_at": "2026-11-08T01:28:08+00:00",
+      "prompt": "very soft muffled brushing of thick wool felt being gently and steadily rubbed, a continuous deep, low and dull fabric murmur, dark and padded, almost silent, no hiss, no airy noise, no clicks, no hard surface, no wood, no ring, no music",
+      "prompt_influence": 0.7,
+      "loop": true,
+      "duration_seconds": 8,
+      "reason": "prompt test of an idea that was not chosen; see prompt_tests",
+      "archived": "not committed (discarded prompt-test take)"
+    }
+  ],
+  "errors": [],
+  "files": [
+    {
+      "cue_id": "impact_glass_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_heavy_v09.mp3",
+      "sha256": "f64e84c3de1a87024c6c77261c179db3452cb0832593e7438bd8519951989072",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small light weight settling into a thick wool felt cushion, landing a little firmer but still soft, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:39+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_glass_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_heavy_v10.mp3",
+      "sha256": "3a59b8e2579c2d03244bd3fdb11dcafa26cefb1388214e5d01cada1b02a7870f",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small light weight settling into a thick wool felt cushion, landing a little firmer but still soft, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:39+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_glass_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_heavy_v11.mp3",
+      "sha256": "baaf9432696d85891520ca605939afe4190de9a3756ce1e4498ee7e167b0b8e3",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small light weight settling into a thick wool felt cushion, landing a little firmer but still soft, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:41+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_glass_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_heavy_v12.mp3",
+      "sha256": "ec09e8b90158f182a1295974da3a4f1d74087fd8d0d0d198573a591c5f9556ef",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small light weight settling into a thick wool felt cushion, landing a little firmer but still soft, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:42+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_glass_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_light_v09.mp3",
+      "sha256": "7aeb1ec3dee426efe9ac374dc94d0680fd34253dd574500a3eaabcdcbd5f16f4",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small light weight settling into a thick wool felt cushion, barely touching down, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:32+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_glass_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_light_v10.mp3",
+      "sha256": "454927a56d2a3f730f0e2a98ad5516b109c51a0501987add969e0b27dc771fa0",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small light weight settling into a thick wool felt cushion, barely touching down, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:32+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_glass_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_light_v11.mp3",
+      "sha256": "2535518e32222b708aaaec298a7e2eb195804b2117bb4d165cb2e62f7e99fb90",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small light weight settling into a thick wool felt cushion, barely touching down, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:33+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_glass_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_light_v12.mp3",
+      "sha256": "a07cfd898bb0b1906c9a6c7c12a66de2eec14f7fd5aaa5a532dec85968f16395",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small light weight settling into a thick wool felt cushion, barely touching down, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:34+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_glass_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_medium_v09.mp3",
+      "sha256": "529e11c131a93b328d9b580f1dc7d6ba40c3e3b0e9981257705787d42da56739",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small light weight settling into a thick wool felt cushion, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:36+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_glass_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_medium_v10.mp3",
+      "sha256": "4088cf4357874ba0ddc8909120750d95e8a76b81f90ca2e99d672fdc3a2e4599",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small light weight settling into a thick wool felt cushion, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:36+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_glass_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_medium_v11.mp3",
+      "sha256": "e0c058870bede67eb76a7b7fc0332569156db41a1ff825c0eef78e4a9e938c4d",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small light weight settling into a thick wool felt cushion, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:37+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_glass_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_medium_v12.mp3",
+      "sha256": "d80139804015cdb668ee216da8f41e5e6abfef6c0ccd9cf990e9c4f4ea879e20",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small light weight settling into a thick wool felt cushion, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:37+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_solid_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_heavy_v09.mp3",
+      "sha256": "e0757ee444432ee732c29b096bba5f8ac8ea1a305238264b589bf667cb4acdab",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small weight settling into a thick wool felt cushion, landing a little firmer but still soft, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:54+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_solid_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_heavy_v10.mp3",
+      "sha256": "3e6c7731019145f6fa137b9bff64fbd896e3730446d93978345e60297b200b8c",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small weight settling into a thick wool felt cushion, landing a little firmer but still soft, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:54+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_solid_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_heavy_v11.mp3",
+      "sha256": "4b54b797baabb6fe9af22f3e9eca571d09cff086304b929d58d802ca4b31ea6e",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small weight settling into a thick wool felt cushion, landing a little firmer but still soft, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:56+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_solid_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_heavy_v12.mp3",
+      "sha256": "4bf186258691675802a066a59b84422f9ddbaa345714bda44a9f405f03c546bf",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small weight settling into a thick wool felt cushion, landing a little firmer but still soft, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:56+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_solid_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_light_v09.mp3",
+      "sha256": "03233ce08bb1ee75884582b2046f1ce25e0b96fd23658c4f20dac713ad402c3b",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small weight settling into a thick wool felt cushion, barely touching down, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:47+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_solid_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_light_v10.mp3",
+      "sha256": "42567c1684cfe582d458eec34e246de65225f920403f43360fd6812385abb9c7",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small weight settling into a thick wool felt cushion, barely touching down, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:49+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_solid_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_light_v11.mp3",
+      "sha256": "e82f767825aaecdd6ce1bda6580e46663b2e5aa3e7949585306c7b156795dbed",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small weight settling into a thick wool felt cushion, barely touching down, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:50+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_solid_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_light_v12.mp3",
+      "sha256": "f70b246fc59cc8a7c872b3cdfdf7fc0cac32ed457f80e69c170e4106d0746d8d",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small weight settling into a thick wool felt cushion, barely touching down, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:51+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_solid_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_medium_v09.mp3",
+      "sha256": "d714c1fa99d9308b9846e5a3bc3fc2075e140062cfbad5db2f52564b29153bd9",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small weight settling into a thick wool felt cushion, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:27:28+00:00",
+      "attempt": 1,
+      "prompt_test": true
+    },
+    {
+      "cue_id": "impact_solid_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_medium_v10.mp3",
+      "sha256": "c29fc8fa227d994f5ae1cee151e8d8854983f23a136151bf202ba1bbd8a8f1e4",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small weight settling into a thick wool felt cushion, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:27:29+00:00",
+      "attempt": 1,
+      "prompt_test": true
+    },
+    {
+      "cue_id": "impact_solid_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_medium_v11.mp3",
+      "sha256": "7fe7d3ba7c4b8ed98c13b7abbb767f88bac2c2a8b28e69e44a70186cac1f74c3",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small weight settling into a thick wool felt cushion, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:51+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_solid_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_medium_v12.mp3",
+      "sha256": "889a0aa9cafd97a7bcb79ecfb081ed8346d4adff4ded93766748520413d6f9e4",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small weight settling into a thick wool felt cushion, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:53+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_steel_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_heavy_v09.mp3",
+      "sha256": "a63548c33c33589c9d68cf0b3c465dcae4c9179c531b6968cae47fa83c55a662",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small heavy weight settling into a thick wool felt cushion, landing a little firmer but still soft, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:29:08+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_steel_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_heavy_v10.mp3",
+      "sha256": "724ca3c5c056bef26d6118576d6809ecbaeff84f2e8bf2d49b947567d00337d8",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small heavy weight settling into a thick wool felt cushion, landing a little firmer but still soft, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:29:08+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_steel_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_heavy_v11.mp3",
+      "sha256": "e333aeb162ac9d059482f0a59c845d532450ca9cdd82bc44f4d487dd8f02cd4e",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small heavy weight settling into a thick wool felt cushion, landing a little firmer but still soft, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:29:10+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_steel_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_heavy_v12.mp3",
+      "sha256": "ef85944a8f561aff00e9036d5aa297856c4e2935fb14145c444afce5649ccdba",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small heavy weight settling into a thick wool felt cushion, landing a little firmer but still soft, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:29:10+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_steel_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_light_v09.mp3",
+      "sha256": "8f586a71ee0aa6a1260e3a09586e53d83c4840e09c88aac3078bb2ac9d8c9fa5",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small heavy weight settling into a thick wool felt cushion, barely touching down, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:59+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_steel_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_light_v10.mp3",
+      "sha256": "b1b021105231cbe361cce9a7dee19403e1484ebb69bd37567f378f4b03d3cf9c",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small heavy weight settling into a thick wool felt cushion, barely touching down, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:29:00+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_steel_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_light_v11.mp3",
+      "sha256": "7a0df4e95a4cbad9a0d8435468f4a00a9662d08fc53fb365f8b1c9eb6044a9e9",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small heavy weight settling into a thick wool felt cushion, barely touching down, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:29:02+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_steel_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_light_v12.mp3",
+      "sha256": "994341b074ea00d8da55f914f0c4395a46b111220ead9aa5149e557b16b2d2a4",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small heavy weight settling into a thick wool felt cushion, barely touching down, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:29:02+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_steel_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_medium_v09.mp3",
+      "sha256": "d0a557cada4a1f34710001fd1d87b9b42230d89fd10525f0d89b7a84cf3a405b",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small heavy weight settling into a thick wool felt cushion, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:29:04+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_steel_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_medium_v10.mp3",
+      "sha256": "178971689631f51050dcbe2f1eff4584e944fe6461a8216bb38b9d0e81f98640",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small heavy weight settling into a thick wool felt cushion, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:29:04+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_steel_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_medium_v11.mp3",
+      "sha256": "76ee0d4b5d90b63ea6dff49b93f70722c53d46bdcc94e434693b615ba03d672d",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small heavy weight settling into a thick wool felt cushion, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:29:06+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_steel_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_medium_v12.mp3",
+      "sha256": "c838441750c6f74d8814fe6a82d20a845c5466bf7cbdaf5c4143072ddbd12615",
+      "bytes": 17179,
+      "route": "A (generated)",
+      "prompt_idea": "impB",
+      "prompt": "one single very soft dull muffled thud of a small heavy weight settling into a thick wool felt cushion, a quiet low pff with a soft rounded onset, no click, no hard surface, no wood, no ring, no bounce, no music, no reverb",
+      "duration_seconds": 1.0,
+      "loop": false,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:29:06+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "roll_glass_rug",
+      "family": "roll",
+      "file": "assets-source/audio/sfx/roll/roll_glass_rug_v07.mp3",
+      "sha256": "5448743db9ffc607919de49daf4e7a36b6532767255f4b9583e1a828d3cfc4f5",
+      "bytes": 129192,
+      "route": "A (generated)",
+      "prompt_idea": "rollA",
+      "prompt": "very soft muffled brushing hush of thick wool felt being very lightly rubbed, a continuous steady low and dull fabric whisper, almost silent, no clicks, no hard surface, no wood, no ring, no music",
+      "duration_seconds": 8,
+      "loop": true,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:44+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "roll_glass_rug",
+      "family": "roll",
+      "file": "assets-source/audio/sfx/roll/roll_glass_rug_v08.mp3",
+      "sha256": "9b3025b7528c587423379ea5ca9e112f9ba0a190d3509da2fa36fc57505a43d0",
+      "bytes": 129192,
+      "route": "A (generated)",
+      "prompt_idea": "rollA",
+      "prompt": "very soft muffled brushing hush of thick wool felt being very lightly rubbed, a continuous steady low and dull fabric whisper, almost silent, no clicks, no hard surface, no wood, no ring, no music",
+      "duration_seconds": 8,
+      "loop": true,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:43+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "roll_glass_rug",
+      "family": "roll",
+      "file": "assets-source/audio/sfx/roll/roll_glass_rug_v09.mp3",
+      "sha256": "b45b60e32167f730440d084c53ca7c4e9d882317ee784c1197ccc2f6ea0d89c1",
+      "bytes": 129192,
+      "route": "A (generated)",
+      "prompt_idea": "rollA",
+      "prompt": "very soft muffled brushing hush of thick wool felt being very lightly rubbed, a continuous steady low and dull fabric whisper, almost silent, no clicks, no hard surface, no wood, no ring, no music",
+      "duration_seconds": 8,
+      "loop": true,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:47+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "roll_solid_rug",
+      "family": "roll",
+      "file": "assets-source/audio/sfx/roll/roll_solid_rug_v07.mp3",
+      "sha256": "1a3f8964be94acc3d2a5a169529038c6bc0d0aafa0a81b39f8abbeb9ffae1032",
+      "bytes": 129192,
+      "route": "A (generated)",
+      "prompt_idea": "rollA",
+      "prompt": "very soft muffled brushing hush of thick wool felt being gently rubbed, a continuous steady low and dull fabric whisper, almost silent, no clicks, no hard surface, no wood, no ring, no music",
+      "duration_seconds": 8,
+      "loop": true,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:27:18+00:00",
+      "attempt": 1,
+      "prompt_test": true
+    },
+    {
+      "cue_id": "roll_solid_rug",
+      "family": "roll",
+      "file": "assets-source/audio/sfx/roll/roll_solid_rug_v08.mp3",
+      "sha256": "3facfaa3a908aaee34d35fcd433b653f6968fa6bf6df0d8ffd087b863daa1332",
+      "bytes": 129192,
+      "route": "A (generated)",
+      "prompt_idea": "rollA",
+      "prompt": "very soft muffled brushing hush of thick wool felt being gently rubbed, a continuous steady low and dull fabric whisper, almost silent, no clicks, no hard surface, no wood, no ring, no music",
+      "duration_seconds": 8,
+      "loop": true,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:27:18+00:00",
+      "attempt": 1,
+      "prompt_test": true
+    },
+    {
+      "cue_id": "roll_solid_rug",
+      "family": "roll",
+      "file": "assets-source/audio/sfx/roll/roll_solid_rug_v09.mp3",
+      "sha256": "95a2a3f8fe2fc33ddb8930640e5af264337634c315287626fea016c6d234c0fc",
+      "bytes": 129192,
+      "route": "A (generated)",
+      "prompt_idea": "rollA",
+      "prompt": "very soft muffled brushing hush of thick wool felt being gently rubbed, a continuous steady low and dull fabric whisper, almost silent, no clicks, no hard surface, no wood, no ring, no music",
+      "duration_seconds": 8,
+      "loop": true,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:28:58+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "roll_steel_rug",
+      "family": "roll",
+      "file": "assets-source/audio/sfx/roll/roll_steel_rug_v07.mp3",
+      "sha256": "807a70e5e862781b03c6ca0a430f3b9d5724edfff68278cd5456732d4dce2d12",
+      "bytes": 129192,
+      "route": "A (generated)",
+      "prompt_idea": "rollA",
+      "prompt": "very soft muffled brushing hush of thick wool felt being gently rubbed with a little more weight, slightly deeper, a continuous steady low and dull fabric whisper, almost silent, no clicks, no hard surface, no wood, no ring, no music",
+      "duration_seconds": 8,
+      "loop": true,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:29:12+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "roll_steel_rug",
+      "family": "roll",
+      "file": "assets-source/audio/sfx/roll/roll_steel_rug_v08.mp3",
+      "sha256": "091ec85ae0ffe96352753ff5c3e1b4079bc38869f39fbf25647f882453fee47c",
+      "bytes": 129192,
+      "route": "A (generated)",
+      "prompt_idea": "rollA",
+      "prompt": "very soft muffled brushing hush of thick wool felt being gently rubbed with a little more weight, slightly deeper, a continuous steady low and dull fabric whisper, almost silent, no clicks, no hard surface, no wood, no ring, no music",
+      "duration_seconds": 8,
+      "loop": true,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:29:13+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "roll_steel_rug",
+      "family": "roll",
+      "file": "assets-source/audio/sfx/roll/roll_steel_rug_v09.mp3",
+      "sha256": "37386d3bf4fe846c413aecae1d9be0476bb12eb48d8b1f655c0a4d05832d3c52",
+      "bytes": 129192,
+      "route": "A (generated)",
+      "prompt_idea": "rollA",
+      "prompt": "very soft muffled brushing hush of thick wool felt being gently rubbed with a little more weight, slightly deeper, a continuous steady low and dull fabric whisper, almost silent, no clicks, no hard surface, no wood, no ring, no music",
+      "duration_seconds": 8,
+      "loop": true,
+      "prompt_influence": 0.7,
+      "model": "eleven_text_to_sound_v2",
+      "endpoint": "POST /v1/sound-generation",
+      "output_format": "mp3_44100_128",
+      "generated_at": "2026-11-08T01:29:15+00:00",
+      "attempt": 1,
+      "prompt_test": false
+    },
+    {
+      "cue_id": "impact_glass_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_heavy_v09f.flac",
+      "sha256": "c736a254aca632a0d6a00d4d3fcf6ed61758f211f6f73b41940b3dc43a6903bc",
+      "bytes": 31585,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_glass_rug_heavy_v09.mp3",
+        "sha256": "f64e84c3de1a87024c6c77261c179db3452cb0832593e7438bd8519951989072"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_glass_rug_heavy_v09.mp3 assets-source/audio/sfx/impact/impact_glass_rug_heavy_v09f.flac",
+      "prompt": "felt DSP of impact_glass_rug_heavy_v09 (no generation)"
+    },
+    {
+      "cue_id": "impact_glass_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_heavy_v10f.flac",
+      "sha256": "26f568a1d208c496abbca67f1a7885a14a7440ba3f2cde83cda5a6039367a362",
+      "bytes": 31532,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_glass_rug_heavy_v10.mp3",
+        "sha256": "3a59b8e2579c2d03244bd3fdb11dcafa26cefb1388214e5d01cada1b02a7870f"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_glass_rug_heavy_v10.mp3 assets-source/audio/sfx/impact/impact_glass_rug_heavy_v10f.flac",
+      "prompt": "felt DSP of impact_glass_rug_heavy_v10 (no generation)"
+    },
+    {
+      "cue_id": "impact_glass_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_heavy_v11f.flac",
+      "sha256": "e06c99e34a2d3faae809cc3d06e89f8a96b37b663b3201eeed942fd5038590d5",
+      "bytes": 33896,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_glass_rug_heavy_v11.mp3",
+        "sha256": "baaf9432696d85891520ca605939afe4190de9a3756ce1e4498ee7e167b0b8e3"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_glass_rug_heavy_v11.mp3 assets-source/audio/sfx/impact/impact_glass_rug_heavy_v11f.flac",
+      "prompt": "felt DSP of impact_glass_rug_heavy_v11 (no generation)"
+    },
+    {
+      "cue_id": "impact_glass_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_heavy_v12f.flac",
+      "sha256": "93418652941cd0e6147e9d9cf2f1d2869cb3348c36de75a83ad12ddfb7491066",
+      "bytes": 29733,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_glass_rug_heavy_v12.mp3",
+        "sha256": "ec09e8b90158f182a1295974da3a4f1d74087fd8d0d0d198573a591c5f9556ef"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_glass_rug_heavy_v12.mp3 assets-source/audio/sfx/impact/impact_glass_rug_heavy_v12f.flac",
+      "prompt": "felt DSP of impact_glass_rug_heavy_v12 (no generation)"
+    },
+    {
+      "cue_id": "impact_glass_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_light_v09f.flac",
+      "sha256": "56875f48f6ca0b53b59f32aaf59efd42a9d740a26ef7dd42e8d63e970ddbba17",
+      "bytes": 44376,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_glass_rug_light_v09.mp3",
+        "sha256": "7aeb1ec3dee426efe9ac374dc94d0680fd34253dd574500a3eaabcdcbd5f16f4"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_glass_rug_light_v09.mp3 assets-source/audio/sfx/impact/impact_glass_rug_light_v09f.flac",
+      "prompt": "felt DSP of impact_glass_rug_light_v09 (no generation)"
+    },
+    {
+      "cue_id": "impact_glass_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_light_v10f.flac",
+      "sha256": "486e83db16914c349fe53ca0f6bc92cf5e75650e966cea09573774fbee9b10aa",
+      "bytes": 34610,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_glass_rug_light_v10.mp3",
+        "sha256": "454927a56d2a3f730f0e2a98ad5516b109c51a0501987add969e0b27dc771fa0"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_glass_rug_light_v10.mp3 assets-source/audio/sfx/impact/impact_glass_rug_light_v10f.flac",
+      "prompt": "felt DSP of impact_glass_rug_light_v10 (no generation)"
+    },
+    {
+      "cue_id": "impact_glass_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_light_v11f.flac",
+      "sha256": "dfc44acc05b29d41932f4f875680ef73be76a8816b37e0ee6baf0799006ef0d6",
+      "bytes": 28886,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_glass_rug_light_v11.mp3",
+        "sha256": "2535518e32222b708aaaec298a7e2eb195804b2117bb4d165cb2e62f7e99fb90"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_glass_rug_light_v11.mp3 assets-source/audio/sfx/impact/impact_glass_rug_light_v11f.flac",
+      "prompt": "felt DSP of impact_glass_rug_light_v11 (no generation)"
+    },
+    {
+      "cue_id": "impact_glass_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_light_v12f.flac",
+      "sha256": "416bb73a22c5885816c2be4e8fe68353f595cb75ad2bce8755130b8a7a5fb611",
+      "bytes": 46325,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_glass_rug_light_v12.mp3",
+        "sha256": "a07cfd898bb0b1906c9a6c7c12a66de2eec14f7fd5aaa5a532dec85968f16395"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_glass_rug_light_v12.mp3 assets-source/audio/sfx/impact/impact_glass_rug_light_v12f.flac",
+      "prompt": "felt DSP of impact_glass_rug_light_v12 (no generation)"
+    },
+    {
+      "cue_id": "impact_glass_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_medium_v09f.flac",
+      "sha256": "dc0f66288c07fff8eaf13532a97ed915137266cff6e9c4085c71041015670bfb",
+      "bytes": 33381,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_glass_rug_medium_v09.mp3",
+        "sha256": "529e11c131a93b328d9b580f1dc7d6ba40c3e3b0e9981257705787d42da56739"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_glass_rug_medium_v09.mp3 assets-source/audio/sfx/impact/impact_glass_rug_medium_v09f.flac",
+      "prompt": "felt DSP of impact_glass_rug_medium_v09 (no generation)"
+    },
+    {
+      "cue_id": "impact_glass_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_medium_v10f.flac",
+      "sha256": "44858893485566e5323e59fa44bfb2d0fd43a43cebf925f2789695f14ba8e784",
+      "bytes": 38213,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_glass_rug_medium_v10.mp3",
+        "sha256": "4088cf4357874ba0ddc8909120750d95e8a76b81f90ca2e99d672fdc3a2e4599"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_glass_rug_medium_v10.mp3 assets-source/audio/sfx/impact/impact_glass_rug_medium_v10f.flac",
+      "prompt": "felt DSP of impact_glass_rug_medium_v10 (no generation)"
+    },
+    {
+      "cue_id": "impact_glass_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_medium_v11f.flac",
+      "sha256": "95eb3b534bf7d4690ce5a42a7e51cf40f4f783917b1781a51645d5577edc2316",
+      "bytes": 38926,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_glass_rug_medium_v11.mp3",
+        "sha256": "e0c058870bede67eb76a7b7fc0332569156db41a1ff825c0eef78e4a9e938c4d"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_glass_rug_medium_v11.mp3 assets-source/audio/sfx/impact/impact_glass_rug_medium_v11f.flac",
+      "prompt": "felt DSP of impact_glass_rug_medium_v11 (no generation)"
+    },
+    {
+      "cue_id": "impact_glass_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_glass_rug_medium_v12f.flac",
+      "sha256": "ea775b0869dd852389b31bd1019ed658af7ed555df2d812dc40deed9817fc832",
+      "bytes": 34913,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_glass_rug_medium_v12.mp3",
+        "sha256": "d80139804015cdb668ee216da8f41e5e6abfef6c0ccd9cf990e9c4f4ea879e20"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_glass_rug_medium_v12.mp3 assets-source/audio/sfx/impact/impact_glass_rug_medium_v12f.flac",
+      "prompt": "felt DSP of impact_glass_rug_medium_v12 (no generation)"
+    },
+    {
+      "cue_id": "impact_solid_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_heavy_v09f.flac",
+      "sha256": "63a828189825f1f40206c75d8abcf71f03a0ea1fb6495dbed221327effa58995",
+      "bytes": 35596,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_solid_rug_heavy_v09.mp3",
+        "sha256": "e0757ee444432ee732c29b096bba5f8ac8ea1a305238264b589bf667cb4acdab"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_solid_rug_heavy_v09.mp3 assets-source/audio/sfx/impact/impact_solid_rug_heavy_v09f.flac",
+      "prompt": "felt DSP of impact_solid_rug_heavy_v09 (no generation)"
+    },
+    {
+      "cue_id": "impact_solid_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_heavy_v10f.flac",
+      "sha256": "5db63ff9afe4417de59bed31c08b2a281e75e1078aeab8d1ff5ba335d11bdf79",
+      "bytes": 30065,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_solid_rug_heavy_v10.mp3",
+        "sha256": "3e6c7731019145f6fa137b9bff64fbd896e3730446d93978345e60297b200b8c"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_solid_rug_heavy_v10.mp3 assets-source/audio/sfx/impact/impact_solid_rug_heavy_v10f.flac",
+      "prompt": "felt DSP of impact_solid_rug_heavy_v10 (no generation)"
+    },
+    {
+      "cue_id": "impact_solid_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_heavy_v11f.flac",
+      "sha256": "2a199faca560fe326b24ba86e17b5cd48e809d9345a25fd2983db94833a7d6b3",
+      "bytes": 33756,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_solid_rug_heavy_v11.mp3",
+        "sha256": "4b54b797baabb6fe9af22f3e9eca571d09cff086304b929d58d802ca4b31ea6e"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_solid_rug_heavy_v11.mp3 assets-source/audio/sfx/impact/impact_solid_rug_heavy_v11f.flac",
+      "prompt": "felt DSP of impact_solid_rug_heavy_v11 (no generation)"
+    },
+    {
+      "cue_id": "impact_solid_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_heavy_v12f.flac",
+      "sha256": "99a10a81c457c7867e77259246843a02727d76839a9ecdccd72b960e56106e88",
+      "bytes": 29863,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_solid_rug_heavy_v12.mp3",
+        "sha256": "4bf186258691675802a066a59b84422f9ddbaa345714bda44a9f405f03c546bf"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_solid_rug_heavy_v12.mp3 assets-source/audio/sfx/impact/impact_solid_rug_heavy_v12f.flac",
+      "prompt": "felt DSP of impact_solid_rug_heavy_v12 (no generation)"
+    },
+    {
+      "cue_id": "impact_solid_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_light_v09f.flac",
+      "sha256": "a1587507665e43f2fc35458db783f1078638c6ffe822c402be9793b9dd4f7232",
+      "bytes": 32774,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_solid_rug_light_v09.mp3",
+        "sha256": "03233ce08bb1ee75884582b2046f1ce25e0b96fd23658c4f20dac713ad402c3b"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_solid_rug_light_v09.mp3 assets-source/audio/sfx/impact/impact_solid_rug_light_v09f.flac",
+      "prompt": "felt DSP of impact_solid_rug_light_v09 (no generation)"
+    },
+    {
+      "cue_id": "impact_solid_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_light_v10f.flac",
+      "sha256": "72cced18220c11f63c6c0d0f059ebae74c335e736565e09697d97088fb007cef",
+      "bytes": 32799,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_solid_rug_light_v10.mp3",
+        "sha256": "42567c1684cfe582d458eec34e246de65225f920403f43360fd6812385abb9c7"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_solid_rug_light_v10.mp3 assets-source/audio/sfx/impact/impact_solid_rug_light_v10f.flac",
+      "prompt": "felt DSP of impact_solid_rug_light_v10 (no generation)"
+    },
+    {
+      "cue_id": "impact_solid_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_light_v11f.flac",
+      "sha256": "2285079ac61700c4ac87825fb7a1c971253d6459bb2a10c6686d5776bc95cbdc",
+      "bytes": 28812,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_solid_rug_light_v11.mp3",
+        "sha256": "e82f767825aaecdd6ce1bda6580e46663b2e5aa3e7949585306c7b156795dbed"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_solid_rug_light_v11.mp3 assets-source/audio/sfx/impact/impact_solid_rug_light_v11f.flac",
+      "prompt": "felt DSP of impact_solid_rug_light_v11 (no generation)"
+    },
+    {
+      "cue_id": "impact_solid_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_light_v12f.flac",
+      "sha256": "24cfa749582035cac9b632dd67a7bbc048ea503d3f9e3a3607c758a20f005b14",
+      "bytes": 32392,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_solid_rug_light_v12.mp3",
+        "sha256": "f70b246fc59cc8a7c872b3cdfdf7fc0cac32ed457f80e69c170e4106d0746d8d"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_solid_rug_light_v12.mp3 assets-source/audio/sfx/impact/impact_solid_rug_light_v12f.flac",
+      "prompt": "felt DSP of impact_solid_rug_light_v12 (no generation)"
+    },
+    {
+      "cue_id": "impact_solid_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_medium_v09f.flac",
+      "sha256": "6a137b7f6e009ed26d4169d6d4e13ed691721979b51382ef9880d7bce5d2bff3",
+      "bytes": 32918,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_solid_rug_medium_v09.mp3",
+        "sha256": "d714c1fa99d9308b9846e5a3bc3fc2075e140062cfbad5db2f52564b29153bd9"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_solid_rug_medium_v09.mp3 assets-source/audio/sfx/impact/impact_solid_rug_medium_v09f.flac",
+      "prompt": "felt DSP of impact_solid_rug_medium_v09 (no generation)"
+    },
+    {
+      "cue_id": "impact_solid_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_medium_v10f.flac",
+      "sha256": "f88558d6fce1b4d1fa2570f36725891cd2bca08431da7fe625aa2479b0d0d7a2",
+      "bytes": 41073,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_solid_rug_medium_v10.mp3",
+        "sha256": "c29fc8fa227d994f5ae1cee151e8d8854983f23a136151bf202ba1bbd8a8f1e4"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_solid_rug_medium_v10.mp3 assets-source/audio/sfx/impact/impact_solid_rug_medium_v10f.flac",
+      "prompt": "felt DSP of impact_solid_rug_medium_v10 (no generation)"
+    },
+    {
+      "cue_id": "impact_solid_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_medium_v11f.flac",
+      "sha256": "a3577a4f38f4a1c84bcd74ae87cd20cf52e31a94f86653ad2811c1eda7238e73",
+      "bytes": 34525,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_solid_rug_medium_v11.mp3",
+        "sha256": "7fe7d3ba7c4b8ed98c13b7abbb767f88bac2c2a8b28e69e44a70186cac1f74c3"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_solid_rug_medium_v11.mp3 assets-source/audio/sfx/impact/impact_solid_rug_medium_v11f.flac",
+      "prompt": "felt DSP of impact_solid_rug_medium_v11 (no generation)"
+    },
+    {
+      "cue_id": "impact_solid_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_solid_rug_medium_v12f.flac",
+      "sha256": "4f1d7fac25c827251a3441dd6aa4ab0c2ee374ef671c63c27e05b2547cce5674",
+      "bytes": 33984,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_solid_rug_medium_v12.mp3",
+        "sha256": "889a0aa9cafd97a7bcb79ecfb081ed8346d4adff4ded93766748520413d6f9e4"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_solid_rug_medium_v12.mp3 assets-source/audio/sfx/impact/impact_solid_rug_medium_v12f.flac",
+      "prompt": "felt DSP of impact_solid_rug_medium_v12 (no generation)"
+    },
+    {
+      "cue_id": "impact_steel_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_heavy_v09f.flac",
+      "sha256": "dee8a5a73fbd9ce4f0710a67eb599220e12ad07ff92add727eaad00bd6ed66bb",
+      "bytes": 31044,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_steel_rug_heavy_v09.mp3",
+        "sha256": "a63548c33c33589c9d68cf0b3c465dcae4c9179c531b6968cae47fa83c55a662"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_steel_rug_heavy_v09.mp3 assets-source/audio/sfx/impact/impact_steel_rug_heavy_v09f.flac",
+      "prompt": "felt DSP of impact_steel_rug_heavy_v09 (no generation)"
+    },
+    {
+      "cue_id": "impact_steel_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_heavy_v10f.flac",
+      "sha256": "3cc31583b7d69436f0dd37b469c2adc2a1fb5fe31a778654e915f9a41b1fdc3d",
+      "bytes": 30118,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_steel_rug_heavy_v10.mp3",
+        "sha256": "724ca3c5c056bef26d6118576d6809ecbaeff84f2e8bf2d49b947567d00337d8"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_steel_rug_heavy_v10.mp3 assets-source/audio/sfx/impact/impact_steel_rug_heavy_v10f.flac",
+      "prompt": "felt DSP of impact_steel_rug_heavy_v10 (no generation)"
+    },
+    {
+      "cue_id": "impact_steel_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_heavy_v11f.flac",
+      "sha256": "54869398c2bac37442d1c49c73fb4db6ac3393f10775ab82da2b83dd74252893",
+      "bytes": 37211,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_steel_rug_heavy_v11.mp3",
+        "sha256": "e333aeb162ac9d059482f0a59c845d532450ca9cdd82bc44f4d487dd8f02cd4e"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_steel_rug_heavy_v11.mp3 assets-source/audio/sfx/impact/impact_steel_rug_heavy_v11f.flac",
+      "prompt": "felt DSP of impact_steel_rug_heavy_v11 (no generation)"
+    },
+    {
+      "cue_id": "impact_steel_rug_heavy",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_heavy_v12f.flac",
+      "sha256": "a4a96f78af57b17f3657ff6d8697b098aa02273413ccacecad9ed86d4e8b747e",
+      "bytes": 34430,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_steel_rug_heavy_v12.mp3",
+        "sha256": "ef85944a8f561aff00e9036d5aa297856c4e2935fb14145c444afce5649ccdba"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_steel_rug_heavy_v12.mp3 assets-source/audio/sfx/impact/impact_steel_rug_heavy_v12f.flac",
+      "prompt": "felt DSP of impact_steel_rug_heavy_v12 (no generation)"
+    },
+    {
+      "cue_id": "impact_steel_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_light_v09f.flac",
+      "sha256": "f698fe5be1d5ae23bdd49d82058a6b77beafc3c5ba069a8ded3ea91e3819a584",
+      "bytes": 29603,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_steel_rug_light_v09.mp3",
+        "sha256": "8f586a71ee0aa6a1260e3a09586e53d83c4840e09c88aac3078bb2ac9d8c9fa5"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_steel_rug_light_v09.mp3 assets-source/audio/sfx/impact/impact_steel_rug_light_v09f.flac",
+      "prompt": "felt DSP of impact_steel_rug_light_v09 (no generation)"
+    },
+    {
+      "cue_id": "impact_steel_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_light_v10f.flac",
+      "sha256": "4f010682a7254035415b17098e5d96e3ae7c49a7b0c3a31378beb519977d5453",
+      "bytes": 34898,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_steel_rug_light_v10.mp3",
+        "sha256": "b1b021105231cbe361cce9a7dee19403e1484ebb69bd37567f378f4b03d3cf9c"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_steel_rug_light_v10.mp3 assets-source/audio/sfx/impact/impact_steel_rug_light_v10f.flac",
+      "prompt": "felt DSP of impact_steel_rug_light_v10 (no generation)"
+    },
+    {
+      "cue_id": "impact_steel_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_light_v11f.flac",
+      "sha256": "89f1bcb166f478e67507fcacbd0d8bdd10c4f578572376d3221f0974c25fed1b",
+      "bytes": 38879,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_steel_rug_light_v11.mp3",
+        "sha256": "7a0df4e95a4cbad9a0d8435468f4a00a9662d08fc53fb365f8b1c9eb6044a9e9"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_steel_rug_light_v11.mp3 assets-source/audio/sfx/impact/impact_steel_rug_light_v11f.flac",
+      "prompt": "felt DSP of impact_steel_rug_light_v11 (no generation)"
+    },
+    {
+      "cue_id": "impact_steel_rug_light",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_light_v12f.flac",
+      "sha256": "16f0220b62158e889eaab256e76928f406f60f85db029d30cf3ea38794588b36",
+      "bytes": 33166,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_steel_rug_light_v12.mp3",
+        "sha256": "994341b074ea00d8da55f914f0c4395a46b111220ead9aa5149e557b16b2d2a4"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_steel_rug_light_v12.mp3 assets-source/audio/sfx/impact/impact_steel_rug_light_v12f.flac",
+      "prompt": "felt DSP of impact_steel_rug_light_v12 (no generation)"
+    },
+    {
+      "cue_id": "impact_steel_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_medium_v09f.flac",
+      "sha256": "d69e1375589c498d2503ea58122b50cd9dd974099031f5d0b59015c681d58d63",
+      "bytes": 33728,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_steel_rug_medium_v09.mp3",
+        "sha256": "d0a557cada4a1f34710001fd1d87b9b42230d89fd10525f0d89b7a84cf3a405b"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_steel_rug_medium_v09.mp3 assets-source/audio/sfx/impact/impact_steel_rug_medium_v09f.flac",
+      "prompt": "felt DSP of impact_steel_rug_medium_v09 (no generation)"
+    },
+    {
+      "cue_id": "impact_steel_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_medium_v10f.flac",
+      "sha256": "64455f9541ac7f2db2488cfad83c0d2ad8b33a000a96b2090304d5f53e4261ba",
+      "bytes": 37010,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_steel_rug_medium_v10.mp3",
+        "sha256": "178971689631f51050dcbe2f1eff4584e944fe6461a8216bb38b9d0e81f98640"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_steel_rug_medium_v10.mp3 assets-source/audio/sfx/impact/impact_steel_rug_medium_v10f.flac",
+      "prompt": "felt DSP of impact_steel_rug_medium_v10 (no generation)"
+    },
+    {
+      "cue_id": "impact_steel_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_medium_v11f.flac",
+      "sha256": "3f41d9e08d0f21627bc71cea0f36f6a36a46f6f21defeb37ba8313f93542b12c",
+      "bytes": 31016,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_steel_rug_medium_v11.mp3",
+        "sha256": "76ee0d4b5d90b63ea6dff49b93f70722c53d46bdcc94e434693b615ba03d672d"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_steel_rug_medium_v11.mp3 assets-source/audio/sfx/impact/impact_steel_rug_medium_v11f.flac",
+      "prompt": "felt DSP of impact_steel_rug_medium_v11 (no generation)"
+    },
+    {
+      "cue_id": "impact_steel_rug_medium",
+      "family": "impact",
+      "file": "assets-source/audio/sfx/impact/impact_steel_rug_medium_v12f.flac",
+      "sha256": "72d7346d2b05680a929f7ab5c4e8ac03e12888192cb77a2ce0963e8ca4d1f521",
+      "bytes": 29883,
+      "route": "B (derived)",
+      "loop": false,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/impact/impact_steel_rug_medium_v12.mp3",
+        "sha256": "c838441750c6f74d8814fe6a82d20a845c5466bf7cbdaf5c4143072ddbd12615"
+      },
+      "processing": {
+        "samples": 48000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/impact/impact_steel_rug_medium_v12.mp3 assets-source/audio/sfx/impact/impact_steel_rug_medium_v12f.flac",
+      "prompt": "felt DSP of impact_steel_rug_medium_v12 (no generation)"
+    },
+    {
+      "cue_id": "roll_glass_rug",
+      "family": "roll",
+      "file": "assets-source/audio/sfx/roll/roll_glass_rug_v07f.flac",
+      "sha256": "b0ca79f28d92a4b4dc7bcf3ba266a74afa0234dd5eefae6961f6900b156fba3f",
+      "bytes": 292801,
+      "route": "B (derived)",
+      "loop": true,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/roll/roll_glass_rug_v07.mp3",
+        "sha256": "5448743db9ffc607919de49daf4e7a36b6532767255f4b9583e1a828d3cfc4f5"
+      },
+      "processing": {
+        "samples": 384000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/roll/roll_glass_rug_v07.mp3 assets-source/audio/sfx/roll/roll_glass_rug_v07f.flac --loop",
+      "prompt": "felt DSP of roll_glass_rug_v07 (no generation)"
+    },
+    {
+      "cue_id": "roll_glass_rug",
+      "family": "roll",
+      "file": "assets-source/audio/sfx/roll/roll_glass_rug_v08f.flac",
+      "sha256": "9656f685017a52bc0f43d52706ca63ab14ef946b2c0995115465b49a1454d836",
+      "bytes": 311115,
+      "route": "B (derived)",
+      "loop": true,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/roll/roll_glass_rug_v08.mp3",
+        "sha256": "9b3025b7528c587423379ea5ca9e112f9ba0a190d3509da2fa36fc57505a43d0"
+      },
+      "processing": {
+        "samples": 384000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/roll/roll_glass_rug_v08.mp3 assets-source/audio/sfx/roll/roll_glass_rug_v08f.flac --loop",
+      "prompt": "felt DSP of roll_glass_rug_v08 (no generation)"
+    },
+    {
+      "cue_id": "roll_glass_rug",
+      "family": "roll",
+      "file": "assets-source/audio/sfx/roll/roll_glass_rug_v09f.flac",
+      "sha256": "ec542679a0dad3a157ea8e345e326903dd18094794e9bd4eb4977589a32950cf",
+      "bytes": 254085,
+      "route": "B (derived)",
+      "loop": true,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/roll/roll_glass_rug_v09.mp3",
+        "sha256": "b45b60e32167f730440d084c53ca7c4e9d882317ee784c1197ccc2f6ea0d89c1"
+      },
+      "processing": {
+        "samples": 384000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/roll/roll_glass_rug_v09.mp3 assets-source/audio/sfx/roll/roll_glass_rug_v09f.flac --loop",
+      "prompt": "felt DSP of roll_glass_rug_v09 (no generation)"
+    },
+    {
+      "cue_id": "roll_solid_rug",
+      "family": "roll",
+      "file": "assets-source/audio/sfx/roll/roll_solid_rug_v07f.flac",
+      "sha256": "edebd7f3b2dd4e67df7a5838872f816fe32466fa8809fe6a07d3e2d243195055",
+      "bytes": 272432,
+      "route": "B (derived)",
+      "loop": true,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/roll/roll_solid_rug_v07.mp3",
+        "sha256": "1a3f8964be94acc3d2a5a169529038c6bc0d0aafa0a81b39f8abbeb9ffae1032"
+      },
+      "processing": {
+        "samples": 384000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/roll/roll_solid_rug_v07.mp3 assets-source/audio/sfx/roll/roll_solid_rug_v07f.flac --loop",
+      "prompt": "felt DSP of roll_solid_rug_v07 (no generation)"
+    },
+    {
+      "cue_id": "roll_solid_rug",
+      "family": "roll",
+      "file": "assets-source/audio/sfx/roll/roll_solid_rug_v08f.flac",
+      "sha256": "1d8087fd0d95f4f4820d932e8890bd215c52d76b8ef3c06fa09d7963c627e265",
+      "bytes": 287165,
+      "route": "B (derived)",
+      "loop": true,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/roll/roll_solid_rug_v08.mp3",
+        "sha256": "3facfaa3a908aaee34d35fcd433b653f6968fa6bf6df0d8ffd087b863daa1332"
+      },
+      "processing": {
+        "samples": 384000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/roll/roll_solid_rug_v08.mp3 assets-source/audio/sfx/roll/roll_solid_rug_v08f.flac --loop",
+      "prompt": "felt DSP of roll_solid_rug_v08 (no generation)"
+    },
+    {
+      "cue_id": "roll_solid_rug",
+      "family": "roll",
+      "file": "assets-source/audio/sfx/roll/roll_solid_rug_v09f.flac",
+      "sha256": "614bb01e73775e1bb2c7bbce95e01c3c896211b06f97aa88ac8d9ab95b10c045",
+      "bytes": 340366,
+      "route": "B (derived)",
+      "loop": true,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/roll/roll_solid_rug_v09.mp3",
+        "sha256": "95a2a3f8fe2fc33ddb8930640e5af264337634c315287626fea016c6d234c0fc"
+      },
+      "processing": {
+        "samples": 384000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/roll/roll_solid_rug_v09.mp3 assets-source/audio/sfx/roll/roll_solid_rug_v09f.flac --loop",
+      "prompt": "felt DSP of roll_solid_rug_v09 (no generation)"
+    },
+    {
+      "cue_id": "roll_steel_rug",
+      "family": "roll",
+      "file": "assets-source/audio/sfx/roll/roll_steel_rug_v07f.flac",
+      "sha256": "0665bb2f82b6e047930946400ad81d8946435171a81457dc513cdb97148df705",
+      "bytes": 242613,
+      "route": "B (derived)",
+      "loop": true,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/roll/roll_steel_rug_v07.mp3",
+        "sha256": "807a70e5e862781b03c6ca0a430f3b9d5724edfff68278cd5456732d4dce2d12"
+      },
+      "processing": {
+        "samples": 384000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/roll/roll_steel_rug_v07.mp3 assets-source/audio/sfx/roll/roll_steel_rug_v07f.flac --loop",
+      "prompt": "felt DSP of roll_steel_rug_v07 (no generation)"
+    },
+    {
+      "cue_id": "roll_steel_rug",
+      "family": "roll",
+      "file": "assets-source/audio/sfx/roll/roll_steel_rug_v08f.flac",
+      "sha256": "c65271f95ff33d3924c0c27e2fc2101101ce201e67e6107b00ebd095f93f03cb",
+      "bytes": 273637,
+      "route": "B (derived)",
+      "loop": true,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/roll/roll_steel_rug_v08.mp3",
+        "sha256": "091ec85ae0ffe96352753ff5c3e1b4079bc38869f39fbf25647f882453fee47c"
+      },
+      "processing": {
+        "samples": 384000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/roll/roll_steel_rug_v08.mp3 assets-source/audio/sfx/roll/roll_steel_rug_v08f.flac --loop",
+      "prompt": "felt DSP of roll_steel_rug_v08 (no generation)"
+    },
+    {
+      "cue_id": "roll_steel_rug",
+      "family": "roll",
+      "file": "assets-source/audio/sfx/roll/roll_steel_rug_v09f.flac",
+      "sha256": "bfc18c778581ce2f09f47bdd8429cbe1439590ed4410a8fa5ad0ce3f1d9a61db",
+      "bytes": 351712,
+      "route": "B (derived)",
+      "loop": true,
+      "provider": "parble felt DSP (scripts/audio/felt.py)",
+      "model": null,
+      "endpoint": null,
+      "output_format": "flac_48000_24 mono",
+      "tier": null,
+      "derived_from": {
+        "file": "assets-source/audio/sfx/roll/roll_steel_rug_v09.mp3",
+        "sha256": "37386d3bf4fe846c413aecae1d9be0476bb12eb48d8b1f655c0a4d05832d3c52"
+      },
+      "processing": {
+        "samples": 384000,
+        "recipe": "felt",
+        "recipe_version": 1,
+        "script": "scripts/audio/felt.py",
+        "decode": "ffmpeg -> 48000 Hz mono (channel average, as process.py)",
+        "transient_limiter": {
+          "limit_db_over_rms": 3.0,
+          "fast_attack_ms": 0.05,
+          "fast_release_ms": 8.0,
+          "slow_rms_ms": 20.0,
+          "gain_smooth_ms": 1.5
+        },
+        "attack_smear_ms_one_shot": 12.0,
+        "low_pass": {
+          "hz": 1500.0,
+          "type": "Butterworth biquad cascade",
+          "stages": 4,
+          "slope_db_per_octave": 48
+        },
+        "low_shelf": {
+          "hz": 250.0,
+          "gain_db": 3.0,
+          "slope": 1.0,
+          "type": "RBJ cookbook"
+        },
+        "loop_warmup_s": 0.5,
+        "output_peak_dbfs": -3.0,
+        "output": "FLAC 24-bit 48 kHz mono, ffmpeg bitexact"
+      },
+      "command": "python3 scripts/audio/felt.py derive assets-source/audio/sfx/roll/roll_steel_rug_v09.mp3 assets-source/audio/sfx/roll/roll_steel_rug_v09f.flac --loop",
+      "prompt": "felt DSP of roll_steel_rug_v09 (no generation)"
+    }
+  ]
+}
