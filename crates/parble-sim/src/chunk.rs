@@ -963,8 +963,8 @@ const GATHER_STEP_PIECES: usize = 16;
 /// A mesh's welded vertices (µm) and triangles.
 type Geometry = (Vec<[i64; 3]>, Vec<[u32; 3]>);
 
-/// Work units ([`FlatSimplify::step`]) per staged simplify step: about 1 ms in wasm on the
-/// 2,000-piece fill's densest chunk (P3-T4).
+/// Work units ([`FlatSimplify::step`]) per staged simplify step: at most 0.6 ms natively on the
+/// 2,000-piece fill's chunks (measured 2026-11-08 on a loaded host, P3-T4).
 const SIMPLIFY_STEP_WORK: usize = 4_000;
 
 impl ChunkColliders {
