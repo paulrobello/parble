@@ -400,10 +400,12 @@ pub struct AudioPacer {
 impl AudioPacer {
     /// The frame to send for `frame`. `min_ticks` 0 (1x) sends everything at once.
     pub fn pace(&mut self, mut frame: AudioFrame, min_ticks: u64) -> AudioFrame {
-        if let Some(older) = self.pending.take() {
+        // A run restart (tick back to 0) drops the old run's held events and flushes at once.
+        if let Some(older) = self.pending.take()
+            && frame.tick >= self.flushed
+        {
             frame.absorb_older(older);
         }
-        // A run restart (tick back to 0) flushes at once.
         if frame.tick >= self.flushed && frame.tick - self.flushed < min_ticks {
             let held = AudioFrame {
                 tick: frame.tick,
@@ -773,6 +775,40 @@ mod tests {
         );
         assert!(paused.paused);
         assert_eq!(pacer.pace(hit(0), 4).contacts.len(), 1);
+    }
+
+    #[test]
+    fn a_restart_while_slowed_sends_none_of_the_old_runs_events() {
+        let marbles = two_marbles();
+        let mut pacer = AudioPacer::default();
+        assert_eq!(
+            pacer.pace(coalesce(&[], &marbles, no_piece, 100), 4).tick,
+            100
+        );
+        // Held: fewer than 4 ticks since the last flush.
+        let old = coalesce(
+            &[
+                contact(101, 0, ContactOther::Static, RAIL, 0.75),
+                roll(101, 1, 0.5, Some(RAIL)),
+            ],
+            &marbles,
+            no_piece,
+            101,
+        );
+        assert!(pacer.pace(old, 4).contacts.is_empty());
+        // The run restarts: only the new run's contact goes out.
+        let new = coalesce(
+            &[contact(0, 0, ContactOther::Static, WOOD, 0.25)],
+            &marbles,
+            no_piece,
+            0,
+        );
+        let f = pacer.pace(new, 4);
+        assert_eq!(f.tick, 0);
+        assert_eq!(f.contacts.len(), 1);
+        assert_eq!((f.contacts[0].impulse, f.contacts[0].count), (0.25, 1));
+        assert_eq!(f.contacts[0].surface, WireSurface::Wood);
+        assert!(f.rolls.is_empty());
     }
 
     #[test]
