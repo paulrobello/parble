@@ -22,7 +22,9 @@
 //!   replaces a contact on a stitched boundary edge or vertex with the triangle's plane contact.
 //!
 //! In a 90° bend the same hook replaces facet contacts with one contact against the exact channel
-//! tube ([`ChannelBend`]), since the faceted tube chatters under the marble's outward load.
+//! tube ([`ChannelBend`]), since the faceted tube chatters under the marble's outward load. On a
+//! slope it replaces them with one contact against the exact smoothstep channel
+//! ([`ChannelSlope`]).
 //!
 //! [`ChunkColliders`] is the incremental API: insert or remove placements, then
 //! [`ChunkColliders::rebuild`] replaces the collider of each dirty chunk, in chunk order.
@@ -175,6 +177,11 @@ pub struct ChunkMesh {
     /// continuation), with [`IN_BEND_CELL`] set when it also lies in the bend's cell, else 0.
     /// Empty for meshes built outside a chunk.
     pub bend_of: Vec<u32>,
+    /// Channel slopes of the chunk's placements (see [`ChannelSlope`]).
+    pub slopes: Vec<ChannelSlope>,
+    /// Per triangle, the indices `k` of the [`Self::slopes`] whose channel (or its flat
+    /// continuation past either port) the triangle lies on. Empty for meshes built outside a chunk.
+    pub slope_of: Vec<Vec<u32>>,
 }
 
 /// [`ChunkMesh::bend_of`] flag: the triangle lies in its bend's cell.
@@ -326,6 +333,170 @@ impl ChannelBend {
 /// (§5.4). A marble on a straight rests on the two facets beside the bottom crease at their
 /// midlines, so where it passes from facet contacts to the exact tube the floor does not move.
 const FACET_TUBE_RADIUS_M: f32 = 0.013_932_586;
+
+/// A one-cell channel slope: the channel half-round, in vertical cross-sections across the path,
+/// lowered along the path by the contract's cubic smoothstep from the entry floor to the exit
+/// floor (contract §7, the generator's `kitgeom.stations`). The smoothstep is flat at both ports,
+/// so past either port the tube continues flat at that port's level, as the mating straight does.
+///
+/// The sidecar samples the slope with 8 flat path segments. Two things bump a marble on them
+/// (measured 2026-11-07 in `seam_test`, 0.3 m/s centred into `blk_slope_gentle_l3`):
+/// - at the entry seam the ball, still on the straight, touches the slope's first bottom vertex
+///   0.4 mm ahead. Rapier does not correct vertex normals, so that contact leans 3° back against
+///   the motion and the ball bounces off it: vertical speed goes from −11 to +32 mm/s in one tick;
+/// - down the slope the ball touches 4–10 facets at once and chatters, bouncing off on alternate
+///   ticks (kick 134 mm/s). Finer sampling does not converge: a rebuilt slope channel with 8,
+///   16, 32, 64 and 128 path segments kicks 112, 90, 104, 175 and 114 mm/s inside the slope.
+///
+/// The contact hook therefore replaces contacts on the slope's channel triangles, and on the flat
+/// continuation triangles of the straights at either port while the ball is at the slope, with
+/// the contact against this exact surface.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ChannelSlope {
+    /// World µm `(x, z)` of the entry (upper) port centre, on the entry cell face.
+    pub entry_um: [i64; 2],
+    /// Plan unit direction `(x, z)` from the entry port to the exit port.
+    pub dir: [i64; 2],
+    /// World µm height of the tube axis at the entry port (entry floor + channel radius).
+    pub axis_y_um: i64,
+    /// Floor drop from the entry port to the exit port, µm.
+    pub drop_um: i64,
+}
+
+impl ChannelSlope {
+    /// The slope of a 1-cell piece whose two channel ports sit on opposite side faces at
+    /// different levels.
+    fn of(piece: &KitPiece, p: &Placement) -> Option<Self> {
+        let def = &piece.def;
+        let [a, b] = def.ports.as_slice() else {
+            return None;
+        };
+        let (Some(la), Some(lb)) = (a.level, b.level) else {
+            return None;
+        };
+        let side = |f: PortFace| !matches!(f, PortFace::Top | PortFace::Bottom);
+        let (na, nb) = (a.face.normal(), b.face.normal());
+        if def.footprint.len() != 1
+            || a.class != PortClass::Channel
+            || b.class != PortClass::Channel
+            || !side(a.face)
+            || !side(b.face)
+            || na.x != -nb.x
+            || na.z != -nb.z
+            || la == lb
+        {
+            return None;
+        }
+        let ((hi, nh), (lo, nl)) = if la.floor_um() > lb.floor_um() {
+            ((la, na), (lb, nb))
+        } else {
+            ((lb, nb), (la, na))
+        };
+        let half = HALF_CELL_UM;
+        let port = |n: CellCoord, floor: i32| {
+            place_point_um(
+                p.orientation(),
+                p.anchor,
+                [n.x * half, floor + CHANNEL_RADIUS_UM, n.z * half],
+            )
+        };
+        let (e, x) = (port(nh, hi.floor_um()), port(nl, lo.floor_um()));
+        let cell = i64::from(CELL_UM);
+        Some(Self {
+            entry_um: [e[0], e[2]],
+            dir: [(x[0] - e[0]) / cell, (x[2] - e[2]) / cell],
+            axis_y_um: e[1],
+            drop_um: e[1] - x[1],
+        })
+    }
+
+    /// Path coordinate from the entry port and lateral offset of a world plan point, metres.
+    fn plan(&self, x: f32, z: f32) -> (f32, f32) {
+        let m = |v: i64| v as f32 * 1.0e-6;
+        let (dx, dz) = (self.dir[0] as f32, self.dir[1] as f32);
+        let (px, pz) = (x - m(self.entry_um[0]), z - m(self.entry_um[1]));
+        (px * dx + pz * dz, pz * dx - px * dz)
+    }
+
+    /// Whether a world µm vertex lies on the slope's channel or its flat continuation past either
+    /// port. The sidecar rounds every coordinate to 1 µm, so a channel vertex is within 2 µm.
+    fn holds(&self, v: [i64; 3]) -> bool {
+        let (dx, dz) = (self.dir[0], self.dir[1]);
+        let (px, pz) = (v[0] - self.entry_um[0], v[2] - self.entry_um[1]);
+        let (s, w) = (px * dx + pz * dz, pz * dx - px * dz);
+        let t = (s as f64 / f64::from(CELL_UM)).clamp(0.0, 1.0);
+        let axis = self.axis_y_um as f64 - self.drop_um as f64 * t * t * (3.0 - 2.0 * t);
+        let dy = v[1] as f64 - axis;
+        let w = w as f64;
+        (libm::sqrt(dy * dy + w * w) - f64::from(CHANNEL_RADIUS_UM)).abs() <= 2.0
+    }
+
+    /// Whether a ball centre lies over the slope's cell, or within `margin` metres of it along
+    /// the path.
+    fn covers(&self, c: Vector, margin: f32) -> bool {
+        let (s, w) = self.plan(c.x, c.z);
+        let cell = CELL_UM as f32 * 1.0e-6;
+        (-margin..=cell + margin).contains(&s) && w.abs() <= 0.5 * cell
+    }
+
+    /// The contact of a ball (centre `c`, radius `r`, metres) with the exact slope channel: the
+    /// normal from the channel wall toward the ball and the gap (negative when penetrating).
+    ///
+    /// The wall is the family of vertical circles about the axis curve, so the nearest wall point
+    /// is found along the path by a fixed four Gauss–Newton steps from the centre's own section
+    /// (the axis curve's radius is at least 40 mm, the contact under 3 mm along the path from the
+    /// centre). The circle radius is [`slope_tube_radius`].
+    fn contact(&self, c: Vector, r: f32) -> Option<(Vector, f32)> {
+        let m = |v: i64| v as f32 * 1.0e-6;
+        let (sc, w) = self.plan(c.x, c.z);
+        let (dx, dz) = (self.dir[0] as f32, self.dir[1] as f32);
+        let (len, ay, drop) = (m(i64::from(CELL_UM)), m(self.axis_y_um), m(self.drop_um));
+        // Axis height and its slope along the path at `s`.
+        let axis = |s: f32| {
+            let t = (s / len).clamp(0.0, 1.0);
+            (
+                ay - drop * t * t * (3.0 - 2.0 * t),
+                -drop * 6.0 * t * (1.0 - t) / len,
+            )
+        };
+        let big_r = slope_tube_radius(r);
+        let mut s = sc;
+        for _ in 0..4 {
+            let (a, da) = axis(s);
+            let dy = c.y - a;
+            let q = (dy * dy + w * w).sqrt();
+            if q <= 0.0 {
+                return None;
+            }
+            let j = dy * da / q;
+            s -= ((s - sc) + (big_r - q) * j) / (1.0 + j * j);
+        }
+        let (a, _) = axis(s);
+        let dy = c.y - a;
+        let q = (dy * dy + w * w).sqrt();
+        let (ds, d) = (sc - s, big_r - q);
+        let dist = (ds * ds + d * d).sqrt();
+        if q <= 0.0 || dist <= 0.0 {
+            return None;
+        }
+        // From the wall point to the centre: along the path, then inward across the section.
+        let sd = if d >= 0.0 { dist } else { -dist };
+        let (ns, ny, nw) = (ds / sd, -dy * d / (q * sd), -w * d / (q * sd));
+        Some((
+            Vector::new(ns * dx - nw * dz, ny, ns * dz + nw * dx),
+            sd - r,
+        ))
+    }
+}
+
+/// Section radius of the exact slope contact for a ball of radius `r`, metres: the radius at which
+/// a centred ball rests at the same gap as on the two facets beside the bottom crease of a
+/// straight (facet midline [`FACET_TUBE_RADIUS_M`], facets tilted α = 5.625°, cos α =
+/// midline / 14 mm), so the contact hands over to and from the mating straights without a step.
+fn slope_tube_radius(r: f32) -> f32 {
+    let channel = CHANNEL_RADIUS_UM as f32 * 1.0e-6;
+    r + (FACET_TUBE_RADIUS_M - r) * channel / FACET_TUBE_RADIUS_M
+}
 
 impl ChunkMesh {
     /// Append triangles, welding vertices on exact µm equality. Triangles that collapse are skipped.
@@ -492,6 +663,7 @@ impl ChunkMesh {
         self.triangles = triangles;
         self.stitched.clear();
         self.bend_of.clear();
+        self.slope_of.clear();
     }
 
     /// Tag every triangle whose three vertices lie on one of [`Self::bends`]' tubes.
@@ -508,6 +680,20 @@ impl ChunkMesh {
                         let inside = vs.iter().all(|v| self.bends[k].contains(v[0], v[2]));
                         (k as u32 + 1) | if inside { IN_BEND_CELL } else { 0 }
                     })
+            })
+            .collect();
+    }
+
+    /// Tag every triangle whose three vertices lie on one of [`Self::slopes`]' channels.
+    fn mark_slopes(&mut self) {
+        self.slope_of = self
+            .triangles
+            .iter()
+            .map(|t| {
+                let vs = t.map(|v| self.vertices_um[v as usize]);
+                (0..self.slopes.len() as u32)
+                    .filter(|&k| vs.iter().all(|&v| self.slopes[k as usize].holds(v)))
+                    .collect()
             })
             .collect();
     }
@@ -570,6 +756,9 @@ struct Placed {
     closed: BTreeSet<(CellCoord, PortFace)>,
 }
 
+/// A chunk collider's slopes and per-triangle slope tags ([`ChunkMesh::slope_of`]).
+type SlopeTags = (Vec<ChannelSlope>, Vec<Vec<u32>>);
+
 /// Placements grouped by chunk, with one merged collider per non-empty chunk.
 #[derive(Debug, Default)]
 pub struct ChunkColliders {
@@ -584,6 +773,12 @@ pub struct ChunkColliders {
     stitched: BTreeMap<(u32, u32), Vec<u8>>,
     /// Bends and per-triangle bend tags ([`ChunkMesh::bend_of`]) of each chunk collider.
     bends: BTreeMap<(u32, u32), (Vec<ChannelBend>, Vec<u32>)>,
+    /// Slopes and per-triangle slope tags ([`ChunkMesh::slope_of`]) of each chunk collider.
+    slopes: BTreeMap<(u32, u32), SlopeTags>,
+    /// Whether the contact pair being updated has received its exact slope contact. Reset by
+    /// [`PhysicsHooks::filter_contact_pair`], which the narrow phase calls before it builds and
+    /// modifies the pair's manifolds, one pair at a time.
+    slope_contact_claimed: std::sync::Mutex<bool>,
     dirty: BTreeSet<CellCoord>,
 }
 
@@ -687,10 +882,13 @@ impl ChunkColliders {
                 .collect();
             mesh.push_welded(&mut weld, &tris);
             mesh.bends.extend(ChannelBend::of(piece, &placed.placement));
+            mesh.slopes
+                .extend(ChannelSlope::of(piece, &placed.placement));
         }
         mesh.simplify_flat();
         self.mark_stitched(&mut mesh, chunk);
         mesh.mark_bends();
+        mesh.mark_slopes();
         mesh
     }
 
@@ -801,13 +999,20 @@ impl ChunkColliders {
                 world.remove_collider(h);
                 self.stitched.remove(&h.into_raw_parts());
                 self.bends.remove(&h.into_raw_parts());
+                self.slopes.remove(&h.into_raw_parts());
             }
             let mesh = self.chunk_mesh(kit, chunk);
             if !mesh.triangles.is_empty() {
                 let mut collider = mesh
                     .collider(chunk_origin_um(chunk))
                     .map_err(|e| ChunkError::TriMesh(chunk, format!("{e:?}")))?;
-                if mesh.stitched.iter().any(|&b| b != 0) || mesh.bend_of.iter().any(|&b| b != 0) {
+                if mesh.slope_of.iter().any(|k| !k.is_empty()) {
+                    collider.set_active_hooks(
+                        ActiveHooks::MODIFY_SOLVER_CONTACTS | ActiveHooks::FILTER_CONTACT_PAIRS,
+                    );
+                } else if mesh.stitched.iter().any(|&b| b != 0)
+                    || mesh.bend_of.iter().any(|&b| b != 0)
+                {
                     collider.set_active_hooks(ActiveHooks::MODIFY_SOLVER_CONTACTS);
                 }
                 let h = world.colliders.insert(collider);
@@ -815,6 +1020,8 @@ impl ChunkColliders {
                 self.stitched.insert(h.into_raw_parts(), mesh.stitched);
                 self.bends
                     .insert(h.into_raw_parts(), (mesh.bends, mesh.bend_of));
+                self.slopes
+                    .insert(h.into_raw_parts(), (mesh.slopes, mesh.slope_of));
             }
             self.dirty.remove(&chunk);
         }
@@ -828,6 +1035,14 @@ impl ChunkColliders {
 /// contact that lies on a stitched edge, the manifold normal is replaced by that triangle's face
 /// normal, which is what one merged mesh would have produced.
 impl PhysicsHooks for ChunkColliders {
+    fn filter_contact_pair(&self, _: &PairFilterContext) -> Option<SolverFlags> {
+        *self
+            .slope_contact_claimed
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = false;
+        Some(SolverFlags::default())
+    }
+
     fn modify_solver_contacts(&self, ctx: &mut ContactModificationContext) {
         let (handle, other, ball_body, first) =
             if self.stitched.contains_key(&ctx.collider1.into_raw_parts()) {
@@ -851,6 +1066,56 @@ impl PhysicsHooks for ChunkColliders {
         } else {
             rigid.manifold.subshape2
         };
+        if let Some((slopes, slope_of)) = self.slopes.get(&handle.into_raw_parts())
+            && let Some(tagged) = slope_of.get(tri as usize)
+            && !tagged.is_empty()
+            && let Some(k) = slopes
+                .iter()
+                .position(|s| s.covers(centre, 0.0))
+                .or_else(|| {
+                    slopes
+                        .iter()
+                        .position(|s| s.covers(centre, 2.0 * ball.radius))
+                })
+            && tagged.contains(&(k as u32))
+            && let Some((n, gap)) = {
+                // Evaluated where the ball will be at the end of the step and carried back along
+                // the normal: the solver holds a contact's normal for the whole step, and on a
+                // curved floor a start-of-step contact lags the surface, so the ball sinks and
+                // chatters on alternate ticks (measured 2026-11-07: kick 29.19 at the entry and
+                // 29.06 inside the slope). With this the entry kicks 18.01 and the upper half of
+                // the slope is smooth, but the concave lower half kicks 48.55 (an open follow-up).
+                let v = bodies[ball_body].linvel();
+                slopes[k]
+                    .contact(centre + v * crate::DT, ball.radius)
+                    .map(|(n, g)| (n, g - v.dot(n) * crate::DT))
+            }
+        {
+            // One contact against the exact slope channel (see [`ChannelSlope`]). The slope whose
+            // cell holds the ball owns it, else the slope it is about to enter or has just left
+            // (within a ball diameter, past the reach of any speculative contact with the slope's
+            // triangles), and only on triangles of that slope's channel or flat continuation.
+            //
+            // The contact goes on the pair's first such manifold only. Every manifold would carry
+            // the same contact, and the solver's soft contacts get stiffer with each copy, so a
+            // copy gained or lost as the ball crosses a triangle edge kicks it: at the slope seam
+            // vertical speed went −12.4, +8.2, −24.7 mm/s over three ticks (kick 27), measured
+            // 2026-11-07.
+            if rigid.solver_contacts.is_empty() {
+                return;
+            }
+            let mut claimed = self
+                .slope_contact_claimed
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            if *claimed {
+                rigid.solver_contacts.clear();
+            } else {
+                *claimed = true;
+                set_one_contact(rigid, first, centre, ball.radius, n, gap);
+            }
+            return;
+        }
         if let Some((bends, bend_of)) = self.bends.get(&handle.into_raw_parts())
             && let Some(&tag @ 1..) = bend_of.get(tri as usize)
             && let Some((n, gap)) = {
@@ -888,20 +1153,7 @@ impl PhysicsHooks for ChunkColliders {
             }
         {
             // One contact against the exact tube (see [`ChannelBend`]).
-            let ball_point = centre - n * ball.radius;
-            let mesh_point = ball_point - n * gap;
-            *rigid.normal = if first { n } else { -n };
-            rigid.solver_contacts.truncate(1);
-            for c in rigid.solver_contacts.iter_mut() {
-                c.dist = gap;
-                if first {
-                    c.anchor1 = mesh_point;
-                    c.anchor2 = ball_point;
-                } else {
-                    c.anchor1 = ball_point;
-                    c.anchor2 = mesh_point;
-                }
-            }
+            set_one_contact(rigid, first, centre, ball.radius, n, gap);
             return;
         }
         let bits = self.stitched[&handle.into_raw_parts()]
@@ -949,6 +1201,32 @@ impl PhysicsHooks for ChunkColliders {
                 c.anchor1 = ball_point;
                 c.anchor2 = mesh_point;
             }
+        }
+    }
+}
+
+/// Replace a manifold's solver contacts with one contact of normal `n` (from the mesh toward the
+/// ball) and gap `gap` for the ball of centre `centre` and radius `radius`.
+fn set_one_contact(
+    rigid: &mut ModifiableManifold<'_>,
+    first: bool,
+    centre: Vector,
+    radius: f32,
+    n: Vector,
+    gap: f32,
+) {
+    let ball_point = centre - n * radius;
+    let mesh_point = ball_point - n * gap;
+    *rigid.normal = if first { n } else { -n };
+    rigid.solver_contacts.truncate(1);
+    for c in rigid.solver_contacts.iter_mut() {
+        c.dist = gap;
+        if first {
+            c.anchor1 = mesh_point;
+            c.anchor2 = ball_point;
+        } else {
+            c.anchor1 = ball_point;
+            c.anchor2 = mesh_point;
         }
     }
 }
