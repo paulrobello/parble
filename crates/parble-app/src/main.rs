@@ -5,15 +5,17 @@
 //! Agent switches (screenshot, auto-exit, state dump, `window.__parble`) live in [`agent`].
 
 mod agent;
+mod audio;
 mod bridge;
 mod persist;
 
 use agent::{AgentOpts, AgentPlugin, Scenario};
-use bevy::prelude::*;
+use bevy::{prelude::*, transform::TransformSystems};
 use bridge::{Command, Event};
 use parble_render::{
     MarbleFrame, ParbleRenderPlugin,
-    camera::{self, DirectorClock, DirectorPlugin},
+    camera::{self, DirectorClock, DirectorPlugin, MainCamera},
+    marble::MarbleLook,
 };
 use parble_sim::{
     DT,
@@ -84,7 +86,9 @@ fn main() {
             cues: opts.camera.cues(opts.scenario, opts.view),
         })
         .insert_resource(SimClock {
-            sim: TrackRun::from_sim(opts.scenario.build(opts.marble, opts.marble_size)),
+            sim: recording(TrackRun::from_sim(
+                opts.scenario.build(opts.marble, opts.marble_size),
+            )),
             scenario: opts.scenario,
             tracks: Tracks::default(),
             marble: opts.marble,
@@ -95,6 +99,7 @@ fn main() {
         })
         .add_systems(Startup, (spawn_camera, publish_initial, announce_bridge))
         .add_systems(Update, (advance_sim, pump_bridge).chain())
+        .add_systems(PostUpdate, pump_audio.after(TransformSystems::Propagate))
         .run();
     // The web build's `run` returns at once while the browser drives the loop.
     #[cfg(not(target_arch = "wasm32"))]
@@ -218,10 +223,10 @@ impl SimClock {
 
     /// A fresh run of the loaded track, or of the scenario when none is loaded.
     fn build_run(&self) -> TrackRun {
-        match &self.tracks.loaded {
+        recording(match &self.tracks.loaded {
             Some(f) => TrackRun::new(&f.track).expect("loadTrack refuses tracks that cannot run"),
             None => TrackRun::from_sim(self.scenario.build(self.marble, self.marble_size)),
-        }
+        })
     }
 
     /// Start the live sim over at tick 0 of [`Self::build_run`].
@@ -270,6 +275,44 @@ fn pump_bridge(
         tick: clock.sim.tick_count(),
         fps: *fps,
     });
+}
+
+/// A live run records its event stream for audio (read-only, so the run is unchanged).
+fn recording(mut run: TrackRun) -> TrackRun {
+    run.set_event_recording(true);
+    run
+}
+
+/// Drains the frame's sim events into one [`audio::AudioFrame`] with the camera as rendered this
+/// frame. Runs after transform propagation, so the director's camera pose is current.
+fn pump_audio(
+    mut clock: ResMut<SimClock>,
+    look: Option<Res<MarbleLook>>,
+    cameras: Query<&GlobalTransform, With<MainCamera>>,
+) {
+    let events = clock.sim.drain_events();
+    // A loaded track releases standard glass marbles; the scenario looks do not apply to it.
+    let kinds: &[(MarbleKind, f32)] = match (&clock.tracks.loaded, &look) {
+        (None, Some(look)) => &look.0,
+        _ => &[],
+    };
+    let marbles: Vec<audio::MarbleAt> = clock
+        .sim
+        .marbles()
+        .iter()
+        .enumerate()
+        .map(|(i, m)| audio::MarbleAt {
+            kind: kinds.get(i).map(|l| l.0).unwrap_or_default(),
+            position: m.position,
+        })
+        .collect();
+    let mut frame = audio::coalesce(&events, &marbles, clock.sim.tick_count());
+    frame.camera = cameras.single().ok().map(|t| audio::AudioCamera {
+        position: t.translation().to_array(),
+        forward: t.forward().to_array(),
+        up: t.up().to_array(),
+    });
+    bridge::push_event(Event::AudioFrame(frame));
 }
 
 #[cfg(test)]

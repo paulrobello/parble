@@ -241,6 +241,16 @@ impl TrackRun {
         }
     }
 
+    /// [`Sim::set_event_recording`]: read-only telemetry, so the run is unchanged.
+    pub fn set_event_recording(&mut self, on: bool) {
+        self.sim.set_event_recording(on);
+    }
+
+    /// [`Sim::drain_events`].
+    pub fn drain_events(&mut self) -> Vec<crate::mechanism::SimEvent> {
+        self.sim.drain_events()
+    }
+
     fn release_due(&mut self) {
         while let Some(&(at, size)) = self.releases.get(self.next) {
             if at > self.sim.tick {

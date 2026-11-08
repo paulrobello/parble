@@ -4309,6 +4309,7 @@ dependencies = [
  "bevy",
  "js-sys",
  "parble-core",
+ "parble-kit",
  "parble-render",
  "parble-sim",
  "serde",

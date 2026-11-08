@@ -1,5 +1,6 @@
-// Typed view of the wasm `Bridge` (crates/parble-app/src/bridge.rs), kept by hand. bridge-fixtures.json
-// holds one example of every command and event; the Rust tests and test/bridge.test.ts both check it.
+// Typed view of the wasm `Bridge` (crates/parble-app/src/bridge.rs, audio types in audio.rs), kept by
+// hand. bridge-fixtures.json holds an example of every command and event plus events both sides
+// refuse; the Rust tests and test/bridge.test.ts both check it.
 
 export const PROTOCOL = 1;
 
@@ -16,7 +17,63 @@ export type BridgeEvent =
   | { type: "trackLoaded"; name: string; schema: number; placements: number; marbles: number }
   | { type: "runFinished"; ticks: number; hash: string }
   | { type: "trackExported"; name: string; json: string }
-  | { type: "bridgeError"; command: string; message: string };
+  | { type: "bridgeError"; command: string; message: string }
+  | AudioFrame;
+
+/** Marble type (crates/parble-sim `MarbleKind::name`). */
+export const MARBLE_KINDS = ["cats-eye", "glazed", "steel", "swirl", "onionskin", "opal", "glow"] as const;
+export type MarbleKind = (typeof MARBLE_KINDS)[number];
+
+/** Contact surface: a kit surface, or `marble` for another marble. */
+export const SURFACES = ["wood", "rail", "wood_end_grain", "marble"] as const;
+export type Surface = (typeof SURFACES)[number];
+
+export type Vec3 = [number, number, number];
+
+/** One marble's contact starts in a frame, coalesced to the strongest (crates/parble-app/src/audio.rs). */
+export interface AudioContact {
+  marble: number;
+  kind: MarbleKind;
+  surface: Surface;
+  /** The other marble's type when `surface` is `marble`. */
+  otherKind: MarbleKind | null;
+  /** Largest normal impulse, N·s. */
+  impulse: number;
+  /** Contact starts coalesced into this one. */
+  count: number;
+  position: Vec3;
+}
+
+/** One marble's roll state in a frame: latest speed (m/s), latest touching surface, any contact. */
+export interface AudioRoll {
+  marble: number;
+  kind: MarbleKind;
+  speed: number;
+  surface: Surface | null;
+  contact: boolean;
+  position: Vec3;
+}
+
+export type AudioMechanism =
+  | { kind: "sensorEnter"; tick: number; instance: Vec3; sensor: number; marble: number }
+  | { kind: "sensorExit"; tick: number; instance: Vec3; sensor: number; marble: number }
+  | { kind: "signal"; tick: number; instance: Vec3; name: string; value: number };
+
+export interface AudioCamera {
+  position: Vec3;
+  forward: Vec3;
+  up: Vec3;
+}
+
+/** The audio telemetry since the last drain; at most one per drain. */
+export interface AudioFrame {
+  type: "audioFrame";
+  tick: number;
+  contacts: AudioContact[];
+  rolls: AudioRoll[];
+  mechanisms: AudioMechanism[];
+  camera: AudioCamera | null;
+}
 
 /** Every wire tag, in the Rust enums' declaration order. */
 export const COMMAND_TYPES = [
@@ -33,6 +90,7 @@ export const EVENT_TYPES = [
   "runFinished",
   "trackExported",
   "bridgeError",
+  "audioFrame",
 ] as const satisfies readonly BridgeEvent["type"][];
 
 /** The wasm-bindgen class as Trunk exposes it on `window.wasmBindings`. */
@@ -53,6 +111,99 @@ const isU64 = (v: unknown): v is number => Number.isSafeInteger(v) && (v as numb
 const hasOnly = (o: Obj, keys: readonly string[]): boolean => Object.keys(o).every((k) => keys.includes(k));
 const isStr = (v: unknown): v is string => typeof v === "string";
 const isHash = (v: unknown): v is string => isStr(v) && /^[0-9a-f]{16}$/.test(v);
+const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+const isI32 = (v: unknown): v is number =>
+  Number.isInteger(v) && (v as number) >= -0x8000_0000 && (v as number) <= 0x7fff_ffff;
+const isI64 = (v: unknown): v is number => Number.isSafeInteger(v);
+const isVec3 = (v: unknown, el: (x: unknown) => boolean = isNum): v is Vec3 =>
+  Array.isArray(v) && v.length === 3 && v.every(el);
+const isKind = (v: unknown): v is MarbleKind => (MARBLE_KINDS as readonly unknown[]).includes(v);
+const isSurface = (v: unknown): v is Surface => (SURFACES as readonly unknown[]).includes(v);
+const isListOf = <T>(v: unknown, decode: (x: unknown) => T | null): T[] | null => {
+  if (!Array.isArray(v)) return null;
+  const out: T[] = [];
+  for (const x of v) {
+    const d = decode(x);
+    if (d === null) return null;
+    out.push(d);
+  }
+  return out;
+};
+
+function decodeContact(v: unknown): AudioContact | null {
+  if (!isObj(v) || !hasOnly(v, ["marble", "kind", "surface", "otherKind", "impulse", "count", "position"])) return null;
+  const otherKind = v.otherKind ?? null;
+  return isU32(v.marble) &&
+    isKind(v.kind) &&
+    isSurface(v.surface) &&
+    (otherKind === null || isKind(otherKind)) &&
+    isNum(v.impulse) &&
+    isU32(v.count) &&
+    isVec3(v.position)
+    ? {
+        marble: v.marble,
+        kind: v.kind,
+        surface: v.surface,
+        otherKind,
+        impulse: v.impulse,
+        count: v.count,
+        position: [...v.position],
+      }
+    : null;
+}
+
+function decodeRoll(v: unknown): AudioRoll | null {
+  if (!isObj(v) || !hasOnly(v, ["marble", "kind", "speed", "surface", "contact", "position"])) return null;
+  const surface = v.surface ?? null;
+  return isU32(v.marble) &&
+    isKind(v.kind) &&
+    isNum(v.speed) &&
+    (surface === null || isSurface(surface)) &&
+    typeof v.contact === "boolean" &&
+    isVec3(v.position)
+    ? { marble: v.marble, kind: v.kind, speed: v.speed, surface, contact: v.contact, position: [...v.position] }
+    : null;
+}
+
+function decodeMechanism(v: unknown): AudioMechanism | null {
+  if (!isObj(v) || !isU64(v.tick) || !isVec3(v.instance, isI32)) return null;
+  const { tick } = v;
+  const instance: Vec3 = [...v.instance];
+  switch (v.kind) {
+    case "sensorEnter":
+    case "sensorExit":
+      return hasOnly(v, ["kind", "tick", "instance", "sensor", "marble"]) && isU32(v.sensor) && isU32(v.marble)
+        ? { kind: v.kind, tick, instance, sensor: v.sensor, marble: v.marble }
+        : null;
+    case "signal":
+      return hasOnly(v, ["kind", "tick", "instance", "name", "value"]) && isStr(v.name) && isI64(v.value)
+        ? { kind: "signal", tick, instance, name: v.name, value: v.value }
+        : null;
+    default:
+      return null;
+  }
+}
+
+function decodeCamera(v: unknown): AudioCamera | null {
+  return isObj(v) &&
+    hasOnly(v, ["position", "forward", "up"]) &&
+    isVec3(v.position) &&
+    isVec3(v.forward) &&
+    isVec3(v.up)
+    ? { position: [...v.position], forward: [...v.forward], up: [...v.up] }
+    : null;
+}
+
+function decodeAudioFrame(v: Obj): AudioFrame | null {
+  if (!hasOnly(v, ["type", "tick", "contacts", "rolls", "mechanisms", "camera"]) || !isU64(v.tick)) return null;
+  const contacts = isListOf(v.contacts, decodeContact);
+  const rolls = isListOf(v.rolls, decodeRoll);
+  const mechanisms = isListOf(v.mechanisms, decodeMechanism);
+  const rawCamera = v.camera ?? null;
+  const camera = rawCamera === null ? null : decodeCamera(rawCamera);
+  if (!contacts || !rolls || !mechanisms || (rawCamera !== null && camera === null)) return null;
+  return { type: "audioFrame", tick: v.tick, contacts, rolls, mechanisms, camera };
+}
 
 /** `v` as a command, or null when Rust would refuse it (unknown type, missing or extra fields). */
 export function decodeCommand(v: unknown): BridgeCommand | null {
@@ -103,6 +254,8 @@ export function decodeEvent(v: unknown): BridgeEvent | null {
       return hasOnly(v, ["type", "command", "message"]) && isStr(v.command) && isStr(v.message)
         ? { type: "bridgeError", command: v.command, message: v.message }
         : null;
+    case "audioFrame":
+      return decodeAudioFrame(v);
     default:
       return null;
   }

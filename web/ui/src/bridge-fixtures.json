@@ -53,6 +53,274 @@
       "type": "bridgeError",
       "command": "runTrack",
       "message": "no track loaded"
+    },
+    {
+      "type": "audioFrame",
+      "tick": 2400,
+      "contacts": [
+        {
+          "marble": 0,
+          "kind": "steel",
+          "surface": "marble",
+          "otherKind": "cats-eye",
+          "impulse": 0.0078125,
+          "count": 3,
+          "position": [0.5, 0.25, -0.125]
+        },
+        {
+          "marble": 1,
+          "kind": "cats-eye",
+          "surface": "wood_end_grain",
+          "otherKind": null,
+          "impulse": 0.001953125,
+          "count": 1,
+          "position": [1.5, 0.0, 0.75]
+        }
+      ],
+      "rolls": [
+        {
+          "marble": 0,
+          "kind": "steel",
+          "speed": 0.75,
+          "surface": "rail",
+          "contact": true,
+          "position": [0.5, 0.25, -0.125]
+        },
+        {
+          "marble": 1,
+          "kind": "glazed",
+          "speed": 1.5,
+          "surface": null,
+          "contact": false,
+          "position": [1.5, 0.0, 0.75]
+        }
+      ],
+      "mechanisms": [
+        {
+          "kind": "sensorEnter",
+          "tick": 2398,
+          "instance": [2, 0, -1],
+          "sensor": 0,
+          "marble": 1
+        },
+        {
+          "kind": "sensorExit",
+          "tick": 2399,
+          "instance": [2, 0, -1],
+          "sensor": 0,
+          "marble": 1
+        },
+        {
+          "kind": "signal",
+          "tick": 2400,
+          "instance": [2, 0, -1],
+          "name": "swing",
+          "value": -3
+        }
+      ],
+      "camera": {
+        "position": [0.0, 1.25, 2.5],
+        "forward": [0.0, -0.5, -1.0],
+        "up": [0.0, 1.0, 0.0]
+      }
+    },
+    {
+      "type": "audioFrame",
+      "tick": 0,
+      "contacts": [],
+      "rolls": [],
+      "mechanisms": [],
+      "camera": null
+    }
+  ],
+  "rejectedEvents": [
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "contacts": [],
+      "rolls": [],
+      "mechanisms": [],
+      "camera": null,
+      "extra": 1
+    },
+    {
+      "type": "audioFrame",
+      "tick": -1,
+      "contacts": [],
+      "rolls": [],
+      "mechanisms": [],
+      "camera": null
+    },
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "rolls": [],
+      "mechanisms": [],
+      "camera": null
+    },
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "contacts": [
+        {
+          "marble": 0,
+          "kind": "marble",
+          "surface": "wood",
+          "otherKind": null,
+          "impulse": 0.5,
+          "count": 1,
+          "position": [0, 0, 0]
+        }
+      ],
+      "rolls": [],
+      "mechanisms": [],
+      "camera": null
+    },
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "contacts": [
+        {
+          "marble": 0,
+          "kind": "steel",
+          "surface": "rug",
+          "otherKind": null,
+          "impulse": 0.5,
+          "count": 1,
+          "position": [0, 0, 0]
+        }
+      ],
+      "rolls": [],
+      "mechanisms": [],
+      "camera": null
+    },
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "contacts": [
+        {
+          "marble": 0,
+          "kind": "steel",
+          "surface": null,
+          "otherKind": null,
+          "impulse": 0.5,
+          "count": 1,
+          "position": [0, 0, 0]
+        }
+      ],
+      "rolls": [],
+      "mechanisms": [],
+      "camera": null
+    },
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "contacts": [
+        {
+          "marble": 0,
+          "kind": "steel",
+          "surface": "wood",
+          "otherKind": null,
+          "impulse": 0.5,
+          "count": 1,
+          "position": [0, 0]
+        }
+      ],
+      "rolls": [],
+      "mechanisms": [],
+      "camera": null
+    },
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "contacts": [],
+      "rolls": [
+        {
+          "marble": 0,
+          "kind": "steel",
+          "speed": "fast",
+          "surface": null,
+          "contact": false,
+          "position": [0, 0, 0]
+        }
+      ],
+      "mechanisms": [],
+      "camera": null
+    },
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "contacts": [],
+      "rolls": [
+        {
+          "marble": 0,
+          "kind": "steel",
+          "speed": 1,
+          "surface": null,
+          "contact": 0,
+          "position": [0, 0, 0]
+        }
+      ],
+      "mechanisms": [],
+      "camera": null
+    },
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "contacts": [],
+      "rolls": [],
+      "mechanisms": [
+        {
+          "kind": "open",
+          "tick": 1,
+          "instance": [0, 0, 0]
+        }
+      ],
+      "camera": null
+    },
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "contacts": [],
+      "rolls": [],
+      "mechanisms": [
+        {
+          "kind": "signal",
+          "tick": 1,
+          "instance": [0, 0, 0],
+          "name": "swing",
+          "value": 1.5
+        }
+      ],
+      "camera": null
+    },
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "contacts": [],
+      "rolls": [],
+      "mechanisms": [
+        {
+          "kind": "sensorEnter",
+          "tick": 1,
+          "instance": [0, 0, 0],
+          "sensor": 0,
+          "marble": 0,
+          "name": "swing"
+        }
+      ],
+      "camera": null
+    },
+    {
+      "type": "audioFrame",
+      "tick": 1,
+      "contacts": [],
+      "rolls": [],
+      "mechanisms": [],
+      "camera": {
+        "position": [0, 0, 0],
+        "forward": [0, 0, -1]
+      }
     }
   ],
   "rejectedCommands": [

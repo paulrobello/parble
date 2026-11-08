@@ -2,13 +2,15 @@
 //! `Bridge.postCommand` and drains events as a JSON array with `Bridge.drainEvents` once per frame.
 //!
 //! The wire shapes are `type`-tagged camelCase objects. `web/ui/src/bridge.ts` mirrors them by hand;
-//! `web/ui/src/bridge-fixtures.json` holds one example of every command and event, and both this
-//! module's tests and the Vitest suite check it, so either side drifting fails a gate.
+//! `web/ui/src/bridge-fixtures.json` holds an example of every command and event (the audio event
+//! twice, with and without a camera) and events both sides refuse; this module's tests and the
+//! Vitest suite check it, so either side drifting fails a gate.
 //!
 //! Commands are applied by `pump_bridge`, which runs after the frame's last sim tick, so a command
 //! that replaces or runs the sim always lands on a tick boundary. Track commands (P3-T3) are handled
 //! in [`crate::persist`].
 
+use crate::audio::AudioFrame;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::VecDeque;
@@ -94,6 +96,9 @@ pub enum Event {
         command: String,
         message: String,
     },
+    /// The audio telemetry since the last drain (P4-T3, [`crate::audio`]). At most one is queued:
+    /// a newer frame absorbs an undrained one ([`AudioFrame::absorb_older`]).
+    AudioFrame(AudioFrame),
 }
 
 #[cfg(test)]
@@ -107,6 +112,7 @@ impl Event {
         "runFinished",
         "trackExported",
         "bridgeError",
+        "audioFrame",
     ];
 
     pub fn tag(&self) -> &'static str {
@@ -118,6 +124,7 @@ impl Event {
             Event::RunFinished { .. } => "runFinished",
             Event::TrackExported { .. } => "trackExported",
             Event::BridgeError { .. } => "bridgeError",
+            Event::AudioFrame(_) => "audioFrame",
         }
     }
 }
@@ -146,8 +153,17 @@ pub fn take_commands() -> Vec<Command> {
     QUEUES.with_borrow_mut(|q| q.inbox.drain(..).collect())
 }
 
-pub fn push_event(event: Event) {
+pub fn push_event(mut event: Event) {
     QUEUES.with_borrow_mut(|q| {
+        if let Event::AudioFrame(newer) = &mut event
+            && let Some(at) = q
+                .outbox
+                .iter()
+                .position(|e| matches!(e, Event::AudioFrame(_)))
+            && let Some(Event::AudioFrame(older)) = q.outbox.remove(at)
+        {
+            newer.absorb_older(older);
+        }
         if matches!(event, Event::Frame { .. })
             && let Some(at) = q
                 .outbox
@@ -231,7 +247,82 @@ mod tests {
             assert_eq!(serde_json::to_value(&ev).unwrap(), v, "event round trip");
             tags.push(ev.tag());
         }
+        tags.dedup();
         assert_eq!(tags, Event::TAGS);
+    }
+
+    #[test]
+    fn every_rejected_event_fixture_is_refused() {
+        for v in fixture("rejectedEvents") {
+            assert!(
+                serde_json::from_value::<Event>(v.clone()).is_err(),
+                "accepted {v}"
+            );
+        }
+    }
+
+    fn audio(tick: u64, marble: u32, impulse: f32, mechanisms: u64) -> Event {
+        Event::AudioFrame(AudioFrame {
+            tick,
+            contacts: vec![crate::audio::AudioContact {
+                marble,
+                kind: crate::audio::WireMarble::Steel,
+                surface: crate::audio::WireSurface::Wood,
+                other_kind: None,
+                impulse,
+                count: 1,
+                position: [0.0; 3],
+            }],
+            mechanisms: (0..mechanisms)
+                .map(|t| crate::audio::AudioMechanism::Signal {
+                    tick: tick * 100 + t,
+                    instance: [0; 3],
+                    name: "swing".into(),
+                    value: 1,
+                })
+                .collect(),
+            ..AudioFrame::default()
+        })
+    }
+
+    #[test]
+    fn a_newer_audio_frame_absorbs_an_undrained_one() {
+        push_event(audio(4, 0, 0.5, 1));
+        push_event(Event::Pong { id: 1 });
+        push_event(audio(8, 0, 0.25, 1));
+        push_event(audio(12, 1, 0.125, 0));
+        let out: Vec<Event> = serde_json::from_str(&drain_events_json()).unwrap();
+        assert_eq!(out.len(), 2, "{out:?}");
+        assert_eq!(out[0], Event::Pong { id: 1 });
+        let Event::AudioFrame(f) = &out[1] else {
+            panic!("{out:?}")
+        };
+        assert_eq!(f.tick, 12);
+        assert_eq!(
+            f.contacts
+                .iter()
+                .map(|c| (c.marble, c.impulse, c.count))
+                .collect::<Vec<_>>(),
+            vec![(0, 0.5, 2), (1, 0.125, 1)]
+        );
+        assert_eq!(f.mechanisms.len(), 2);
+        assert_eq!(drain_events_json(), "[]");
+    }
+
+    #[test]
+    fn audio_frames_never_evict_other_events() {
+        push_event(Event::Ready { protocol: PROTOCOL });
+        for t in 0..(MAX_EVENTS as u64 * 2) {
+            push_event(audio(t, 0, 0.5, 1));
+        }
+        let out: Vec<Event> = serde_json::from_str(&drain_events_json()).unwrap();
+        assert_eq!(out.len(), 2);
+        assert_eq!(out[0], Event::Ready { protocol: PROTOCOL });
+        let Event::AudioFrame(f) = &out[1] else {
+            panic!("{out:?}")
+        };
+        assert_eq!(f.contacts[0].count, MAX_EVENTS as u32 * 2);
+        assert_eq!(f.mechanisms.len(), crate::audio::MAX_AUDIO_MECHANISMS);
     }
 
     #[test]

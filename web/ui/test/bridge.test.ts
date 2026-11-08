@@ -21,7 +21,12 @@ describe("bridge fixtures (shared with crates/parble-app/src/bridge.rs)", () => 
   it("decode every event, one per type in declaration order", () => {
     const decoded = fixtures.events.map((v) => decodeEvent(v));
     expect(decoded).toEqual(fixtures.events);
-    expect(decoded.map((e) => e?.type)).toEqual([...EVENT_TYPES]);
+    const types = decoded.map((e) => e?.type).filter((t, i, all) => t !== all[i - 1]);
+    expect(types).toEqual([...EVENT_TYPES]);
+  });
+
+  it("refuse every event Rust refuses", () => {
+    for (const v of fixtures.rejectedEvents) expect(decodeEvent(v), JSON.stringify(v)).toBeNull();
   });
 
   it("refuse every command Rust refuses", () => {
