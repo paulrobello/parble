@@ -12,7 +12,14 @@ path = "src/main.rs"
 [dependencies]
 parble-render = { path = "../parble-render" }
 parble-sim = { path = "../parble-sim" }
-bevy = { workspace = true }
+# `png`: --screenshot encodes the captured frame (a browser download on web).
+bevy = { workspace = true, features = ["png"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# window.__parble and the URL query switches (P0-T6).
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = { workspace = true }
 
 [lints]
 workspace = true

@@ -7,7 +7,7 @@
 
 use bevy::{
     asset::RenderAssetUsages,
-    light::CascadeShadowConfigBuilder,
+    light::{CascadeShadowConfigBuilder, DirectionalLightShadowMap},
     mesh::{Indices, PrimitiveTopology},
     prelude::*,
     transform::TransformSystems,
@@ -26,6 +26,44 @@ pub struct MarbleFrame {
     pub alpha: f32,
 }
 
+/// Render quality tier (`--quality`). Read once at startup.
+#[derive(Resource, Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Quality {
+    /// No shadows, no MSAA.
+    Low,
+    /// 2048² shadow map, 4× MSAA.
+    #[default]
+    Medium,
+    /// 4096² shadow map, 4× MSAA.
+    High,
+}
+
+impl Quality {
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "low" => Some(Self::Low),
+            "medium" => Some(Self::Medium),
+            "high" => Some(Self::High),
+            _ => None,
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Low => "low",
+            Self::Medium => "medium",
+            Self::High => "high",
+        }
+    }
+
+    pub fn msaa(self) -> Msaa {
+        match self {
+            Self::Low => Msaa::Off,
+            Self::Medium | Self::High => Msaa::Sample4,
+        }
+    }
+}
+
 /// Marks a rendered marble; the index is its spawn order in the sim.
 #[derive(Component, Debug, Clone, Copy)]
 pub struct MarbleVisual(pub usize);
@@ -36,6 +74,7 @@ impl Plugin for ParbleRenderPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ClearColor(BACKDROP))
             .init_resource::<MarbleFrame>()
+            .init_resource::<Quality>()
             .add_systems(Startup, spawn_scene)
             .add_systems(PostUpdate, sync_marbles.before(TransformSystems::Propagate));
     }
@@ -69,6 +108,7 @@ pub fn tray_render_mesh() -> Mesh {
 
 fn spawn_scene(
     mut commands: Commands,
+    quality: Res<Quality>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -117,7 +157,7 @@ fn spawn_scene(
     commands.spawn((
         DirectionalLight {
             illuminance: 12_000.0,
-            shadow_maps_enabled: true,
+            shadow_maps_enabled: *quality != Quality::Low,
             shadow_depth_bias: 0.0004,
             shadow_normal_bias: 0.6,
             ..default()
@@ -133,6 +173,9 @@ fn spawn_scene(
         }
         .build(),
     ));
+    if *quality == Quality::High {
+        commands.insert_resource(DirectionalLightShadowMap { size: 4096 });
+    }
     commands.insert_resource(GlobalAmbientLight {
         brightness: 400.0,
         ..default()

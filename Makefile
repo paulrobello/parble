@@ -95,11 +95,32 @@ fetch-trunk: $(TRUNK)
 web-test:
 	node --test scripts/web/*.test.mjs
 
-# GPU Chromium smoke of the release build (local only, never CI). Playwright is borrowed from another
-# checkout until e2e/ gets its own package (P0-T6): PLAYWRIGHT_NODE_PATH=<node_modules dir>.
-PLAYWRIGHT_NODE_PATH ?= $(HOME)/Repos/the-cube/node_modules
-web-smoke: build-web
-	NODE_PATH=$(PLAYWRIGHT_NODE_PATH) node e2e/web-smoke.cjs "" docs/shots/p0-t5-chromium.png
+# Browser suites (local only, never CI) use e2e/'s own pinned @playwright/test.
+.PHONY: e2e-deps web-e2e run-shot run-diag
+E2E_STAMP := e2e/node_modules/.npm-ci.stamp
+
+$(E2E_STAMP): e2e/package.json e2e/package-lock.json
+	npm ci --prefix e2e --no-audit --no-fund
+	touch $@
+
+e2e-deps: $(E2E_STAMP)
+
+# GPU Chromium smoke of the release build (P0-T5).
+web-smoke: build-web $(E2E_STAMP)
+	node e2e/web-smoke.cjs "" docs/shots/p0-t5-chromium.png
+
+# P0-T6 Playwright smoke against the 5311 static preview of dist/ (Playwright starts and stops it).
+web-e2e: build-web $(E2E_STAMP)
+	cd e2e && ./node_modules/.bin/playwright test
+
+# P0-T6 agent switches on the native build (docs/agent-operability.md). Both exit by themselves;
+# run-shot exits non-zero unless the PNG shows a lit scene.
+SHOT ?= target/shots/run-shot.png
+run-shot:
+	cargo run -p parble-app -- --screenshot $(SHOT) --screenshot-after 3 --exit-after 4
+
+run-diag:
+	cargo run -p parble-app -- --exit-after 3 --dump-state
 
 # Trunk dev server on 127.0.0.1:$(DEV_PORT). No autoreload: Trunk injects its reload script after the
 # post_build hook hashed the inline scripts, so the page's CSP would block it (a console error).

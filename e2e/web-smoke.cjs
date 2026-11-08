@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 // P0-T5 web shell smoke (local only, never CI): loads the page in GPU Chromium, waits for the canvas
 // to show a lit scene, fails on any console error, and prints the WebGPU adapter.
-// Usage: NODE_PATH=<dir containing playwright> node e2e/web-smoke.cjs [url] [screenshot.png]
+// Usage: node e2e/web-smoke.cjs [url] [screenshot.png]   (after npm ci --prefix e2e)
 //   url defaults to serving ./dist (make build-web) on a random loopback port.
 // PW_GPU=swiftshader opts into the CPU renderer; the default is the platform GPU (Metal on macOS).
 "use strict";
 const { spawn } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
-const { chromium } = require("playwright");
+const { chromium } = require("@playwright/test");
 
 const GPU_ARGS = process.env.PW_GPU === "swiftshader"
   ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"]

@@ -27,7 +27,13 @@ make dev            # trunk serve on 127.0.0.1:5310 (needs index.html, added in 
 make dev-stop       # stop the 5310 listener: TERM, poll ≤ 2 s, then SIGKILL
 make build-web      # trunk build --release into dist/
 make web-size       # build-web + wasm ≤ 15 MB gzip budget
+
+make run-shot       # native screenshot to target/shots/run-shot.png, then exits (non-zero unless lit)
+make run-diag       # native: run 3 s, print the state JSON, exit
+make web-e2e        # build-web + Playwright smoke in GPU Chromium on the 5311 preview (local only)
 ```
+
+- Agent switches (native flags, URL query on web, `window.__parble`): `docs/agent-operability.md`.
 
 - `checkall` legs run in fail-fast order. The web/ui legs (Biome, tsc, Vitest) print `SKIP` until `web/ui/package.json` exists (P0-T7).
 - `checkall-ci` grows as Phase 0 lands: P0-T4 added `determinism-wasm`, P0-T5 `web-size`, P0-T8 `actionlint` (first leg). Keep it a superset of what `.github/workflows/ci.yml` runs.

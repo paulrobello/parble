@@ -4298,8 +4298,11 @@ name = "parble-app"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "js-sys",
  "parble-render",
  "parble-sim",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

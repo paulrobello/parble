@@ -49,6 +49,7 @@ coverage/
 node_modules/
 target/
 e2e/test-results/
+e2e/playwright-report/
 
 # Processed SFX 24-bit WAV masters (rebuilt deterministically by make audio-process)
 audition/sfx/_masters/
