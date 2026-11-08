@@ -36,9 +36,13 @@
 //!   tower socket: 10 of 10). Into an empty cell below, the v1 door kept no falling marble on a
 //!   redirect or a cup two layers down (0 of 10 and 0 of 5); that case was not re-measured with
 //!   v2. The track still uses the hole from its other side, where marbles roll over the shut door.
-//! - A drop → pillar → tower fall (120 mm) gave tower exit speeds of 0.25–0.96 m/s and one
-//!   0.85 m/s sideways kick off the rail joint, so the drop feeds the tower directly and the
-//!   pillar is a support.
+//! - A drop → pillar → tower fall (120 mm) gave tower exit speeds of 0.25–0.96 m/s and marbles
+//!   leaving the rails past the rail joint, so the drop feeds the tower directly and the pillar is
+//!   a support. The sideways speed comes from the tower, not the joint (re-measured 2026-11-08,
+//!   24 runs, entry 0.25–0.525 m/s, centred or 2 mm off): the marble lands off-centre on the
+//!   tunnel's faceted half-round floor and ricochets between its walls (sideways speed changes of
+//!   0.8–1.8 m/s in one tick), leaves the socket at up to 0.55 m/s sideways, and 2 of the 24 then
+//!   climbed off the rails.
 //! - The redirects stand before both forks: the landing in their tunnel sets the exit speed to
 //!   about 0.55–0.65 m/s whatever the entry speed, inside the 0.6 m/s the fork tests route.
 
