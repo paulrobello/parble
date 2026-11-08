@@ -373,3 +373,50 @@ fn block_rail_curve_block_seams_stay_under_the_seam_thresholds() {
         assert!(k <= k_limit, "{name}: kick {k:.2} mm/s over {k_limit:.2}");
     }
 }
+
+#[test]
+fn rail_contacts_report_rail_and_block_contacts_wood_with_the_run_unchanged() {
+    use crate::mechanism::{ContactOther, SimEvent, SurfaceId};
+    use parble_kit::Surface;
+    let rail = SurfaceId::Kit(Surface::Rail);
+    let wood = SurfaceId::Kit(Surface::Wood);
+    let run = |record: bool| {
+        let mut sim = track_sim(&rail_layout());
+        sim.set_event_recording(record);
+        launch(&mut sim, Vector::new(-0.02, REST_Y, 0.0), Vector::X, SPEED);
+        let tr = trace(&mut sim, TICKS);
+        (tr, sim.drain_events(), sim.trajectory_hash())
+    };
+    let (tr, events, hash) = run(true);
+    // Recording (and the surface lookup it runs) reads the world only.
+    assert_eq!(run(false).2, hash);
+    // The pieces under the marble's centre: blocks in cells x 0..1 and 7..8, rail straights in
+    // 2..3, the S-rail in 4..6 (cell x spans x ± 30 mm).
+    let x_at = |tick: u64| tr[tick as usize - 1].position[0];
+    let over = |x: f32| match ((x + 0.03) / 0.06).floor() as i32 {
+        0 | 1 | 7 | 8 => Some(wood),
+        2..=6 => Some(rail),
+        _ => None,
+    };
+    let (mut on_rail, mut on_wood) = (0, 0);
+    for e in &events {
+        let SimEvent::Roll(r) = e else { continue };
+        let x = x_at(r.tick);
+        // Away from the seams, where the marble may touch both pieces.
+        let mid = (((x + 0.03) / 0.06).fract() - 0.5).abs() < 0.3;
+        if let (Some(want), true, Some(got)) = (over(x), mid, r.surface) {
+            assert_eq!(got, want, "tick {} at x {x:.4}", r.tick);
+            if got == rail {
+                on_rail += 1;
+            } else {
+                on_wood += 1;
+            }
+        }
+    }
+    assert!(on_rail > 20, "{on_rail} roll samples on the rails");
+    assert!(on_wood > 20, "{on_wood} roll samples on the blocks");
+    assert!(events.iter().any(|e| matches!(
+        e,
+        SimEvent::Contact(c) if c.other == ContactOther::Static && c.surface == rail
+    )));
+}

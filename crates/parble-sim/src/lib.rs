@@ -93,6 +93,9 @@ pub struct Sim {
     hasher: Fnv1a64,
     /// Mechanism instances and the event stream (P2-T1).
     mechanisms: mechanism::Mechanisms,
+    /// Placed piece id → its static collision surface, for contact events
+    /// ([`mechanism::StaticSurfaces`]).
+    piece_surfaces: std::collections::BTreeMap<parble_core::PieceId, parble_kit::Surface>,
 }
 
 impl Sim {
@@ -109,6 +112,7 @@ impl Sim {
             tick: 0,
             hasher: Fnv1a64::default(),
             mechanisms: mechanism::Mechanisms::default(),
+            piece_surfaces: std::collections::BTreeMap::new(),
         }
     }
 
@@ -191,8 +195,12 @@ impl Sim {
                 self.sample();
             }
             // A no-op without mechanism instances or event recording ([`mechanism`]).
+            let statics = mechanism::StaticSurfaces {
+                pieces: &self.pieces,
+                surfaces: &self.piece_surfaces,
+            };
             self.mechanisms
-                .after_step(&mut self.world, &self.marbles, self.tick);
+                .after_step(&mut self.world, &self.marbles, self.tick, &statics);
         }
     }
 
@@ -202,7 +210,12 @@ impl Sim {
         kit: &parble_kit::KitCatalog,
         p: parble_core::Placement,
     ) -> Result<(), chunk::ChunkError> {
-        self.pieces.insert(kit, p)
+        let id = p.piece.clone();
+        self.pieces.insert(kit, p)?;
+        if let Some(piece) = kit.piece(&id) {
+            self.piece_surfaces.insert(id, piece.static_surface());
+        }
+        Ok(())
     }
 
     /// Remove the piece anchored at `anchor`. Takes effect at the next [`Sim::rebuild_chunks`].

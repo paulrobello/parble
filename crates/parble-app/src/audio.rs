@@ -698,4 +698,78 @@ mod tests {
             );
         }
     }
+
+    /// A marble the hopper releases rolls over an `L1` block onto two `L1` rail straights (where it
+    /// comes to rest): the coalesced audio frames report `wood` while it is over the block and
+    /// `rail` over the rails, on the wire too.
+    #[test]
+    fn a_marble_on_rails_reports_rail_and_on_a_block_wood() {
+        use parble_core::{HopperConfig, MarbleSize, PieceId, Placement, ReleaseMode, Yaw4};
+        let place = |piece: &str, x: i32| {
+            Placement::new(
+                PieceId::new(piece).unwrap(),
+                CellCoord::new(x, 0, 0),
+                Yaw4::new(0),
+                false.into(),
+            )
+        };
+        let mut track = parble_core::Track::new(3);
+        track.placements = vec![
+            place("mech_hopper", 6),
+            place("blk_straight_l1", 7),
+            place("rail_straight_l1", 8),
+            place("rail_straight_l1", 9),
+        ];
+        track.hopper = HopperConfig {
+            placement: Some(0),
+            queue: vec![MarbleSize::Standard],
+            release: ReleaseMode::One,
+        };
+        let mut run = parble_sim::track_run::TrackRun::new(&track).unwrap();
+        run.set_event_recording(true);
+        // Cell x spans x ± 30 mm: the block is cell 7, the rails cells 8..9.
+        let cell_x = |x: f32| ((x + 0.03) / 0.06).floor() as i32;
+        let (mut rail, mut wood, mut max_x) = (0, 0, f32::MIN);
+        let mut wire_rail = false;
+        for _ in 0..2_400 / 4 {
+            run.tick(4);
+            let marbles: Vec<MarbleAt> = run
+                .marbles()
+                .iter()
+                .map(|m| MarbleAt {
+                    kind: MarbleKind::CatsEye,
+                    position: m.position,
+                })
+                .collect();
+            let f = coalesce(&run.drain_events(), &marbles, run.tick_count());
+            for r in &f.rolls {
+                let x = r.position[0];
+                max_x = max_x.max(x);
+                // Away from the seams, where the marble may touch both pieces.
+                if (((x + 0.03) / 0.06).fract() - 0.5).abs() > 0.3 || !r.contact {
+                    continue;
+                }
+                match cell_x(x) {
+                    7 => {
+                        assert_eq!(r.surface, Some(WireSurface::Wood), "x {x:.4}");
+                        wood += 1;
+                    }
+                    8 | 9 => {
+                        assert_eq!(r.surface, Some(WireSurface::Rail), "x {x:.4}");
+                        rail += 1;
+                    }
+                    _ => {}
+                }
+            }
+            let json = serde_json::to_string(&f).unwrap();
+            wire_rail |= json.contains(r#""surface":"rail""#);
+        }
+        assert!(
+            max_x > 0.48,
+            "the marble reaches the rails (max x {max_x:.3})"
+        );
+        assert!(rail > 5, "{rail} roll frames on the rails");
+        assert!(wood > 5, "{wood} roll frames on the blocks");
+        assert!(wire_rail, "an audioFrame carries surface \"rail\"");
+    }
 }

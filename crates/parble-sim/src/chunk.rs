@@ -1056,6 +1056,12 @@ impl ChunkColliders {
     }
 
     /// Chunks that currently hold a collider, in order.
+    /// The placement covering `cell`, if any.
+    pub fn placement_at(&self, cell: CellCoord) -> Option<&Placement> {
+        let anchor = self.occupancy.get(&cell)?;
+        self.placed.get(anchor).map(|p| &p.placement)
+    }
+
     pub fn chunks(&self) -> impl Iterator<Item = (CellCoord, ColliderHandle)> + '_ {
         self.handles.iter().map(|(&c, &h)| (c, h))
     }

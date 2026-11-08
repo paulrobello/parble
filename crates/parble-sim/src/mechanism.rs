@@ -23,8 +23,13 @@
 //! `mech/<piece id>/<x>,<y>,<z>/<name>` (the placement's anchor cell). It depends on nothing else,
 //! so adding, removing or reordering other placements leaves it unchanged.
 //!
-//! Surfaces: chunk colliders and the tray report [`Surface::Wood`]. The merged chunk trimesh does
-//! not keep the per-group surface of its triangles yet, so a rail piece would also report wood.
+//! Surfaces: a contact on a chunk collider reports the static surface
+//! ([`parble_kit::KitPiece::static_surface`]) of the placement whose cell holds the contact point,
+//! a hair inside the collider ([`StaticSurfaces`]): rail on a rail piece, wood on a block or a
+//! mechanism's frame. The merged chunk trimesh keeps no per-triangle surface, so this relies on
+//! every builtin piece having one static surface (checked in parble-kit). The tray, and a point in
+//! no placed cell, report [`Surface::Wood`]. The lookup only reads the world, so it cannot change a
+//! run.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -441,6 +446,29 @@ impl Instance {
     }
 }
 
+/// How far past the marble's surface, into the collider, the contact point is looked up (m): it
+/// keeps a point on a cell's bottom face in the piece that owns the face.
+const SURFACE_PROBE_M: f32 = 2.5e-4;
+
+/// The static surface lookup for chunk collider contacts (see the module docs).
+pub(crate) struct StaticSurfaces<'a> {
+    pub pieces: &'a crate::chunk::ChunkColliders,
+    /// Placed piece id → its static surface, recorded at [`Sim::place_piece`].
+    pub surfaces: &'a BTreeMap<PieceId, Surface>,
+}
+
+impl StaticSurfaces<'_> {
+    /// The surface of the placement whose cell holds world point `p` (metres), if any.
+    fn at(&self, p: Vector) -> Option<Surface> {
+        // Cell (x, y, z) spans x ± half a cell, y .. y + 1 cell, z ± half a cell (kit contract §2).
+        let cell_m = scene::um_to_m(parble_core::contract::CELL_UM);
+        let c = |v: f32, offset: f32| libm::floorf(v / cell_m + offset) as i32;
+        let cell = CellCoord::new(c(p.x, 0.5), c(p.y, 0.0), c(p.z, 0.5));
+        let placement = self.pieces.placement_at(cell)?;
+        self.surfaces.get(&placement.piece).copied()
+    }
+}
+
 /// All mechanism instances of a [`Sim`], plus the event stream.
 #[derive(Default)]
 pub struct Mechanisms {
@@ -606,6 +634,7 @@ impl Mechanisms {
         world: &mut PhysicsWorld,
         marbles: &[RigidBodyHandle],
         tick: u64,
+        statics: &StaticSurfaces<'_>,
     ) {
         if self.instances.is_empty() && !self.recording {
             return;
@@ -673,7 +702,7 @@ impl Mechanisms {
             self.sample(tick);
         }
         if self.recording {
-            self.record_contacts(world, &balls, tick);
+            self.record_contacts(world, &balls, tick, statics);
         }
     }
 
@@ -696,7 +725,13 @@ impl Mechanisms {
         world: &PhysicsWorld,
         balls: &[(Vector, Vector, f32, ColliderHandle)],
         tick: u64,
+        statics: &StaticSurfaces<'_>,
     ) {
+        let chunk_colliders: BTreeSet<(u32, u32)> = statics
+            .pieces
+            .chunks()
+            .map(|(_, h)| h.into_raw_parts())
+            .collect();
         let marble_of: BTreeMap<(u32, u32), usize> = balls
             .iter()
             .enumerate()
@@ -705,32 +740,52 @@ impl Mechanisms {
         let mut touching = BTreeSet::new();
         let mut contacts = Vec::new();
         let mut rolls = Vec::new();
-        for (i, &(_, v, _, ch)) in balls.iter().enumerate() {
-            let mut active: Vec<((u32, u32), f32)> = world
+        for (i, &(centre, v, r, ch)) in balls.iter().enumerate() {
+            let mut active: Vec<((u32, u32), f32, Option<Vector>)> = world
                 .narrow_phase
                 .contact_pairs_with(ch)
                 .filter(|pair| pair.has_any_active_contact())
                 .map(|pair| {
-                    let other = if pair.collider1 == ch {
-                        pair.collider2
+                    let (other, toward) = if pair.collider1 == ch {
+                        (pair.collider2, 1.0)
                     } else {
-                        pair.collider1
+                        (pair.collider1, -1.0)
                     };
-                    (other.into_raw_parts(), pair.total_impulse_magnitude())
+                    let key = other.into_raw_parts();
+                    // The deepest point of the marble toward the collider, by the manifold that
+                    // carries the most impulse; manifold normals point from collider 1 to 2.
+                    let probe = chunk_colliders.contains(&key).then(|| {
+                        pair.manifolds()
+                            .iter()
+                            .filter(|m| !m.points.is_empty())
+                            .max_by(|a, b| {
+                                let w = |m: &ContactManifold| {
+                                    m.points.iter().map(|p| p.data.impulse).sum::<f32>()
+                                };
+                                w(a).total_cmp(&w(b))
+                            })
+                            .map(|m| centre + m.data.normal * (toward * (r + SURFACE_PROBE_M)))
+                    });
+                    (key, pair.total_impulse_magnitude(), probe.flatten())
                 })
                 .collect();
             active.sort_by_key(|a| a.0);
-            let classify =
-                |key: (u32, u32)| match (marble_of.get(&key), self.part_colliders.get(&key)) {
-                    (Some(&j), _) => (ContactOther::Marble(j), SurfaceId::Glass),
-                    (None, Some(&(instance, part, s))) => {
-                        (ContactOther::Part { instance, part }, SurfaceId::Kit(s))
-                    }
-                    (None, None) => (ContactOther::Static, SurfaceId::Kit(Surface::Wood)),
-                };
+            let classify = |key: (u32, u32), probe: Option<Vector>| match (
+                marble_of.get(&key),
+                self.part_colliders.get(&key),
+            ) {
+                (Some(&j), _) => (ContactOther::Marble(j), SurfaceId::Glass),
+                (None, Some(&(instance, part, s))) => {
+                    (ContactOther::Part { instance, part }, SurfaceId::Kit(s))
+                }
+                (None, None) => (
+                    ContactOther::Static,
+                    SurfaceId::Kit(probe.and_then(|p| statics.at(p)).unwrap_or(Surface::Wood)),
+                ),
+            };
             let mut carrier: Option<(f32, SurfaceId)> = None;
-            for &(key, impulse) in &active {
-                let (other, surface) = classify(key);
+            for &(key, impulse, probe) in &active {
+                let (other, surface) = classify(key, probe);
                 if carrier.is_none_or(|(best, _)| impulse > best) {
                     carrier = Some((impulse, surface));
                 }
