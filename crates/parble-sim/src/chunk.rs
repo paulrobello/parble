@@ -822,6 +822,14 @@ pub struct ChunkColliders {
     /// along the whole straight continuation (the energy gain the seam test's control shows).
     #[cfg(test)]
     pub(crate) bend_contact_at_step_start: bool,
+    /// Test switch: drop the bounce on an exact slope or bend contact only when its end-of-step
+    /// gap penetrates, as before 2026-11-08 (see [`Self::rolling`]), for the seam gates' control.
+    #[cfg(test)]
+    pub(crate) end_gap_hand_over: bool,
+    /// Test triangles (world µm) merged into chunk (0, 0, 0) with its placements, for the seam
+    /// gates' control (a port face cap put back).
+    #[cfg(test)]
+    pub(crate) extra_triangles: Vec<[[i64; 3]; 3]>,
     dirty: BTreeSet<CellCoord>,
     /// The chunk [`Self::rebuild_step`] is part way through, and its mesh so far.
     in_flight: Option<InFlight>,
@@ -960,6 +968,10 @@ impl ChunkColliders {
             mesh.slopes
                 .extend(ChannelSlope::of(piece, &placed.placement));
             mesh.arcs.extend(ChannelArc::of(piece, &placed.placement));
+        }
+        #[cfg(test)]
+        if chunk == CellCoord::new(0, 0, 0) {
+            mesh.push_welded(&mut weld, &self.extra_triangles);
         }
         mesh
     }
@@ -1139,6 +1151,21 @@ impl ChunkColliders {
         Ok(Some(chunk))
     }
 
+    /// Whether the ball rolls on an exact slope or bend surface, so its contact takes no bounce:
+    /// the contact's end-of-step `gap` penetrates, or the surface at the ball's current centre
+    /// (`now`) does. On a tight concave turn the end-of-step contact, carried back along its
+    /// normal, reads a positive gap while the ball is still pressed into the floor, and the bounce
+    /// kept there threw it off: 78 mm/s upward at the steep slope's exit seam and contact on
+    /// alternate ticks in a `blk_curve90_l2` taken at 0.53 m/s (kick 62.55), measured 2026-11-08.
+    /// A ball falling onto the surface has a positive gap at both and still bounces.
+    fn rolling(&self, gap: f32, now: impl FnOnce() -> Option<(Vector, f32)>) -> bool {
+        #[cfg(test)]
+        if self.end_gap_hand_over {
+            return gap <= 0.0;
+        }
+        gap <= 0.0 || now().is_some_and(|(_, g)| g <= 0.0)
+    }
+
     /// Replace `chunk`'s collider with `mesh` (none when empty) and clear its dirty mark.
     fn install(
         &mut self,
@@ -1288,7 +1315,7 @@ impl PhysicsHooks for ChunkColliders {
                 let keep = self.slope_hand_over_bounces;
                 #[cfg(not(test))]
                 let keep = false;
-                if gap <= 0.0 && !keep {
+                if self.rolling(gap, || slopes[k].contact(centre, ball.radius)) && !keep {
                     *rigid.restitution = 0.0;
                 }
             }
@@ -1296,7 +1323,7 @@ impl PhysicsHooks for ChunkColliders {
         }
         if let Some((bends, bend_of)) = self.bends.get(&handle.into_raw_parts())
             && let Some(&tag @ 1..) = bend_of.get(tri as usize)
-            && let Some((n, gap)) = {
+            && let Some((n, gap, now)) = {
                 // A straight triangle can lie on the continuation of several bends: the bend
                 // whose cell holds the ball owns the contact. Off every bend cell a straight
                 // triangle's tube holds only along its own span, so a ball rolling past the next
@@ -1321,8 +1348,9 @@ impl PhysicsHooks for ChunkColliders {
                 let v = bodies[ball_body].linvel();
                 let ahead = if legacy { 0.0 } else { crate::DT };
                 let eval = |b: &ChannelBend| {
+                    let now = b.contact(centre, ball.radius);
                     b.contact(centre + v * ahead, ball.radius)
-                        .map(|(n, g)| (n, g - v.dot(n) * ahead))
+                        .map(|(n, g)| (n, g - v.dot(n) * ahead, now))
                 };
                 match bends
                     .iter()
@@ -1370,7 +1398,7 @@ impl PhysicsHooks for ChunkColliders {
                 *claimed = true;
             }
             set_one_contact(rigid, first, centre, ball.radius, n, gap);
-            if !legacy && gap <= 0.0 {
+            if !legacy && self.rolling(gap, || now) {
                 *rigid.restitution = 0.0;
             }
             return;
