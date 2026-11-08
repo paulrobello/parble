@@ -1,5 +1,6 @@
-//! P2-T2 passive block seams: a cat's eye marble is run through the steep slope, the `L2` curves,
-//! the redirect's exit and the joiner through the real API (chunk merge, simplification, contact
+//! P2-T2 passive block seams and the mechanism pieces' seams: a cat's eye marble is run through
+//! the steep slope, the `L2` curves, the redirect's exit, the joiner and each mechanism piece
+//! through the real API (chunk merge, simplification, contact
 //! hooks), and `seam_test`'s metrics are gated at each seam against the seamless channel of that
 //! level: peak upward speed within `SEAM_SPIKE_MM_S` of the seamless peak |vy|, kick within
 //! `KICK_MARGIN_MM_S` of the seamless kick. A curve is gated on kick only (its swing up the outer
@@ -40,6 +41,8 @@ struct Control {
     extra_triangles: Vec<[[i64; 3]; 3]>,
     /// Adds the kit behaviour of every mechanism placement (a fork's blade steers the marble).
     mechanisms: bool,
+    /// Leaves junction triangles to the mesh contact (`ChunkColliders::no_junction_contact`).
+    no_junction_contact: bool,
 }
 
 fn run_with(
@@ -53,6 +56,7 @@ fn run_with(
     let mut sim = Sim::empty();
     sim.pieces.end_gap_hand_over = control.end_gap_hand_over;
     sim.pieces.extra_triangles = control.extra_triangles.clone();
+    sim.pieces.no_junction_contact = control.no_junction_contact;
     for p in layout {
         sim.place_piece(kit, p.clone()).unwrap();
     }
@@ -455,45 +459,112 @@ fn joiner(level: u8) -> Vec<Placement> {
     ]
 }
 
-#[test]
-fn joiner_seam_metrics() {
-    // Logged, not gated: the joiner has no exact contact yet. Its channel is the boolean union of
-    // a straight and a curve90 tube, faceted at 8 path segments, and the two meet in a ridge the
-    // marble rides near the outlet. A contact for it needs the straight cylinder and a
-    // `ChannelBend` on the (-z, +x) port pair, the deeper of the two owning the ball.
+/// The joiner runs (`level`, inlet, start, velocity) and its windows: each inlet seam, the
+/// interior where the two channels meet, and the outlet seam.
+fn joiner_runs() -> Vec<(u8, &'static str, Vector, Vector)> {
+    let mut runs = Vec::new();
     for level in [3_u8, 2] {
+        runs.push((
+            level,
+            "-x",
+            Vector::new(-0.02, rest(0, level.into()), 0.0),
+            Vector::X * SPEED,
+        ));
+        runs.push((
+            level,
+            "-z",
+            Vector::new(0.06, rest(0, level.into()), -0.08),
+            Vector::Z * SPEED,
+        ));
+    }
+    runs
+}
+
+/// A marble-state selector.
+type Selector = Box<dyn Fn(&MarbleState) -> bool>;
+
+fn joiner_windows() -> [(&'static str, Selector); 3] {
+    let inlet_seam = |m: &MarbleState| {
+        (0.015..0.045).contains(&m.position[0]) && m.position[2].abs() < 0.03
+            || (0.03..0.09).contains(&m.position[0]) && (-0.045..-0.015).contains(&m.position[2])
+    };
+    [
+        ("inlet seam", Box::new(inlet_seam)),
+        ("interior", Box::new(window([0.045, -0.015], [0.075, 0.03]))),
+        (
+            "outlet seam",
+            Box::new(window([0.075, Z[0]], [0.105, Z[1]])),
+        ),
+    ]
+}
+
+fn joiner_run(level: u8, at: Vector, vel: Vector, control: &Control) -> Vec<MarbleState> {
+    run_with(&joiner(level), at, vel, 1_000, control)
+}
+
+#[test]
+fn joiner_seams_stay_under_the_seam_thresholds() {
+    // With the exact junction contact (`chunk::ChannelJunction`, the union of the straight and
+    // the (-z, +x) bend), measured 2026-11-08 at 0.3 m/s, upward / kick mm/s, L3 and L2 alike:
+    // from -x inlet 0.00 / 0.31, interior 0.00 / 0.01, outlet 0.00 / 0.45; from -z inlet
+    // 10.99 / 18.55, interior 12.12 / 0.64, outlet 0.00 / 1.76. On the faceted mesh
+    // (`joiner_mesh_contact_bumps`) the marble peaked at 45.05 mm/s upward from -x and 87.73
+    // from -z (`L2` 45.42 and 87.15).
+    for (level, inlet, at, vel) in joiner_runs() {
         let (p_lim, k_lim) = limits(level);
-        for (inlet, at, vel) in [
-            (
-                "-x",
-                Vector::new(-0.02, rest(0, level.into()), 0.0),
-                Vector::X * SPEED,
-            ),
-            (
-                "-z",
-                Vector::new(0.06, rest(0, level.into()), -0.08),
-                Vector::Z * SPEED,
-            ),
-        ] {
-            let tr = run(&joiner(level), at, vel, 1_000);
-            let inlet_seam = |m: &MarbleState| {
-                (0.015..0.045).contains(&m.position[0]) && m.position[2].abs() < 0.03
-                    || (0.03..0.09).contains(&m.position[0])
-                        && (-0.045..-0.015).contains(&m.position[2])
-            };
-            for (name, sel) in [
-                ("inlet seam", &inlet_seam as &dyn Fn(&MarbleState) -> bool),
-                ("interior", &window([0.045, -0.015], [0.075, 0.03])),
-                ("outlet seam", &window([0.075, Z[0]], [0.105, Z[1]])),
-            ] {
-                eprintln!(
-                    "join_l{level} from {inlet}, {name}: upward {:.2} mm/s (limit {p_lim:.2}), \
-                     kick {:.2} (limit {k_lim:.2})",
-                    upward(&tr, sel),
-                    kick(&tr, sel)
-                );
-            }
+        let tr = joiner_run(level, at, vel, &Control::default());
+        assert!(
+            tr.iter().any(|m| m.position[0] > 0.2),
+            "join_l{level} from {inlet}: marble must reach the run-out"
+        );
+        for (name, sel) in joiner_windows() {
+            assert!(
+                tr.iter().any(&sel),
+                "join_l{level} from {inlet}, {name}: never crossed"
+            );
+            let (u, k) = (upward(&tr, &sel), kick(&tr, &sel));
+            eprintln!(
+                "join_l{level} from {inlet}, {name}: upward {u:.2} mm/s (limit {p_lim:.2}), \
+                 kick {k:.2} (limit {k_lim:.2})"
+            );
+            assert!(
+                u <= p_lim,
+                "join_l{level} from {inlet}, {name}: upward {u:.2}"
+            );
+            assert!(
+                k <= k_lim,
+                "join_l{level} from {inlet}, {name}: kick {k:.2}"
+            );
         }
+    }
+}
+
+#[test]
+fn joiner_mesh_contact_bumps() {
+    // Negative control: the joiner's faceted mesh contact (no junction contact) exceeds the
+    // upward limit from both inlets.
+    for (level, inlet, at, vel) in joiner_runs() {
+        let (p_lim, _) = limits(level);
+        let tr = joiner_run(
+            level,
+            at,
+            vel,
+            &Control {
+                no_junction_contact: true,
+                ..Control::default()
+            },
+        );
+        let u = joiner_windows()
+            .iter()
+            .map(|(_, sel)| upward(&tr, sel))
+            .fold(0.0, f32::max);
+        eprintln!(
+            "join_l{level} from {inlet} on the mesh: peak upward {u:.2} mm/s (limit {p_lim:.2})"
+        );
+        assert!(
+            u > p_lim,
+            "join_l{level} from {inlet}: control upward {u:.2}"
+        );
     }
 }
 
@@ -630,10 +701,11 @@ fn mech_seams_stay_under_the_seam_thresholds() {
     // 128.81.
     //
     // The fork inlet does not meet the thresholds: upward 94.72, kick 73.40 (147.34 with the cap),
-    // gated at FORK_INLET_LIMITS_MM_S. Its two arcs share the port ring and part at once, so the
-    // floor past the seam is a convex ridge between two sideways-tilted troughs that a centred
-    // marble rides up from the cell face on. Meeting the thresholds needs a fork floor that
-    // starts as a straight run, or an exact contact for the fork's arcs (as for the joiner).
+    // gated at FORK_INLET_LIMITS_MM_S. It is the faceted mesh contact, not the fork's shape: the
+    // two arcs leave the port ring together, and their facets and the boolean's ridge between
+    // them meet the marble at the seam. The exact junction contact the joiner uses
+    // (`chunk::ChannelJunction`) brings it to 0.00 / 0.56, but is kept off the forks for now (see
+    // `ChannelJunction::of`).
     // Logged, not gated (`mech_fork_interior_metrics`): the fork interior past the inlet window,
     // where the blade's tip meets the marble.
     for case in mech_cases() {

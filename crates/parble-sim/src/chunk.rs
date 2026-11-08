@@ -32,7 +32,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use parble_core::contract::{CELL_UM, CHANNEL_RADIUS_UM, CHUNK_CELLS, CHUNK_UM, HALF_CELL_UM};
-use parble_core::{CellCoord, Mirror, Orientation, PieceId, Placement, PortClass, PortFace};
+use parble_core::{
+    CellCoord, Mirror, Orientation, PieceId, Placement, PortClass, PortFace, PortFlow,
+};
 use parble_kit::{KitCatalog, KitPiece};
 use rapier3d::prelude::*;
 
@@ -188,6 +190,11 @@ pub struct ChunkMesh {
     /// Per triangle, `k + 1` when it lies on the tube of `arcs[k]` (or its straight continuation),
     /// else 0. Empty for meshes built outside a chunk or without curved rails.
     pub arc_of: Vec<u32>,
+    /// Channel junctions of the chunk's placements (see [`ChannelJunction`]).
+    pub junctions: Vec<ChannelJunction>,
+    /// Per triangle, `k + 1` when it lies on the union of `junctions[k]`'s paths, else 0. Empty
+    /// for meshes built outside a chunk.
+    pub junction_of: Vec<u32>,
 }
 
 /// [`ChunkMesh::bend_of`] flag: the triangle lies in its bend's cell.
@@ -305,6 +312,11 @@ impl ChannelBend {
     /// either port (the half-round of a mating straight). The sidecar rounds every coordinate to
     /// 1 µm, so a tube vertex is within 2 µm of the exact tube.
     fn holds(&self, v: [i64; 3]) -> bool {
+        self.tube_error_um(v) <= 2.0
+    }
+
+    /// How far a world µm vertex lies off the bend's tube (or its straight continuation), µm.
+    fn tube_error_um(&self, v: [i64; 3]) -> f64 {
         let (sx, sz) = self.sides();
         let (dx, dz) = (v[0] - self.centre_um[0], v[2] - self.centre_um[1]);
         let half = f64::from(HALF_CELL_UM);
@@ -316,7 +328,7 @@ impl ChannelBend {
             libm::sqrt((dx * dx + dz * dz) as f64) - half
         };
         let dy = (v[1] - self.axis_y_um) as f64;
-        (libm::sqrt(rho * rho + dy * dy) - f64::from(CHANNEL_RADIUS_UM)).abs() <= 2.0
+        (libm::sqrt(rho * rho + dy * dy) - f64::from(CHANNEL_RADIUS_UM)).abs()
     }
 
     /// The contact of a ball (centre `c`, radius `r`, metres) with the exact tube: the normal from
@@ -358,6 +370,145 @@ impl ChannelBend {
 /// (§5.4). A marble on a straight rests on the two facets beside the bottom crease at their
 /// midlines, so where it passes from facet contacts to the exact tube the floor does not move.
 pub(crate) const FACET_TUBE_RADIUS_M: f32 = 0.013_932_586;
+
+/// A one-cell channel junction: three or more channel side ports at one level, as on the joiner
+/// (in at −x and −z, out at +x) and the forks (in at −x, out at ±z). Its channel is the union of
+/// one path per in-to-out port pair: a straight tube between opposite faces, a [`ChannelBend`]
+/// between adjacent ones. Only the joiner uses it for now (see [`ChannelJunction::of`]).
+///
+/// The sidecar samples each path with flat facets and the boolean union meets them in a faceted
+/// ridge, so a marble crossing the joiner peaked at 45 mm/s upward from its −x inlet and 88 mm/s
+/// from its −z inlet (measured 2026-11-08, `block_seam_test`). The contact hook replaces a contact on a junction
+/// triangle with one contact against the exact union: free space is the union of the paths'
+/// tubes, so the path the ball sits deepest inside (largest gap) owns it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChannelJunction {
+    /// Paths between adjacent in and out ports.
+    pub bends: Vec<ChannelBend>,
+    /// Paths between opposite in and out ports: the world axis they run along (0 for x, 2 for
+    /// z) and their centreline's world µm coordinate on the other horizontal axis.
+    pub straights: Vec<(usize, i64)>,
+    /// World µm height of the tube axes (channel floor + channel radius).
+    pub axis_y_um: i64,
+    /// World µm `(min x, min z)` of the junction's cell.
+    pub cell_min_um: [i64; 2],
+}
+
+/// Tolerance of [`ChannelJunction::holds`], µm: over the 144 µm sag of a bend's 8 path facets
+/// (30 mm × (1 − cos 5.625°)), where the ridge between two paths can sit.
+const JUNCTION_RIDGE_UM: f64 = 200.0;
+
+impl ChannelJunction {
+    fn of(piece: &KitPiece, p: &Placement) -> Option<Self> {
+        let def = &piece.def;
+        let ports = def.ports.as_slice();
+        let level = ports.first()?.level?;
+        let side = |f: PortFace| !matches!(f, PortFace::Top | PortFace::Bottom);
+        // The forks (a moving blade at the crotch) keep the mesh contact: with the exact contact
+        // their inlet seam meets the thresholds (kick 0.56 mm/s against 73.40), but the
+        // all-pieces track's marbles then meet differently at the one-way hole, where one stops
+        // on the shut door and the next pushes it into the trap sensor and falls through after
+        // it (measured 2026-11-08). Open work.
+        if !piece.animated_parts.is_empty()
+            || def.footprint.len() != 1
+            || ports.len() < 3
+            || ports
+                .iter()
+                .any(|q| q.class != PortClass::Channel || q.level != Some(level) || !side(q.face))
+        {
+            return None;
+        }
+        let half = HALF_CELL_UM;
+        let axis_y = level.floor_um() + CHANNEL_RADIUS_UM;
+        let world = |local: [i32; 3]| place_point_um(p.orientation(), p.anchor, local);
+        let cell = i64::from(CELL_UM);
+        let cell_min_um = [
+            cell * i64::from(p.anchor.x) - i64::from(half),
+            cell * i64::from(p.anchor.z) - i64::from(half),
+        ];
+        let (mut bends, mut straights) = (Vec::new(), Vec::new());
+        let ins = ports.iter().filter(|q| q.flow != PortFlow::Out);
+        for a in ins {
+            for b in ports
+                .iter()
+                .filter(|q| q.flow != PortFlow::In && q.face != a.face)
+            {
+                let (na, nb) = (a.face.normal(), b.face.normal());
+                if na.x * nb.x + na.z * nb.z == 0 {
+                    let c = world([(na.x + nb.x) * half, axis_y, (na.z + nb.z) * half]);
+                    let bend = ChannelBend {
+                        centre_um: [c[0], c[2]],
+                        axis_y_um: c[1],
+                        cell_min_um,
+                    };
+                    if !bends.contains(&bend) {
+                        bends.push(bend);
+                    }
+                } else {
+                    let (u, v) = (
+                        world([na.x * half, axis_y, na.z * half]),
+                        world([nb.x * half, axis_y, nb.z * half]),
+                    );
+                    let path = if u[0] != v[0] { (0, u[2]) } else { (2, u[0]) };
+                    if !straights.contains(&path) {
+                        straights.push(path);
+                    }
+                }
+            }
+        }
+        Some(Self {
+            bends,
+            straights,
+            axis_y_um: world([0, axis_y, 0])[1],
+            cell_min_um,
+        })
+    }
+
+    /// Whether a world µm vertex lies on one of the paths' tubes (or their straight
+    /// continuations past the ports), within [`JUNCTION_RIDGE_UM`]: the boolean's ridge vertices
+    /// lie where two paths' facets cross, off both exact tubes.
+    fn holds(&self, v: [i64; 3]) -> bool {
+        self.bends
+            .iter()
+            .any(|b| b.tube_error_um(v) <= JUNCTION_RIDGE_UM)
+            || self.straights.iter().any(|&(axis, at)| {
+                let d = (v[2 - axis] - at) as f64;
+                let dy = (v[1] - self.axis_y_um) as f64;
+                (libm::sqrt(d * d + dy * dy) - f64::from(CHANNEL_RADIUS_UM)).abs()
+                    <= JUNCTION_RIDGE_UM
+            })
+    }
+
+    /// Whether a ball centre lies over the junction's cell grown by `margin` metres on every side.
+    fn reaches(&self, c: Vector, margin: f32) -> bool {
+        let m = |v: i64| v as f32 * 1.0e-6;
+        let cell = m(i64::from(CELL_UM));
+        let (x0, z0) = (m(self.cell_min_um[0]), m(self.cell_min_um[1]));
+        (x0 - margin..=x0 + cell + margin).contains(&c.x)
+            && (z0 - margin..=z0 + cell + margin).contains(&c.z)
+    }
+
+    /// The contact of a ball (centre `c`, radius `r`, metres) with the exact union of the paths:
+    /// that of the path with the largest gap.
+    fn contact(&self, c: Vector, r: f32) -> Option<(Vector, f32)> {
+        let m = |v: i64| v as f32 * 1.0e-6;
+        let ay = m(self.axis_y_um);
+        let straight = self.straights.iter().filter_map(|&(axis, at)| {
+            let axis_point = if axis == 0 {
+                Vector::new(c.x, ay, m(at))
+            } else {
+                Vector::new(m(at), ay, c.z)
+            };
+            let off = (axis_point - c).length();
+            (off > 0.0).then(|| ((axis_point - c) / off, FACET_TUBE_RADIUS_M - r - off))
+        });
+        self.bends
+            .iter()
+            .filter_map(|b| b.contact(c, r))
+            .chain(straight)
+            .max_by(|a, b| a.1.total_cmp(&b.1))
+    }
+}
 
 /// A one-cell channel slope: the channel half-round, in vertical cross-sections across the path,
 /// lowered along the path by the contract's cubic smoothstep from the entry floor to the exit
@@ -576,6 +727,17 @@ impl ChunkMesh {
                         let inside = vs.iter().all(|v| self.bends[k].contains(v[0], v[2]));
                         (k as u32 + 1) | if inside { IN_BEND_CELL } else { 0 }
                     })
+            })
+            .collect();
+        self.junction_of = self
+            .triangles
+            .iter()
+            .map(|t| {
+                let vs = t.map(|v| self.vertices_um[v as usize]);
+                self.junctions
+                    .iter()
+                    .position(|j| vs.iter().all(|&v| j.holds(v)))
+                    .map_or(0, |k| k as u32 + 1)
             })
             .collect();
     }
@@ -819,6 +981,7 @@ impl FlatSimplify {
         mesh.triangles = triangles;
         mesh.stitched.clear();
         mesh.bend_of.clear();
+        mesh.junction_of.clear();
         mesh.slope_of.clear();
         mesh.arc_of.clear();
     }
@@ -877,6 +1040,15 @@ pub struct ChunkColliders {
     bends: BTreeMap<(u32, u32), (Vec<ChannelBend>, Vec<u32>)>,
     /// Slopes and per-triangle slope tags ([`ChunkMesh::slope_of`]) of each chunk collider.
     slopes: BTreeMap<(u32, u32), SlopeTags>,
+    /// Junctions and per-triangle junction tags ([`ChunkMesh::junction_of`]) of each chunk
+    /// collider.
+    junctions: BTreeMap<(u32, u32), (Vec<ChannelJunction>, Vec<u32>)>,
+    /// Whether the contact pair being updated has received its exact junction contact, reset
+    /// with [`Self::slope_contact_claimed`].
+    junction_contact_claimed: std::sync::Mutex<bool>,
+    /// Test switch: leave junction triangles to the mesh contact, for the seam gates' control.
+    #[cfg(test)]
+    pub(crate) no_junction_contact: bool,
     /// Curved rails and per-triangle arc tags ([`ChunkMesh::arc_of`]) of each chunk collider.
     arcs: BTreeMap<(u32, u32), (Vec<ChannelArc>, Vec<u32>)>,
     /// Whether the contact pair being updated has received its exact rail arc contact, reset with
@@ -1117,6 +1289,8 @@ impl ChunkColliders {
                 .collect();
             mesh.push_welded(weld, &tris);
             mesh.bends.extend(ChannelBend::of(piece, &placed.placement));
+            mesh.junctions
+                .extend(ChannelJunction::of(piece, &placed.placement));
             mesh.slopes
                 .extend(ChannelSlope::of(piece, &placed.placement));
             mesh.arcs.extend(ChannelArc::of(piece, &placed.placement));
@@ -1414,6 +1588,7 @@ impl ChunkColliders {
             world.remove_collider(h);
             self.stitched.remove(&h.into_raw_parts());
             self.bends.remove(&h.into_raw_parts());
+            self.junctions.remove(&h.into_raw_parts());
             self.slopes.remove(&h.into_raw_parts());
             self.arcs.remove(&h.into_raw_parts());
         }
@@ -1439,6 +1614,7 @@ impl ChunkColliders {
         let mut collider = ChunkMesh::collider_of(trimesh, chunk_origin_um(chunk));
         if mesh.slope_of.iter().any(|k| !k.is_empty())
             || mesh.bend_of.iter().any(|&b| b != 0)
+            || mesh.junction_of.iter().any(|&j| j != 0)
             || mesh.arc_of.iter().any(|&a| a != 0)
         {
             collider.set_active_hooks(
@@ -1466,6 +1642,8 @@ impl ChunkColliders {
             self.stitched.insert(h.into_raw_parts(), mesh.stitched);
             self.bends
                 .insert(h.into_raw_parts(), (mesh.bends, mesh.bend_of));
+            self.junctions
+                .insert(h.into_raw_parts(), (mesh.junctions, mesh.junction_of));
             self.slopes
                 .insert(h.into_raw_parts(), (mesh.slopes, mesh.slope_of));
             self.arcs
@@ -1492,6 +1670,10 @@ impl PhysicsHooks for ChunkColliders {
             .unwrap_or_else(|e| e.into_inner()) = false;
         *self
             .arc_contact_claimed
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = false;
+        *self
+            .junction_contact_claimed
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = false;
         Some(SolverFlags::default())
@@ -1583,6 +1765,55 @@ impl PhysicsHooks for ChunkColliders {
                 if self.rolling(gap, || slopes[k].contact(centre, ball.radius)) && !keep {
                     *rigid.restitution = 0.0;
                 }
+            }
+            return;
+        }
+        if let Some((junctions, junction_of)) = self.junctions.get(&handle.into_raw_parts())
+            && let Some(&tag @ 1..) = junction_of.get(tri as usize)
+            && {
+                #[cfg(test)]
+                let on = !self.no_junction_contact;
+                #[cfg(not(test))]
+                let on = true;
+                on
+            }
+            && let Some((n, gap, now)) = {
+                // The junction whose cell holds the ball owns the contact, else the tagged one
+                // within a ball diameter of its cell, evaluated at the end of the step as on a
+                // bend.
+                let v = bodies[ball_body].linvel();
+                junctions
+                    .iter()
+                    .find(|j| j.reaches(centre, 0.0))
+                    .or_else(|| {
+                        let j = &junctions[tag as usize - 1];
+                        j.reaches(centre, 2.0 * ball.radius).then_some(j)
+                    })
+                    .and_then(|j| {
+                        let now = j.contact(centre, ball.radius);
+                        j.contact(centre + v * crate::DT, ball.radius)
+                            .map(|(n, g)| (n, g - v.dot(n) * crate::DT, now))
+                    })
+            }
+        {
+            // One contact against the exact union of the junction's paths (see
+            // [`ChannelJunction`]), on the pair's first junction manifold only and without a
+            // bounce at the triangle hand-overs, as on a bend.
+            if rigid.solver_contacts.is_empty() {
+                return;
+            }
+            let mut claimed = self
+                .junction_contact_claimed
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            if *claimed {
+                rigid.solver_contacts.clear();
+                return;
+            }
+            *claimed = true;
+            set_one_contact(rigid, first, centre, ball.radius, n, gap);
+            if self.rolling(gap, || now) {
+                *rigid.restitution = 0.0;
             }
             return;
         }
