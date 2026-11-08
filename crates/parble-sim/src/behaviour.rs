@@ -732,6 +732,14 @@ impl Mechanism for OneWayHole {
 pub const ROPE_ARCH_HALF_UM: i32 = 12_000;
 /// Share of its speed a marble keeps across the curtain.
 pub const ROPE_KEEP: f32 = 0.5;
+/// Slowest speed, m/s, at which a marble enters the curtain zone and still has its speed halved
+/// to within ±0.025, measured against the same pass with no curtain. Below it the 14 mm/s²
+/// rolling resistance across the zone is significant: rolling at `a` against the curtain's
+/// `k = ln 2 / L` over the `L` = 40 mm the marble's centre covers, the exit speed squared is
+/// `v²/4 − 3a/(4k)` with the curtain and `v² − 2aL` without it, and their ratio's square root
+/// falls to 0.475 at 0.1204 m/s. Half of the ±0.05 test band goes to that, the other half to the
+/// drag's own error (0.533 measured at 0.8 m/s). Slower marbles still get through, slowed.
+pub const ROPE_MIN_HALVING_SPEED_M_S: f32 = 0.121;
 /// Rope kick per m/s of speed the curtain takes from the marble, millidegrees, and its bounds.
 pub const ROPE_SWING_GAIN: f32 = 100_000.0;
 pub const ROPE_SWING_MIN_MDEG: i32 = 8_000;
@@ -825,6 +833,22 @@ impl RopeArch {
     }
 }
 
+#[cfg(test)]
+thread_local! {
+    /// Test switch: the rope arch's curtain applies no drag, for its zero-drag reference pass.
+    pub(crate) static ROPE_DRAG_OFF: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+#[cfg(test)]
+fn rope_drag_on() -> bool {
+    !ROPE_DRAG_OFF.with(std::cell::Cell::get)
+}
+
+#[cfg(not(test))]
+fn rope_drag_on() -> bool {
+    true
+}
+
 impl Mechanism for RopeArch {
     fn kind(&self) -> &'static str {
         "arch_rope"
@@ -844,7 +868,7 @@ impl Mechanism for RopeArch {
                 entered.extend(s.entered.iter().map(|&m| (row, m)));
             }
         }
-        for &m in inside.keys() {
+        for &m in inside.keys().filter(|_| rope_drag_on()) {
             if let Some((_, r)) = ctx.marble(m) {
                 ctx.drag_marble(m, Self::drag_k(r));
             }

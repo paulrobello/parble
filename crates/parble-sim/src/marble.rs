@@ -12,11 +12,14 @@
 //! - restitution uses [`CoefficientCombineRule::Max`], so the contact uses the marble's value
 //!   whenever it is at or above the wood's 0.4.
 //!
-//! Rolling resistance: Rapier has no rolling-resistance model, so the coefficient `c_rr` is applied
-//! as angular damping matched on energy loss at a reference speed. A ball rolling without slip at
-//! speed `v` loses `c_rr·m·g·v` W to rolling resistance and `k·I·ω²` W to angular damping `k`; with
-//! `I = 2/5·m·r²` and `ω = v/r` the two agree when `k = 2.5·c_rr·g / v`. [`ROLLING_REF_SPEED`] is
-//! the typical channel speed (0.5 m/s), so the damping is exact there and approximate elsewhere.
+//! Rolling resistance: Rapier has no rolling-resistance model, so [`apply_rolling_resistance`]
+//! applies one before each step. Each contact with a surface that is not another marble pushes on
+//! the ball with a normal impulse `J` over the step, and resists its rolling with an angular impulse
+//! `c_rr·r·J` against its spin; a ball whose spin that impulse would reverse is stopped instead
+//! (Coulomb rolling resistance). A ball rolling on the level therefore decelerates at a constant
+//! `5/7·c_rr·g` and comes to rest. Until 2026-11-08 it was angular damping matched on energy loss
+//! at 0.5 m/s, which faded with speed: marble trains at the playroom finish crept back up the far
+//! leg at 4–9 mm/s.
 
 use parble_core::contract;
 use rapier3d::prelude::*;
@@ -25,8 +28,6 @@ use crate::scene;
 
 /// Gravity magnitude the sim runs at, m/s².
 pub const G: f32 = 9.81;
-/// Speed at which the rolling-resistance damping matches `c_rr` exactly, m/s.
-pub const ROLLING_REF_SPEED: f32 = 0.5;
 
 /// The selectable marble types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -264,20 +265,14 @@ impl MarbleSpec {
         self.density * self.volume_m3()
     }
 
-    /// Angular damping that stands in for rolling resistance (see the module docs).
-    pub fn angular_damping(&self) -> f32 {
-        2.5 * self.rolling_resistance * G / ROLLING_REF_SPEED
-    }
-
-    /// A marble body (CCD on, never sleeps) at `at` and its collider.
+    /// A marble body (CCD on, never sleeps) at `at` and its collider. The body's `user_data`
+    /// carries the rolling-resistance coefficient's bits ([`apply_rolling_resistance`]).
     pub fn build(&self, at: Vector) -> (RigidBody, Collider) {
-        let mut body = RigidBodyBuilder::dynamic()
+        let body = RigidBodyBuilder::dynamic()
             .translation(at)
             .ccd_enabled(true)
-            .can_sleep(false);
-        if self.rolling_resistance > 0.0 {
-            body = body.angular_damping(self.angular_damping());
-        }
+            .can_sleep(false)
+            .user_data(u128::from(self.rolling_resistance.to_bits()));
         let mut collider = ColliderBuilder::ball(self.radius_m)
             .density(self.density)
             .friction(self.friction)
@@ -289,6 +284,61 @@ impl MarbleSpec {
         }
         (body.build(), collider.build())
     }
+}
+
+/// Rolling resistance for every marble in `marbles` (see the module docs), from the contact
+/// impulses of the last step. Call once before each world step.
+pub fn apply_rolling_resistance(world: &mut PhysicsWorld, marbles: &[RigidBodyHandle]) {
+    for &h in marbles {
+        let body = &world.bodies[h];
+        let c_rr = f32::from_bits(body.user_data as u32);
+        if c_rr <= 0.0 {
+            continue;
+        }
+        let Some(&collider) = body.colliders().first() else {
+            continue;
+        };
+        let Some(ball) = world.colliders[collider].shape().as_ball() else {
+            continue;
+        };
+        let r = ball.radius;
+        let load: f32 = world
+            .narrow_phase
+            .contact_pairs_with(collider)
+            .filter(|pair| {
+                let other = if pair.collider1 == collider {
+                    pair.collider2
+                } else {
+                    pair.collider1
+                };
+                !is_marble(world, other)
+            })
+            .map(|pair| pair.total_impulse_magnitude())
+            .sum();
+        if load <= 0.0 {
+            continue;
+        }
+        let body = &mut world.bodies[h];
+        let w = body.angvel();
+        let speed = w.length();
+        let i = 0.4 * body.mass() * r * r;
+        let stop = c_rr * r * load / i;
+        let w = if speed <= stop {
+            Vector::ZERO
+        } else {
+            w * (1.0 - stop / speed)
+        };
+        body.set_angvel(w, true);
+    }
+}
+
+/// Whether `c` is a marble: a ball on a dynamic body.
+fn is_marble(world: &PhysicsWorld, c: ColliderHandle) -> bool {
+    let collider = &world.colliders[c];
+    collider.shape().as_ball().is_some()
+        && collider
+            .parent()
+            .is_some_and(|b| world.bodies[b].is_dynamic())
 }
 
 #[cfg(test)]

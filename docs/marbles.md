@@ -52,7 +52,7 @@ Refine these when the kit wood gets measured values.
 
 The kit is wood, so friction and restitution are marble-on-wood pair values. The marble collider sets Rapier combine rules so the pair value wins against a wood collider. Friction uses `Min`, which outranks wood's `Average`, so the contact uses the marble's value when it is at or below wood's 0.5. Restitution uses `Max`, so the contact uses the marble's value when it is at or above wood's 0.4. A unit test asserts both bounds for every type.
 
-Rapier has no rolling-resistance model. The coefficient is applied as angular damping matched on energy loss at 0.5 m/s, a typical channel speed. With `I = 2/5·m·r²` this gives `k = 2.5·c_rr·g / v_ref`, which is 0.098 /s for `c_rr = 0.002`. The match is exact at the reference speed and approximate elsewhere.
+Rapier has no rolling-resistance model, so the sim applies Coulomb rolling resistance before each step (`marble::apply_rolling_resistance`). Each contact with a surface that is not another marble gives the ball an angular impulse `c_rr·r·J` against its spin, where `J` is that contact's normal impulse over the last step. A ball whose spin that impulse would reverse is stopped. On the level a rolling ball decelerates at a constant `5/7·c_rr·g`, 14.0 mm/s² for `c_rr = 0.002`, so a marble at 20 mm/s stops after about 1.4 s. Until 2026-11-08 the coefficient was angular damping matched on energy loss at 0.5 m/s, which faded at low speed and left slow marbles creeping.
 
 ## Determinism
 

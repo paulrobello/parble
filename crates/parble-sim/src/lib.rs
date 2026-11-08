@@ -187,6 +187,7 @@ impl Sim {
     /// [`HASH_SAMPLE_TICKS`].
     pub fn tick(&mut self, n: u32) {
         for _ in 0..n {
+            marble::apply_rolling_resistance(&mut self.world, &self.marbles);
             if self.pieces.chunks().next().is_some() {
                 // The chunk colliders carry the seam contact hook ([`chunk::ChunkColliders`]).
                 self.world.step_with_events(&self.pieces, &());

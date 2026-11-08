@@ -959,24 +959,39 @@ fn rope_pass(dir: f32, speed: f32) -> (f32, f32, Vec<Vec<i32>>, Vec<Vec<MarbleSt
     (speed_at(-half), speed_at(half), angles, tr)
 }
 
+/// [`rope_pass`] with the curtain's drag switched off: the same pass's rolling loss alone.
+fn rope_pass_no_drag(dir: f32, speed: f32) -> (f32, f32) {
+    ROPE_DRAG_OFF.with(|c| c.set(true));
+    let (entry, exit, _, _) = rope_pass(dir, speed);
+    ROPE_DRAG_OFF.with(|c| c.set(false));
+    (entry, exit)
+}
+
 #[test]
 fn rope_arch_halves_the_speed_of_a_marble_passing_through() {
     let mut report = Vec::new();
     for dir in [1.0, -1.0] {
         for v in ROPE_SPEEDS {
             let (entry, exit, _, tr) = rope_pass(dir, v);
-            let ratio = exit / entry;
+            let (entry0, exit0) = rope_pass_no_drag(dir, v);
+            // The curtain's own effect: the pass's ratio over the same pass's with no drag.
+            let ratio = (exit / entry) / (exit0 / entry0);
             report.push(format!(
-                "dir {dir} launch {v}: entry {entry:.3} exit {exit:.3} ratio {ratio:.3}"
+                "dir {dir} launch {v}: entry {entry:.4} exit {exit:.4} no drag {entry0:.4} -> \
+                 {exit0:.4} curtain {ratio:.4}"
             ));
             assert!(
                 entry > 0.0 && exit > 0.0,
                 "dir {dir} launch {v}: never left the arch"
             );
-            assert!(
-                (0.45..=0.55).contains(&ratio),
-                "dir {dir} launch {v}: entry {entry} exit {exit} ratio {ratio}"
-            );
+            if entry >= ROPE_MIN_HALVING_SPEED_M_S {
+                assert!(
+                    (0.45..=0.55).contains(&ratio),
+                    "dir {dir} launch {v}: entry {entry} exit {exit} curtain ratio {ratio}"
+                );
+            } else {
+                assert!(exit < entry, "dir {dir} launch {v}: {entry} -> {exit}");
+            }
             // The ropes have no collider: the marble stays on the channel floor, centred, and
             // leaves by the far straight.
             let on_track = |m: &&MarbleState| (m.position[0] - CELL).abs() < 1.5 * CELL - R;
@@ -987,18 +1002,28 @@ fn rope_arch_halves_the_speed_of_a_marble_passing_through() {
                 );
                 assert!(m.position[2].abs() < 1.0e-3, "dir {dir} launch {v}: {m:?}");
             }
+            // Above the minimum it rolls off the far straight; below it, rolling resistance may
+            // stop it on that straight, past the curtain.
             let last = tr.last().unwrap()[0].position[0];
+            let past = if entry >= ROPE_MIN_HALVING_SPEED_M_S {
+                1.5 * CELL
+            } else {
+                ROPE_ARCH_HALF_UM as f32 * 1.0e-6 + R
+            };
             assert!(
-                (last - CELL) * dir > 1.5 * CELL,
+                (last - CELL) * dir > past,
                 "dir {dir} launch {v}: stopped at x = {last}"
             );
         }
-        // A crawling marble (0.05 m/s) still gets through; rolling resistance takes a little more
-        // than the curtain's half at that speed (0.43 measured).
+        // The card's criterion speed is in the sweep and above the minimum.
+        assert!(ROPE_SPEEDS.contains(&0.6) && ROPE_SPEEDS[0] < ROPE_MIN_HALVING_SPEED_M_S);
+        // A crawling marble (0.05 m/s) enters the zone at 0.026 m/s and stops in it, curtain or
+        // not: rolling resistance alone takes it.
         let (entry, exit, _, _) = rope_pass(dir, 0.05);
+        let (entry0, exit0) = rope_pass_no_drag(dir, 0.05);
         assert!(
-            exit > 0.0 && exit / entry > 0.35,
-            "dir {dir}: {entry} -> {exit}"
+            entry > 0.0 && exit == 0.0 && entry0 > 0.0 && exit0 == 0.0,
+            "dir {dir}: {entry} -> {exit}, no drag {entry0} -> {exit0}"
         );
     }
     println!("{}", report.join("\n"));

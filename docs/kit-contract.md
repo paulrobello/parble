@@ -360,7 +360,7 @@ MVP IDs (P1, P2):
 | Splitter, toggle, checkpoint | `mech_splitter_l3`, `mech_toggle_l3`, `mech_checkpoint_l1` (other levels as needed, arches at `L2`/`L3` are 2 tall) |
 | One-way gate, one-way hole | `mech_gate_oneway_l1`, `mech_hole_oneway_l1` (arches at `L2`/`L3` are 2 tall, §16 Q13) |
 | Stepper elevator (PRD P2 item 17) | `mech_stepper_up1_l3`: in at `L3` on the anchor's `−x` face, out at `L3` on the `+x` face of cell (1, 1, 0), one cell layer up over two cells (footprint 2 × 1 × 2). Other rises and lengths are `mech_stepper_up<n>_l<level>` variants of the same generator (`blender/kit/kitstepper.py` `STEPPERS`). |
-| Rope-curtain arch | `mech_arch_rope_l1` (1 tall: its underside sits 35 mm above the `L1` floor; `L2`/`L3` would be 2 tall, §16 Q13) |
+| Rope-curtain arch | `mech_arch_rope_l1` (1 tall: its underside sits 35 mm above the `L1` floor; `L2`/`L3` would be 2 tall, §16 Q13). The curtain halves the speed of a marble entering it at 0.121 m/s or faster (`ROPE_MIN_HALVING_SPEED_M_S`), measured against the same pass with no curtain. Below that, rolling resistance (14 mm/s²) across the 40 mm zone takes a significant share too, so the marble still gets through but leaves slower than half. A marble launched at 0.05 m/s stops in the zone even with no curtain. |
 | Rail family | `rail_straight_l1`, `rail_straight_l2`, `rail_curve90_r90_l2`, `rail_s_1x3_l2`, `rail_joint_l1` |
 
 ## 11. Collision and port sidecar

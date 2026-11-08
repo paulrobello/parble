@@ -121,12 +121,10 @@ impl Sim {
     }
 }
 
-/// Ticks in one playroom run (4 s): the marbles reach the finish at about 2.75 s and the run
-/// restarts while the train rests there. A train left longer drifts back up the far leg: the
-/// marbles rebound off the stop and off each other, and two of them leave at 4–9 mm/s, slowing
-/// only slowly because the rolling-resistance damping is matched at 0.5 m/s ([`crate::marble`]).
-/// (Before 2026-11-07 they also gained energy from the bend contact, see
-/// [`crate::chunk::ChannelBend`].)
+/// Ticks in one playroom run (4 s): the marbles reach the finish at about 2.75 s. A train left
+/// running settles against the stop (`the_train_settles_at_the_finish_when_the_run_is_left_running`);
+/// before the Coulomb rolling resistance of 2026-11-08 ([`crate::marble`]) two marbles drifted
+/// back up the far leg at 4–9 mm/s and the run had to restart here.
 pub const PLAYROOM_TICKS: u32 = 960;
 
 /// The committed hash of a [`PLAYROOM_TICKS`] playroom run (`tests/golden/playroom_4s.hash`).
@@ -218,6 +216,43 @@ mod tests {
                 "marble {i} moved {drift} m in the last second"
             );
         }
+    }
+
+    /// Ticks the left-running playroom test runs: 12 s, three times [`PLAYROOM_TICKS`].
+    const SETTLE_TICKS: u32 = 12 * crate::TICK_HZ;
+    /// Peak marble speed allowed over the last 2 s of [`SETTLE_TICKS`], mm/s.
+    const SETTLED_MM_S: f32 = 0.1;
+
+    #[test]
+    fn the_train_settles_at_the_finish_when_the_run_is_left_running() {
+        // Measured 2026-11-08: peak speed over 10-12 s 0.025 mm/s with Coulomb rolling
+        // resistance ([`crate::marble::apply_rolling_resistance`]), every marble at the stop; with
+        // the angular damping it replaced, 8.22 mm/s with marble 0 drifted 118 mm up the far leg.
+        let mut sim = Sim::playroom_scene();
+        let cell = scene::cell_m();
+        let mut peak = 0.0f32;
+        for t in 1..=SETTLE_TICKS {
+            sim.tick(1);
+            if t + 2 * crate::TICK_HZ > SETTLE_TICKS {
+                for m in sim.marbles() {
+                    let [x, y, z] = m.linvel;
+                    peak = peak.max((x * x + y * y + z * z).sqrt() * 1_000.0);
+                }
+            }
+        }
+        eprintln!(
+            "playroom left running: peak speed 10-12 s {peak:.4} mm/s (limit {SETTLED_MM_S})"
+        );
+        for (i, m) in sim.marbles().iter().enumerate() {
+            let [x, _, z] = m.position;
+            eprintln!("marble {i} at {:?}", m.position);
+            assert!(
+                x < 1.5 * cell && (z - ROW_FAR as f32 * cell).abs() < 0.01,
+                "marble {i} is not at the finish: {:?}",
+                m.position
+            );
+        }
+        assert!(peak < SETTLED_MM_S, "train still moving at {peak:.4} mm/s");
     }
 
     #[test]

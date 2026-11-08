@@ -425,7 +425,9 @@ fn slope_without_the_fix_bumps() {
     // Negative control: the same layout merged into one welded, simplified trimesh but without
     // the contact hook exceeds both limits at the slope entry, so the gate detects the bump: the
     // ball, still on the straight, hits the slope's first bottom vertex 0.4 mm ahead with a normal
-    // leaning 3° back, and bounces.
+    // leaning 3° back, and bounces. With Coulomb rolling resistance (2026-11-08) the ball arrives
+    // at 279 mm/s instead of about 290 and the bounce no longer lifts it (upward 0.00, was 32.32),
+    // but it still kicks 43.18 (was 43.62), so only the kick is the control; upward is logged.
     let (layout, entry) = slope_layout();
     let mut mesh = ChunkMesh::from_triangles(&triangles(&layout));
     mesh.simplify_flat();
@@ -442,7 +444,6 @@ fn slope_without_the_fix_bumps() {
         "straight to slope without the fix: upward {p:.2} mm/s (limit {p_limit:.2}), kick {k:.2} \
          (limit {k_limit:.2})"
     );
-    assert!(p > p_limit, "control upward {p:.2} not over {p_limit:.2}");
     assert!(k > k_limit, "control kick {k:.2} not over {k_limit:.2}");
 }
 
@@ -595,5 +596,72 @@ fn marbles_at_rest_in_a_bend_row_stay_at_rest() {
             legacy > REST_SPEED_MM_S && legacy_rise > REST_ENERGY_RISE_UJ,
             "{name}: control {legacy:.2} mm/s, {legacy_rise:.2} uJ not over the limits"
         );
+    }
+}
+
+/// Launch speed of the rolling-resistance rest test, m/s: a marble barely rolling.
+const SLOW_SPEED: f32 = 0.02;
+/// Ticks by which a [`SLOW_SPEED`] marble must be at rest on a flat channel. Coulomb rolling
+/// resistance decelerates it at 5/7·c_rr·g = 14.0 mm/s², so it stops after 1.43 s (343 ticks).
+const SLOW_REST_TICKS: usize = 480;
+/// Speed under which a marble counts as at rest, mm/s.
+const SLOW_REST_MM_S: f32 = 0.01;
+
+/// A cat's eye launched rolling at `speed` along 20 straights: its speed (mm/s) each tick for
+/// 4 s. `damping` puts the angular damping that stood in for rolling resistance before 2026-11-08
+/// (2.5·c_rr·g / 0.5 m/s) on the marble instead of the contact model, `crr` overrides `c_rr`.
+fn slow_roll(speed: f32, crr: f32, damping: bool) -> Vec<f32> {
+    let mut sim = track_sim(&straight_run(20));
+    let spec = crate::marble::MarbleSpec {
+        rolling_resistance: crr,
+        ..CATS_EYE
+    };
+    let (mut body, collider) = spec.build(Vector::new(0.03, REST_Y, 0.0));
+    body.set_linvel(Vector::X * speed, true);
+    body.set_angvel(Vector::Y.cross(Vector::X) * (speed / spec.radius_m), true);
+    if damping {
+        body.set_angular_damping(2.5 * CATS_EYE.rolling_resistance * crate::marble::G / 0.5);
+    }
+    let h = sim.world.bodies.insert(body);
+    sim.world
+        .colliders
+        .insert_with_parent(collider, h, &mut sim.world.bodies);
+    sim.marbles.push(h);
+    (0..4 * crate::TICK_HZ)
+        .map(|_| {
+            sim.tick(1);
+            let [x, y, z] = sim.marbles()[0].linvel;
+            (x * x + y * y + z * z).sqrt() * 1_000.0
+        })
+        .collect()
+}
+
+#[test]
+fn a_slow_marble_comes_to_rest_on_a_flat_channel() {
+    // Measured 2026-11-08: at rest from tick 336 on (Coulomb rolling resistance). The damping it
+    // replaced leaves the marble rolling at 17.39 mm/s after 4 s, and without rolling resistance
+    // it still rolls at 19.48 mm/s.
+    let speeds = slow_roll(SLOW_SPEED, CATS_EYE.rolling_resistance, false);
+    let rest = speeds
+        .iter()
+        .rposition(|&v| v >= SLOW_REST_MM_S)
+        .map_or(0, |i| i + 1);
+    eprintln!(
+        "{} mm/s marble: at rest from tick {rest} (limit {SLOW_REST_TICKS})",
+        SLOW_SPEED * 1_000.0
+    );
+    assert!(
+        rest <= SLOW_REST_TICKS,
+        "still moving at tick {rest}: {:.4} mm/s",
+        speeds[rest.saturating_sub(1)]
+    );
+    // Negative controls: the old damping and no rolling resistance both keep it rolling.
+    for (name, crr, damping) in [
+        ("angular damping", 0.0, true),
+        ("no rolling resistance", 0.0, false),
+    ] {
+        let v = *slow_roll(SLOW_SPEED, crr, damping).last().unwrap();
+        eprintln!("{name}: {v:.3} mm/s after 4 s");
+        assert!(v > 10.0, "{name}: {v:.3} mm/s after 4 s");
     }
 }
