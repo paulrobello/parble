@@ -6,7 +6,7 @@ use crate::bridge::{Command, Event};
 use parble_core::ParbleFile;
 use parble_core::file;
 use parble_sim::hash::format_hash;
-use parble_sim::track_run::run_hash;
+use parble_sim::track_run::{TrackRun, run_hash};
 
 /// Longest headless run `runTrack` accepts: 120 s of sim time.
 pub const MAX_RUN_TICKS: u32 = 240 * 120;
@@ -44,6 +44,10 @@ impl Tracks {
             Command::Ping { .. } => return None,
             Command::LoadTrack { json } => match file::load(&json) {
                 Ok(f) => {
+                    // The live sim restarts on this track, so its placements must reach the kit.
+                    if let Err(e) = TrackRun::new(&f.track) {
+                        return Some(error("loadTrack", e.to_string()));
+                    }
                     let ev = Event::TrackLoaded {
                         name: f.metadata.name.clone(),
                         schema: f.track.schema,
@@ -66,7 +70,10 @@ impl Tracks {
                         format!("ticks {ticks} exceeds {MAX_RUN_TICKS}"),
                     ));
                 }
-                let hash = run_hash(&f.track, ticks);
+                let hash = match run_hash(&f.track, ticks) {
+                    Ok(h) => h,
+                    Err(e) => return Some(error("runTrack", e.to_string())),
+                };
                 self.last_run = Some((ticks, hash));
                 (
                     Event::RunFinished {
@@ -116,7 +123,7 @@ mod tests {
         let mut wrong = Vec::new();
         for case in fixtures()["valid"].as_array().unwrap() {
             let f = file::load(&case["file"].to_string()).unwrap();
-            let hash = format_hash(run_hash(&f.track, ticks()));
+            let hash = format_hash(run_hash(&f.track, ticks()).unwrap());
             if hash != case["runHash"].as_str().unwrap() {
                 wrong.push(format!("{} runs to {hash}", case["name"]));
             }
@@ -193,5 +200,43 @@ mod tests {
             }),
             Some((Event::BridgeError { .. }, After::Nothing))
         ));
+    }
+
+    /// The demo's kit pieces are in the run: dropping its end stop (placement 4) changes the hash
+    /// while the straight keeps the world on the chunk-collider path.
+    #[test]
+    fn the_demo_marbles_meet_its_kit_pieces() {
+        let case = &fixtures()["valid"][0];
+        let f = file::load(&case["file"].to_string()).unwrap();
+        let mut without_end = f.track.clone();
+        assert_eq!(
+            without_end.placements.remove(4).piece.as_str(),
+            "blk_finish"
+        );
+        assert_ne!(
+            run_hash(&without_end, ticks()).unwrap(),
+            run_hash(&f.track, ticks()).unwrap()
+        );
+    }
+
+    #[test]
+    fn a_valid_file_with_a_piece_outside_the_kit_is_refused_at_load() {
+        let mut doc = fixtures()["valid"][0]["file"].clone();
+        doc["placements"][2]["piece"] = "blk_straight_l1".into();
+        assert!(
+            file::load(&doc.to_string()).is_ok(),
+            "the file itself is valid"
+        );
+        let mut t = Tracks::default();
+        match t.apply(Command::LoadTrack {
+            json: doc.to_string(),
+        }) {
+            Some((Event::BridgeError { command, message }, After::Nothing)) => {
+                assert_eq!(command, "loadTrack");
+                assert!(message.contains("blk_straight_l1"), "{message}");
+            }
+            other => panic!("unexpected {other:?}"),
+        }
+        assert!(t.loaded.is_none());
     }
 }

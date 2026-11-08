@@ -208,7 +208,7 @@ impl SimClock {
     /// A fresh run of the loaded track, or of the scenario when none is loaded.
     fn build_run(&self) -> TrackRun {
         match &self.tracks.loaded {
-            Some(f) => TrackRun::new(&f.track),
+            Some(f) => TrackRun::new(&f.track).expect("loadTrack refuses tracks that cannot run"),
             None => TrackRun::from_sim(self.scenario.build(self.marble, self.marble_size)),
         }
     }

@@ -71,7 +71,7 @@ The web build replaces `window.__parble` every frame. `--dump-state` prints the 
 - `hash`: the trajectory hash of the current run so far, as 16 hex digits. It is a string because a `u64` does not fit a JS number.
 - `lastRunHash`: the hash of the last completed run. A run always stops at exactly 2,400 ticks, so for `ramp` this equals the golden hash in `crates/parble-sim/tests/golden/ramp_10s.hash`.
 - `marbles`: one entry per marble in spawn order. Positions are in metres, rotation is a quaternion `[x, y, z, w]`, and `linvel` is in m/s.
-- `track`: the metadata name of the `.parble` track loaded over the bridge (`loadTrack`), or `null`. A loaded track replaces the scenario in the live sim and its 10 s restarts.
+- `track`: the metadata name of the `.parble` track loaded over the bridge (`loadTrack`), or `null`. A loaded track replaces the scenario in the live sim and its 10 s restarts. Its placements run as kit chunk colliders through the id table in `crates/parble-sim/src/track_run.rs` (kit ids, legacy aliases, and pieces with no collider yet). `loadTrack` refuses a track with any other piece id, or with overlapping kit pieces, with a `bridgeError`.
 - `trackRun`: the last bridge `runTrack`, as `{ "ticks": 2400, "hash": "…" }`, or `null`. The run is headless from tick 0, so its hash does not depend on frame timing. `web/ui/src/parble-fixtures.json` records the expected `runHash` of every valid fixture track; `make web-e2e` checks it in the browser (`e2e/tests/persistence.spec.mjs`).
 - `marble`: the `--marble` type, `legacy` for the P0 marble, or `lineup` in the lineup scenario.
 - `marbleSize`: the `--marble-size` value (P5-T1).

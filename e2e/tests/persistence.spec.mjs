@@ -2,8 +2,8 @@
 // imported through the file picker and run over the bridge, exported as a download, the downloaded
 // bytes are imported again and run again. Both browser hashes must equal each other and the runHash
 // that crates/parble-app/src/persist.rs checks natively, and the second export must be byte-identical
-// to the first (placements do not reach the sim before P1-T3, so the hash alone cannot catch a lossy
-// round trip).
+// to the first (only kit-backed placements reach the sim, mechanisms and metadata do not, so the hash
+// alone cannot catch a lossy round trip).
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 

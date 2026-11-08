@@ -1,21 +1,107 @@
 //! Running a loaded [`Track`] (P3-T3).
 //!
-//! A track still runs in the P0 tray: the parts of the track the sim consumes are its hopper
-//! queue and release mode, which decide which marbles enter and on which tick. Placements,
-//! mechanisms and the seed do not reach physics yet. The kit loader and chunk merge exist since
-//! P1-T3 ([`crate::chunk`], [`Sim::place_piece`]), but the tracks saved so far use catalogue ids
-//! that are not in the kit and marbles spawn on the tray ramp rather than at a hopper, so wiring
-//! placements in waits for the hopper and finish pieces (P2).
+//! A track runs in the P0 tray with its placements merged in as kit chunk colliders
+//! ([`crate::chunk`], [`Sim::place_piece`]). Every placement id goes through [`kit_binding`]: a
+//! [`parble_kit::builtin`] id places that piece, an id in [`KIT_ALIASES`] places its kit piece, an
+//! id in [`NO_COLLIDER`] is a piece without a static collider yet, and any other id refuses the
+//! run. Marbles still spawn on the tray ramp rather than at a hopper (hopper and finish pieces are
+//! P2), and mechanisms and the seed do not reach physics yet.
 //!
 //! Releases happen between steps, on whole ticks, so a run is a pure function of the track and the
 //! tick count.
 
+use crate::chunk::ChunkError;
 use crate::{Sim, scene};
 use parble_core::contract::{
     MARBLE_MINI_DIAMETER_UM, MARBLE_SHOOTER_DIAMETER_UM, MARBLE_STANDARD_DIAMETER_UM,
 };
-use parble_core::{MarbleSize, ReleaseMode, Track};
+use parble_core::{MarbleSize, PieceId, Placement, ReleaseMode, Track};
+use parble_kit::KitCatalog;
 use rapier3d::prelude::*;
+
+/// `.parble` piece ids written before the kit naming of contract §10, and the kit piece each one
+/// runs as. Saved tracks keep these ids (contract §10: ids are stable forever).
+pub const KIT_ALIASES: &[(&str, &str)] = &[
+    ("blk_straight", "blk_straight_l3"),
+    // The block-family run terminal. The contract's finish mechanism, `mech_finish`, is P2.
+    ("blk_finish", "blk_end_l3"),
+];
+
+/// Piece ids that are valid in a track but have no static kit collider yet, with the reason.
+/// They take no part in the run.
+pub const NO_COLLIDER: &[(&str, &str)] = &[
+    ("mech_hopper", "mechanisms reach the sim in P2"),
+    ("mech_finish", "mechanisms reach the sim in P2"),
+    ("mech_toggle", "mechanisms reach the sim in P2"),
+    ("mech_toggle_l3", "mechanisms reach the sim in P2"),
+    ("mech_splitter_l3", "mechanisms reach the sim in P2"),
+    ("mech_checkpoint_l1", "mechanisms reach the sim in P2"),
+    ("mech_gate_oneway_l1", "mechanisms reach the sim in P2"),
+    ("mech_hole_oneway_l1", "mechanisms reach the sim in P2"),
+    ("rail_curve_90", "no rail-family sidecar is shipped yet"),
+];
+
+/// How a `.parble` placement reaches the sim.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KitBinding {
+    /// Placed as this kit piece's chunk collider.
+    Kit(PieceId),
+    /// A known piece without a static collider ([`NO_COLLIDER`]).
+    NoCollider { reason: &'static str },
+}
+
+/// Resolves a placement id against `kit`: a kit id, then [`KIT_ALIASES`], then [`NO_COLLIDER`].
+/// Any other id is `None`.
+pub fn kit_binding(kit: &KitCatalog, id: &PieceId) -> Option<KitBinding> {
+    if kit.piece(id).is_some() {
+        return Some(KitBinding::Kit(id.clone()));
+    }
+    let name = id.as_str();
+    if let Some(&(_, to)) = KIT_ALIASES.iter().find(|(from, _)| *from == name) {
+        return Some(KitBinding::Kit(
+            PieceId::new(to).expect("alias targets follow the id grammar"),
+        ));
+    }
+    NO_COLLIDER
+        .iter()
+        .find(|(from, _)| *from == name)
+        .map(|&(_, reason)| KitBinding::NoCollider { reason })
+}
+
+/// Why a track cannot run.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TrackRunError {
+    /// The placement at this index uses an id that is not a kit piece, an alias or a known piece
+    /// without a collider.
+    UnknownPiece { placement: usize, piece: PieceId },
+    /// The chunk colliders refused the placement at this index (overlap), or the rebuild failed
+    /// (`placement: None`).
+    Chunk {
+        placement: Option<usize>,
+        error: ChunkError,
+    },
+}
+
+impl core::fmt::Display for TrackRunError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::UnknownPiece { placement, piece } => write!(
+                f,
+                "placement {placement}: piece {piece} is not a kit piece or a known alias"
+            ),
+            Self::Chunk {
+                placement: Some(i),
+                error,
+            } => write!(f, "placement {i}: {error}"),
+            Self::Chunk {
+                placement: None,
+                error,
+            } => write!(f, "chunk rebuild: {error}"),
+        }
+    }
+}
+
+impl std::error::Error for TrackRunError {}
 
 /// `ReleaseMode::All` drops the queue one marble every 48 ticks (0.2 s) so no two spawn inside
 /// each other.
@@ -65,10 +151,46 @@ impl TrackRun {
         }
     }
 
-    /// `track` in the tray, at tick 0 with its tick-0 releases in and sampled.
-    pub fn new(track: &Track) -> Self {
+    /// `track` in the tray with its placements as [`parble_kit::builtin`] chunk colliders, at tick
+    /// 0 with its tick-0 releases in and sampled.
+    pub fn new(track: &Track) -> Result<Self, TrackRunError> {
+        Self::with_kit(track, parble_kit::builtin())
+    }
+
+    /// [`TrackRun::new`] against any kit catalogue.
+    pub fn with_kit(track: &Track, kit: &KitCatalog) -> Result<Self, TrackRunError> {
         let mut sim = Sim::empty();
         sim.world.colliders.insert(scene::tray_collider());
+        let mut placed = 0usize;
+        for (i, p) in track.placements.iter().enumerate() {
+            match kit_binding(kit, &p.piece) {
+                None => {
+                    return Err(TrackRunError::UnknownPiece {
+                        placement: i,
+                        piece: p.piece.clone(),
+                    });
+                }
+                Some(KitBinding::NoCollider { .. }) => {}
+                Some(KitBinding::Kit(piece)) => {
+                    let kp = Placement { piece, ..p.clone() };
+                    sim.place_piece(kit, kp)
+                        .map_err(|error| TrackRunError::Chunk {
+                            placement: Some(i),
+                            error,
+                        })?;
+                    placed += 1;
+                }
+            }
+        }
+        // A piece-free world never rebuilds: rebuilding switches off contact clustering, which
+        // would move tray-only runs off the ramp golden.
+        if placed > 0 {
+            sim.rebuild_chunks(kit)
+                .map_err(|error| TrackRunError::Chunk {
+                    placement: None,
+                    error,
+                })?;
+        }
         let mut run = Self {
             sim,
             releases: release_schedule(track),
@@ -76,7 +198,7 @@ impl TrackRun {
         };
         run.release_due();
         run.sim.sample();
-        run
+        Ok(run)
     }
 
     /// Advance `n` fixed steps, releasing marbles whose tick has come before each step.
@@ -128,10 +250,10 @@ impl core::ops::Deref for TrackRun {
 }
 
 /// Run `track` for `ticks` and return its trajectory hash.
-pub fn run_hash(track: &Track, ticks: u32) -> u64 {
-    let mut run = TrackRun::new(track);
+pub fn run_hash(track: &Track, ticks: u32) -> Result<u64, TrackRunError> {
+    let mut run = TrackRun::new(track)?;
     run.tick(ticks);
-    run.trajectory_hash()
+    Ok(run.trajectory_hash())
 }
 
 #[cfg(test)]
@@ -173,7 +295,7 @@ mod tests {
             vec![MarbleSize::Standard, MarbleSize::Mini],
             ReleaseMode::Interval { ticks: 5 },
         );
-        let mut run = TrackRun::new(&t);
+        let mut run = TrackRun::new(&t).unwrap();
         assert_eq!(run.marbles().len(), 1);
         run.tick(5);
         assert_eq!(run.marbles().len(), 1);
@@ -191,7 +313,108 @@ mod tests {
         let t = track(vec![MarbleSize::Standard], ReleaseMode::One);
         assert_eq!(
             run_hash(&t, crate::golden::RAMP_10S_TICKS),
-            crate::golden::ramp_10s_hash()
+            Ok(crate::golden::ramp_10s_hash())
+        );
+    }
+
+    fn id(s: &str) -> PieceId {
+        PieceId::new(s).unwrap()
+    }
+
+    fn with_pieces(pieces: &[(&str, [i32; 3], u8)]) -> Track {
+        let mut t = track(vec![MarbleSize::Standard], ReleaseMode::One);
+        t.placements = pieces
+            .iter()
+            .map(|&(p, [x, y, z], yaw)| {
+                Placement::new(
+                    id(p),
+                    parble_core::CellCoord::new(x, y, z),
+                    parble_core::Yaw4::new(yaw),
+                    parble_core::Mirror::Off,
+                )
+            })
+            .collect();
+        t
+    }
+
+    #[test]
+    fn every_alias_names_a_shipped_kit_piece_and_no_collider_ids_are_not_kit_ids() {
+        let kit = parble_kit::builtin();
+        for &(from, to) in KIT_ALIASES {
+            assert!(kit.piece(&id(from)).is_none(), "{from} is itself a kit id");
+            assert_eq!(kit_binding(kit, &id(from)), Some(KitBinding::Kit(id(to))));
+        }
+        for &(from, _) in NO_COLLIDER {
+            assert!(kit.piece(&id(from)).is_none(), "{from} has a kit piece");
+            assert!(matches!(
+                kit_binding(kit, &id(from)),
+                Some(KitBinding::NoCollider { .. })
+            ));
+        }
+        for p in kit.iter() {
+            assert_eq!(
+                kit_binding(kit, &p.def.id),
+                Some(KitBinding::Kit(p.def.id.clone()))
+            );
+        }
+    }
+
+    #[test]
+    fn unknown_ids_and_overlaps_refuse_the_run() {
+        let t = with_pieces(&[
+            ("blk_straight_l3", [4, 0, 0], 0),
+            ("blk_straight_l1", [5, 0, 0], 0),
+        ]);
+        assert_eq!(
+            TrackRun::new(&t).err(),
+            Some(TrackRunError::UnknownPiece {
+                placement: 1,
+                piece: id("blk_straight_l1")
+            })
+        );
+        let t = with_pieces(&[("blk_straight", [4, 0, 0], 0), ("blk_end_l3", [4, 0, 0], 0)]);
+        assert!(matches!(
+            TrackRun::new(&t).err(),
+            Some(TrackRunError::Chunk {
+                placement: Some(1),
+                error: ChunkError::Overlap(_)
+            })
+        ));
+    }
+
+    #[test]
+    fn placed_pieces_become_chunk_colliders_the_marble_meets() {
+        let bare = with_pieces(&[("mech_hopper", [0, 4, 0], 0)]);
+        let run = TrackRun::new(&bare).unwrap();
+        assert_eq!(run.sim.pieces.chunks().count(), 0);
+        assert_eq!(
+            run_hash(&bare, crate::golden::RAMP_10S_TICKS),
+            Ok(crate::golden::ramp_10s_hash())
+        );
+
+        // An end stop on the tray floor with its closed end (yaw 2: port on +X) facing the ramp.
+        // Cell 6 spans x 330..390 mm.
+        let stop = with_pieces(&[("mech_hopper", [0, 4, 0], 0), ("blk_finish", [6, 0, 0], 2)]);
+        let mut run = TrackRun::new(&stop).unwrap();
+        assert_eq!(run.sim.pieces.chunks().count(), 1);
+        assert_ne!(run_hash(&stop, 2_400), run_hash(&bare, 2_400));
+        let mut free = TrackRun::new(&bare).unwrap();
+        let mut furthest = [0.0f32; 2];
+        for _ in 0..2_400 {
+            run.tick(1);
+            free.tick(1);
+            furthest[0] = furthest[0].max(run.marbles()[0].position[0]);
+            furthest[1] = furthest[1].max(free.marbles()[0].position[0]);
+        }
+        assert!(
+            furthest[0] < 0.330,
+            "marble passed the end stop: x = {}",
+            furthest[0]
+        );
+        assert!(
+            furthest[1] > 0.390,
+            "tray-only marble stopped early: x = {}",
+            furthest[1]
         );
     }
 }
