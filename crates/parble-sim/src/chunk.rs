@@ -515,6 +515,9 @@ impl ChannelJunction {
 /// floor (contract §7, the generator's `kitgeom.stations`). The smoothstep is flat at both ports,
 /// so past either port the tube continues flat at that port's level, as the mating straight does.
 ///
+/// The same surface, shorter, is the landing floor a dropped marble lands on in the tower socket
+/// block ([`ChannelSlope::landing`]).
+///
 /// The sidecar samples the slope with 8 flat path segments. Two things bump a marble on them
 /// (measured 2026-11-07 in `seam_test`, 0.3 m/s centred into `blk_slope_gentle_l3`):
 /// - at the entry seam the ball, still on the straight, touches the slope's first bottom vertex
@@ -537,6 +540,9 @@ pub struct ChannelSlope {
     pub axis_y_um: i64,
     /// Floor drop from the entry port to the exit port, µm.
     pub drop_um: i64,
+    /// Plan length of the smoothstep from the entry to the exit, µm: a cell on a slope piece,
+    /// shorter on a landing floor ([`ChannelSlope::landing`]).
+    pub len_um: i64,
 }
 
 impl ChannelSlope {
@@ -583,6 +589,56 @@ impl ChannelSlope {
             dir: [(x[0] - e[0]) / cell, (x[2] - e[2]) / cell],
             axis_y_um: e[1],
             drop_um: e[1] - x[1],
+            len_um: cell,
+        })
+    }
+
+    /// The landing floor of a piece a marble falls into and leaves by a side port: the tunnel
+    /// floor rises [`LANDING_RISE_UM`] over the exit floor under the shaft and falls by the same
+    /// smoothstep to the exit (blender/kit/kitblocks.py). On the tower socket block (in by the
+    /// top drop port, out by the socket) it runs from 1 mm past the shaft wall to the socket's
+    /// collision port plane, [`Port::inset_um`] inside the face.
+    ///
+    /// [`Port::inset_um`]: parble_core::Port::inset_um
+    fn landing(piece: &KitPiece, p: &Placement) -> Option<Self> {
+        let ports = piece.def.ports.as_slice();
+        let side = |f: PortFace| !matches!(f, PortFace::Top | PortFace::Bottom);
+        let [out] = ports
+            .iter()
+            .filter(|q| q.flow == PortFlow::Out && side(q.face))
+            .collect::<Vec<_>>()[..]
+        else {
+            return None;
+        };
+        let level = out.level?;
+        let tower = out.class == PortClass::Socket
+            && ports.len() == 2
+            && ports.iter().any(|q| q.face == PortFace::Top);
+        if !tower {
+            return None;
+        }
+        let n = out.face.normal();
+        let cell = CELL_UM;
+        let base = [out.cell.x * cell, out.cell.y * cell, out.cell.z * cell];
+        let axis = level.floor_um() + CHANNEL_RADIUS_UM;
+        let at = |d: i32, y: i32| {
+            place_point_um(
+                p.orientation(),
+                p.anchor,
+                [base[0] + n.x * d, base[1] + y, base[2] + n.z * d],
+            )
+        };
+        let (e, x) = (
+            at(-LANDING_REACH_UM, axis + LANDING_RISE_UM),
+            at(HALF_CELL_UM - out.inset_um, axis),
+        );
+        let len = i64::from(LANDING_REACH_UM + HALF_CELL_UM - out.inset_um);
+        Some(Self {
+            entry_um: [e[0], e[2]],
+            dir: [(x[0] - e[0]) / len, (x[2] - e[2]) / len],
+            axis_y_um: e[1],
+            drop_um: e[1] - x[1],
+            len_um: len,
         })
     }
 
@@ -600,7 +656,7 @@ impl ChannelSlope {
         let (dx, dz) = (self.dir[0], self.dir[1]);
         let (px, pz) = (v[0] - self.entry_um[0], v[2] - self.entry_um[1]);
         let (s, w) = (px * dx + pz * dz, pz * dx - px * dz);
-        let t = (s as f64 / f64::from(CELL_UM)).clamp(0.0, 1.0);
+        let t = (s as f64 / self.len_um as f64).clamp(0.0, 1.0);
         let axis = self.axis_y_um as f64 - self.drop_um as f64 * t * t * (3.0 - 2.0 * t);
         let dy = v[1] as f64 - axis;
         let w = w as f64;
@@ -611,8 +667,8 @@ impl ChannelSlope {
     /// the path.
     fn covers(&self, c: Vector, margin: f32) -> bool {
         let (s, w) = self.plan(c.x, c.z);
-        let cell = CELL_UM as f32 * 1.0e-6;
-        (-margin..=cell + margin).contains(&s) && w.abs() <= 0.5 * cell
+        let (cell, len) = (CELL_UM as f32 * 1.0e-6, self.len_um as f32 * 1.0e-6);
+        (-margin..=len + margin).contains(&s) && w.abs() <= 0.5 * cell
     }
 
     /// The contact of a ball (centre `c`, radius `r`, metres) with the exact slope channel: the
@@ -626,7 +682,7 @@ impl ChannelSlope {
         let m = |v: i64| v as f32 * 1.0e-6;
         let (sc, w) = self.plan(c.x, c.z);
         let (dx, dz) = (self.dir[0] as f32, self.dir[1] as f32);
-        let (len, ay, drop) = (m(i64::from(CELL_UM)), m(self.axis_y_um), m(self.drop_um));
+        let (len, ay, drop) = (m(self.len_um), m(self.axis_y_um), m(self.drop_um));
         // Axis height and its slope along the path at `s`.
         let axis = |s: f32| {
             let t = (s / len).clamp(0.0, 1.0);
@@ -664,6 +720,18 @@ impl ChannelSlope {
         ))
     }
 }
+
+/// Height of a landing floor's high end over its exit floor, µm (kitblocks `LANDING_RISE`).
+const LANDING_RISE_UM: i32 = 15_000;
+
+/// Plan distance from the shaft axis to a landing floor's high end, µm: 1 mm past the 32 mm
+/// shaft's wall (kitblocks `HOLE_R + 1`).
+const LANDING_REACH_UM: i32 = 17_000;
+
+/// Approach speed along the normal, m/s, above which a ball meeting a landing floor bounces even
+/// when its contact penetrates: a rolling ball meets a fresh triangle at up to 64 mm/s (see the
+/// slope's hand-over rule), a falling one lands at about 1 m/s.
+const LANDING_ROLLING_M_S: f32 = 0.25;
 
 /// Section radius of the exact slope contact for a ball of radius `r`, metres: the radius at which
 /// a centred ball rests at the same gap as on the two facets beside the bottom crease of a
@@ -1049,6 +1117,10 @@ pub struct ChunkColliders {
     /// Test switch: leave junction triangles to the mesh contact, for the seam gates' control.
     #[cfg(test)]
     pub(crate) no_junction_contact: bool,
+    /// Test switch: leave landing floors ([`ChannelSlope::landing`]) to the mesh contact, for the
+    /// landing gates' control.
+    #[cfg(test)]
+    pub(crate) no_landing_contact: bool,
     /// Curved rails and per-triangle arc tags ([`ChunkMesh::arc_of`]) of each chunk collider.
     arcs: BTreeMap<(u32, u32), (Vec<ChannelArc>, Vec<u32>)>,
     /// Whether the contact pair being updated has received its exact rail arc contact, reset with
@@ -1292,7 +1364,13 @@ impl ChunkColliders {
             mesh.junctions
                 .extend(ChannelJunction::of(piece, &placed.placement));
             mesh.slopes
-                .extend(ChannelSlope::of(piece, &placed.placement));
+                .extend(ChannelSlope::of(piece, &placed.placement).or_else(|| {
+                    #[cfg(test)]
+                    if self.no_landing_contact {
+                        return None;
+                    }
+                    ChannelSlope::landing(piece, &placed.placement)
+                }));
             mesh.arcs.extend(ChannelArc::of(piece, &placed.placement));
         }
         if from.saturating_add(count) < members.len() {
@@ -1762,7 +1840,16 @@ impl PhysicsHooks for ChunkColliders {
                 let keep = self.slope_hand_over_bounces;
                 #[cfg(not(test))]
                 let keep = false;
-                if self.rolling(gap, || slopes[k].contact(centre, ball.radius)) && !keep {
+                // A marble falling onto a landing floor ([`ChannelSlope::landing`]) moves 5–7 mm
+                // a tick and first meets it already penetrating (−11 to −250 µm at the start of
+                // the step, measured 2026-11-08 in the tower), so there the bounce is dropped only
+                // while the ball also approaches no faster than LANDING_ROLLING_M_S.
+                let landing = slopes[k].len_um != i64::from(CELL_UM);
+                let approach = -bodies[ball_body].linvel().dot(n);
+                if self.rolling(gap, || slopes[k].contact(centre, ball.radius))
+                    && !keep
+                    && !(landing && approach > LANDING_ROLLING_M_S)
+                {
                     *rigid.restitution = 0.0;
                 }
             }
@@ -2027,6 +2114,82 @@ mod tests {
 
     fn id(s: &str) -> PieceId {
         PieceId::new(s).unwrap()
+    }
+
+    /// The tower socket block's landing floor, placed turned and mirrored:
+    /// every floor vertex of the tunnel under the shaft lies on the exact landing, and the contact
+    /// matches a brute-force nearest point on the exact surface.
+    #[test]
+    fn landing_floors_follow_the_sidecar_and_the_contact_finds_the_nearest_point() {
+        let kit = parble_kit::builtin();
+        for (piece, yaw, mirror) in [
+            ("blk_tower_socket_l1", 0, false),
+            ("blk_tower_socket_l1", 1, true),
+        ] {
+            let p = place(piece, 2, 1, -1, yaw, mirror);
+            let kp = kit.piece(&p.piece).unwrap();
+            let l = ChannelSlope::landing(kp, &p).unwrap();
+            assert_eq!(ChannelSlope::of(kp, &p), None);
+            let len = l.len_um;
+            let held = placed_triangles(kp, &p)
+                .into_iter()
+                .flatten()
+                .filter(|&v| {
+                    let (s, _) = l.plan(v[0] as f32 * 1.0e-6, v[2] as f32 * 1.0e-6);
+                    (0.0..=len as f32 * 1.0e-6).contains(&s) && l.holds(v)
+                })
+                .count();
+            // 17 floor-ring vertices per station (6 path segments).
+            assert!(
+                held >= 17 * 7,
+                "{piece} yaw {yaw}: {held} floor vertices held"
+            );
+            let m = |v: i64| v as f32 * 1.0e-6;
+            let r = 0.008;
+            let big_r = slope_tube_radius(r);
+            let surface = |s: f32, a: f32| {
+                let t = (s / m(len)).clamp(0.0, 1.0);
+                let ay = m(l.axis_y_um) - m(l.drop_um) * t * t * (3.0 - 2.0 * t);
+                (s, ay - big_r * a.cos(), big_r * a.sin())
+            };
+            for i in 0..=20 {
+                for (lat, up) in [
+                    (0.0, 0.0),
+                    (0.004, 0.0005),
+                    (-0.005, 0.002),
+                    (0.002, -0.001),
+                ] {
+                    let s = m(len) * i as f32 / 20.0;
+                    let t = (s / m(len)).clamp(0.0, 1.0);
+                    let ay = m(l.axis_y_um) - m(l.drop_um) * t * t * (3.0 - 2.0 * t);
+                    let y = ay - 0.006 + up;
+                    let (dx, dz) = (l.dir[0] as f32, l.dir[1] as f32);
+                    let c = Vector::new(
+                        m(l.entry_um[0]) + s * dx - lat * dz,
+                        y,
+                        m(l.entry_um[1]) + s * dz + lat * dx,
+                    );
+                    let (_, gap) = l.contact(c, r).unwrap();
+                    let mut best = f32::MAX;
+                    for k in -150..=150 {
+                        for j in -100..=100 {
+                            let (ss, yy, ww) = surface(
+                                s + k as f32 * 4.0e-5,
+                                j as f32 * core::f32::consts::PI / 200.0,
+                            );
+                            let d =
+                                ((ss - s).powi(2) + (yy - y).powi(2) + (ww - lat).powi(2)).sqrt();
+                            best = best.min(d);
+                        }
+                    }
+                    assert!(
+                        (gap - (best - r)).abs() < 3.0e-5,
+                        "{piece} s {s:.4} lat {lat} up {up}: gap {gap} brute {}",
+                        best - r
+                    );
+                }
+            }
+        }
     }
 
     fn place(piece: &str, x: i32, y: i32, z: i32, yaw: u8, mirror: bool) -> Placement {
