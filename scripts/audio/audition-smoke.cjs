@@ -7,6 +7,7 @@
 const { spawn } = require("node:child_process");
 const path = require("node:path");
 const { chromium } = require("playwright");
+const { GPU_ARGS } = require("../../e2e/gpu-args.cjs");
 
 const dir = path.resolve(process.argv[2] || path.join(__dirname, "../../audition"));
 const port = 20000 + Math.floor(Math.random() * 20000);
@@ -19,7 +20,7 @@ const port = 20000 + Math.floor(Math.random() * 20000);
   try {
     await new Promise((r) => setTimeout(r, 800));
     const browser = await chromium.launch({ channel: "chromium", headless: true,
-      args: ["--autoplay-policy=no-user-gesture-required", "--mute-audio"] });
+      args: [...GPU_ARGS, "--autoplay-policy=no-user-gesture-required", "--mute-audio"] });
     const page = await browser.newPage({ acceptDownloads: true });
     page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
     page.on("pageerror", (e) => errors.push(String(e)));

@@ -11,11 +11,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { chromium } = require("@playwright/test");
 
-const GPU_ARGS = process.env.PW_GPU === "swiftshader"
-  ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"]
-  : process.platform === "darwin"
-    ? ["--use-angle=metal", "--enable-gpu", "--ignore-gpu-blocklist"]
-    : ["--enable-gpu", "--ignore-gpu-blocklist"];
+const { GPU_ARGS } = require("./gpu-args.cjs");
 // Bevy's wasm logger prints ERROR through console.log, styled as "%cERROR%c" (hex-world e2e).
 const BAD_TEXT = (t) => /%cERROR%c|\bERROR\b/.test(t) || /uncaptured|invalid|panicked/i.test(t);
 
