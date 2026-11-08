@@ -7,7 +7,7 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "a13c69a3266ee63dea8295af3ec536aa93e4c358675b95e24628502ad217aaf1",
+    "sha256": "598168abc009ce13b7e42cfeb7194a4e1bb9939ee13669d3bb565ede5d7dd841",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
