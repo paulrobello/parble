@@ -337,6 +337,10 @@ def _boolean_mesh(piece_id, q, name, collection, collision):
     mid = [(hi[k] + lo[k]) / 2 for k in range(3)]
     bmesh.ops.scale(bm, vec=size, verts=bm.verts)
     bmesh.ops.translate(bm, vec=mid, verts=bm.verts)
+    if collision:  # split the faces at internal cell layers, so each port face can be opened alone
+        for y in _layer_cuts_mm(piece_id):
+            geom = list(bm.verts) + list(bm.edges) + list(bm.faces)
+            bmesh.ops.bisect_plane(bm, geom=geom, plane_co=(0.0, y, 0.0), plane_no=(0.0, 1.0, 0.0))
     if not collision and q["bevel_segs"]:
         bmesh.ops.bevel(bm, geom=list(bm.edges) + list(bm.verts), offset=K.BEVEL, offset_type="OFFSET",
                         profile_type="SUPERELLIPSE", segments=q["bevel_segs"], profile=0.5, affect="EDGES",
@@ -405,6 +409,48 @@ def _expected_rings(port):
     return ax, plane, open_ring, tunnel
 
 
+def _layer_cuts_mm(piece_id):
+    """Heights (contract mm) at which the collision body's faces are split: each internal cell
+    layer boundary, raised to the crown apex (floor + 34 mm) of a tunnel port ring in the cell
+    below that rises past it, so the split never adds a vertex to a port ring. The redirect's
+    exit face is then open up to the apex, and the strip beside the crown above the lower cell
+    is open too (L3 19 mm, L2 4 mm)."""
+    cuts = []
+    for y in sorted({c[1] * K.CELL for c in footprint(piece_id)} - {bounds_mm(piece_id)[0][1]}):
+        h = y
+        for p in spec(piece_id)["ports"]:
+            if p["kind"] == "side" and p["cell"][1] * K.CELL == y - K.CELL and sp_shape(piece_id) == "redirect":
+                h = max(h, p["cell"][1] * K.CELL + K.LEVEL_STEP * p["level"] + 2 * K.R + TUNNEL_WALL)
+        cuts.append(h)
+    return cuts
+
+
+def _open_port_faces(piece_id, verts, tris):
+    """Drop the boolean's cap triangles on each channel side port's cell face (§5.4: block port
+    faces are left open, as kitgeom's are). A kept cap meets the mating piece's floor at the port
+    ring as a third triangle on each ring edge, a convex 90° edge facing the marble, which kicked
+    it up to 158 mm/s at the seam (measured 2026-11-08, P2-T2 seam fix). Unused vertices are
+    dropped, the rest keep their order."""
+    faces = []
+    for p in spec(piece_id)["ports"]:
+        if p["kind"] == "side" and p["class"] == "channel":
+            ax, plane, _, _ = _expected_rings(p)
+            other = 2 if ax == 0 else 0
+            y0 = p["cell"][1] * 60000
+            y1 = max([y0 + 60000] + [um(h) for h in _layer_cuts_mm(piece_id) if um(h) - 60000 < y0 + 60000])
+            faces.append((ax, plane, other, p["cell"][other] * 60000, y0, y1))
+
+    def on_face(t):
+        return any(all(verts[i][ax] == plane and abs(verts[i][other] - u0) <= 30000
+                       and y0 <= verts[i][1] <= y1 for i in t)
+                   for ax, plane, other, u0, y0, y1 in faces)
+
+    kept = [t for t in tris if not on_face(t)]
+    used = sorted({i for t in kept for i in t})
+    new = {old: k for k, old in enumerate(used)}
+    return [verts[i] for i in used], [tuple(new[i] for i in t) for t in kept]
+
+
 def collision_mesh(piece_id):
     """(vertices [(x, y, z) µm], triangles [(i, j, k)]) from the EXACT boolean (see module doc).
     Needs Blender; cached per id so the sidecar and the collider object agree."""
@@ -428,6 +474,7 @@ def collision_mesh(piece_id):
     bpy.data.objects.remove(ob)
     bpy.data.meshes.remove(me)
     bpy.context.view_layer.update()
+    verts, tris = _open_port_faces(piece_id, verts, tris)
     # every side port ring must be exactly canonical (open channel or tunnel)
     for p in spec(piece_id)["ports"]:
         if p["kind"] != "side":

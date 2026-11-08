@@ -7,12 +7,12 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "a13c69a3266ee63dea8295af3ec536aa93e4c358675b95e24628502ad217aaf1",
+    "sha256": "7c2251a18e1a4fb4279da9a2ce54c0b676213eaa9f42e44ae9c4809dcaed3d03",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "52d66541d215359b38230d881691fef0056465aa5d5cd90d645cf288678f685f"
+    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
   },
   "generatorDeps": [
     {
@@ -21,7 +21,7 @@
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "4af584be5af2ea3827da638e45c13fbba52ecec08950720b05597f733c591e9e"
+      "sha256": "38a1024cd340321b6d6aaea84734940cf44ec7d0e0afa0bd2712568e488566ef"
     }
   ],
   "authoringAgent": {
@@ -92,7 +92,7 @@
   ],
   "collider": {
     "node": "blk_slope_steep_l3_collider",
-    "tris": 354
+    "tris": 312
   },
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
@@ -114,19 +114,19 @@
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 65104,
+    "glbBytes": 64648,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/blk_slope_steep_l3/blk_slope_steep_l3.glb",
-      "sha256": "5503442fe8d9981ca29bb39e826ec3da53a5bc8ba25f023cdb3e7602aebf6019",
-      "bytes": 65104
+      "sha256": "a1375d67cfd77162d2a8253c962dfccf27e86c81afbd240a0109bd9a5b437433",
+      "bytes": 64648
     },
     {
       "path": "assets/kit/blk_slope_steep_l3/blk_slope_steep_l3.kit.json",
-      "sha256": "05b9dd0d9b37ec88e2a9a1d62069918d014ec284396f50cee6e5c7ecf2aa593c",
-      "bytes": 21861
+      "sha256": "e9c347c8be393fc1f9c51596ba11c06b20b605a0bb97443fc44c1e47eec5e2aa",
+      "bytes": 20360
     },
     {
       "path": "assets/kit/blk_slope_steep_l3/blk_slope_steep_l3_lod0_ao.png",
@@ -160,13 +160,13 @@
     },
     {
       "path": "assets-source/kit/blk_slope_steep_l3/blk_slope_steep_l3_high.blend",
-      "sha256": "e025448b78d531adb5b5c9790e2f3f0b95973d88fd2ee1cf5862f367e9e16bea",
-      "bytes": 270673
+      "sha256": "ff6a736bd99668db9b267291b9350124827977df6f5ae439509179df6450928b",
+      "bytes": 271319
     },
     {
       "path": "assets-source/kit/blk_slope_steep_l3/blk_slope_steep_l3_low.blend",
-      "sha256": "faa041be1a1c38dbb4a3b76f167e9e9f76fa3e1590cb1d88ed03c7c6cdbe6f82",
-      "bytes": 152063
+      "sha256": "87f2458e3eebe767666d00850b01f2f8913effc6c4a252239b31dd7d093d7528",
+      "bytes": 151378
     }
   ],
   "references": [

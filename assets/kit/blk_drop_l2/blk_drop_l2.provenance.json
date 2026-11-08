@@ -7,12 +7,12 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "a13c69a3266ee63dea8295af3ec536aa93e4c358675b95e24628502ad217aaf1",
+    "sha256": "7c2251a18e1a4fb4279da9a2ce54c0b676213eaa9f42e44ae9c4809dcaed3d03",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "52d66541d215359b38230d881691fef0056465aa5d5cd90d645cf288678f685f"
+    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
   },
   "generatorDeps": [
     {
@@ -21,7 +21,7 @@
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "4af584be5af2ea3827da638e45c13fbba52ecec08950720b05597f733c591e9e"
+      "sha256": "38a1024cd340321b6d6aaea84734940cf44ec7d0e0afa0bd2712568e488566ef"
     }
   ],
   "authoringAgent": {
@@ -92,7 +92,7 @@
   ],
   "collider": {
     "node": "blk_drop_l2_collider",
-    "tris": 213
+    "tris": 192
   },
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
@@ -114,19 +114,19 @@
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 42564,
+    "glbBytes": 42416,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/blk_drop_l2/blk_drop_l2.glb",
-      "sha256": "e5f8807b68326306ab312f8407489e56f2a1762b6f5867d3dc45ec36a8365628",
-      "bytes": 42564
+      "sha256": "4798946a230e0e32cfba835250ef21f2c81bf73c944746b9acd95f7bdcb6d708",
+      "bytes": 42416
     },
     {
       "path": "assets/kit/blk_drop_l2/blk_drop_l2.kit.json",
-      "sha256": "6239f3a1d0ec41764aa9cb10f643072d97905a87bae4de386629f642ba7637a4",
-      "bytes": 13171
+      "sha256": "3c0aee8b8dcda8e2096e1a6a7b269004e60125f6c7255e7226d4615e95514f09",
+      "bytes": 12444
     },
     {
       "path": "assets/kit/blk_drop_l2/blk_drop_l2_lod0_ao.png",
@@ -160,13 +160,13 @@
     },
     {
       "path": "assets-source/kit/blk_drop_l2/blk_drop_l2_high.blend",
-      "sha256": "456d40153b0e6208c3163a532f5b908a3614366c22afde46699d76bda28261b2",
-      "bytes": 154677
+      "sha256": "247f5caef8731b9885490088b6f83a52c9d7905a3aeb6e4082718b70d3fc0094",
+      "bytes": 154474
     },
     {
       "path": "assets-source/kit/blk_drop_l2/blk_drop_l2_low.blend",
-      "sha256": "3104f065c983ec755681da55edbc5cb846798185153d72e4b4c6d889b84a4c43",
-      "bytes": 121712
+      "sha256": "abe3ed8179f2cd26bebc9e3837535ca87306d0019be9d0c1b579bcdd17e51c2f",
+      "bytes": 121497
     }
   ],
   "references": [
