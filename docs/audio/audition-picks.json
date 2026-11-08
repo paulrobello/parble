@@ -1,359 +1,496 @@
 {
-  "checkpoint_tick": [
-    "checkpoint_tick_v01",
-    "checkpoint_tick_v02",
-    "checkpoint_tick_v03",
-    "checkpoint_tick_v04"
-  ],
-  "clack_glass_glass_heavy": [
-    "clack_glass_glass_heavy_v01",
-    "clack_glass_glass_heavy_v02",
-    "clack_glass_glass_heavy_v03",
-    "clack_glass_glass_heavy_v04"
-  ],
-  "clack_glass_glass_light": [
-    "clack_glass_glass_light_v01",
-    "clack_glass_glass_light_v02",
-    "clack_glass_glass_light_v03",
-    "clack_glass_glass_light_v04"
-  ],
-  "clack_glass_glass_medium": [
-    "clack_glass_glass_medium_v01",
-    "clack_glass_glass_medium_v02",
-    "clack_glass_glass_medium_v03",
-    "clack_glass_glass_medium_v04"
-  ],
-  "clack_glass_solid_heavy": [
-    "clack_glass_solid_heavy_v01",
-    "clack_glass_solid_heavy_v02",
-    "clack_glass_solid_heavy_v03",
-    "clack_glass_solid_heavy_v04"
-  ],
-  "clack_glass_solid_light": [
-    "clack_glass_solid_light_v01",
-    "clack_glass_solid_light_v02",
-    "clack_glass_solid_light_v03",
-    "clack_glass_solid_light_v04"
-  ],
-  "clack_glass_solid_medium": [
-    "clack_glass_solid_medium_v01",
-    "clack_glass_solid_medium_v02",
-    "clack_glass_solid_medium_v03",
-    "clack_glass_solid_medium_v04"
-  ],
-  "clack_glass_steel_heavy": [
-    "clack_glass_steel_heavy_v01",
-    "clack_glass_steel_heavy_v02",
-    "clack_glass_steel_heavy_v03",
-    "clack_glass_steel_heavy_v04"
-  ],
-  "clack_glass_steel_light": [
-    "clack_glass_steel_light_v01",
-    "clack_glass_steel_light_v02",
-    "clack_glass_steel_light_v03",
-    "clack_glass_steel_light_v04"
-  ],
-  "clack_glass_steel_medium": [
-    "clack_glass_steel_medium_v01",
-    "clack_glass_steel_medium_v02",
-    "clack_glass_steel_medium_v03",
-    "clack_glass_steel_medium_v04"
-  ],
-  "clack_solid_solid_heavy": [
-    "clack_solid_solid_heavy_v01",
-    "clack_solid_solid_heavy_v02",
-    "clack_solid_solid_heavy_v03",
-    "clack_solid_solid_heavy_v04"
-  ],
-  "clack_solid_solid_light": [
-    "clack_solid_solid_light_v01",
-    "clack_solid_solid_light_v02",
-    "clack_solid_solid_light_v03",
-    "clack_solid_solid_light_v04"
-  ],
-  "clack_solid_solid_medium": [
-    "clack_solid_solid_medium_v01",
-    "clack_solid_solid_medium_v02",
-    "clack_solid_solid_medium_v03",
-    "clack_solid_solid_medium_v04"
-  ],
-  "clack_solid_steel_heavy": [
-    "clack_solid_steel_heavy_v01",
-    "clack_solid_steel_heavy_v02",
-    "clack_solid_steel_heavy_v03",
-    "clack_solid_steel_heavy_v04"
-  ],
-  "clack_solid_steel_light": [
-    "clack_solid_steel_light_v01",
-    "clack_solid_steel_light_v02",
-    "clack_solid_steel_light_v03",
-    "clack_solid_steel_light_v04"
-  ],
-  "clack_solid_steel_medium": [
-    "clack_solid_steel_medium_v01",
-    "clack_solid_steel_medium_v02",
-    "clack_solid_steel_medium_v03",
-    "clack_solid_steel_medium_v04"
-  ],
-  "clack_steel_steel_heavy": [
-    "clack_steel_steel_heavy_v01",
-    "clack_steel_steel_heavy_v02",
-    "clack_steel_steel_heavy_v03",
-    "clack_steel_steel_heavy_v04"
-  ],
-  "clack_steel_steel_light": [
-    "clack_steel_steel_light_v01",
-    "clack_steel_steel_light_v02",
-    "clack_steel_steel_light_v03",
-    "clack_steel_steel_light_v04"
-  ],
-  "clack_steel_steel_medium": [
-    "clack_steel_steel_medium_v01",
-    "clack_steel_steel_medium_v02",
-    "clack_steel_steel_medium_v03",
-    "clack_steel_steel_medium_v04"
-  ],
-  "drop_hole_glass": [
-    "drop_hole_glass_v01",
-    "drop_hole_glass_v03",
-    "drop_hole_glass_v04"
-  ],
-  "drop_hole_solid": [
-    "drop_hole_solid_v01",
-    "drop_hole_solid_v02",
-    "drop_hole_solid_v03",
-    "drop_hole_solid_v04"
-  ],
-  "drop_hole_steel": [
-    "drop_hole_steel_v01",
-    "drop_hole_steel_v02",
-    "drop_hole_steel_v03",
-    "drop_hole_steel_v04"
-  ],
-  "finish_cup_chime": [
-    "finish_cup_chime_v01",
-    "finish_cup_chime_v02",
-    "finish_cup_chime_v03",
-    "finish_cup_chime_v04"
-  ],
-  "hopper_release": [
-    "hopper_release_v01",
-    "hopper_release_v02",
-    "hopper_release_v03",
-    "hopper_release_v04"
-  ],
-  "impact_glass_block_heavy": [
-    "impact_glass_block_heavy_v01",
-    "impact_glass_block_heavy_v02",
-    "impact_glass_block_heavy_v03",
-    "impact_glass_block_heavy_v04"
-  ],
-  "impact_glass_block_light": [
-    "impact_glass_block_light_v01",
-    "impact_glass_block_light_v02",
-    "impact_glass_block_light_v03",
-    "impact_glass_block_light_v04"
-  ],
-  "impact_glass_block_medium": [
-    "impact_glass_block_medium_v01",
-    "impact_glass_block_medium_v02",
-    "impact_glass_block_medium_v03",
-    "impact_glass_block_medium_v04"
-  ],
-  "impact_glass_rail_heavy": [
-    "impact_glass_rail_heavy_v01",
-    "impact_glass_rail_heavy_v02",
-    "impact_glass_rail_heavy_v03",
-    "impact_glass_rail_heavy_v04"
-  ],
-  "impact_glass_rail_light": [
-    "impact_glass_rail_light_v01",
-    "impact_glass_rail_light_v02",
-    "impact_glass_rail_light_v03",
-    "impact_glass_rail_light_v04"
-  ],
-  "impact_glass_rail_medium": [
-    "impact_glass_rail_medium_v01",
-    "impact_glass_rail_medium_v02",
-    "impact_glass_rail_medium_v03",
-    "impact_glass_rail_medium_v04"
-  ],
-  "impact_solid_block_heavy": [
-    "impact_solid_block_heavy_v01",
-    "impact_solid_block_heavy_v02",
-    "impact_solid_block_heavy_v03",
-    "impact_solid_block_heavy_v04"
-  ],
-  "impact_solid_block_light": [
-    "impact_solid_block_light_v01",
-    "impact_solid_block_light_v02",
-    "impact_solid_block_light_v03",
-    "impact_solid_block_light_v04"
-  ],
-  "impact_solid_block_medium": [
-    "impact_solid_block_medium_v01",
-    "impact_solid_block_medium_v02",
-    "impact_solid_block_medium_v03",
-    "impact_solid_block_medium_v04"
-  ],
-  "impact_solid_rail_heavy": [
-    "impact_solid_rail_heavy_v01",
-    "impact_solid_rail_heavy_v02",
-    "impact_solid_rail_heavy_v03",
-    "impact_solid_rail_heavy_v04"
-  ],
-  "impact_solid_rail_light": [
-    "impact_solid_rail_light_v01",
-    "impact_solid_rail_light_v02",
-    "impact_solid_rail_light_v03",
-    "impact_solid_rail_light_v04"
-  ],
-  "impact_solid_rail_medium": [
-    "impact_solid_rail_medium_v01",
-    "impact_solid_rail_medium_v02",
-    "impact_solid_rail_medium_v03",
-    "impact_solid_rail_medium_v04"
-  ],
-  "impact_steel_block_heavy": [
-    "impact_steel_block_heavy_v01",
-    "impact_steel_block_heavy_v02",
-    "impact_steel_block_heavy_v03",
-    "impact_steel_block_heavy_v04"
-  ],
-  "impact_steel_block_light": [
-    "impact_steel_block_light_v01",
-    "impact_steel_block_light_v02",
-    "impact_steel_block_light_v03",
-    "impact_steel_block_light_v04"
-  ],
-  "impact_steel_block_medium": [
-    "impact_steel_block_medium_v01",
-    "impact_steel_block_medium_v02",
-    "impact_steel_block_medium_v03",
-    "impact_steel_block_medium_v04"
-  ],
-  "impact_steel_rail_heavy": [
-    "impact_steel_rail_heavy_v01",
-    "impact_steel_rail_heavy_v02",
-    "impact_steel_rail_heavy_v03",
-    "impact_steel_rail_heavy_v04"
-  ],
-  "impact_steel_rail_light": [
-    "impact_steel_rail_light_v01",
-    "impact_steel_rail_light_v02",
-    "impact_steel_rail_light_v03",
-    "impact_steel_rail_light_v04"
-  ],
-  "impact_steel_rail_medium": [
-    "impact_steel_rail_medium_v01",
-    "impact_steel_rail_medium_v02",
-    "impact_steel_rail_medium_v03",
-    "impact_steel_rail_medium_v04"
-  ],
-  "roll_glass_block": [
-    "roll_glass_block_v01",
-    "roll_glass_block_v02",
-    "roll_glass_block_v03"
-  ],
-  "roll_glass_rail": [
-    "roll_glass_rail_v01",
-    "roll_glass_rail_v02",
-    "roll_glass_rail_v03"
-  ],
-  "roll_solid_block": [
-    "roll_solid_block_v01",
-    "roll_solid_block_v02",
-    "roll_solid_block_v03"
-  ],
-  "roll_solid_rail": [
-    "roll_solid_rail_v01",
-    "roll_solid_rail_v02",
-    "roll_solid_rail_v03"
-  ],
-  "roll_steel_block": [
-    "roll_steel_block_v01",
-    "roll_steel_block_v02",
-    "roll_steel_block_v03"
-  ],
-  "roll_steel_rail": [
-    "roll_steel_rail_v01",
-    "roll_steel_rail_v02",
-    "roll_steel_rail_v03"
-  ],
-  "splitter_tick": [
-    "splitter_tick_v01",
-    "splitter_tick_v02",
-    "splitter_tick_v03",
-    "splitter_tick_v04"
-  ],
-  "toggle_flap_clack": [
-    "toggle_flap_clack_v01",
-    "toggle_flap_clack_v02",
-    "toggle_flap_clack_v03",
-    "toggle_flap_clack_v04"
-  ],
-  "trapdoor_drop": [
-    "trapdoor_drop_v01",
-    "trapdoor_drop_v02",
-    "trapdoor_drop_v03",
-    "trapdoor_drop_v04"
-  ],
-  "tunnel_rumble": [
+ "_meta": {
+  "approved_on": "2026-11-07",
+  "approved_by": "Paul",
+  "source": "approved by Paul on the audition board",
+  "scope": "every non-rejected SFX variation of every approved cue; music previews are not included (P4-T5 owns music approval)",
+  "rejected": "rows with status \"rejected\" in assets-source/audio/sfx/provenance-group-*.json",
+  "round_3_approval": {
+   "approved_on": "2026-11-07",
+   "approved_by": "Paul",
+   "source": "\"approved\" after the felt round: every stem then on the board for the rug cues (generated v09-v12/v07-v09 and felt-derived f variants) and one_way_gate_swing v05-v08",
+   "cues": [
+    "impact_glass_rug_heavy",
+    "impact_glass_rug_light",
+    "impact_glass_rug_medium",
+    "impact_solid_rug_heavy",
+    "impact_solid_rug_light",
+    "impact_solid_rug_medium",
+    "impact_steel_rug_heavy",
+    "impact_steel_rug_light",
+    "impact_steel_rug_medium",
+    "one_way_gate_swing",
+    "roll_glass_rug",
+    "roll_solid_rug",
+    "roll_steel_rug"
+   ]
+  },
+  "loop_check_failures": {
+   "note": "approved but fails the Opus/master seamless-loop check; not shippable as loops until repaired (P4-T2 criterion 2)",
+   "stems": [
+    "roll_glass_rug_v07f",
+    "roll_glass_rug_v09",
+    "roll_glass_rug_v09f",
+    "roll_solid_rug_v07f",
     "tunnel_rumble_v01",
     "tunnel_rumble_v02",
     "tunnel_rumble_v03"
-  ],
-  "ui_click": [
-    "ui_click_v01",
-    "ui_click_v02",
-    "ui_click_v03",
-    "ui_click_v04"
-  ],
-  "ui_piece_place": [
-    "ui_piece_place_v01",
-    "ui_piece_place_v02",
-    "ui_piece_place_v03",
-    "ui_piece_place_v04"
-  ],
-  "ui_piece_remove": [
-    "ui_piece_remove_v01",
-    "ui_piece_remove_v02",
-    "ui_piece_remove_v03",
-    "ui_piece_remove_v04"
-  ],
-  "ui_piece_rotate": [
-    "ui_piece_rotate_v01",
-    "ui_piece_rotate_v02",
-    "ui_piece_rotate_v03",
-    "ui_piece_rotate_v04"
-  ],
-  "ui_toggle": [
-    "ui_toggle_v01",
-    "ui_toggle_v02",
-    "ui_toggle_v03",
-    "ui_toggle_v04"
-  ],
-  "notes": {},
-  "_meta": {
-    "approved_on": "2026-11-07",
-    "approved_by": "Paul",
-    "source": "approved by Paul on the audition board",
-    "scope": "every non-rejected SFX variation of every approved cue; music previews are not included (P4-T5 owns music approval)",
-    "pending": [
-      "impact_glass_rug_heavy",
-      "impact_glass_rug_light",
-      "impact_glass_rug_medium",
-      "impact_solid_rug_heavy",
-      "impact_solid_rug_light",
-      "impact_solid_rug_medium",
-      "impact_steel_rug_heavy",
-      "impact_steel_rug_light",
-      "impact_steel_rug_medium",
-      "one_way_gate_swing",
-      "roll_glass_rug",
-      "roll_solid_rug",
-      "roll_steel_rug"
-    ],
-    "rejected": "rows with status \"rejected\" in assets-source/audio/sfx/provenance-group-*.json"
+   ]
   }
+ },
+ "checkpoint_tick": [
+  "checkpoint_tick_v01",
+  "checkpoint_tick_v02",
+  "checkpoint_tick_v03",
+  "checkpoint_tick_v04"
+ ],
+ "clack_glass_glass_heavy": [
+  "clack_glass_glass_heavy_v01",
+  "clack_glass_glass_heavy_v02",
+  "clack_glass_glass_heavy_v03",
+  "clack_glass_glass_heavy_v04"
+ ],
+ "clack_glass_glass_light": [
+  "clack_glass_glass_light_v01",
+  "clack_glass_glass_light_v02",
+  "clack_glass_glass_light_v03",
+  "clack_glass_glass_light_v04"
+ ],
+ "clack_glass_glass_medium": [
+  "clack_glass_glass_medium_v01",
+  "clack_glass_glass_medium_v02",
+  "clack_glass_glass_medium_v03",
+  "clack_glass_glass_medium_v04"
+ ],
+ "clack_glass_solid_heavy": [
+  "clack_glass_solid_heavy_v01",
+  "clack_glass_solid_heavy_v02",
+  "clack_glass_solid_heavy_v03",
+  "clack_glass_solid_heavy_v04"
+ ],
+ "clack_glass_solid_light": [
+  "clack_glass_solid_light_v01",
+  "clack_glass_solid_light_v02",
+  "clack_glass_solid_light_v03",
+  "clack_glass_solid_light_v04"
+ ],
+ "clack_glass_solid_medium": [
+  "clack_glass_solid_medium_v01",
+  "clack_glass_solid_medium_v02",
+  "clack_glass_solid_medium_v03",
+  "clack_glass_solid_medium_v04"
+ ],
+ "clack_glass_steel_heavy": [
+  "clack_glass_steel_heavy_v01",
+  "clack_glass_steel_heavy_v02",
+  "clack_glass_steel_heavy_v03",
+  "clack_glass_steel_heavy_v04"
+ ],
+ "clack_glass_steel_light": [
+  "clack_glass_steel_light_v01",
+  "clack_glass_steel_light_v02",
+  "clack_glass_steel_light_v03",
+  "clack_glass_steel_light_v04"
+ ],
+ "clack_glass_steel_medium": [
+  "clack_glass_steel_medium_v01",
+  "clack_glass_steel_medium_v02",
+  "clack_glass_steel_medium_v03",
+  "clack_glass_steel_medium_v04"
+ ],
+ "clack_solid_solid_heavy": [
+  "clack_solid_solid_heavy_v01",
+  "clack_solid_solid_heavy_v02",
+  "clack_solid_solid_heavy_v03",
+  "clack_solid_solid_heavy_v04"
+ ],
+ "clack_solid_solid_light": [
+  "clack_solid_solid_light_v01",
+  "clack_solid_solid_light_v02",
+  "clack_solid_solid_light_v03",
+  "clack_solid_solid_light_v04"
+ ],
+ "clack_solid_solid_medium": [
+  "clack_solid_solid_medium_v01",
+  "clack_solid_solid_medium_v02",
+  "clack_solid_solid_medium_v03",
+  "clack_solid_solid_medium_v04"
+ ],
+ "clack_solid_steel_heavy": [
+  "clack_solid_steel_heavy_v01",
+  "clack_solid_steel_heavy_v02",
+  "clack_solid_steel_heavy_v03",
+  "clack_solid_steel_heavy_v04"
+ ],
+ "clack_solid_steel_light": [
+  "clack_solid_steel_light_v01",
+  "clack_solid_steel_light_v02",
+  "clack_solid_steel_light_v03",
+  "clack_solid_steel_light_v04"
+ ],
+ "clack_solid_steel_medium": [
+  "clack_solid_steel_medium_v01",
+  "clack_solid_steel_medium_v02",
+  "clack_solid_steel_medium_v03",
+  "clack_solid_steel_medium_v04"
+ ],
+ "clack_steel_steel_heavy": [
+  "clack_steel_steel_heavy_v01",
+  "clack_steel_steel_heavy_v02",
+  "clack_steel_steel_heavy_v03",
+  "clack_steel_steel_heavy_v04"
+ ],
+ "clack_steel_steel_light": [
+  "clack_steel_steel_light_v01",
+  "clack_steel_steel_light_v02",
+  "clack_steel_steel_light_v03",
+  "clack_steel_steel_light_v04"
+ ],
+ "clack_steel_steel_medium": [
+  "clack_steel_steel_medium_v01",
+  "clack_steel_steel_medium_v02",
+  "clack_steel_steel_medium_v03",
+  "clack_steel_steel_medium_v04"
+ ],
+ "drop_hole_glass": [
+  "drop_hole_glass_v01",
+  "drop_hole_glass_v03",
+  "drop_hole_glass_v04"
+ ],
+ "drop_hole_solid": [
+  "drop_hole_solid_v01",
+  "drop_hole_solid_v02",
+  "drop_hole_solid_v03",
+  "drop_hole_solid_v04"
+ ],
+ "drop_hole_steel": [
+  "drop_hole_steel_v01",
+  "drop_hole_steel_v02",
+  "drop_hole_steel_v03",
+  "drop_hole_steel_v04"
+ ],
+ "finish_cup_chime": [
+  "finish_cup_chime_v01",
+  "finish_cup_chime_v02",
+  "finish_cup_chime_v03",
+  "finish_cup_chime_v04"
+ ],
+ "hopper_release": [
+  "hopper_release_v01",
+  "hopper_release_v02",
+  "hopper_release_v03",
+  "hopper_release_v04"
+ ],
+ "impact_glass_block_heavy": [
+  "impact_glass_block_heavy_v01",
+  "impact_glass_block_heavy_v02",
+  "impact_glass_block_heavy_v03",
+  "impact_glass_block_heavy_v04"
+ ],
+ "impact_glass_block_light": [
+  "impact_glass_block_light_v01",
+  "impact_glass_block_light_v02",
+  "impact_glass_block_light_v03",
+  "impact_glass_block_light_v04"
+ ],
+ "impact_glass_block_medium": [
+  "impact_glass_block_medium_v01",
+  "impact_glass_block_medium_v02",
+  "impact_glass_block_medium_v03",
+  "impact_glass_block_medium_v04"
+ ],
+ "impact_glass_rail_heavy": [
+  "impact_glass_rail_heavy_v01",
+  "impact_glass_rail_heavy_v02",
+  "impact_glass_rail_heavy_v03",
+  "impact_glass_rail_heavy_v04"
+ ],
+ "impact_glass_rail_light": [
+  "impact_glass_rail_light_v01",
+  "impact_glass_rail_light_v02",
+  "impact_glass_rail_light_v03",
+  "impact_glass_rail_light_v04"
+ ],
+ "impact_glass_rail_medium": [
+  "impact_glass_rail_medium_v01",
+  "impact_glass_rail_medium_v02",
+  "impact_glass_rail_medium_v03",
+  "impact_glass_rail_medium_v04"
+ ],
+ "impact_glass_rug_heavy": [
+  "impact_glass_rug_heavy_v09",
+  "impact_glass_rug_heavy_v09f",
+  "impact_glass_rug_heavy_v10",
+  "impact_glass_rug_heavy_v10f",
+  "impact_glass_rug_heavy_v11",
+  "impact_glass_rug_heavy_v11f",
+  "impact_glass_rug_heavy_v12",
+  "impact_glass_rug_heavy_v12f"
+ ],
+ "impact_glass_rug_light": [
+  "impact_glass_rug_light_v09",
+  "impact_glass_rug_light_v09f",
+  "impact_glass_rug_light_v10",
+  "impact_glass_rug_light_v10f",
+  "impact_glass_rug_light_v11",
+  "impact_glass_rug_light_v11f",
+  "impact_glass_rug_light_v12",
+  "impact_glass_rug_light_v12f"
+ ],
+ "impact_glass_rug_medium": [
+  "impact_glass_rug_medium_v09",
+  "impact_glass_rug_medium_v09f",
+  "impact_glass_rug_medium_v10",
+  "impact_glass_rug_medium_v10f",
+  "impact_glass_rug_medium_v11",
+  "impact_glass_rug_medium_v11f",
+  "impact_glass_rug_medium_v12",
+  "impact_glass_rug_medium_v12f"
+ ],
+ "impact_solid_block_heavy": [
+  "impact_solid_block_heavy_v01",
+  "impact_solid_block_heavy_v02",
+  "impact_solid_block_heavy_v03",
+  "impact_solid_block_heavy_v04"
+ ],
+ "impact_solid_block_light": [
+  "impact_solid_block_light_v01",
+  "impact_solid_block_light_v02",
+  "impact_solid_block_light_v03",
+  "impact_solid_block_light_v04"
+ ],
+ "impact_solid_block_medium": [
+  "impact_solid_block_medium_v01",
+  "impact_solid_block_medium_v02",
+  "impact_solid_block_medium_v03",
+  "impact_solid_block_medium_v04"
+ ],
+ "impact_solid_rail_heavy": [
+  "impact_solid_rail_heavy_v01",
+  "impact_solid_rail_heavy_v02",
+  "impact_solid_rail_heavy_v03",
+  "impact_solid_rail_heavy_v04"
+ ],
+ "impact_solid_rail_light": [
+  "impact_solid_rail_light_v01",
+  "impact_solid_rail_light_v02",
+  "impact_solid_rail_light_v03",
+  "impact_solid_rail_light_v04"
+ ],
+ "impact_solid_rail_medium": [
+  "impact_solid_rail_medium_v01",
+  "impact_solid_rail_medium_v02",
+  "impact_solid_rail_medium_v03",
+  "impact_solid_rail_medium_v04"
+ ],
+ "impact_solid_rug_heavy": [
+  "impact_solid_rug_heavy_v09",
+  "impact_solid_rug_heavy_v09f",
+  "impact_solid_rug_heavy_v10",
+  "impact_solid_rug_heavy_v10f",
+  "impact_solid_rug_heavy_v11",
+  "impact_solid_rug_heavy_v11f",
+  "impact_solid_rug_heavy_v12",
+  "impact_solid_rug_heavy_v12f"
+ ],
+ "impact_solid_rug_light": [
+  "impact_solid_rug_light_v09",
+  "impact_solid_rug_light_v09f",
+  "impact_solid_rug_light_v10",
+  "impact_solid_rug_light_v10f",
+  "impact_solid_rug_light_v11",
+  "impact_solid_rug_light_v11f",
+  "impact_solid_rug_light_v12",
+  "impact_solid_rug_light_v12f"
+ ],
+ "impact_solid_rug_medium": [
+  "impact_solid_rug_medium_v09",
+  "impact_solid_rug_medium_v09f",
+  "impact_solid_rug_medium_v10",
+  "impact_solid_rug_medium_v10f",
+  "impact_solid_rug_medium_v11",
+  "impact_solid_rug_medium_v11f",
+  "impact_solid_rug_medium_v12",
+  "impact_solid_rug_medium_v12f"
+ ],
+ "impact_steel_block_heavy": [
+  "impact_steel_block_heavy_v01",
+  "impact_steel_block_heavy_v02",
+  "impact_steel_block_heavy_v03",
+  "impact_steel_block_heavy_v04"
+ ],
+ "impact_steel_block_light": [
+  "impact_steel_block_light_v01",
+  "impact_steel_block_light_v02",
+  "impact_steel_block_light_v03",
+  "impact_steel_block_light_v04"
+ ],
+ "impact_steel_block_medium": [
+  "impact_steel_block_medium_v01",
+  "impact_steel_block_medium_v02",
+  "impact_steel_block_medium_v03",
+  "impact_steel_block_medium_v04"
+ ],
+ "impact_steel_rail_heavy": [
+  "impact_steel_rail_heavy_v01",
+  "impact_steel_rail_heavy_v02",
+  "impact_steel_rail_heavy_v03",
+  "impact_steel_rail_heavy_v04"
+ ],
+ "impact_steel_rail_light": [
+  "impact_steel_rail_light_v01",
+  "impact_steel_rail_light_v02",
+  "impact_steel_rail_light_v03",
+  "impact_steel_rail_light_v04"
+ ],
+ "impact_steel_rail_medium": [
+  "impact_steel_rail_medium_v01",
+  "impact_steel_rail_medium_v02",
+  "impact_steel_rail_medium_v03",
+  "impact_steel_rail_medium_v04"
+ ],
+ "impact_steel_rug_heavy": [
+  "impact_steel_rug_heavy_v09",
+  "impact_steel_rug_heavy_v09f",
+  "impact_steel_rug_heavy_v10",
+  "impact_steel_rug_heavy_v10f",
+  "impact_steel_rug_heavy_v11",
+  "impact_steel_rug_heavy_v11f",
+  "impact_steel_rug_heavy_v12",
+  "impact_steel_rug_heavy_v12f"
+ ],
+ "impact_steel_rug_light": [
+  "impact_steel_rug_light_v09",
+  "impact_steel_rug_light_v09f",
+  "impact_steel_rug_light_v10",
+  "impact_steel_rug_light_v10f",
+  "impact_steel_rug_light_v11",
+  "impact_steel_rug_light_v11f",
+  "impact_steel_rug_light_v12",
+  "impact_steel_rug_light_v12f"
+ ],
+ "impact_steel_rug_medium": [
+  "impact_steel_rug_medium_v09",
+  "impact_steel_rug_medium_v09f",
+  "impact_steel_rug_medium_v10",
+  "impact_steel_rug_medium_v10f",
+  "impact_steel_rug_medium_v11",
+  "impact_steel_rug_medium_v11f",
+  "impact_steel_rug_medium_v12",
+  "impact_steel_rug_medium_v12f"
+ ],
+ "notes": {},
+ "one_way_gate_swing": [
+  "one_way_gate_swing_v05",
+  "one_way_gate_swing_v06",
+  "one_way_gate_swing_v07",
+  "one_way_gate_swing_v08"
+ ],
+ "roll_glass_block": [
+  "roll_glass_block_v01",
+  "roll_glass_block_v02",
+  "roll_glass_block_v03"
+ ],
+ "roll_glass_rail": [
+  "roll_glass_rail_v01",
+  "roll_glass_rail_v02",
+  "roll_glass_rail_v03"
+ ],
+ "roll_glass_rug": [
+  "roll_glass_rug_v07",
+  "roll_glass_rug_v07f",
+  "roll_glass_rug_v08",
+  "roll_glass_rug_v08f",
+  "roll_glass_rug_v09",
+  "roll_glass_rug_v09f"
+ ],
+ "roll_solid_block": [
+  "roll_solid_block_v01",
+  "roll_solid_block_v02",
+  "roll_solid_block_v03"
+ ],
+ "roll_solid_rail": [
+  "roll_solid_rail_v01",
+  "roll_solid_rail_v02",
+  "roll_solid_rail_v03"
+ ],
+ "roll_solid_rug": [
+  "roll_solid_rug_v07",
+  "roll_solid_rug_v07f",
+  "roll_solid_rug_v08",
+  "roll_solid_rug_v08f",
+  "roll_solid_rug_v09",
+  "roll_solid_rug_v09f"
+ ],
+ "roll_steel_block": [
+  "roll_steel_block_v01",
+  "roll_steel_block_v02",
+  "roll_steel_block_v03"
+ ],
+ "roll_steel_rail": [
+  "roll_steel_rail_v01",
+  "roll_steel_rail_v02",
+  "roll_steel_rail_v03"
+ ],
+ "roll_steel_rug": [
+  "roll_steel_rug_v07",
+  "roll_steel_rug_v07f",
+  "roll_steel_rug_v08",
+  "roll_steel_rug_v08f",
+  "roll_steel_rug_v09",
+  "roll_steel_rug_v09f"
+ ],
+ "splitter_tick": [
+  "splitter_tick_v01",
+  "splitter_tick_v02",
+  "splitter_tick_v03",
+  "splitter_tick_v04"
+ ],
+ "toggle_flap_clack": [
+  "toggle_flap_clack_v01",
+  "toggle_flap_clack_v02",
+  "toggle_flap_clack_v03",
+  "toggle_flap_clack_v04"
+ ],
+ "trapdoor_drop": [
+  "trapdoor_drop_v01",
+  "trapdoor_drop_v02",
+  "trapdoor_drop_v03",
+  "trapdoor_drop_v04"
+ ],
+ "tunnel_rumble": [
+  "tunnel_rumble_v01",
+  "tunnel_rumble_v02",
+  "tunnel_rumble_v03"
+ ],
+ "ui_click": [
+  "ui_click_v01",
+  "ui_click_v02",
+  "ui_click_v03",
+  "ui_click_v04"
+ ],
+ "ui_piece_place": [
+  "ui_piece_place_v01",
+  "ui_piece_place_v02",
+  "ui_piece_place_v03",
+  "ui_piece_place_v04"
+ ],
+ "ui_piece_remove": [
+  "ui_piece_remove_v01",
+  "ui_piece_remove_v02",
+  "ui_piece_remove_v03",
+  "ui_piece_remove_v04"
+ ],
+ "ui_piece_rotate": [
+  "ui_piece_rotate_v01",
+  "ui_piece_rotate_v02",
+  "ui_piece_rotate_v03",
+  "ui_piece_rotate_v04"
+ ],
+ "ui_toggle": [
+  "ui_toggle_v01",
+  "ui_toggle_v02",
+  "ui_toggle_v03",
+  "ui_toggle_v04"
+ ]
 }
