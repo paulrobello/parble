@@ -47,12 +47,13 @@ pub struct ChannelArc {
     pub cells_min_um: Vec<[i64; 2]>,
 }
 
-/// Piece-local arcs `(centre, radius, from, to)` in µm `(x, z)` per curved rail shape
-/// (blender/kit/kitrails.py).
-fn local_arcs(id: &str) -> Option<&'static [([i32; 2], i32, [i32; 2], [i32; 2])]> {
-    const CURVE: [([i32; 2], i32, [i32; 2], [i32; 2]); 1] =
-        [([-30_000, -90_000], 90_000, [-30_000, 0], [60_000, -90_000])];
-    const S: [([i32; 2], i32, [i32; 2], [i32; 2]); 2] = [
+/// A piece-local arc `(centre, radius, from, to)` in µm `(x, z)`.
+type LocalArc = ([i32; 2], i32, [i32; 2], [i32; 2]);
+
+/// Piece-local arcs per curved rail shape (blender/kit/kitrails.py).
+fn local_arcs(id: &str) -> Option<&'static [LocalArc]> {
+    const CURVE: [LocalArc; 1] = [([-30_000, -90_000], 90_000, [-30_000, 0], [60_000, -90_000])];
+    const S: [LocalArc; 2] = [
         (
             [-30_000, -150_000],
             150_000,
