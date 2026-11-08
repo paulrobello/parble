@@ -43,7 +43,7 @@ const diag = (page) => page.evaluate(() => window.__parble ?? null);
 
 test("window.__parble reports a live sim and the canvas shows a lit scene", async ({ page }) => {
   const errors = watchErrors(page);
-  await page.goto("/");
+  await page.goto("/?mute=1");
   await page.waitForFunction(() => window.__parble?.ready === true, null, { timeout: 60_000 });
   const first = await diag(page);
   console.log("__parble:", JSON.stringify(first));
@@ -76,7 +76,7 @@ test("window.__parble reports a live sim and the canvas shows a lit scene", asyn
 
 test("a completed 10 s run reports the golden trajectory hash", async ({ page }) => {
   const errors = watchErrors(page);
-  await page.goto("/");
+  await page.goto("/?mute=1");
   await page.waitForFunction(() => window.__parble?.lastRunHash != null, null, { timeout: 75_000 });
   const d = await diag(page);
   console.log(`run=${d.run} lastRunHash=${d.lastRunHash} golden=${GOLDEN}`);
@@ -89,7 +89,7 @@ test("URL query switches: quality, seed, screenshot download, dump-state and exi
   const logs = [];
   page.on("console", (m) => logs.push(m.text()));
   const download = page.waitForEvent("download", { timeout: 60_000 });
-  await page.goto("/?quality=low&seed=7&screenshot=parble-shot.png&screenshot-after=3&exit-after=4&dump-state");
+  await page.goto("/?mute=1&quality=low&seed=7&screenshot=parble-shot.png&screenshot-after=3&exit-after=4&dump-state");
   const dl = await download;
   expect(dl.suggestedFilename()).toBe("parble-shot.png");
   await page.waitForFunction(() => window.__parble?.exited === true, null, { timeout: 60_000 });

@@ -37,7 +37,7 @@ for (const tex of [null, "astc", "png"]) {
       const u = new URL(r.url());
       if (u.pathname.startsWith("/assets/")) assetUrls.push(u);
     });
-    await page.goto(`/?scenario=kit2000&quality=high${tex ? `&tex=${tex}` : ""}`);
+    await page.goto(`/?mute=1&scenario=kit2000&quality=high${tex ? `&tex=${tex}` : ""}`);
     await page.waitForFunction(() => window.__parble?.ready === true, null, { timeout: 60_000 });
     // Draw counts lag the first frames, and the textures load asynchronously.
     await page.waitForFunction(

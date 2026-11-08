@@ -33,7 +33,7 @@ function watch(page) {
 
 // Load the page, unlock audio with a click on the canvas and wait for every SFX file to decode.
 async function unlock(page) {
-  await page.goto("/");
+  await page.goto("/?mute=1");
   await page.waitForFunction(() => window.__parble?.ready === true, null, { timeout: 60_000 });
   expect(await page.evaluate(() => window.__parbleAudio.stats().state)).toBe("locked");
   await page.locator("canvas#parble").click({ position: { x: 20, y: 20 } });

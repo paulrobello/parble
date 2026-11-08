@@ -25,7 +25,7 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 for (const scenario of ["kit2000", "lineup"]) {
   test(`${scenario}: fly camera moves and looks with keyboard and mouse, Esc returns`, async ({ page }) => {
     const errors = watchErrors(page);
-    await page.goto(`/?scenario=${scenario}&quality=low`);
+    await page.goto(`/?mute=1&scenario=${scenario}&quality=low`);
     await page.waitForFunction(() => window.__parble?.ready === true && window.__parble.frame > 10, null, {
       timeout: 60_000,
     });
@@ -83,7 +83,7 @@ for (const scenario of ["kit2000", "lineup"]) {
 
 test("playroom kit run completes on its committed hash", async ({ page }) => {
   const errors = watchErrors(page);
-  await page.goto("/?scenario=playroom&quality=low");
+  await page.goto("/?mute=1&scenario=playroom&quality=low");
   await page.waitForFunction(() => window.__parble?.lastRunHash != null, null, { timeout: 60_000 });
   const d = await page.evaluate(() => window.__parble);
   console.log(`playroom lastRunHash=${d.lastRunHash} committed=${PLAYROOM_HASH} kit=${JSON.stringify({ pieces: d.kit.pieces, chunks: d.kit.chunks })}`);

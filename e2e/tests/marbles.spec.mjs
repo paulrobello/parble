@@ -58,7 +58,7 @@ mkdirSync(SHOTS, { recursive: true });
 
 // Load `query`, wait for a lit frame, keep it as `name`.png and return the diag state and stats.
 async function render(page, query, name) {
-  await page.goto(`/?${query}`);
+  await page.goto(`/?mute=1&${query}`);
   await page.waitForFunction(() => window.__parble?.ready === true, null, { timeout: 60_000 });
   let stats = null;
   await expect.poll(async () => {

@@ -70,7 +70,7 @@ test("editing a 2,000-piece track keeps the chunk rebuild inside one frame", asy
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
-  await page.goto("/?scenario=editor&editor-fill=2000");
+  await page.goto("/?mute=1&scenario=editor&editor-fill=2000");
   await page.waitForFunction(
     () => window.__parble?.editor?.pieces === 2000 && window.__parble.editor.stats.fill && window.__parble.editor.dirtyColliderChunks === 0,
     null,

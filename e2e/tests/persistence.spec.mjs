@@ -36,7 +36,7 @@ test("export, re-import and run reproduce the native trajectory hash", async ({ 
   page.on("console", (m) => {
     if (m.type() === "error") errors.push(m.text());
   });
-  await page.goto("/");
+  await page.goto("/?mute=1");
   await page.waitForFunction(() => window.__parble?.ready === true, null, { timeout: 60_000 });
 
   await importBytes(page, "demo.parble", Buffer.from(JSON.stringify(DEMO.file)));
