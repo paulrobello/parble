@@ -404,11 +404,21 @@ impl ChannelJunction {
         let ports = def.ports.as_slice();
         let level = ports.first()?.level?;
         let side = |f: PortFace| !matches!(f, PortFace::Top | PortFace::Bottom);
-        // The forks (a moving blade at the crotch) keep the mesh contact: with the exact contact
-        // their inlet seam meets the thresholds (kick 0.56 mm/s against 73.40), but the
-        // all-pieces track's marbles then meet differently at the one-way hole, where one stops
-        // on the shut door and the next pushes it into the trap sensor and falls through after
-        // it (measured 2026-11-08). Open work.
+        // The forks (a moving blade at the crotch) keep the mesh contact for now. With the exact
+        // contact their inlet seam meets the thresholds (kick 0.56 mm/s against 73.40) and the
+        // blade is untouched (the ball-blade pair is not a chunk pair, so this hook never sees
+        // it), but the splitter's -z outlet seam goes from 6.67 to 15.35 mm/s upward (limit
+        // 15.15): its outlet straight is in the next chunk, and over the first 10 mm past the seam
+        // the vertical speed alternates by 6-15 mm/s a tick, where the junction contact's 16 mm
+        // reach past the cell overlaps that chunk's mesh contact. An 8 mm reach brings both fork
+        // outlets under the limits (splitter 8.79, toggle 13.48) but takes the joiner's -x inlet
+        // kick from 0.31 to 19.97 (limit 24.25), so it was not taken (measured 2026-11-08 in
+        // `block_seam_test`). The all-pieces track runs clean with it
+        // (10 of 10 in a cup). The earlier all-pieces failure, before the redirect exit and
+        // landing changes, was the one-way hole's: a slow marble (0.14 m/s) and the next one
+        // collided on the door, the second rested between the hole's two sensors for 300 ticks,
+        // past `HEADING_FORGET_TICKS`, and when a third pushed it into `trap` it counted as a
+        // trap-side marble, the door opened and both fell through.
         if !piece.animated_parts.is_empty()
             || def.footprint.len() != 1
             || ports.len() < 3
