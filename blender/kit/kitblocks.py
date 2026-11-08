@@ -22,7 +22,8 @@ import kitgeom as K
 PIECE_VERSION = 1
 # Pieces whose geometry changed since version 1 (contract §10: the id stays, the version bumps).
 # 2026-11-08: blk_redirect_l3 and blk_redirect_l2 2, exit port face opened.
-PIECE_VERSIONS = {"blk_redirect_l3": 2, "blk_redirect_l2": 2}
+# 2026-11-08: blk_slope_steep_l3 2, floor on the C2 quintic smootherstep (PRD §5.3).
+PIECE_VERSIONS = {"blk_redirect_l3": 2, "blk_redirect_l2": 2, "blk_slope_steep_l3": 2}
 
 
 def piece_version(piece_id):
@@ -134,6 +135,11 @@ def port_point_mm(port):
 
 def smooth(t):
     return 3 * t * t - 2 * t ** 3
+
+
+def smoother(t):
+    """Quintic smootherstep: zero gradient and zero curvature at both ends (C2 with the flat ports)."""
+    return t * t * t * (10.0 + t * (-15.0 + 6.0 * t))
 
 
 def straight_x(x0, x1, floor_fn, n, extra_x=()):
@@ -271,7 +277,7 @@ def cutters(piece_id, q, collision):
 
     if shape == "slope_steep":
         drop = 2 * K.LEVEL_STEP
-        fl = lambda x: f0 - drop * smooth((x + 30.0) / 60.0)
+        fl = lambda x: f0 - drop * smoother((x + 30.0) / 60.0)
         sts = straight_x(-30.0, 30.0, fl, path_n, extra_x=inset_x)
         out.append(lambda bm: sweep(bm, extend(sts, True, True), oprof))
     elif shape == "drop":

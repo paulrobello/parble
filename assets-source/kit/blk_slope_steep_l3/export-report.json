@@ -12,7 +12,7 @@
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "38a1024cd340321b6d6aaea84734940cf44ec7d0e0afa0bd2712568e488566ef"
+      "sha256": "b8b818b8ee18e1f14d61bf788758f580d8b5675f2a26b3794ada66416664eecb"
     }
   ],
   "lodParams": {
@@ -51,8 +51,8 @@
     }
   },
   "lodTris": {
-    "blk_slope_steep_l3_lod0": 1808,
-    "blk_slope_steep_l3_lod1": 328,
+    "blk_slope_steep_l3_lod0": 1806,
+    "blk_slope_steep_l3_lod1": 326,
     "blk_slope_steep_l3_lod2": 100
   },
   "mapSize": {
@@ -72,19 +72,19 @@
   "pieceId": "blk_slope_steep_l3",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2783.1,
-      "median": 2686.5,
-      "min": 2114.7
+      "max": 2797.8,
+      "median": 2703.8,
+      "min": 2125.8
     },
     "lod1": {
-      "max": 1411.2,
-      "median": 1382.8,
-      "min": 1072.3
+      "max": 1410.9,
+      "median": 1380.6,
+      "min": 1072.0
     },
     "lod2": {
-      "max": 688.0,
-      "median": 683.0,
-      "min": 595.2
+      "max": 690.9,
+      "median": 686.0,
+      "min": 586.3
     }
   }
 }

@@ -23,7 +23,7 @@
 //!
 //! In a 90° bend the same hook replaces facet contacts with one contact against the exact channel
 //! tube ([`ChannelBend`]), since the faceted tube chatters under the marble's outward load. On a
-//! slope it replaces them with one contact against the exact smoothstep channel
+//! slope it replaces them with one contact against the exact slope channel
 //! ([`ChannelSlope`]), and on a curved rail against the exact rail tube ([`ChannelArc`]).
 //!
 //! [`ChunkColliders`] is the incremental API: insert or remove placements, then
@@ -31,7 +31,9 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use parble_core::contract::{CELL_UM, CHANNEL_RADIUS_UM, CHUNK_CELLS, CHUNK_UM, HALF_CELL_UM};
+use parble_core::contract::{
+    CELL_UM, CHANNEL_RADIUS_UM, CHUNK_CELLS, CHUNK_UM, HALF_CELL_UM, LEVEL_STEP_UM,
+};
 use parble_core::{
     CellCoord, Mirror, Orientation, PieceId, Placement, PortClass, PortFace, PortFlow,
 };
@@ -521,9 +523,11 @@ impl ChannelJunction {
 }
 
 /// A one-cell channel slope: the channel half-round, in vertical cross-sections across the path,
-/// lowered along the path by the contract's cubic smoothstep from the entry floor to the exit
-/// floor (contract §7, the generator's `kitgeom.stations`). The smoothstep is flat at both ports,
-/// so past either port the tube continues flat at that port's level, as the mating straight does.
+/// lowered along the path from the entry floor to the exit floor by the contract's profile
+/// (contract §7): the cubic smoothstep on the gentle slope (the generator's `kitgeom.stations`)
+/// and on a landing floor, the quintic smootherstep on the steep slope (`kitblocks.smoother`,
+/// [`ChannelSlope::c2`]). Both are flat at both ports, so past either port the tube continues
+/// flat at that port's level, as the mating straight does.
 ///
 /// The same surface, shorter, is the landing floor a dropped marble lands on in the tower socket
 /// block and the redirect ([`ChannelSlope::landing`]).
@@ -553,6 +557,10 @@ pub struct ChannelSlope {
     /// Plan length of the smoothstep from the entry to the exit, µm: a cell on a slope piece,
     /// shorter on a landing floor ([`ChannelSlope::landing`]).
     pub len_um: i64,
+    /// The steep slope's quintic smootherstep (PRD §5.3): its curvature, like its gradient, is
+    /// zero at both ports, so the floor is C2 with the flat straights and the marble's normal
+    /// acceleration does not step at the seams. Otherwise the cubic smoothstep, C1 only.
+    pub c2: bool,
 }
 
 impl ChannelSlope {
@@ -600,6 +608,7 @@ impl ChannelSlope {
             axis_y_um: e[1],
             drop_um: e[1] - x[1],
             len_um: cell,
+            c2: hi.floor_um() - lo.floor_um() == 2 * LEVEL_STEP_UM,
         })
     }
 
@@ -655,7 +664,36 @@ impl ChannelSlope {
             axis_y_um: e[1],
             drop_um: e[1] - x[1],
             len_um: len,
+            c2: false,
         })
+    }
+
+    /// The floor's drop below the entry at `t` in [0, 1] along the path, for a total `drop` over
+    /// the plan length `len`, and its gradient along the path. Plain multiplies and adds only, so
+    /// native and wasm round alike; the smoothstep keeps its original operation order, so the
+    /// gentle slope and the landing floors run bit for bit as before the steep slope's profile.
+    fn profile(&self, drop: f32, len: f32, t: f32) -> (f32, f32) {
+        if self.c2 {
+            let u = t * (1.0 - t);
+            (
+                drop * (t * t * t * (10.0 + t * (-15.0 + 6.0 * t))),
+                drop * (30.0 * u * u) / len,
+            )
+        } else {
+            (
+                drop * t * t * (3.0 - 2.0 * t),
+                drop * 6.0 * t * (1.0 - t) / len,
+            )
+        }
+    }
+
+    /// [`Self::profile`]'s drop in `f64`, for the µm vertex test ([`Self::holds`]).
+    fn profile_f64(&self, drop: f64, t: f64) -> f64 {
+        if self.c2 {
+            drop * (t * t * t * (10.0 + t * (-15.0 + 6.0 * t)))
+        } else {
+            drop * t * t * (3.0 - 2.0 * t)
+        }
     }
 
     /// Path coordinate from the entry port and lateral offset of a world plan point, metres.
@@ -673,7 +711,7 @@ impl ChannelSlope {
         let (px, pz) = (v[0] - self.entry_um[0], v[2] - self.entry_um[1]);
         let (s, w) = (px * dx + pz * dz, pz * dx - px * dz);
         let t = (s as f64 / self.len_um as f64).clamp(0.0, 1.0);
-        let axis = self.axis_y_um as f64 - self.drop_um as f64 * t * t * (3.0 - 2.0 * t);
+        let axis = self.axis_y_um as f64 - self.profile_f64(self.drop_um as f64, t);
         let dy = v[1] as f64 - axis;
         let w = w as f64;
         (libm::sqrt(dy * dy + w * w) - f64::from(CHANNEL_RADIUS_UM)).abs() <= 2.0
@@ -692,8 +730,9 @@ impl ChannelSlope {
     ///
     /// The wall is the family of vertical circles about the axis curve, so the nearest wall point
     /// is found along the path by a fixed four Gauss–Newton steps from the centre's own section
-    /// (the axis curve's radius is at least 40 mm, the contact under 3 mm along the path from the
-    /// centre). The circle radius is [`slope_tube_radius`].
+    /// (the axis curve's radius is at least 40 mm on the gentle slope and 20 mm on the steep one,
+    /// the contact under 3 mm along the path from the centre). The circle radius is
+    /// [`slope_tube_radius`].
     fn contact(&self, c: Vector, r: f32) -> Option<(Vector, f32)> {
         let m = |v: i64| v as f32 * 1.0e-6;
         let (sc, w) = self.plan(c.x, c.z);
@@ -702,10 +741,8 @@ impl ChannelSlope {
         // Axis height and its slope along the path at `s`.
         let axis = |s: f32| {
             let t = (s / len).clamp(0.0, 1.0);
-            (
-                ay - drop * t * t * (3.0 - 2.0 * t),
-                -drop * 6.0 * t * (1.0 - t) / len,
-            )
+            let (f, df) = self.profile(-drop, len, t);
+            (ay + f, df)
         };
         let big_r = slope_tube_radius(r);
         let mut s = sc;
@@ -1653,7 +1690,8 @@ impl ChunkColliders {
     /// the contact's end-of-step `gap` penetrates, or the surface at the ball's current centre
     /// (`now`) does. On a tight concave turn the end-of-step contact, carried back along its
     /// normal, reads a positive gap while the ball is still pressed into the floor, and the bounce
-    /// kept there threw it off: 78 mm/s upward at the steep slope's exit seam and contact on
+    /// kept there threw it off: 78 mm/s upward at the steep slope's exit seam (on its former cubic
+    /// profile) and contact on
     /// alternate ticks in a `blk_curve90_l2` taken at 0.53 m/s (kick 62.55), measured 2026-11-08.
     /// A ball falling slowly onto the surface has a positive gap at both and still bounces. One
     /// falling fast meets the contact already penetrating and loses its bounce here, so a landing

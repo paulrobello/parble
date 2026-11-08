@@ -209,7 +209,8 @@ fn port_cap(x_um: i64, floor_um: i64, out: i64) -> Vec<[[i64; 3]; 3]> {
 
 #[test]
 fn steep_slope_entry_stays_under_the_seam_thresholds() {
-    // Measured 2026-11-08 at 0.3 m/s: entry upward 0.00, kick 9.87; interior kick 5.92. With the
+    // Measured 2026-11-08 at 0.3 m/s on the quintic smootherstep floor: entry upward 0.00, kick
+    // 9.87; interior kick 5.98 (5.92 on the cubic smoothstep). With the
     // port face caps the boolean generator used to leave (`steep_entry_cap_bumps`) the entry
     // threw the marble 126.05 mm/s up (kick 89.74).
     let tr = steep_run(&Control::default());
@@ -248,12 +249,16 @@ fn steep_entry_cap_bumps() {
 
 #[test]
 fn steep_slope_exit_upward_stays_under_the_seam_threshold() {
-    // Upward speed at the exit seam is gated: the bounce on the exact slope contact used to be
-    // kept there (`steep_exit_end_gap_hand_over_bounces`). The exit kick is logged, not gated:
-    // the contract's cubic smoothstep is C1 but not C2, so the floor curvature steps from 50 /m to
-    // 0 at the seam and the marble's normal acceleration with it (about v² κ = 24 m/s² at
-    // 0.69 m/s), which the kick metric reads as about a·dt/2 = 50 mm/s. Measured 2026-11-08: exit
-    // upward 0.00, kick 59.93 against the 24.26 limit. Meeting it needs a C2 profile (§7).
+    // Upward speed at the exit seam is gated. The exit kick is logged, not gated, because it is
+    // still over the limit. The cubic smoothstep's floor curvature stepped from 50 /m to 0 at the
+    // seam (about v² κ = 24 m/s² at 0.69 m/s): exit kick 59.93 against the 24.25 limit, and 77.97
+    // mm/s upward with restitution dropped only on a penetrating end-of-step gap. The quintic
+    // smootherstep (C2, contract §7) has zero curvature at the seam and the end-gap rule no longer
+    // throws the marble up there, but its concave peak (about 48 /m at t = 0.79, 20 m/s² at
+    // 0.6 m/s) sits inside the window: the vertical speed alternates on successive ticks through
+    // x = 136..150 mm with every contact on the exact slope surface, so the remaining kick comes
+    // from the solver's response to that load, not from the seam. Measured 2026-11-08: exit
+    // upward 0.00, kick 40.63.
     let tr = steep_run(&Control::default());
     let (p_lim, k_lim) = limits(3);
     let exit = window([0.135, Z[0]], [0.165, Z[1]]);
@@ -262,20 +267,6 @@ fn steep_slope_exit_upward_stays_under_the_seam_threshold() {
         "steep exit: upward {u:.2} mm/s (limit {p_lim:.2}), kick {k:.2} (ungated, limit {k_lim:.2})"
     );
     assert!(u <= p_lim, "steep exit: upward {u:.2} over {p_lim:.2}");
-}
-
-#[test]
-fn steep_exit_end_gap_hand_over_bounces() {
-    // Negative control: restitution dropped only on a penetrating end-of-step gap (the rule before
-    // 2026-11-08) throws the marble up at the exit seam (measured 77.97 mm/s).
-    let tr = steep_run(&Control {
-        end_gap_hand_over: true,
-        ..Control::default()
-    });
-    let (p_lim, _) = limits(3);
-    let u = upward(&tr, window([0.135, Z[0]], [0.165, Z[1]]));
-    eprintln!("steep exit with the end-gap rule: upward {u:.2} mm/s (limit {p_lim:.2})");
-    assert!(u > p_lim, "control upward {u:.2} not over {p_lim:.2}");
 }
 
 /// `L3` straight, gentle slope to `L2`, `L2` straight, `blk_curve90_l2` turning to +z (cell
