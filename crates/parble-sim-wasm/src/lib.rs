@@ -17,6 +17,13 @@ pub fn run_variants() -> String {
     parble_sim::golden::ramp_10s_variants()
 }
 
+/// Run the P2-T1 mechanism framework fixture and return the lines of
+/// `crates/parble-sim/tests/golden/mechanism_demo_10s.hash`.
+#[wasm_bindgen]
+pub fn run_mechanism_demo() -> String {
+    parble_sim::golden::mechanism_demo()
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -25,6 +32,10 @@ mod tests {
         assert_eq!(
             super::run_variants(),
             parble_sim::golden::ramp_10s_variants()
+        );
+        assert_eq!(
+            super::run_mechanism_demo(),
+            parble_sim::golden::mechanism_demo()
         );
     }
 }

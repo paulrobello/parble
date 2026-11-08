@@ -50,10 +50,45 @@ pub struct KitPiece {
     pub family: String,
     pub piece_version: u32,
     pub collision: Vec<CollisionGroup>,
-    /// Trigger volumes, kept raw until mechanisms land (P2).
-    pub sensors: Vec<serde_json::Value>,
-    /// Kinematic parts, kept raw until mechanisms land (P2).
-    pub animated_parts: Vec<serde_json::Value>,
+    /// Trigger volumes for mechanisms, in sidecar order.
+    pub sensors: Vec<SensorDef>,
+    /// Kinematic parts, in sidecar order.
+    pub animated_parts: Vec<AnimatedPart>,
+}
+
+/// A mechanism trigger volume in the piece-local frame (contract §11 `sensors`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SensorDef {
+    pub id: String,
+    pub shape: SensorShape,
+}
+
+/// Trigger volume shape, lengths in integer µm.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SensorShape {
+    Box {
+        center_um: [i32; 3],
+        half_extents_um: [i32; 3],
+    },
+    Sphere {
+        center_um: [i32; 3],
+        radius_um: i32,
+    },
+}
+
+/// One kinematic part (contract §11 `animated_parts`): a hinge about `axis` through `pivot_um`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AnimatedPart {
+    /// GLB node name, `anim_<name>`.
+    pub name: String,
+    pub pivot_um: [i32; 3],
+    /// Axis-aligned integer unit vector.
+    pub axis: [i32; 3],
+    pub rest_mdeg: i32,
+    /// `[min, max]`, with `rest_mdeg` inside.
+    pub limits_mdeg: [i32; 2],
+    /// The part's collision in the piece-local frame at 0 mdeg about the pivot.
+    pub collision: Vec<CollisionGroup>,
 }
 
 /// Why a sidecar was refused.
@@ -81,6 +116,13 @@ pub enum KitError {
     /// Collision group with an index past its vertex list.
     IndexOutOfRange(usize),
     Duplicate(String),
+    /// Sensor at this position has extents that do not fit its shape, an empty id, or an id an
+    /// earlier sensor already uses.
+    BadSensor(usize),
+    /// Animated part at this position has a non-unit axis, limits that do not hold its rest
+    /// angle, a name without the `anim_` prefix, or a name an earlier part already uses. Errors in
+    /// its collision groups use [`KitError::Ragged`] and [`KitError::IndexOutOfRange`].
+    BadPart(usize),
 }
 
 impl core::fmt::Display for KitError {
@@ -109,8 +151,38 @@ struct RawSidecar {
     footprint: Vec<CellCoord>,
     ports: Vec<RawPort>,
     collision: Vec<RawCollision>,
-    sensors: Vec<serde_json::Value>,
-    animated_parts: Vec<serde_json::Value>,
+    sensors: Vec<RawSensor>,
+    animated_parts: Vec<RawPart>,
+}
+
+#[derive(Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+enum RawShape {
+    Box,
+    Sphere,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawSensor {
+    id: String,
+    shape: RawShape,
+    center_um: [i32; 3],
+    #[serde(default)]
+    half_extents_um: Option<[i32; 3]>,
+    #[serde(default)]
+    radius_um: Option<i32>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawPart {
+    name: String,
+    pivot_um: [i32; 3],
+    axis: [i32; 3],
+    rest_mdeg: i32,
+    limits_mdeg: [i32; 2],
+    collision: Vec<RawCollision>,
 }
 
 #[derive(Deserialize)]
@@ -193,8 +265,23 @@ pub fn parse_sidecar(text: &str) -> Result<KitPiece, KitError> {
     };
     def.validate().map_err(KitError::Def)?;
 
-    let mut collision = Vec::with_capacity(raw.collision.len());
-    for (g, c) in raw.collision.into_iter().enumerate() {
+    let collision = collision_groups(raw.collision)?;
+    let sensors = sensors(raw.sensors)?;
+    let animated_parts = animated_parts(raw.animated_parts)?;
+
+    Ok(KitPiece {
+        def,
+        family: raw.family,
+        piece_version: raw.piece_version,
+        collision,
+        sensors,
+        animated_parts,
+    })
+}
+
+fn collision_groups(raw: Vec<RawCollision>) -> Result<Vec<CollisionGroup>, KitError> {
+    let mut collision = Vec::with_capacity(raw.len());
+    for (g, c) in raw.into_iter().enumerate() {
         if !c.vertices_um.len().is_multiple_of(3) || !c.indices.len().is_multiple_of(3) {
             return Err(KitError::Ragged(g));
         }
@@ -210,15 +297,53 @@ pub fn parse_sidecar(text: &str) -> Result<KitPiece, KitError> {
             triangles,
         });
     }
+    Ok(collision)
+}
 
-    Ok(KitPiece {
-        def,
-        family: raw.family,
-        piece_version: raw.piece_version,
-        collision,
-        sensors: raw.sensors,
-        animated_parts: raw.animated_parts,
-    })
+fn sensors(raw: Vec<RawSensor>) -> Result<Vec<SensorDef>, KitError> {
+    let mut out: Vec<SensorDef> = Vec::with_capacity(raw.len());
+    for (i, s) in raw.into_iter().enumerate() {
+        let shape = match (s.shape, s.half_extents_um, s.radius_um) {
+            (RawShape::Box, Some(h), None) if h.iter().all(|&e| e > 0) => SensorShape::Box {
+                center_um: s.center_um,
+                half_extents_um: h,
+            },
+            (RawShape::Sphere, None, Some(r)) if r > 0 => SensorShape::Sphere {
+                center_um: s.center_um,
+                radius_um: r,
+            },
+            _ => return Err(KitError::BadSensor(i)),
+        };
+        if s.id.is_empty() || out.iter().any(|o| o.id == s.id) {
+            return Err(KitError::BadSensor(i));
+        }
+        out.push(SensorDef { id: s.id, shape });
+    }
+    Ok(out)
+}
+
+fn animated_parts(raw: Vec<RawPart>) -> Result<Vec<AnimatedPart>, KitError> {
+    let mut out: Vec<AnimatedPart> = Vec::with_capacity(raw.len());
+    for (i, p) in raw.into_iter().enumerate() {
+        let unit = p.axis.iter().map(|a| a.abs()).sum::<i32>() == 1;
+        let [lo, hi] = p.limits_mdeg;
+        if !unit
+            || !(lo <= p.rest_mdeg && p.rest_mdeg <= hi)
+            || !p.name.starts_with("anim_")
+            || out.iter().any(|o| o.name == p.name)
+        {
+            return Err(KitError::BadPart(i));
+        }
+        out.push(AnimatedPart {
+            name: p.name,
+            pivot_um: p.pivot_um,
+            axis: p.axis,
+            rest_mdeg: p.rest_mdeg,
+            limits_mdeg: p.limits_mdeg,
+            collision: collision_groups(p.collision)?,
+        });
+    }
+    Ok(out)
 }
 
 /// Kit pieces by id, iterated in id order.
@@ -331,6 +456,78 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn sensors_and_animated_parts_parse_to_typed_defs() {
+        let mut v: serde_json::Value = serde_json::from_str(BUILTIN_SIDECARS[3]).unwrap();
+        v["sensors"] = serde_json::json!([
+            { "center_um": [-20000, 27500, 0], "half_extents_um": [6000, 12500, 14000], "id": "approach", "shape": "box" },
+            { "center_um": [0, 30000, 0], "id": "core", "radius_um": 9000, "shape": "sphere" }
+        ]);
+        v["animated_parts"] = serde_json::json!([{
+            "axis": [0, 0, 1],
+            "collision": [{
+                "indices": [0, 1, 2, 0, 2, 3],
+                "surface": "wood_end_grain",
+                "vertices_um": [0, 17000, -14000, 0, 51000, -14000, 0, 51000, 14000, 0, 17000, 14000]
+            }],
+            "limits_mdeg": [0, 85000],
+            "name": "anim_flap",
+            "pivot_um": [0, 51000, 0],
+            "rest_mdeg": 0
+        }]);
+        let p = parse_sidecar(&v.to_string()).unwrap();
+        assert_eq!(
+            p.sensors[0],
+            SensorDef {
+                id: "approach".into(),
+                shape: SensorShape::Box {
+                    center_um: [-20000, 27500, 0],
+                    half_extents_um: [6000, 12500, 14000]
+                }
+            }
+        );
+        assert_eq!(
+            p.sensors[1].shape,
+            SensorShape::Sphere {
+                center_um: [0, 30000, 0],
+                radius_um: 9000
+            }
+        );
+        let part = &p.animated_parts[0];
+        assert_eq!(
+            (part.name.as_str(), part.axis, part.limits_mdeg),
+            ("anim_flap", [0, 0, 1], [0, 85000])
+        );
+        assert_eq!(part.collision[0].surface, Surface::WoodEndGrain);
+        assert_eq!(part.collision[0].triangles, [[0, 1, 2], [0, 2, 3]]);
+
+        let bad = |path: &str, val: serde_json::Value| {
+            let mut w = v.clone();
+            *w.pointer_mut(path).unwrap() = val;
+            parse_sidecar(&w.to_string())
+        };
+        assert!(matches!(
+            bad("/sensors/1/id", "approach".into()),
+            Err(KitError::BadSensor(1))
+        ));
+        assert!(matches!(
+            bad("/sensors/0/shape", "sphere".into()),
+            Err(KitError::BadSensor(0))
+        ));
+        assert!(matches!(
+            bad("/animated_parts/0/axis", serde_json::json!([1, 0, 1])),
+            Err(KitError::BadPart(0))
+        ));
+        assert!(matches!(
+            bad("/animated_parts/0/rest_mdeg", 90_000.into()),
+            Err(KitError::BadPart(0))
+        ));
+        assert!(matches!(
+            bad("/animated_parts/0/collision/0/indices/0", 7.into()),
+            Err(KitError::IndexOutOfRange(0))
+        ));
     }
 
     #[test]

@@ -19,6 +19,7 @@ pub mod chunk;
 pub mod golden;
 pub mod hash;
 pub mod marble;
+pub mod mechanism;
 pub mod scene;
 pub mod track_run;
 
@@ -60,6 +61,8 @@ pub struct Sim {
     marbles: Vec<RigidBodyHandle>,
     tick: u64,
     hasher: Fnv1a64,
+    /// Mechanism instances and the event stream (P2-T1).
+    mechanisms: mechanism::Mechanisms,
 }
 
 impl Sim {
@@ -75,6 +78,7 @@ impl Sim {
             marbles: Vec::new(),
             tick: 0,
             hasher: Fnv1a64::default(),
+            mechanisms: mechanism::Mechanisms::default(),
         }
     }
 
@@ -147,6 +151,9 @@ impl Sim {
             if self.tick.is_multiple_of(HASH_SAMPLE_TICKS) {
                 self.sample();
             }
+            // A no-op without mechanism instances or event recording ([`mechanism`]).
+            self.mechanisms
+                .after_step(&mut self.world, &self.marbles, self.tick);
         }
     }
 

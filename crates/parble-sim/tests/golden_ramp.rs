@@ -11,7 +11,7 @@
 
 use std::path::PathBuf;
 
-use parble_sim::golden::{RAMP_10S_TICKS, ramp_10s_hash_hex, ramp_10s_variants};
+use parble_sim::golden::{RAMP_10S_TICKS, mechanism_demo, ramp_10s_hash_hex, ramp_10s_variants};
 
 const UPDATE_ENV: &str = "PARBLE_UPDATE_GOLDEN";
 
@@ -38,6 +38,27 @@ fn ramp_10s_variants_match_golden() {
         )
     });
     assert_eq!(actual, expected, "type × size ramp hashes changed");
+}
+
+/// P2-T1: the mechanism framework fixture run (flap, sensor, RNG stream, event stream). Additive
+/// like the variants golden; the wasm parity check compares the same file.
+#[test]
+fn mechanism_demo_matches_golden() {
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/golden/mechanism_demo_10s.hash");
+    let actual = mechanism_demo();
+    if std::env::var(UPDATE_ENV).as_deref() == Ok("1") {
+        std::fs::write(&path, &actual).expect("write mechanism golden");
+        eprintln!("wrote {}", path.display());
+        return;
+    }
+    let expected = std::fs::read_to_string(&path).unwrap_or_else(|e| {
+        panic!(
+            "missing {} ({e}); generate it with {UPDATE_ENV}=1",
+            path.display()
+        )
+    });
+    assert_eq!(actual, expected, "mechanism fixture run changed");
 }
 
 #[test]

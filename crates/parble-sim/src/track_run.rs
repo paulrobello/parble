@@ -5,12 +5,15 @@
 //! [`parble_kit::builtin`] id places that piece, an id in [`KIT_ALIASES`] places its kit piece, an
 //! id in [`NO_COLLIDER`] is a piece without a static collider yet, and any other id refuses the
 //! run. Marbles still spawn on the tray ramp rather than at a hopper (hopper and finish pieces are
-//! P2), and mechanisms and the seed do not reach physics yet.
+//! P2). Mechanism behaviours (P2-T5) run only through [`TrackRun::with_mechanisms`], which adds a
+//! [`crate::mechanism`] instance rooted at the track seed for each registered kit placement; the
+//! `NO_COLLIDER` mechanism ids still take no part.
 //!
 //! Releases happen between steps, on whole ticks, so a run is a pure function of the track and the
 //! tick count.
 
 use crate::chunk::ChunkError;
+use crate::mechanism::{MechanismError, MechanismRegistry};
 use crate::{Sim, scene};
 use parble_core::contract::{
     MARBLE_MINI_DIAMETER_UM, MARBLE_SHOOTER_DIAMETER_UM, MARBLE_STANDARD_DIAMETER_UM,
@@ -80,6 +83,11 @@ pub enum TrackRunError {
         placement: Option<usize>,
         error: ChunkError,
     },
+    /// The mechanism of the placement at this index could not be added.
+    Mechanism {
+        placement: usize,
+        error: MechanismError,
+    },
 }
 
 impl core::fmt::Display for TrackRunError {
@@ -97,6 +105,9 @@ impl core::fmt::Display for TrackRunError {
                 placement: None,
                 error,
             } => write!(f, "chunk rebuild: {error}"),
+            Self::Mechanism { placement, error } => {
+                write!(f, "placement {placement}: mechanism: {error}")
+            }
         }
     }
 }
@@ -159,7 +170,18 @@ impl TrackRun {
 
     /// [`TrackRun::new`] against any kit catalogue.
     pub fn with_kit(track: &Track, kit: &KitCatalog) -> Result<Self, TrackRunError> {
+        Self::with_mechanisms(track, kit, &MechanismRegistry::new())
+    }
+
+    /// [`TrackRun::with_kit`], plus a mechanism instance ([`Sim::add_registered`], rooted at the
+    /// track seed) for every kit placement whose piece `registry` has a behaviour for.
+    pub fn with_mechanisms(
+        track: &Track,
+        kit: &KitCatalog,
+        registry: &MechanismRegistry,
+    ) -> Result<Self, TrackRunError> {
         let mut sim = Sim::empty();
+        let mut mechanisms = Vec::new();
         sim.world.colliders.insert(scene::tray_collider());
         let mut placed = 0usize;
         for (i, p) in track.placements.iter().enumerate() {
@@ -173,6 +195,9 @@ impl TrackRun {
                 Some(KitBinding::NoCollider { .. }) => {}
                 Some(KitBinding::Kit(piece)) => {
                     let kp = Placement { piece, ..p.clone() };
+                    if registry.get(&kp.piece).is_some() {
+                        mechanisms.push((i, kp.clone()));
+                    }
                     sim.place_piece(kit, kp)
                         .map_err(|error| TrackRunError::Chunk {
                             placement: Some(i),
@@ -188,6 +213,13 @@ impl TrackRun {
             sim.rebuild_chunks(kit)
                 .map_err(|error| TrackRunError::Chunk {
                     placement: None,
+                    error,
+                })?;
+        }
+        for (i, p) in mechanisms {
+            sim.add_registered(registry, kit, &p, track.seed)
+                .map_err(|error| TrackRunError::Mechanism {
+                    placement: i,
                     error,
                 })?;
         }

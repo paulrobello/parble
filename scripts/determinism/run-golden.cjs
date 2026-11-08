@@ -1,19 +1,20 @@
-// Usage: node run-golden.cjs <wasm-bindgen nodejs module> <golden hash file> [<variants golden file>]
+// Usage: node run-golden.cjs <wasm-bindgen nodejs module> <golden hash file> [<variants golden file>
+//   [<mechanism golden file>]]
 // Runs run_golden() from the wasm build and compares it with the committed native golden. With a
 // variants file (P5-T1), also runs run_variants() (every marble type × size on the ramp) and
-// compares it line by line.
+// compares it line by line. With a mechanism file (P2-T1), also runs run_mechanism_demo().
 "use strict";
 
 const fs = require("node:fs");
 const path = require("node:path");
 
-const [modulePath, goldenPath, variantsPath] = process.argv.slice(2);
+const [modulePath, goldenPath, variantsPath, mechanismPath] = process.argv.slice(2);
 if (!modulePath || !goldenPath) {
-  console.error("usage: node run-golden.cjs <module.js> <golden.hash> [<variants.hash>]");
+  console.error("usage: node run-golden.cjs <module.js> <golden.hash> [<variants.hash> [<mechanism.hash>]]");
   process.exit(2);
 }
 
-const { run_golden, run_variants } = require(path.resolve(modulePath));
+const { run_golden, run_variants, run_mechanism_demo } = require(path.resolve(modulePath));
 const expected = fs.readFileSync(goldenPath, "utf8").trim();
 const actual = run_golden();
 
@@ -37,4 +38,14 @@ if (variantsPath) {
   }
   if (bad) process.exit(1);
   console.log(`determinism-wasm: ${got.length} marble type × size runs match native (${variantsPath})`);
+}
+
+if (mechanismPath) {
+  const want = fs.readFileSync(mechanismPath, "utf8").trim();
+  const got = run_mechanism_demo().trim();
+  if (want !== got) {
+    console.error(`FAIL: mechanism fixture run\n native:\n${want}\n wasm:\n${got}`);
+    process.exit(1);
+  }
+  console.log(`determinism-wasm: mechanism fixture run matches native (${mechanismPath})`);
 }

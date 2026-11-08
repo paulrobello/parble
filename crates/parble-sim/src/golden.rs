@@ -28,6 +28,24 @@ pub fn ramp_10s_variants() -> String {
     out
 }
 
+/// P2-T1: the mechanism framework fixture ([`crate::mechanism::demo::ramp_with_flap`], seed 7)
+/// for [`RAMP_10S_TICKS`], as the lines of `tests/golden/mechanism_demo_10s.hash`: the marble
+/// trajectory hash, the mechanism state hash, and the event count with its
+/// [`crate::mechanism::events_hash`].
+pub fn mechanism_demo() -> String {
+    let mut sim = crate::mechanism::demo::ramp_with_flap(7);
+    sim.tick(RAMP_10S_TICKS);
+    let events = sim.drain_events();
+    let h = crate::hash::format_hash;
+    format!(
+        "trajectory {}\nmechanism {}\nevents {} {}\n",
+        h(sim.trajectory_hash()),
+        h(sim.mechanism_hash()),
+        events.len(),
+        h(crate::mechanism::events_hash(&events))
+    )
+}
+
 /// 10 s at 240 Hz.
 pub const RAMP_10S_TICKS: u32 = 2_400;
 
