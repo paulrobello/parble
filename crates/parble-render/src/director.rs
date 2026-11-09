@@ -19,7 +19,8 @@
 //! - [`Rule::Frame`]: pull back and fit a [`Target`] (the marble, a point, or a vertical axis
 //!   segment) together with the marble, at a set elevation and either a set bearing or the bearing
 //!   the camera had when the shot began. An axis stays centred in frame; the distance follows the
-//!   marble on a spring so the whole segment and the marble stay in view.
+//!   marble, and where it will be [`FRAME_LEAD_S`] ahead, on a spring so the whole segment and the
+//!   marble stay in view.
 //! - [`Rule::Orbit`]: circle a point, starting from the camera's current bearing.
 //! - [`Rule::Fixed`]: a fixed eye and look point.
 //!
@@ -41,7 +42,8 @@
 //! A [`Zone`] is a volume (an axis-aligned box or a vertical cylinder) with a rule, a priority,
 //! blend-in and blend-out times and a hold. The followed marble's interpolated position is tested
 //! against every zone each frame; a zone it is inside stays inside until the marble is
-//! [`EXIT_MARGIN_M`] past its boundary, and active [`Zone::hold_s`] longer. The active zone with
+//! [`EXIT_MARGIN_M`] past its boundary, and active [`Zone::hold_s`] longer, unless the marble has
+//! sat past [`HOLD_FRAME_NDC`] of the frame for [`HOLD_EXIT_S`]. The active zone with
 //! the highest priority (ties to the earlier zone) wins; with none, the scenario's cue plays. The
 //! zones read the marble positions the app already copies out of the sim, so they cannot reach the
 //! sim or a trajectory hash.
@@ -66,6 +68,9 @@ pub const FOLLOW_LOOK_SMOOTH_S: f32 = 0.30;
 pub const FRAME_SMOOTH_S: f32 = 0.35;
 /// Fastest a framing shot changes its distance (m/s).
 pub const FRAME_MAX_PULL_M_S: f32 = 1.0;
+/// A framing shot fits where the marble will be this far ahead (seconds) as well as where it is,
+/// so it pulls back before a marble rolling away reaches the frame's edge rather than after.
+pub const FRAME_LEAD_S: f32 = 0.25;
 /// The follow shot's action window: the marble's path over the last [`FOLLOW_TRAIL_S`], and its
 /// look-ahead along its velocity for [`FOLLOW_LEAD_S`] (at least the rule's `ahead`).
 pub const FOLLOW_TRAIL_S: f32 = 0.25;
@@ -486,8 +491,11 @@ fn approach(x: &mut f32, rate: &mut f32, target: f32, dt: f32) {
 }
 
 /// How far from the centre (in normalised device coordinates) the marble may sit before a zone's
-/// hold lets it go.
+/// hold starts to let it go.
 pub const HOLD_FRAME_NDC: f32 = 0.9;
+/// How long (seconds) the marble must stay past [`HOLD_FRAME_NDC`] before a zone's hold ends, so
+/// one frame at the edge does not cut the shot.
+pub const HOLD_EXIT_S: f32 = 0.25;
 
 /// Whether `q` projects inside `pose`'s frame, within `lim` of the centre in normalised device
 /// coordinates.
@@ -874,7 +882,10 @@ impl Shot {
                 let radius = pts
                     .iter()
                     .map(|q| q.distance(centre))
-                    .chain([m.p.distance(centre) + MARBLE_PAD_M])
+                    .chain([
+                        m.p.distance(centre) + MARBLE_PAD_M,
+                        (m.p + m.v * FRAME_LEAD_S).distance(centre) + MARBLE_PAD_M,
+                    ])
                     .fold(MARBLE_PAD_M, f32::max);
                 let dist = fit_distance(radius, fov, f.aspect, margin);
                 if first {
@@ -1138,6 +1149,8 @@ pub struct Director {
     /// Per zone: inside now, and seconds since the marble was last inside.
     inside: Vec<bool>,
     since: Vec<f32>,
+    /// Seconds the followed marble has sat past [`HOLD_FRAME_NDC`] in a row.
+    out_of_frame_s: f32,
     pub diag: DirectorDiag,
     /// The rise applied to the mixed pose when a blend between two clear shots still looks
     /// through solid track: the move in play, its eased state, and the plain view's clear time.
@@ -1229,10 +1242,18 @@ impl Director {
             };
         }
         // A zone's hold never leaves the marble out of frame: once it has left the volume and the
-        // camera no longer has it in frame, the hold ends and the shot blends back.
-        if let (Some(p), Some(pose)) = (p, self.layer.as_ref().and_then(Layer::last_pose))
-            && !in_frame(&pose, f.aspect, p, HOLD_FRAME_NDC)
-        {
+        // camera has not had it in frame for [`HOLD_EXIT_S`], the hold ends and the shot blends
+        // back.
+        let out = matches!(
+            (p, self.layer.as_ref().and_then(Layer::last_pose)),
+            (Some(p), Some(pose)) if !in_frame(&pose, f.aspect, p, HOLD_FRAME_NDC)
+        );
+        self.out_of_frame_s = if out && !restarted {
+            self.out_of_frame_s + dt
+        } else {
+            0.0
+        };
+        if self.out_of_frame_s >= HOLD_EXIT_S {
             for i in 0..zones.len() {
                 if !self.inside[i] {
                     self.since[i] = f32::INFINITY;
@@ -1694,9 +1715,19 @@ mod tests {
             d.update(&frame(&at(2.02), 0), Some((0, Rule::FOLLOW)), &zones);
         }
         assert_eq!(d.diag.source, Some("cue"));
-        // A marble that leaves the frame ends the hold at once.
+        // A marble that leaves the frame ends the hold once it has been out for HOLD_EXIT_S.
         d.update(&frame(&at(0.5), 0), Some((0, Rule::FOLLOW)), &zones);
         assert_eq!(d.diag.zone, Some(0));
+        let mut out_s = 0.0;
+        while out_s + DT < HOLD_EXIT_S {
+            d.update(&frame(&at(6.0), 0), Some((0, Rule::FOLLOW)), &zones);
+            out_s += DT;
+        }
+        assert_eq!(
+            d.diag.zone,
+            Some(0),
+            "one moment out of frame keeps the hold"
+        );
         d.update(&frame(&at(6.0), 0), Some((0, Rule::FOLLOW)), &zones);
         d.update(&frame(&at(6.0), 0), Some((0, Rule::FOLLOW)), &zones);
         assert_eq!(d.diag.source, Some("cue"), "the hold let the marble go");
