@@ -9,13 +9,13 @@ const TICKS: u32 = 2400;
 fn showcase_sensors_report_occupancy_without_changing_the_run() {
     let mut plain = Sim::mech_showcase_scene();
     let mut read = Sim::mech_showcase_scene();
-    assert_eq!(read.sensors().len(), 6);
+    assert_eq!(read.sensors().len(), 7);
     let mut first_occupied = None;
     for t in 1..=TICKS {
         plain.tick(1);
         read.tick(1);
         let sensors = read.sensors();
-        assert_eq!(sensors.len(), 6);
+        assert_eq!(sensors.len(), 7);
         if first_occupied.is_none() && sensors.iter().any(|s| s.occupants > 0) {
             first_occupied = Some(t);
         }

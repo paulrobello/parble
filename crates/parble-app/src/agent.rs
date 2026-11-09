@@ -136,7 +136,7 @@ impl Scenario {
                 .map(|&(k, s)| (k, s.radius_m()))
                 .collect(),
             Self::Mechanisms => {
-                vec![(MarbleKind::CatsEye, parble_sim::marble::CATS_EYE.radius_m); 4]
+                vec![(MarbleKind::CatsEye, parble_sim::marble::CATS_EYE.radius_m); 5]
             }
             Self::AllPieces => ALLPIECES_LOOKS
                 .iter()
@@ -205,6 +205,9 @@ pub enum CameraChoice {
     Orbit,
     /// One fixed overview: of the whole tray (the P0 view), or of the all-pieces track.
     Overview,
+    /// A fixed set shot on the mechanism showcase's checkpoint arch (its entry face and side), for
+    /// judging its glow inlay.
+    Checkpoint,
 }
 
 impl CameraChoice {
@@ -213,6 +216,7 @@ impl CameraChoice {
             "director" => Some(Self::Director),
             "orbit" => Some(Self::Orbit),
             "overview" => Some(Self::Overview),
+            "checkpoint" => Some(Self::Checkpoint),
             _ => None,
         }
     }
@@ -220,7 +224,7 @@ impl CameraChoice {
     pub fn mode(self) -> CameraMode {
         match self {
             Self::Orbit => CameraMode::Orbit,
-            Self::Director | Self::Overview => CameraMode::Director,
+            Self::Director | Self::Overview | Self::Checkpoint => CameraMode::Director,
         }
     }
 
@@ -230,6 +234,7 @@ impl CameraChoice {
         match (self, scenario, view) {
             (Self::Overview, Scenario::AllPieces, _) => Cues::allpieces_overview(),
             (Self::Overview, ..) => Cues::overview(),
+            (Self::Checkpoint, ..) => checkpoint_cues(),
             (_, Scenario::Kit2000, _) => Cues::kit(),
             (_, Scenario::Playroom, Some(v)) => Cues::playroom(v),
             (_, Scenario::Playroom, None) => Cues::playroom_run(),
@@ -240,6 +245,24 @@ impl CameraChoice {
             (_, Scenario::AllPieces, _) => Cues::allpieces(),
         }
     }
+}
+
+/// One set shot from in front of, above and to the entry side of the showcase checkpoint, its
+/// +z side face and the marble's approach in frame, focused on the arch.
+pub fn checkpoint_cues() -> Cues {
+    use parble_render::camera::Shot;
+    let [x, y, z] = parble_sim::mech_showcase::CHECKPOINT_CELL;
+    let cell = parble_sim::scene::cell_m();
+    let look = Vec3::new(x as f32, y as f32, z as f32) * cell + Vec3::Y * 0.028;
+    let eye = look + Vec3::new(-0.10, 0.07, 0.17);
+    Cues(vec![(
+        0,
+        Shot::Set {
+            eye: eye.to_array(),
+            look: look.to_array(),
+            focus_m: eye.distance(look),
+        },
+    )])
 }
 
 /// Parsed agent switches. Native: `--key value` or `--key=value`; web: `?key=value&...`.
@@ -359,7 +382,7 @@ impl AgentOpts {
                 "camera" => {
                     let v = need(value)?;
                     o.camera = CameraChoice::parse(&v).ok_or_else(|| {
-                        format!("camera: unknown {v:?} (director|orbit|overview)")
+                        format!("camera: unknown {v:?} (director|orbit|overview|checkpoint)")
                     })?;
                 }
                 "taa" => o.post.taa = Some(parse_bool(&key, value.as_deref())?),
@@ -1042,6 +1065,13 @@ mod tests {
     }
 
     #[test]
+    fn checkpoint_camera_parses() {
+        let c = args("--scenario mechanisms --camera checkpoint").unwrap();
+        assert_eq!(c.camera.mode(), CameraMode::Director);
+        assert_eq!(c.camera.cues(c.scenario, None), checkpoint_cues());
+    }
+
+    #[test]
     fn playroom_scenario_parses_and_runs_its_kit_run() {
         let o = args("--scenario playroom --view blocks").unwrap();
         assert_eq!(o.scenario, Scenario::Playroom);
@@ -1091,7 +1121,16 @@ mod tests {
         let looks = o.scenario.looks(None, MarbleSize::Standard);
         assert_eq!(looks.len(), sim.marbles().len());
         let kinds: Vec<_> = sim.mechanisms().iter().map(|m| m.kind).collect();
-        assert_eq!(kinds, ["arch_rope", "toggle", "gate_oneway", "stepper"]);
+        assert_eq!(
+            kinds,
+            [
+                "arch_rope",
+                "toggle",
+                "checkpoint",
+                "gate_oneway",
+                "stepper"
+            ]
+        );
     }
 
     #[test]

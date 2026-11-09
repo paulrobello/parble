@@ -238,6 +238,8 @@ Rail-to-block joint, side elevation through the channel centreline (rail at `L1`
 
 Track channels and plain track pieces (straights, curves, slopes, rails, joints, pillars, supports) carry no emissive inlays or light strips. A light-strip inlay is allowed only as an optional, off-by-default toggle on a mechanical piece (toggle, splitter, one-way gate, one-way hole, checkpoint, hopper, finish). It is never required. Look-dev frame `08-glow-inlay-track-wide.png` is rejected for this reason, and frames 05 and 09 are references for mechanical pieces only.
 
+State indicators (owner request, approved 2026-11-08) are the one inlay that ships on: the checkpoint arch's inlay shows that a marble has passed. It is dark until the first pass, lights with a 0.25 s fade, and holds for the rest of the run. A restarted run starts dark. Indicator inlays are drawn by the renderer (`crates/parble-render/src/inlay.rs`), not modelled in the GLB, so the piece's meshes, collider and bakes are unchanged and kit-check still sees no inlay slot. Their strips are boxes in the piece frame, a fraction of a millimetre proud of a wood face that no neighbour abuts (on the checkpoint, its two side faces), so they stay clear of every port mouth. The on/off state is behaviour state (`inlay/<i>/on`, `inlay/<i>/since`, `crates/parble-sim/src/inlay.rs`), saved and restored with the mechanism, and it never touches physics. The stepper elevator and the P7-T5 decorative inlays use the same primitive. Each inlay group takes a colour preset, warm amber or pale blue. The checkpoint's is warm amber (owner choice, 2026-11-08).
+
 ## 6. Marbles, channel clearance and size gates
 
 The PRD fixes the marble sizes as diameters (see §16, Q1).
@@ -494,7 +496,7 @@ The dimensioned sections are inline above so every number is searchable:
 7. Animated parts named in the sidecar exist as GLB nodes, with pivot and axis present. Since P2-T3 kit-check also requires each mechanism shape's part set (hopper `anim_gate`, splitter and one-way gate `anim_flap`, toggle `anim_rocker`, one-way hole `anim_trapdoor`, stepper `anim_slats`, none on the finish cup or the checkpoint arch), an integer pivot, an axis-aligned unit axis and limits that hold the rest angle, the `anim_<name>` node at the pivot rotated to the rest angle about the axis (a slide part's node unrotated, `rest_um` along the axis from the pivot), `anim_<name>_lod0`–`lod2` children inside the inset footprint, non-empty `wood_end_grain` part collision, and all parts together within the §12 part budget.
 8. Overhead clearance of at least 34 mm above every channel floor for static geometry and for animated parts in their open pose (§5.1). Kit-check measures each upward collision hit against the lowest upward hit within ±14 mm across and 14 mm below it, credited as twice the height difference, so a round bore's crown counts from the floor beneath it rather than from the curved bore wall.
 9. Provenance file present.
-10. No emissive material or inlay slot on any non-mechanical piece, and every mechanical piece's inlay defaults to off (§5.6).
+10. No emissive material or inlay slot on any non-mechanical piece, and every mechanical piece's decorative inlay defaults to off (§5.6; state indicators are on).
 
 ## 15. Numbers used by later plans (cross-reference)
 

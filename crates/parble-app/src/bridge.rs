@@ -113,6 +113,46 @@ pub enum Event {
     /// The audio telemetry since the last drain (P4-T3, [`crate::audio`]). At most one is queued:
     /// a newer frame absorbs an undrained one ([`AudioFrame::absorb_older`]).
     AudioFrame(AudioFrame),
+    /// A checkpoint pass: the checkpoint's `split` signal, at `tick` (sim ticks since the run
+    /// started, 240 Hz), by the checkpoint anchored at `instance`, for `marble` (its `camera_cue`
+    /// of the same tick). One per pass; older drainers skip the unknown tag, so it needs no
+    /// protocol bump.
+    Split {
+        tick: u64,
+        instance: [i32; 3],
+        marble: u32,
+    },
+}
+
+/// One [`Event::Split`] per checkpoint `split` signal in `events`, in order.
+pub fn splits(events: &[parble_sim::mechanism::SimEvent]) -> Vec<Event> {
+    use parble_sim::mechanism::{MechEventKind, SimEvent};
+    let signal = |e: &SimEvent, want: &str| match e {
+        SimEvent::Mechanism(m) => match &m.kind {
+            MechEventKind::Signal { name, value } if *name == want => {
+                Some((m.tick, m.instance, *value))
+            }
+            _ => None,
+        },
+        _ => None,
+    };
+    events
+        .iter()
+        .filter_map(|e| signal(e, "split"))
+        .map(|(tick, id, _)| {
+            let marble = events
+                .iter()
+                .filter_map(|e| signal(e, "camera_cue"))
+                .find(|&(t, i, _)| t == tick && i == id)
+                .map_or(u32::MAX, |(_, _, m)| u32::try_from(m).unwrap_or(u32::MAX));
+            let c = id.0;
+            Event::Split {
+                tick,
+                instance: [c.x, c.y, c.z],
+                marble,
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -127,6 +167,7 @@ impl Event {
         "trackExported",
         "bridgeError",
         "audioFrame",
+        "split",
     ];
 
     pub fn tag(&self) -> &'static str {
@@ -139,6 +180,7 @@ impl Event {
             Event::TrackExported { .. } => "trackExported",
             Event::BridgeError { .. } => "bridgeError",
             Event::AudioFrame(_) => "audioFrame",
+            Event::Split { .. } => "split",
         }
     }
 }
@@ -398,6 +440,36 @@ mod tests {
             ]
         );
         assert_eq!(drain_events_json(), "[]");
+    }
+
+    #[test]
+    fn a_checkpoint_pass_is_one_split_with_its_marble() {
+        use parble_sim::Sim;
+        use parble_sim::behaviour::CHECKPOINT;
+        let mut sim = Sim::mech_showcase_scene();
+        sim.set_event_recording(true);
+        sim.tick(parble_sim::mech_showcase::CHECKPOINT_LIT_SHOT_TICK as u32);
+        let out = splits(&sim.drain_events());
+        let cell = parble_sim::mech_showcase::CHECKPOINT_CELL;
+        assert_eq!(
+            sim.mechanism_piece(parble_sim::mechanism::InstanceId(
+                parble_core::CellCoord::new(cell[0], cell[1], cell[2])
+            ))
+            .map(|p| p.as_str()),
+            Some(CHECKPOINT)
+        );
+        let [
+            Event::Split {
+                tick,
+                instance,
+                marble,
+            },
+        ] = out.as_slice()
+        else {
+            panic!("{out:?}")
+        };
+        assert_eq!((*instance, *marble), (cell, 4));
+        assert!(*tick > 0 && *tick < parble_sim::mech_showcase::CHECKPOINT_LIT_SHOT_TICK);
     }
 
     #[test]

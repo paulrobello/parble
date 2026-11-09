@@ -839,6 +839,14 @@ fn spawn_kit(
                         Visibility::Inherited,
                         (),
                     );
+                    crate::inlay::spawn_piece_inlays(
+                        c,
+                        PIECES[p.piece].0,
+                        p.cell,
+                        t,
+                        Visibility::Inherited,
+                        (),
+                    );
                 }
             });
     }
@@ -1347,11 +1355,12 @@ mod tests {
             assert_eq!(PIECES[r.piece].0, p.piece.as_str());
             assert_eq!(r.cell.to_array(), [p.anchor.x, p.anchor.y, p.anchor.z]);
         }
-        // Three chunks. The row's two, the lift lane crossing into the second: three (block type,
+        // Four chunks. The row's two, the lift lane crossing into the second: three (block type,
         // chunk) pairs at 3 draws each, and the toggle, the gate and the stepper at 3 for the body
         // and 3 for their one part each. The rope lane's: a block, and the rope arch at 3 for the
-        // body and 3 for each of its 8 ropes.
-        assert_eq!(chunk_stats(&layout), (3, 3 * 3 + 3 * 6 + 3 + 27));
+        // body and 3 for each of its 8 ropes. The checkpoint lane's: the L1 straight and the
+        // checkpoint at 3 each.
+        assert_eq!(chunk_stats(&layout), (4, 3 * 3 + 3 * 6 + 3 + 27 + 3 + 3));
         // No parts, no change: the P1-T4 bounds stay.
         for l in [playroom_layout(), stress_layout()] {
             assert!(l.iter().all(|p| piece_parts(p.piece) == 0));

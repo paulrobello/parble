@@ -20,6 +20,7 @@ pub mod behaviour;
 pub mod chunk;
 pub mod golden;
 pub mod hash;
+pub mod inlay;
 pub mod lift_run;
 pub mod marble;
 pub mod mech_showcase;

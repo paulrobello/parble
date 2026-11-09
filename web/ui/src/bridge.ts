@@ -18,7 +18,16 @@ export type BridgeEvent =
   | { type: "runFinished"; ticks: number; hash: string }
   | { type: "trackExported"; name: string; json: string }
   | { type: "bridgeError"; command: string; message: string }
-  | AudioFrame;
+  | AudioFrame
+  | SplitEvent;
+
+/** A checkpoint pass: `tick` is sim ticks since the run started (240 Hz), `instance` the checkpoint's anchor cell. */
+export interface SplitEvent {
+  type: "split";
+  tick: number;
+  instance: Vec3;
+  marble: number;
+}
 
 /** One rendered frame. `paused` and `timeScale` (crates/parble-app/src/playback.rs) are sent only when not running at 1x. */
 export interface FrameEvent {
@@ -113,6 +122,7 @@ export const EVENT_TYPES = [
   "trackExported",
   "bridgeError",
   "audioFrame",
+  "split",
 ] as const satisfies readonly BridgeEvent["type"][];
 
 /** The wasm-bindgen class as Trunk exposes it on `window.wasmBindings`. */
@@ -308,6 +318,13 @@ export function decodeEvent(v: unknown): BridgeEvent | null {
         : null;
     case "audioFrame":
       return decodeAudioFrame(v);
+    case "split":
+      return hasOnly(v, ["type", "tick", "instance", "marble"]) &&
+        isU64(v.tick) &&
+        isVec3(v.instance, isI32) &&
+        isU32(v.marble)
+        ? { type: "split", tick: v.tick, instance: [...v.instance], marble: v.marble }
+        : null;
     default:
       return null;
   }

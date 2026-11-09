@@ -34,8 +34,9 @@ test("mechanism parts interpolate between physics ticks and sweep smoothly", asy
   ]);
   // The toggle, the gate and the stepper each add one part mesh per (LOD, variant), the rope arch
   // (in its own chunk, with one block) eight: the bound counts them. The lift lane reaches the
-  // second chunk of the row.
-  expect(k.drawBound).toBe(3 * (1 + 2 + 1 + 2 + 1 + 2) + 3 * (1 + 9));
+  // second chunk of the row. The checkpoint lane sits in a chunk of its own: its L1 straight and
+  // the checkpoint body.
+  expect(k.drawBound).toBe(3 * (1 + 2 + 1 + 2 + 1 + 2) + 3 * (1 + 9) + 3 * (1 + 1));
 
   // Every animation frame for 11 s: the run restarts every 10 s, so one whole run is in the sample.
   const samples = await page.evaluate(

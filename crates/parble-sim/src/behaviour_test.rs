@@ -529,6 +529,8 @@ fn checkpoint_reports_split_ticks_and_camera_cues() {
     ];
     let mut sim = rig(&layout, 1);
     let (mut tr, mut ev) = (Vec::new(), Vec::new());
+    let dark = crate::inlay::Inlay::default();
+    assert_eq!(crate::inlay::inlays(&state(&sim)), [dark]);
     for _ in 0..2 {
         launch(&mut sim, Vector::new(-0.02, rest(1), 0.0), Vector::X * 0.3);
         run(&mut sim, 200, &mut tr, &mut ev);
@@ -559,6 +561,12 @@ fn checkpoint_reports_split_ticks_and_camera_cues() {
     let s = state(&sim);
     assert_eq!((s["passes"], s["last_marble"]), (2, 1));
     assert_eq!(s["last_split"], enters[1].0 as i64);
+    // The inlay lit on the first pass and held through the second.
+    let lit = crate::inlay::Inlay {
+        on: true,
+        since: Some(enters[0].0),
+    };
+    assert_eq!(crate::inlay::inlays(&s), [lit]);
 }
 
 #[test]

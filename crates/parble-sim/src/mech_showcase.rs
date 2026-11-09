@@ -16,6 +16,10 @@
 //! - Lift lane: an L3 straight into `mech_stepper_up1_l3`, and an L3 straight on its exit one
 //!   layer up. The marble climbs the slats ([`crate::stepper`]) and the slats ease back to rest.
 //!
+//! - Checkpoint lane (four rows behind the toggle and gate row, out of its set shot): L1
+//!   straight, `mech_checkpoint_l1`, L1 straight. The marble rolls through the arch and lights
+//!   its glow inlay ([`crate::inlay`]).
+//!
 //! Every marble leaves its lane onto the open floor ([`scene::floor_collider`]). The rows sit
 //! behind the tray (−Z), so the plain environment's tray never overlaps them.
 
@@ -38,8 +42,13 @@ pub const ROPE_X: i32 = -3;
 pub const ROPE_Z: i32 = -1;
 pub const ROPE_ARCH_Z: i32 = -4;
 
+/// Row and first cell (x) of the checkpoint lane: four rows further from the tray, outside the
+/// set shot of the other two (`--camera checkpoint` frames it).
+pub const CHECKPOINT_ROW: i32 = ROW - 4;
+pub const CHECKPOINT_X: i32 = 3;
+
 /// The showcase's pieces: id, anchor cell, yaw in quarter turns.
-pub const LAYOUT: [(&str, [i32; 3], u8); 14] = [
+pub const LAYOUT: [(&str, [i32; 3], u8); 17] = [
     ("blk_straight_l3", [TOGGLE_X, 0, ROW], 0),
     (behaviour::TOGGLE, [TOGGLE_X + 1, 0, ROW], 0),
     ("blk_straight_l1", [GATE_X, 0, ROW], 0),
@@ -54,6 +63,13 @@ pub const LAYOUT: [(&str, [i32; 3], u8); 14] = [
     (behaviour::ROPE_ARCH, [ROPE_X, 0, ROPE_ARCH_Z], 1),
     ("blk_straight_l1", [ROPE_X, 0, ROPE_ARCH_Z - 1], 1),
     ("blk_straight_l1", [ROPE_X, 0, ROPE_ARCH_Z - 2], 1),
+    ("blk_straight_l1", [CHECKPOINT_X, 0, CHECKPOINT_ROW], 0),
+    (
+        behaviour::CHECKPOINT,
+        [CHECKPOINT_X + 1, 0, CHECKPOINT_ROW],
+        0,
+    ),
+    ("blk_straight_l1", [CHECKPOINT_X + 2, 0, CHECKPOINT_ROW], 0),
 ];
 
 /// The toggle's anchor cell (its mechanism instance id) and the gate's.
@@ -61,12 +77,14 @@ pub const TOGGLE_CELL: [i32; 3] = [TOGGLE_X + 1, 0, ROW];
 pub const GATE_CELL: [i32; 3] = [GATE_X + 1, 0, ROW];
 pub const LIFT_CELL: [i32; 3] = [LIFT_X + 1, 0, ROW];
 pub const ROPE_CELL: [i32; 3] = [ROPE_X, 0, ROPE_ARCH_Z];
+pub const CHECKPOINT_CELL: [i32; 3] = [CHECKPOINT_X + 1, 0, CHECKPOINT_ROW];
 
 /// Launch speeds, m/s: along +X those of the P2-T5 fork and one-way rigs, the rope lane's along −Z.
 pub const TOGGLE_LAUNCH_M_S: f32 = 0.6;
 pub const GATE_LAUNCH_M_S: f32 = 0.3;
 pub const LIFT_LAUNCH_M_S: f32 = 0.3;
 pub const ROPE_LAUNCH_M_S: f32 = 0.4;
+pub const CHECKPOINT_LAUNCH_M_S: f32 = 0.3;
 
 /// Ticks in one showcase run before it restarts (10 s).
 pub const SHOWCASE_TICKS: u32 = crate::golden::RAMP_10S_TICKS;
@@ -87,6 +105,10 @@ pub const ROPE_CUT_TICK: u64 = 96;
 /// The director cuts back from the rope close-up to the overview here, after the rope shot
 /// and before the lift shot.
 pub const ROPE_RETURN_TICK: u64 = 192;
+/// Checkpoint inlay shots: dark before its marble reaches the arch, and fully lit (past the
+/// render fade) once it has passed.
+pub const CHECKPOINT_DARK_SHOT_TICK: u64 = 32;
+pub const CHECKPOINT_LIT_SHOT_TICK: u64 = 160;
 
 /// The showcase as kit placements.
 pub fn placements() -> Vec<Placement> {
@@ -152,6 +174,15 @@ impl Sim {
                 Vector::new(ROPE_X as f32 * cell, 0.0, ROPE_Z as f32 * cell + 0.02),
                 1,
                 -Vector::Z * ROPE_LAUNCH_M_S,
+            ),
+            (
+                Vector::new(
+                    CHECKPOINT_X as f32 * cell - 0.02,
+                    0.0,
+                    CHECKPOINT_ROW as f32 * cell,
+                ),
+                1,
+                Vector::X * CHECKPOINT_LAUNCH_M_S,
             ),
         ] {
             sim.add_marble(CATS_EYE, at + Vector::Y * rest_m(level));
@@ -331,6 +362,35 @@ mod tests {
         assert!(
             marbles.last().unwrap().position[2] < (ROPE_ARCH_Z as f32 - 2.5) * cell,
             "the rope marble left its lane"
+        );
+    }
+
+    #[test]
+    fn the_checkpoint_inlay_is_dark_then_lit_at_its_shot_ticks() {
+        assert_eq!(CHECKPOINT_DARK_SHOT_TICK % 4, 0);
+        assert_eq!(CHECKPOINT_LIT_SHOT_TICK % 4, 0);
+        let id = CellCoord::new(CHECKPOINT_CELL[0], CHECKPOINT_CELL[1], CHECKPOINT_CELL[2]);
+        let inlay = |sim: &Sim| {
+            let v = sim.mechanisms().into_iter().find(|m| m.id.0 == id).unwrap();
+            crate::inlay::inlays(&v.state)[0]
+        };
+        let mut sim = Sim::mech_showcase_scene();
+        sim.tick(CHECKPOINT_DARK_SHOT_TICK as u32);
+        assert!(!inlay(&sim).on);
+        sim.tick((CHECKPOINT_LIT_SHOT_TICK - CHECKPOINT_DARK_SHOT_TICK) as u32);
+        let lit = inlay(&sim);
+        let since = lit.since.expect("lit by a pass");
+        assert!(lit.on && since > CHECKPOINT_DARK_SHOT_TICK, "{lit:?}");
+        // The render fade (60 ticks) is over by the lit shot.
+        assert!(CHECKPOINT_LIT_SHOT_TICK >= since + 60, "lit at {since}");
+        // It holds for the rest of the run.
+        sim.tick(SHOWCASE_TICKS - CHECKPOINT_LIT_SHOT_TICK as u32);
+        assert_eq!(inlay(&sim), lit);
+        let m = &sim.marbles()[4];
+        assert!(
+            m.position[0] > (CHECKPOINT_X as f32 + 2.5) * scene::cell_m(),
+            "the checkpoint marble stayed in its lane: {:?}",
+            m.position
         );
     }
 }

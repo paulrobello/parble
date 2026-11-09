@@ -17,7 +17,7 @@
 //! | `mech_finish` | `cup` | — | counts each marble once and keeps its arrival tick |
 //! | `mech_splitter_l3` | `entry` | `anim_flap` | the flap is set to a seeded side before each marble arrives |
 //! | `mech_toggle_l3` | `entry` | `anim_rocker` | the rocker flips to the other side after each marble |
-//! | `mech_checkpoint_l1` | `gate` | — | split tick and a camera cue per pass |
+//! | `mech_checkpoint_l1` | `gate` | — | split tick and a camera cue per pass; its inlay lights on the first pass and stays lit for the run |
 //! | `mech_gate_oneway_l1` | `approach`, `exit` | `anim_flap` (physical) | marbles from `approach` push the hinged flap open; the flap's closed stop holds the others back |
 //! | `mech_hole_oneway_l1` | `trap`, `over` | `anim_trapdoor` | opens under marbles that reach `trap` first; marbles from `over` roll across the shut door |
 //! | `mech_stepper_up1_l3`, `mech_stepper_up1_l1` | `lift` | `anim_slats` (slide) | cycles up and down while a marble is on the lift, eases back to rest once it is empty ([`crate::stepper`]) |
@@ -31,6 +31,7 @@ use std::collections::BTreeMap;
 
 use parble_core::{MechConfig, PieceId, ReleaseMode};
 
+use crate::inlay::Inlay;
 use crate::mechanism::{MechContext, Mechanism, MechanismRegistry};
 
 /// The kit behaviours by piece id.
@@ -279,12 +280,14 @@ impl Mechanism for Finish {
 }
 
 /// Checkpoint arch: each marble entering the gate sensor is a pass with a split tick (ticks since
-/// the run started) and a camera cue.
+/// the run started) and a camera cue. Its glow inlay (inlay 0) lights on the first pass and holds
+/// for the rest of the run; a restarted run starts dark.
 #[derive(Debug, Clone, Default)]
 pub struct Checkpoint {
     passes: i64,
     last_marble: i64,
     last_split: i64,
+    inlay: Inlay,
 }
 
 impl Checkpoint {
@@ -308,23 +311,31 @@ impl Mechanism for Checkpoint {
             self.passes += 1;
             self.last_marble = m as i64;
             self.last_split = ctx.tick() as i64;
+            self.inlay.set(true, ctx.tick());
             ctx.emit("split", self.last_split);
             ctx.emit("camera_cue", m as i64);
         }
     }
 
     fn save(&self) -> MechConfig {
-        MechConfig::from([
+        let mut s = MechConfig::from([
             ("passes".to_owned(), self.passes),
             ("last_marble".to_owned(), self.last_marble),
             ("last_split".to_owned(), self.last_split),
-        ])
+        ]);
+        self.inlay.save(0, &mut s);
+        s
     }
 
     fn restore(&mut self, state: &MechConfig) {
         self.passes = get(state, "passes");
         self.last_marble = state.get("last_marble").copied().unwrap_or(-1);
         self.last_split = state.get("last_split").copied().unwrap_or(-1);
+        // State saved before the inlay existed: lit (with no fade) once a marble has passed.
+        self.inlay = Inlay::restore(state, 0).unwrap_or(Inlay {
+            on: self.passes > 0,
+            since: None,
+        });
     }
 }
 

@@ -16,6 +16,7 @@ use parble_sim::{MarbleState, scene};
 
 pub mod camera;
 pub mod director;
+pub mod inlay;
 pub mod kit;
 pub mod marble;
 pub mod playroom;
@@ -93,6 +94,7 @@ impl Plugin for ParbleRenderPlugin {
             .add_plugins(marble::MarblePlugin)
             .add_plugins(playroom::PlayroomPlugin)
             .add_plugins(kit::KitPlugin)
+            .add_plugins(inlay::InlayPlugin)
             .add_systems(Startup, spawn_scene)
             .add_systems(PostUpdate, sync_marbles.before(TransformSystems::Propagate));
     }

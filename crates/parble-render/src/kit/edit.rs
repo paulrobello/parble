@@ -276,6 +276,14 @@ fn apply_edits(
                         shown,
                         KitLayer(p.cell.y),
                     );
+                    crate::inlay::spawn_piece_inlays(
+                        c,
+                        super::PIECES[p.piece].0,
+                        p.cell,
+                        t,
+                        shown,
+                        KitLayer(p.cell.y),
+                    );
                 }
             })
             .id();

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CONTROLS_HINT, applyEvents, emptyHud, formatHud } from "../src/hud";
+import { CONTROLS_HINT, MAX_SPLITS, applyEvents, emptyHud, formatHud } from "../src/hud";
 
 describe("HUD", () => {
   it("shows placeholders before the first frame", () => {
@@ -17,7 +17,7 @@ describe("HUD", () => {
   });
 
   it("keeps the last state when no frame arrives", () => {
-    const state = { fps: 50, tick: 7 };
+    const state = { ...emptyHud(), fps: 50, tick: 7 };
     expect(applyEvents(state, [])).toBe(state);
   });
 
@@ -33,6 +33,35 @@ describe("HUD", () => {
 
   it("names the playback keys", () => {
     expect(CONTROLS_HINT).toMatch(/P pause {2}, slower {2}\. faster {2}N step/);
+  });
+
+  it("lists each checkpoint split as run time, checkpoint and marble", () => {
+    const state = applyEvents(emptyHud(), [
+      { type: "frame", tick: 140, fps: 60 },
+      { type: "split", tick: 131, instance: [3, 0, -4], marble: 2 },
+      { type: "split", tick: 600, instance: [9, 1, 2], marble: 0 },
+      { type: "split", tick: 1205, instance: [3, 0, -4], marble: 1 },
+      { type: "frame", tick: 1210, fps: 60 },
+    ]);
+    expect(formatHud(state)).toBe(
+      [
+        "fps 60  tick 1210",
+        "split cp1  0.546 s  marble 2",
+        "split cp2  2.500 s  marble 0",
+        "split cp1  5.021 s  marble 1",
+      ].join("\n"),
+    );
+  });
+
+  it("keeps the latest splits and clears them when the run restarts", () => {
+    let state = applyEvents(emptyHud(), [{ type: "frame", tick: 10, fps: 60 }]);
+    for (let i = 0; i < MAX_SPLITS + 2; i++) {
+      state = applyEvents(state, [{ type: "split", tick: 20 + i, instance: [0, 0, 0], marble: i }]);
+    }
+    expect(state.splits.map((s) => s.marble)).toEqual([2, 3, 4, 5]);
+    state = applyEvents(state, [{ type: "frame", tick: 4, fps: 60 }]);
+    expect(state.splits).toEqual([]);
+    expect(formatHud(state)).toBe("fps 60  tick 4");
   });
 
   it("names the fly camera's enter and exit keys", () => {

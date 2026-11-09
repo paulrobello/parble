@@ -18,6 +18,7 @@ use bridge::{Command, Event};
 use parble_render::{
     MarbleFrame, ParbleRenderPlugin,
     camera::{self, DirectorClock, DirectorPlugin, MainCamera},
+    inlay::{InlayFrame, inlay_frame},
     kit::parts::PartFrame,
     marble::MarbleLook,
     sensors::{SensorDraw, SensorFrame, SensorOverlayPlugin, SensorShape},
@@ -123,6 +124,7 @@ fn main() {
                 pump_bridge,
                 publish_sensors,
                 zones::publish_zones,
+                publish_inlays,
             )
                 .chain(),
         )
@@ -280,6 +282,12 @@ fn publish_sensors(clock: Res<SimClock>, mut frame: ResMut<SensorFrame>) {
         }));
 }
 
+/// The mechanisms' glow-inlay levels at the current tick (read-only).
+fn publish_inlays(clock: Res<SimClock>, mut frame: ResMut<InlayFrame>) {
+    let next = inlay_frame(&clock.sim.mechanisms(), clock.sim.tick_count());
+    frame.set_if_neq(next);
+}
+
 fn announce_bridge() {
     bridge::push_event(Event::Ready {
         protocol: bridge::PROTOCOL,
@@ -393,6 +401,9 @@ fn pump_audio(
     let kinds: Vec<MarbleKind> = kinds.iter().map(|l| l.0).collect();
     let marbles = audio::marbles_at(&clock.sim, &kinds);
     let piece = |id| clock.sim.mechanism_piece(id).map(|p| p.as_str().to_owned());
+    for split in bridge::splits(&events) {
+        bridge::push_event(split);
+    }
     let mut frame = audio::coalesce(&events, &marbles, piece, clock.sim.tick_count());
     frame.camera = cameras.single().ok().map(|t| audio::AudioCamera {
         position: t.translation().to_array(),
