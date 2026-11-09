@@ -8,7 +8,7 @@
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
@@ -55,7 +55,7 @@
     }
   },
   "lodTris": {
-    "blk_funnel_3x3_l2_lod0": 11376,
+    "blk_funnel_3x3_l2_lod0": 11274,
     "blk_funnel_3x3_l2_lod1": 2562,
     "blk_funnel_3x3_l2_lod2": 752
   },
@@ -77,19 +77,19 @@
   "pieceId": "blk_funnel_3x3_l2",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 3742.7,
-      "median": 3546.5,
-      "min": 2777.8
+      "max": 3718.4,
+      "median": 3524.0,
+      "min": 3006.1
     },
     "lod1": {
-      "max": 3752.6,
-      "median": 3589.1,
-      "min": 2851.3
+      "max": 3724.9,
+      "median": 3561.2,
+      "min": 2830.2
     },
     "lod2": {
-      "max": 1866.8,
-      "median": 1780.6,
-      "min": 1545.8
+      "max": 1860.7,
+      "median": 1774.7,
+      "min": 1540.6
     }
   }
 }

@@ -7,7 +7,7 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "9276cc61ec94c1da6189070705a99329f99a4a56b34a9c678741b00262f63829",
+    "sha256": "2acd4572252f06892d41a12eaa626866c06ae1010343f5d8f220259d6119ede1",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
@@ -17,7 +17,7 @@
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
@@ -50,32 +50,32 @@
     "channels": {
       "blk_funnel_3x3_l2_lod0_ao": {
         "colorspace": "Non-Color",
-        "sha256": "c9a634cf4674a21326225465c68edc94a8a8d9582cea3ff24cb41245362b3d92",
+        "sha256": "bea7191dd67901464c69d7b770da4c01cb4e35e3cd3fdde22b86d27d6879e6bb",
         "size": 2048
       },
       "blk_funnel_3x3_l2_lod0_normal": {
         "colorspace": "Non-Color",
-        "sha256": "ee8aad0dc4a2ef0ed250223ef6a17bb02da5b9474c7bf3e01ec41c78f42929e1",
+        "sha256": "710fad5359e881799b337355f780ec0cf2176be6b5c537c7f4b9dda1fc1837be",
         "size": 2048
       },
       "blk_funnel_3x3_l2_lod1_ao": {
         "colorspace": "Non-Color",
-        "sha256": "aa7f7001bd689472da65042cb2694f0aae7902d7ab61a37ae5dbc2badb309c38",
+        "sha256": "de935e00e35819fdc449f213aa00bebc68cc7cc59cfeb2b8cab9d543c9041c12",
         "size": 2048
       },
       "blk_funnel_3x3_l2_lod1_normal": {
         "colorspace": "Non-Color",
-        "sha256": "8e41e418e9b55188a3f3c47aa8465f52acbaa46ec6bdb7ae419268c8a45bf2a7",
+        "sha256": "4c76c89fd9f50e8d5db03f91793838eee58e786245e676ac7e05e7e467894210",
         "size": 2048
       },
       "blk_funnel_3x3_l2_lod2_ao": {
         "colorspace": "Non-Color",
-        "sha256": "284f8510989bf87aeac0df09b6dcec6c2dfd674a4eee35065736468382931958",
+        "sha256": "2c4f158a914420d15b8155d7a9f630ce2cfc3b6ddd1d92bc240067718fcc9356",
         "size": 1024
       },
       "blk_funnel_3x3_l2_lod2_normal": {
         "colorspace": "Non-Color",
-        "sha256": "d4c285af44474edb2350e536b65bfe761b942b194e63c4cf7d9bd19dfb6ea6f9",
+        "sha256": "83d0fe8d35bc1b2b7c0902b490a139af61f1d6d8567743168f7cef94240d125a",
         "size": 1024
       }
     }
@@ -83,7 +83,7 @@
   "lods": [
     {
       "lod": "blk_funnel_3x3_l2_lod0",
-      "tris": 11376
+      "tris": 11274
     },
     {
       "lod": "blk_funnel_3x3_l2_lod1",
@@ -101,31 +101,31 @@
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 3742.7,
-      "median": 3546.5,
-      "min": 2777.8
+      "max": 3718.4,
+      "median": 3524,
+      "min": 3006.1
     },
     "lod1": {
-      "max": 3752.6,
-      "median": 3589.1,
-      "min": 2851.3
+      "max": 3724.9,
+      "median": 3561.2,
+      "min": 2830.2
     },
     "lod2": {
-      "max": 1866.8,
-      "median": 1780.6,
-      "min": 1545.8
+      "max": 1860.7,
+      "median": 1774.7,
+      "min": 1540.6
     }
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 380528,
+    "glbBytes": 378512,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/blk_funnel_3x3_l2/blk_funnel_3x3_l2.glb",
-      "sha256": "2a6215f4383fb58567adaf9008f1d1875827911cd9931cda3d1995211839f77b",
-      "bytes": 380528
+      "sha256": "93611009aab2dbde06982fa0cb47a9e500f42ceac3c737fb560c8c0156843c9f",
+      "bytes": 378512
     },
     {
       "path": "assets/kit/blk_funnel_3x3_l2/blk_funnel_3x3_l2.kit.json",
@@ -134,43 +134,43 @@
     },
     {
       "path": "assets/kit/blk_funnel_3x3_l2/blk_funnel_3x3_l2_lod0_ao.png",
-      "sha256": "c9a634cf4674a21326225465c68edc94a8a8d9582cea3ff24cb41245362b3d92",
-      "bytes": 555482
+      "sha256": "bea7191dd67901464c69d7b770da4c01cb4e35e3cd3fdde22b86d27d6879e6bb",
+      "bytes": 553341
     },
     {
       "path": "assets/kit/blk_funnel_3x3_l2/blk_funnel_3x3_l2_lod0_normal.png",
-      "sha256": "ee8aad0dc4a2ef0ed250223ef6a17bb02da5b9474c7bf3e01ec41c78f42929e1",
-      "bytes": 324968
+      "sha256": "710fad5359e881799b337355f780ec0cf2176be6b5c537c7f4b9dda1fc1837be",
+      "bytes": 232724
     },
     {
       "path": "assets/kit/blk_funnel_3x3_l2/blk_funnel_3x3_l2_lod1_ao.png",
-      "sha256": "aa7f7001bd689472da65042cb2694f0aae7902d7ab61a37ae5dbc2badb309c38",
-      "bytes": 548734
+      "sha256": "de935e00e35819fdc449f213aa00bebc68cc7cc59cfeb2b8cab9d543c9041c12",
+      "bytes": 544186
     },
     {
       "path": "assets/kit/blk_funnel_3x3_l2/blk_funnel_3x3_l2_lod1_normal.png",
-      "sha256": "8e41e418e9b55188a3f3c47aa8465f52acbaa46ec6bdb7ae419268c8a45bf2a7",
-      "bytes": 361194
+      "sha256": "4c76c89fd9f50e8d5db03f91793838eee58e786245e676ac7e05e7e467894210",
+      "bytes": 327616
     },
     {
       "path": "assets/kit/blk_funnel_3x3_l2/blk_funnel_3x3_l2_lod2_ao.png",
-      "sha256": "284f8510989bf87aeac0df09b6dcec6c2dfd674a4eee35065736468382931958",
-      "bytes": 172552
+      "sha256": "2c4f158a914420d15b8155d7a9f630ce2cfc3b6ddd1d92bc240067718fcc9356",
+      "bytes": 172089
     },
     {
       "path": "assets/kit/blk_funnel_3x3_l2/blk_funnel_3x3_l2_lod2_normal.png",
-      "sha256": "d4c285af44474edb2350e536b65bfe761b942b194e63c4cf7d9bd19dfb6ea6f9",
-      "bytes": 194856
+      "sha256": "83d0fe8d35bc1b2b7c0902b490a139af61f1d6d8567743168f7cef94240d125a",
+      "bytes": 169992
     },
     {
       "path": "assets-source/kit/blk_funnel_3x3_l2/blk_funnel_3x3_l2_high.blend",
-      "sha256": "560afb18ecef0c21a72f3f47a0fc029bd01854b409d2418d4995d9e4f3f66b26",
-      "bytes": 687418
+      "sha256": "3ef463910d5149100d72ce0194cc008ffec01d6c27d0268889adfced32957b29",
+      "bytes": 686899
     },
     {
       "path": "assets-source/kit/blk_funnel_3x3_l2/blk_funnel_3x3_l2_low.blend",
-      "sha256": "671c03b842a128f48d93bc9d41694c851198280c0d0468bac2c59325b445f7cf",
-      "bytes": 473235
+      "sha256": "df7cc4db2130a3656d2d6b6b0f9893f75b8e923d41bce8b0477cd14f8ec6eb02",
+      "bytes": 470940
     }
   ],
   "references": [

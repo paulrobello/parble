@@ -7,21 +7,21 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "7c2251a18e1a4fb4279da9a2ce54c0b676213eaa9f42e44ae9c4809dcaed3d03",
+    "sha256": "2acd4572252f06892d41a12eaa626866c06ae1010343f5d8f220259d6119ede1",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "38a1024cd340321b6d6aaea84734940cf44ec7d0e0afa0bd2712568e488566ef"
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
     }
   ],
   "authoringAgent": {
@@ -46,32 +46,32 @@
     "channels": {
       "blk_drop_l2_lod0_ao": {
         "colorspace": "Non-Color",
-        "sha256": "86bfde1947e012ea47764f665d1219a66add09ad0f454bcfeb9cc706dd7916a2",
+        "sha256": "42adc8a923544b9c66f755a044563bfcac365e0bce3dafaf913c7d105bc932e4",
         "size": 512
       },
       "blk_drop_l2_lod0_normal": {
         "colorspace": "Non-Color",
-        "sha256": "b57de3e3008669fda6e926e70044de3043f417e65ed2066fcb3352b54485cbb8",
+        "sha256": "f72cb4aec823acb3002bec8cd10d0b37d08a9f42e7bdc287dc9dd8625dc0c37f",
         "size": 512
       },
       "blk_drop_l2_lod1_ao": {
         "colorspace": "Non-Color",
-        "sha256": "a354843cdd9ebbf4c8327c79801ee684bbbc2a6613167b85e243b575c4d73e9b",
+        "sha256": "6aaf8f7a213d86b512c988815cf3843b7a7f35c31988c6cd696109d62b0c9044",
         "size": 256
       },
       "blk_drop_l2_lod1_normal": {
         "colorspace": "Non-Color",
-        "sha256": "c26207d342f6e2e1b4ff0990adf72c6ead2e9578ab4be458b16e70380727f69e",
+        "sha256": "c13b170f2a97f03819d8cacb5f37783e8d2cd271ccb2f35c12fa5e80b19e7f49",
         "size": 256
       },
       "blk_drop_l2_lod2_ao": {
         "colorspace": "Non-Color",
-        "sha256": "b1907f1b7e7307076cd68f0891503062e5c7293b2795c495f0e0fa7af15fea74",
+        "sha256": "9a49529556c51988841285913c59a924907d4921f67486d78b53c5940142d2ef",
         "size": 128
       },
       "blk_drop_l2_lod2_normal": {
         "colorspace": "Non-Color",
-        "sha256": "285d5511a4b28c2b7accc4d11ec8790612e46bf6fc821af8e9129dd10c4b0d3a",
+        "sha256": "128f5c2945f4bd0161cd9c856ef529a103ed0846726545290e3ae8df8ce15bc1",
         "size": 128
       }
     }
@@ -79,7 +79,7 @@
   "lods": [
     {
       "lod": "blk_drop_l2_lod0",
-      "tris": 637
+      "tris": 641
     },
     {
       "lod": "blk_drop_l2_lod1",
@@ -97,31 +97,31 @@
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 3031.6,
-      "median": 2671.8,
-      "min": 2394
+      "max": 2696.1,
+      "median": 2635.1,
+      "min": 2042.5
     },
     "lod1": {
-      "max": 1520,
-      "median": 1323.8,
-      "min": 1217.8
+      "max": 1527.6,
+      "median": 1354,
+      "min": 1223.9
     },
     "lod2": {
-      "max": 702.2,
-      "median": 701,
-      "min": 602.8
+      "max": 695.2,
+      "median": 694,
+      "min": 596.8
     }
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 42416,
+    "glbBytes": 42092,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/blk_drop_l2/blk_drop_l2.glb",
-      "sha256": "4798946a230e0e32cfba835250ef21f2c81bf73c944746b9acd95f7bdcb6d708",
-      "bytes": 42416
+      "sha256": "958712d87ac27078c47cc2188990f0835ea057f9ee43ce5e293119ff2cd27d0d",
+      "bytes": 42092
     },
     {
       "path": "assets/kit/blk_drop_l2/blk_drop_l2.kit.json",
@@ -130,43 +130,43 @@
     },
     {
       "path": "assets/kit/blk_drop_l2/blk_drop_l2_lod0_ao.png",
-      "sha256": "86bfde1947e012ea47764f665d1219a66add09ad0f454bcfeb9cc706dd7916a2",
-      "bytes": 73175
+      "sha256": "42adc8a923544b9c66f755a044563bfcac365e0bce3dafaf913c7d105bc932e4",
+      "bytes": 66424
     },
     {
       "path": "assets/kit/blk_drop_l2/blk_drop_l2_lod0_normal.png",
-      "sha256": "b57de3e3008669fda6e926e70044de3043f417e65ed2066fcb3352b54485cbb8",
-      "bytes": 53482
+      "sha256": "f72cb4aec823acb3002bec8cd10d0b37d08a9f42e7bdc287dc9dd8625dc0c37f",
+      "bytes": 39282
     },
     {
       "path": "assets/kit/blk_drop_l2/blk_drop_l2_lod1_ao.png",
-      "sha256": "a354843cdd9ebbf4c8327c79801ee684bbbc2a6613167b85e243b575c4d73e9b",
-      "bytes": 23659
+      "sha256": "6aaf8f7a213d86b512c988815cf3843b7a7f35c31988c6cd696109d62b0c9044",
+      "bytes": 22809
     },
     {
       "path": "assets/kit/blk_drop_l2/blk_drop_l2_lod1_normal.png",
-      "sha256": "c26207d342f6e2e1b4ff0990adf72c6ead2e9578ab4be458b16e70380727f69e",
-      "bytes": 22700
+      "sha256": "c13b170f2a97f03819d8cacb5f37783e8d2cd271ccb2f35c12fa5e80b19e7f49",
+      "bytes": 18333
     },
     {
       "path": "assets/kit/blk_drop_l2/blk_drop_l2_lod2_ao.png",
-      "sha256": "b1907f1b7e7307076cd68f0891503062e5c7293b2795c495f0e0fa7af15fea74",
-      "bytes": 6787
+      "sha256": "9a49529556c51988841285913c59a924907d4921f67486d78b53c5940142d2ef",
+      "bytes": 6749
     },
     {
       "path": "assets/kit/blk_drop_l2/blk_drop_l2_lod2_normal.png",
-      "sha256": "285d5511a4b28c2b7accc4d11ec8790612e46bf6fc821af8e9129dd10c4b0d3a",
-      "bytes": 10322
+      "sha256": "128f5c2945f4bd0161cd9c856ef529a103ed0846726545290e3ae8df8ce15bc1",
+      "bytes": 8244
     },
     {
       "path": "assets-source/kit/blk_drop_l2/blk_drop_l2_high.blend",
-      "sha256": "247f5caef8731b9885490088b6f83a52c9d7905a3aeb6e4082718b70d3fc0094",
-      "bytes": 154474
+      "sha256": "e57c746139f8fa1902198662751c37de75934ebfe15659545078cb28642fcf57",
+      "bytes": 154312
     },
     {
       "path": "assets-source/kit/blk_drop_l2/blk_drop_l2_low.blend",
-      "sha256": "abe3ed8179f2cd26bebc9e3837535ca87306d0019be9d0c1b579bcdd17e51c2f",
-      "bytes": 121497
+      "sha256": "748bf25e94a5aba9be77ae4e3da295ad71a9b9741f21340acd54a5a098f44240",
+      "bytes": 121514
     }
   ],
   "references": [

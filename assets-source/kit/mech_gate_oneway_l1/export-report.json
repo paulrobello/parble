@@ -3,24 +3,24 @@
   "colliderTris": 74,
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "742a58fce816a812f9f7be1cdef010277ecb1297b5be758699e4d89201bb8936"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "b8b818b8ee18e1f14d61bf788758f580d8b5675f2a26b3794ada66416664eecb"
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "1ae8561f9adf82b89853646b80065a96d6679bbabb43ff397a6c583bca9bc6de"
+      "sha256": "dedac9f780aaba48ce740a3a3c53b022b1fc9621b954940ffcfc767c3e8b3a11"
     },
     {
       "path": "blender/kit/kitstepper.py",
-      "sha256": "4baef33742d2ea347dad3dae258fbbbe663c0123905487cf25c7ac485a2dacfd"
+      "sha256": "f88d9ac0af5fe954566a5ca9856529dc2f721164e877e3775901f2cd2a96cc5a"
     }
   ],
   "lodParams": {
@@ -59,7 +59,7 @@
     }
   },
   "lodTris": {
-    "mech_gate_oneway_l1_lod0": 460,
+    "mech_gate_oneway_l1_lod0": 468,
     "mech_gate_oneway_l1_lod1": 172,
     "mech_gate_oneway_l1_lod2": 92
   },
@@ -95,19 +95,19 @@
   "pieceId": "mech_gate_oneway_l1",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2842.1,
-      "median": 2790.3,
-      "min": 2159.3
+      "max": 2792.7,
+      "median": 2743.4,
+      "min": 2120.9
     },
     "lod1": {
-      "max": 1413.9,
-      "median": 1403.6,
-      "min": 1074.3
+      "max": 1399.9,
+      "median": 1392.5,
+      "min": 1063.7
     },
     "lod2": {
-      "max": 697.2,
-      "median": 697.2,
-      "min": 598.6
+      "max": 692.1,
+      "median": 692.1,
+      "min": 594.2
     }
   }
 }

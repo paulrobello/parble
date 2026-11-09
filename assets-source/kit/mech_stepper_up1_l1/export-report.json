@@ -3,12 +3,12 @@
   "colliderTris": 634,
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "c4f75d639b933f91f7fc6c3da58452becce0efdde9771e13e44b154b38893155"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
@@ -16,7 +16,7 @@
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "a730a988db2f5e4242d2a619cff9c4eee0d1c306925f2606a35e786e7c56710e"
+      "sha256": "dedac9f780aaba48ce740a3a3c53b022b1fc9621b954940ffcfc767c3e8b3a11"
     },
     {
       "path": "blender/kit/kitstepper.py",
@@ -59,8 +59,8 @@
     }
   },
   "lodTris": {
-    "mech_stepper_up1_l1_lod0": 1635,
-    "mech_stepper_up1_l1_lod1": 719,
+    "mech_stepper_up1_l1_lod0": 1553,
+    "mech_stepper_up1_l1_lod1": 720,
     "mech_stepper_up1_l1_lod2": 457
   },
   "mapSize": {
@@ -95,19 +95,19 @@
   "pieceId": "mech_stepper_up1_l1",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 5048.4,
-      "median": 4969.6,
-      "min": 3908.1
+      "max": 5036.4,
+      "median": 4959.2,
+      "min": 4234.6
     },
     "lod1": {
-      "max": 2531.4,
-      "median": 2501.9,
-      "min": 1923.4
+      "max": 2515.8,
+      "median": 2487.9,
+      "min": 1911.5
     },
     "lod2": {
-      "max": 1254.8,
-      "median": 1245.6,
-      "min": 1096.0
+      "max": 1251.1,
+      "median": 1242.3,
+      "min": 1091.5
     }
   }
 }

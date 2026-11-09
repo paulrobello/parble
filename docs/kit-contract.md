@@ -27,7 +27,7 @@ All lengths are in millimetres (mm) in this document. World units in code are me
 |---|---|
 | Cell | 60 mm cube |
 | Chunk | 8 × 8 × 8 cells (written 8×8×8 in the plans) = 480 mm cube (used by the collider merge in P1-T3 and the instanced renderer in P1-T4) |
-| Visual seam inset | 0.5 mm per face on render meshes, so two neighbouring pieces show a 1.0 mm seam (`ref-02`) |
+| Visual seam inset | 0.2 mm per face on render meshes, so two neighbouring pieces show a 0.4 mm seam (`ref-02`). It was 0.5 mm until 2026-11-09, when the 1.0 mm slot under the 1.5 mm edge bevels read as a groove about 4 mm wide at every abutting seam. |
 | Collision seam inset | 0 mm. Collision meshes run exactly to the cell face (§5.4). |
 
 ## 3. Horizontal port levels and lateral tolerance
@@ -85,15 +85,15 @@ A 32 mm hole is wider than the 28 mm channel, so a drop hole cannot be cut into 
 
 ### 5.2 Block family (carved U-channel, `ref-01`, `ref-02`, `ref-06`)
 
-The block body is a full 60 mm cube (59 mm rendered after the 0.5 mm seam insets). Open channels are carved down from the top face, so the lip height above the floor depends on the level. Tunnels are bored through the body.
+The block body is a full 60 mm cube (59.6 mm rendered after the 0.2 mm seam insets). Open channels are carved down from the top face, so the lip height above the floor depends on the level. Tunnels are bored through the body.
 
 | Quantity | Value |
 |---|---|
-| Body | 60 mm cube, 59 mm rendered |
-| Side wall thickness beside the channel | (60 − 28) / 2 = 16 mm (15.5 mm rendered) |
+| Body | 60 mm cube, 59.6 mm rendered |
+| Side wall thickness beside the channel | (60 − 28) / 2 = 16 mm (15.8 mm rendered) |
 | Minimum wood under any channel floor | 6 mm |
 | Lip radius (fillet where channel wall meets top face) | 3 mm, render mesh only. At `L3` only 1 mm of vertical wall sits under the lip, so the fillet blends into the R14 half-round instead of being tangent to a vertical wall. |
-| Outer edge bevel | 1.5 mm, render mesh only |
+| Outer edge bevel | 0.4 mm, render mesh only |
 | Levels a 1-cell open channel can use | `L1`, `L2`, `L3` (floor 15, 30, 45 mm) |
 | Levels a 1-cell tunnel can use | `L1` only (crown at 15 + 34 = 49 mm, 11 mm wood above). `L2` would put the crown at 64 mm. |
 | `L0` | Not possible inside one cell (0 mm of wood under the floor). A block piece with an `L0` port is 2 cells tall. Its lower cell is either solid body under the floor or holds the piece's exit port (§7, §9). |
@@ -111,7 +111,7 @@ Lip height above the floor for a 1-cell open block channel, against each marble:
 Block section across the channel at `L3` (the default showcase level), scale about 1 character = 2 mm:
 
 ```
-        |<-------------------- 60 cell (59 rendered) -------------------->|
+        |<------------------- 60 cell (59.6 rendered) ------------------->|
         |<---- 16 wall ---->|<------- 28 channel ------->|<---- 16 wall --->|
    60 ->+-------------------.                            .------------------+  <- top face = lip
         |                    \ 3 lip radius   3 lip radius/                  |     lip 15 above floor
@@ -126,7 +126,7 @@ Block section across the channel at `L3` (the default showcase level), scale abo
         |                     45 mm of wood under the floor                  |
         |                                                                    |
     0 ->+--------------------------------------------------------------------+  <- cell bottom
-        (1.5 outer edge bevel on every outer edge, render mesh only)
+        (0.4 outer edge bevel on every outer edge, render mesh only)
 ```
 
 At `L3` the half-round (radius 14) reaches 59 mm, so only 1 mm of vertical wall sits between the half-round and the 3 mm lip fillet. The collision mesh drops the fillet and keeps a sharp lip at 60 mm (§5.4).
@@ -206,7 +206,7 @@ The rail-to-block joint is the `ref-06` look: a rail end enters a round hole in 
 | Socket depth into the block | 10.5 mm |
 | Spigot (rail end) length past the rail's own cell face | 10 mm |
 | Radial clearance, spigot in socket | 1.88 mm minimum. The farthest point of the rail's outer profile from the bore axis is 18.12 mm (where the 2 mm lip round meets the outer wall), against a bore radius of 20 mm. At the bottom the gap is 2 mm (bore at floor − 6, rail outer bottom at floor − 4). |
-| End clearance | 0.5 mm, the standard visual seam |
+| End clearance | 0.5 mm: the render bore is 10.5 mm deep from the block's cell face and the spigot reaches 10 mm past the rail's. It is fixed by the bore depth, not by the 0.2 mm visual seam (§2). |
 | Collision port plane | 10 mm inside the socket block's face. The rail's collision floor runs to it, the block's collision channel starts at it, and the rings are the canonical ring. |
 | Closed (round) socket | `L1` only in a 1-cell block: bore spans 15 − 6 = 9 mm to 15 + 34 = 49 mm, leaving 9 mm of wood below, 11 mm above and (60 − 40) / 2 = 10 mm beside it. The bore top at floor + 34 meets the §5.1 overhead clearance. |
 | Open (U-slot) socket | `L2`, `L3`: the bore would break the top face (`L2` top at 63 mm), so the socket becomes a 40 mm wide U slot from the bore bottom up to the top face |
@@ -230,7 +230,7 @@ Rail-to-block joint, side elevation through the channel centreline (rail at `L1`
                                                          |                                |
     0 ->                                                 +--------------------------------+
                                                          |<-10->|  spigot reaches 10 mm in
-                                                         |<-10.5>| socket depth (0.5 seam)
+                                                         |<-10.5>| socket depth (0.5 end clearance)
                                          collision port plane = 10 mm inside the block face
 ```
 
@@ -317,7 +317,7 @@ Port levels and lateral position (`u = 0`) are unchanged by yaw and mirror.
 ## 9. Footprints and multi-cell pieces
 
 1. A footprint is a set of integer cell offsets relative to the **anchor cell**, which is the cell holding port index 0. A placement stores the anchor's `CellCoord`, `Yaw4` and `Mirror`.
-2. The footprint is exactly the set of cells that the piece's render or collision geometry enters (after the 0.5 mm render inset). Kit-check recomputes it from the meshes and fails on any mismatch.
+2. The footprint is exactly the set of cells that the piece's render or collision geometry enters (after the 0.2 mm render inset). Kit-check recomputes it from the meshes and fails on any mismatch.
 3. No geometry leaves the footprint, with one exception: a declared `spigot` volume (§5.5).
 4. The footprint is face-connected.
 5. Every side port lies on a footprint face whose neighbouring cell is outside the footprint. Drop ports lie on `Top` or `Bottom` faces with the same rule.
@@ -350,7 +350,7 @@ Funnel catcher (addition, owner card 2026-11-08; no contract version change). `b
 - **Grammar:** `^(blk|rail|mech|terr|music|deco)_[a-z0-9]+(_[a-z0-9]+)*$`, at most 48 characters, ASCII, lower snake case.
 - **Pattern:** `<family>_<shape>[_<qualifier>…][_l<level>]`. If the piece has a level-dependent channel, the level suffix `_l0` … `_l3` comes last and names the level of port index 0.
 - **Level is a catalog variant, not a runtime parameter:** each legal level is a separate generated piece. The generator emits only the levels that fit (§5.2, §5.3).
-- IDs are stable forever, because saved tracks reference them. A geometry change bumps the sidecar's `piece_version`, never the ID.
+- IDs are stable forever, because saved tracks reference them. A collision or port geometry change (anything the sidecar records) bumps the sidecar's `piece_version`, never the ID. A render-only change (the visual seam inset, bevels, fillets, baked maps) regenerates the GLB and maps but keeps `piece_version`, so the sidecar bytes stay identical.
 - Mirror is never part of the ID.
 
 MVP IDs (P1, P2):
@@ -551,9 +551,9 @@ Each item is a judgment call made while writing this contract. **Resolved 2026-1
 | Q7 | "S-rail 1×3" read as a lateral offset of 1 cell over 3 cells of length, which needs a 2 × 3 footprint. A 1-wide S can only be a vertical S, since ports sit at face centres. | Plan-view S, 2 × 3, radius 150 mm (§9) |
 | Q8 | P2-T2's redirect drop "exits sideways one level lower". A 15 mm port level is not a drop. | Read as one cell layer (60 mm) lower, same port level, 1 × 1 × 2 footprint |
 | Q9 | Level as a catalog variant (a separate ID per level) rather than a runtime parameter. This multiplies the catalog by up to 3. | Variant (§10), so every collision mesh is generated and kit-checked |
-| Q10 | Wall thickness and lip radius: block side walls 16 mm, wood under floor at least 6 mm, lip fillet 3 mm, edge bevel 1.5 mm. Rail wall 4 mm, lip 18 mm above floor, lip 2 mm full round. | As in §5.2, §5.3 |
+| Q10 | Wall thickness and lip radius: block side walls 16 mm, wood under floor at least 6 mm, lip fillet 3 mm, edge bevel 1.5 mm (0.4 mm since 2026-11-09, §5.2). Rail wall 4 mm, lip 18 mm above floor, lip 2 mm full round. | As in §5.2, §5.3 |
 | Q11 | Rail-to-block joint uses a separate `rail_joint_*` piece with a 10 mm spigot into a 40 mm socket (1.88 mm minimum radial clearance, bore top at floor + 34 to meet the overhead rule). The spigot is the only geometry allowed outside a footprint. Plain rails also butt flush against any block port. | As in §5.5 |
-| Q12 | Tolerances: exact integer-µm canonical port ring, 1 µm weld epsilon, ±0.1 mm on render meshes, 0.5 mm visual seam inset per face. | As in §3.1 |
+| Q12 | Tolerances: exact integer-µm canonical port ring, 1 µm weld epsilon, ±0.1 mm on render meshes, 0.5 mm visual seam inset per face (0.2 mm since 2026-11-09, §2). | As in §3.1 |
 | Q13 | Overhead clearance and tunnel height 34 mm (shooter + 9 mm). This rules out 1-cell `L2` tunnels and pushes `L3` arches (checkpoint, one-way gate) out of the cell top, so those mechanisms need 2-tall footprints or lower levels. | As in §5.1 |
 | Q14 | LOD triangle budgets (3,000 / 1,000 / 250 per block, 1,500 / 500 / 120 per rail cell), switch thresholds (160 px and 48 px cell height at 1440p) and ±15% crossfade. Worst case is 6 M triangles if all 2,000 stress pieces sit at LOD0, so P1-T8 validates the thresholds. | As in §12 |
 | Q15 | Texel density: tileable wood at 4,096 texels per metre on High, 8,192 on Ultra, 2,048 on Low. Baked per-piece maps at 2,048 texels per metre (512² per 1-cell piece). | As in §12 |

@@ -1,7 +1,9 @@
 //! Kit contract dimensions in integer micrometres (`docs/kit-contract.md`).
 //!
-//! Changing any value here is a contract change: bump [`KIT_CONTRACT_VERSION`],
-//! rebuild the catalog and bump [`crate::PHYSICS_VERSION`].
+//! Changing any collision or port value here is a contract change: bump [`KIT_CONTRACT_VERSION`],
+//! rebuild the catalog and bump [`crate::PHYSICS_VERSION`]. The render-only values
+//! ([`VISUAL_SEAM_INSET_UM`], [`BLOCK_EDGE_BEVEL_UM`], the lip fillets) change only the GLBs and
+//! baked maps: regenerate the kit, keep both versions and every sidecar byte (§10).
 
 /// Version of `docs/kit-contract.md` these constants implement.
 pub const KIT_CONTRACT_VERSION: u32 = 1;
@@ -11,7 +13,7 @@ pub const CELL_UM: i32 = 60_000;
 pub const HALF_CELL_UM: i32 = CELL_UM / 2;
 pub const CHUNK_CELLS: i32 = 8;
 pub const CHUNK_UM: i32 = CHUNK_CELLS * CELL_UM;
-pub const VISUAL_SEAM_INSET_UM: i32 = 500;
+pub const VISUAL_SEAM_INSET_UM: i32 = 200;
 pub const COLLISION_SEAM_INSET_UM: i32 = 0;
 
 // §3 Port levels and tolerances.
@@ -35,7 +37,7 @@ pub const TUNNEL_HEIGHT_UM: i32 = 34_000;
 pub const BLOCK_SIDE_WALL_UM: i32 = 16_000;
 pub const BLOCK_MIN_WOOD_UNDER_FLOOR_UM: i32 = 6_000;
 pub const BLOCK_LIP_RADIUS_UM: i32 = 3_000;
-pub const BLOCK_EDGE_BEVEL_UM: i32 = 1_500;
+pub const BLOCK_EDGE_BEVEL_UM: i32 = 400;
 
 // §5.3 Rail family.
 pub const RAIL_WALL_UM: i32 = 4_000;

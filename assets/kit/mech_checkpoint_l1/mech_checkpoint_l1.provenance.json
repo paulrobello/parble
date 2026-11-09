@@ -7,25 +7,29 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "7c2251a18e1a4fb4279da9a2ce54c0b676213eaa9f42e44ae9c4809dcaed3d03",
+    "sha256": "2acd4572252f06892d41a12eaa626866c06ae1010343f5d8f220259d6119ede1",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "fe82520ff25b453ef318332b3b462d271b293e5a33b24e98e217add8ea311a52"
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "2c48f62102a112f0cf58e01301cf1ae46bcb3319a912dcba4494dd0aac63ad3c"
+      "sha256": "dedac9f780aaba48ce740a3a3c53b022b1fc9621b954940ffcfc767c3e8b3a11"
+    },
+    {
+      "path": "blender/kit/kitstepper.py",
+      "sha256": "f88d9ac0af5fe954566a5ca9856529dc2f721164e877e3775901f2cd2a96cc5a"
     }
   ],
   "authoringAgent": {
@@ -50,32 +54,32 @@
     "channels": {
       "mech_checkpoint_l1_lod0_ao": {
         "colorspace": "Non-Color",
-        "sha256": "697b14be621ff8817667cec5c887b30bf1fbacefd0e60e4cf29468f9bec7957a",
+        "sha256": "be476193532df23d79a4fd567b1c67e498aff07545e794b863d899f5d9a6e632",
         "size": 512
       },
       "mech_checkpoint_l1_lod0_normal": {
         "colorspace": "Non-Color",
-        "sha256": "93e1e081c3a595955ef87109639d8d88bf5e2bf4b2ef59eb980255f57b1b8eeb",
+        "sha256": "76e5711760708fe33fded42dcc27dadcf60e89ef43b7a61efebcfe28c0e75c5e",
         "size": 512
       },
       "mech_checkpoint_l1_lod1_ao": {
         "colorspace": "Non-Color",
-        "sha256": "a2905fce10206520cf60f2309a264503e162d6f09c8a2e6ccd0f3c2fbf2fcf4e",
+        "sha256": "ad5cd954ee83d0366845482166e5dcf235bf7d73ce614bc8484a97d2e921400b",
         "size": 256
       },
       "mech_checkpoint_l1_lod1_normal": {
         "colorspace": "Non-Color",
-        "sha256": "6d26135944a36b4b0c053e387235deb933fa355c86a4709bebcf18246649f0ad",
+        "sha256": "8c9612821d090aeb35140346579be2cffa93e94fc560b49f799d20e2e3b5ec5e",
         "size": 256
       },
       "mech_checkpoint_l1_lod2_ao": {
         "colorspace": "Non-Color",
-        "sha256": "8f651a28c308242411e2edb13b64d073ea90068dd6435c31db2762b24fe579dd",
+        "sha256": "a0124c3baefce45a6af8bafa0241f0fb8e34e630547e15947ab711069e1bedeb",
         "size": 128
       },
       "mech_checkpoint_l1_lod2_normal": {
         "colorspace": "Non-Color",
-        "sha256": "49acb9d8fe787dd3da91c045fa126828355e190edf7066a45e3e1a907b97ed6a",
+        "sha256": "faf20b38e70449515c4fbc21c0cc680c79b4becd0456dbd942059c6c9c24501c",
         "size": 128
       }
     }
@@ -101,31 +105,31 @@
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2857.4,
-      "median": 2808.3,
-      "min": 2171.1
+      "max": 2821,
+      "median": 2772.5,
+      "min": 2143.3
     },
     "lod1": {
-      "max": 1422.7,
-      "median": 1416.5,
-      "min": 1081
+      "max": 1498,
+      "median": 1259.4,
+      "min": 1138
     },
     "lod2": {
-      "max": 710.7,
-      "median": 710.7,
-      "min": 597.6
+      "max": 703.6,
+      "median": 703.6,
+      "min": 591.6
     }
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 27540,
+    "glbBytes": 27952,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/mech_checkpoint_l1/mech_checkpoint_l1.glb",
-      "sha256": "768b815b292e5737542023b1aa21fcfe2f4328799c45f8b06749eabe55dfb56c",
-      "bytes": 27540
+      "sha256": "8014e8a323d6405fb58415c52626e80f4ae05ff8ad748b60b20c1e98d52294fa",
+      "bytes": 27952
     },
     {
       "path": "assets/kit/mech_checkpoint_l1/mech_checkpoint_l1.kit.json",
@@ -134,43 +138,43 @@
     },
     {
       "path": "assets/kit/mech_checkpoint_l1/mech_checkpoint_l1_lod0_ao.png",
-      "sha256": "697b14be621ff8817667cec5c887b30bf1fbacefd0e60e4cf29468f9bec7957a",
-      "bytes": 49643
+      "sha256": "be476193532df23d79a4fd567b1c67e498aff07545e794b863d899f5d9a6e632",
+      "bytes": 50517
     },
     {
       "path": "assets/kit/mech_checkpoint_l1/mech_checkpoint_l1_lod0_normal.png",
-      "sha256": "93e1e081c3a595955ef87109639d8d88bf5e2bf4b2ef59eb980255f57b1b8eeb",
-      "bytes": 43747
+      "sha256": "76e5711760708fe33fded42dcc27dadcf60e89ef43b7a61efebcfe28c0e75c5e",
+      "bytes": 31363
     },
     {
       "path": "assets/kit/mech_checkpoint_l1/mech_checkpoint_l1_lod1_ao.png",
-      "sha256": "a2905fce10206520cf60f2309a264503e162d6f09c8a2e6ccd0f3c2fbf2fcf4e",
-      "bytes": 14085
+      "sha256": "ad5cd954ee83d0366845482166e5dcf235bf7d73ce614bc8484a97d2e921400b",
+      "bytes": 14386
     },
     {
       "path": "assets/kit/mech_checkpoint_l1/mech_checkpoint_l1_lod1_normal.png",
-      "sha256": "6d26135944a36b4b0c053e387235deb933fa355c86a4709bebcf18246649f0ad",
-      "bytes": 14388
+      "sha256": "8c9612821d090aeb35140346579be2cffa93e94fc560b49f799d20e2e3b5ec5e",
+      "bytes": 11661
     },
     {
       "path": "assets/kit/mech_checkpoint_l1/mech_checkpoint_l1_lod2_ao.png",
-      "sha256": "8f651a28c308242411e2edb13b64d073ea90068dd6435c31db2762b24fe579dd",
-      "bytes": 5550
+      "sha256": "a0124c3baefce45a6af8bafa0241f0fb8e34e630547e15947ab711069e1bedeb",
+      "bytes": 5649
     },
     {
       "path": "assets/kit/mech_checkpoint_l1/mech_checkpoint_l1_lod2_normal.png",
-      "sha256": "49acb9d8fe787dd3da91c045fa126828355e190edf7066a45e3e1a907b97ed6a",
-      "bytes": 6169
+      "sha256": "faf20b38e70449515c4fbc21c0cc680c79b4becd0456dbd942059c6c9c24501c",
+      "bytes": 4802
     },
     {
       "path": "assets-source/kit/mech_checkpoint_l1/mech_checkpoint_l1_high.blend",
-      "sha256": "2b027a89cba8c93e6cd5cb50f028c4851ac69f14d848047f0c2ba177f48e7ca6",
-      "bytes": 136965
+      "sha256": "87ad510b2b246f30ad00d617759031dc378d4c7de1e8159661c6fc7fbb33b11b",
+      "bytes": 137032
     },
     {
       "path": "assets-source/kit/mech_checkpoint_l1/mech_checkpoint_l1_low.blend",
-      "sha256": "7ec1498f345a54570d21180092abbcecee5bc7cc47e0939a0cf59fa2572230d9",
-      "bytes": 110753
+      "sha256": "05edd6586d473639659ac4a4d6d638d8b540954d05cafd2d659d6afa5a8f122e",
+      "bytes": 110809
     }
   ],
   "references": [

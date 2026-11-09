@@ -3,12 +3,12 @@
   "colliderTris": 538,
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "dcf7195a751790e68529e5ffcb2aedbaa27db37b748bb051a145fc6a1468df13"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
@@ -72,19 +72,19 @@
   "pieceId": "blk_tower_socket_l1",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2704.6,
-      "median": 2621.4,
-      "min": 2042.8
+      "max": 2649.2,
+      "median": 2566.5,
+      "min": 2001.3
     },
     "lod1": {
-      "max": 1326.0,
-      "median": 1300.5,
-      "min": 1035.3
+      "max": 1351.9,
+      "median": 1328.3,
+      "min": 1019.3
     },
     "lod2": {
-      "max": 630.7,
-      "median": 619.2,
-      "min": 530.1
+      "max": 696.0,
+      "median": 669.0,
+      "min": 454.8
     }
   }
 }

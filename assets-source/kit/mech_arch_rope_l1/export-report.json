@@ -8,7 +8,7 @@
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
@@ -59,7 +59,7 @@
     }
   },
   "lodTris": {
-    "mech_arch_rope_l1_lod0": 460,
+    "mech_arch_rope_l1_lod0": 468,
     "mech_arch_rope_l1_lod1": 172,
     "mech_arch_rope_l1_lod2": 92
   },
@@ -144,19 +144,19 @@
   "pieceId": "mech_arch_rope_l1",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2628.9,
-      "median": 2580.7,
-      "min": 1997.2
+      "max": 2616.8,
+      "median": 2570.9,
+      "min": 1987.5
     },
     "lod1": {
-      "max": 1323.5,
-      "median": 1313.9,
-      "min": 1005.6
+      "max": 1306.9,
+      "median": 1299.9,
+      "min": 993.0
     },
     "lod2": {
-      "max": 699.3,
-      "median": 699.3,
-      "min": 600.4
+      "max": 694.5,
+      "median": 694.5,
+      "min": 596.3
     }
   }
 }

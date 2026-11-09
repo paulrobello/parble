@@ -7,17 +7,17 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "9276cc61ec94c1da6189070705a99329f99a4a56b34a9c678741b00262f63829",
+    "sha256": "2acd4572252f06892d41a12eaa626866c06ae1010343f5d8f220259d6119ede1",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "c4f75d639b933f91f7fc6c3da58452becce0efdde9771e13e44b154b38893155"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
@@ -25,7 +25,7 @@
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "a730a988db2f5e4242d2a619cff9c4eee0d1c306925f2606a35e786e7c56710e"
+      "sha256": "dedac9f780aaba48ce740a3a3c53b022b1fc9621b954940ffcfc767c3e8b3a11"
     },
     {
       "path": "blender/kit/kitstepper.py",
@@ -54,32 +54,32 @@
     "channels": {
       "mech_stepper_up1_l3_lod0_ao": {
         "colorspace": "Non-Color",
-        "sha256": "8b7fc2508678e17026c76f2c8709e6463a48b15a40c80babf84f1a260831c08b",
+        "sha256": "f1c06cd41e2f307fb37388eb25af18fbe14a5f919f0544df9265d00cc7a1f836",
         "size": 1024
       },
       "mech_stepper_up1_l3_lod0_normal": {
         "colorspace": "Non-Color",
-        "sha256": "3490aa8328713a709b0369f223df50eeaefab1785d1e55878e695ea4fcdbaf51",
+        "sha256": "f5f72145bacf719a54e7b93ff05fa30c3bbf955bb703c5a668f4678a3ca558ae",
         "size": 1024
       },
       "mech_stepper_up1_l3_lod1_ao": {
         "colorspace": "Non-Color",
-        "sha256": "36d758d604002784750795e82fd2a4adcbd424faecde638be037304e11b1617b",
+        "sha256": "065ea4f94f2af08811a675daf0f4e6fc245cbf7fd56ec268c31d3fa7a7651169",
         "size": 512
       },
       "mech_stepper_up1_l3_lod1_normal": {
         "colorspace": "Non-Color",
-        "sha256": "8344082e473a034f2064d4c3da97992eccdcf86bc86c858dc73bfb0ebd2a0cbb",
+        "sha256": "50684ac4995d57ed09a5bfa8fe67ff75dc00ff180991506c2e113550943e8752",
         "size": 512
       },
       "mech_stepper_up1_l3_lod2_ao": {
         "colorspace": "Non-Color",
-        "sha256": "b695190aa56970ac459ef2d6f110fc33b26427c4dd532db4bf51666182c59ca2",
+        "sha256": "c776af5e23f3c9a3a93fb33896497941202a4cc5ddb4d53158cf54f784dbd430",
         "size": 256
       },
       "mech_stepper_up1_l3_lod2_normal": {
         "colorspace": "Non-Color",
-        "sha256": "25d81e68dd5aa3da4318042b31a4e2e68687db71cfa395e18e0836c4ab5b9ead",
+        "sha256": "0195544d7184869a67027757782494556e13b9af3098decf35bc16239c448513",
         "size": 256
       }
     }
@@ -87,15 +87,15 @@
   "lods": [
     {
       "lod": "mech_stepper_up1_l3_lod0",
-      "tris": 1649
+      "tris": 1563
     },
     {
       "lod": "mech_stepper_up1_l3_lod1",
-      "tris": 741
+      "tris": 738
     },
     {
       "lod": "mech_stepper_up1_l3_lod2",
-      "tris": 477
+      "tris": 473
     }
   ],
   "collider": {
@@ -105,31 +105,31 @@
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2969,
-      "median": 2921.7,
-      "min": 2298.4
+      "max": 2931,
+      "median": 2884.9,
+      "min": 2464.5
     },
     "lod1": {
-      "max": 1478.4,
-      "median": 1459.3,
-      "min": 1123.3
+      "max": 1451.2,
+      "median": 1433.5,
+      "min": 1102.5
     },
     "lod2": {
-      "max": 727.3,
-      "median": 719.3,
-      "min": 640.9
+      "max": 733.2,
+      "median": 725.9,
+      "min": 645.4
     }
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 105880,
+    "glbBytes": 103636,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/mech_stepper_up1_l3/mech_stepper_up1_l3.glb",
-      "sha256": "adbf7473a0c3fb1e4d814e8350113763559a9c784430a98f79fc009c81d367d3",
-      "bytes": 105880
+      "sha256": "a18a3e97d93301f97392050f32e60a7253ffd46df041fd943978f5e19cb2b666",
+      "bytes": 103636
     },
     {
       "path": "assets/kit/mech_stepper_up1_l3/mech_stepper_up1_l3.kit.json",
@@ -138,43 +138,43 @@
     },
     {
       "path": "assets/kit/mech_stepper_up1_l3/mech_stepper_up1_l3_lod0_ao.png",
-      "sha256": "8b7fc2508678e17026c76f2c8709e6463a48b15a40c80babf84f1a260831c08b",
-      "bytes": 390085
+      "sha256": "f1c06cd41e2f307fb37388eb25af18fbe14a5f919f0544df9265d00cc7a1f836",
+      "bytes": 378975
     },
     {
       "path": "assets/kit/mech_stepper_up1_l3/mech_stepper_up1_l3_lod0_normal.png",
-      "sha256": "3490aa8328713a709b0369f223df50eeaefab1785d1e55878e695ea4fcdbaf51",
-      "bytes": 88561
+      "sha256": "f5f72145bacf719a54e7b93ff05fa30c3bbf955bb703c5a668f4678a3ca558ae",
+      "bytes": 58444
     },
     {
       "path": "assets/kit/mech_stepper_up1_l3/mech_stepper_up1_l3_lod1_ao.png",
-      "sha256": "36d758d604002784750795e82fd2a4adcbd424faecde638be037304e11b1617b",
-      "bytes": 119406
+      "sha256": "065ea4f94f2af08811a675daf0f4e6fc245cbf7fd56ec268c31d3fa7a7651169",
+      "bytes": 118349
     },
     {
       "path": "assets/kit/mech_stepper_up1_l3/mech_stepper_up1_l3_lod1_normal.png",
-      "sha256": "8344082e473a034f2064d4c3da97992eccdcf86bc86c858dc73bfb0ebd2a0cbb",
-      "bytes": 28243
+      "sha256": "50684ac4995d57ed09a5bfa8fe67ff75dc00ff180991506c2e113550943e8752",
+      "bytes": 25536
     },
     {
       "path": "assets/kit/mech_stepper_up1_l3/mech_stepper_up1_l3_lod2_ao.png",
-      "sha256": "b695190aa56970ac459ef2d6f110fc33b26427c4dd532db4bf51666182c59ca2",
-      "bytes": 36129
+      "sha256": "c776af5e23f3c9a3a93fb33896497941202a4cc5ddb4d53158cf54f784dbd430",
+      "bytes": 35261
     },
     {
       "path": "assets/kit/mech_stepper_up1_l3/mech_stepper_up1_l3_lod2_normal.png",
-      "sha256": "25d81e68dd5aa3da4318042b31a4e2e68687db71cfa395e18e0836c4ab5b9ead",
-      "bytes": 13602
+      "sha256": "0195544d7184869a67027757782494556e13b9af3098decf35bc16239c448513",
+      "bytes": 11038
     },
     {
       "path": "assets-source/kit/mech_stepper_up1_l3/mech_stepper_up1_l3_high.blend",
-      "sha256": "e17af6916c7364196e03f21b6bf89a850bbc6202041131e1a29f00cef72a8c0d",
-      "bytes": 234451
+      "sha256": "2c2eab6a725502801ddb8a25c20234111cc171cc7a0f1727cd0cb6b1f07de64d",
+      "bytes": 231582
     },
     {
       "path": "assets-source/kit/mech_stepper_up1_l3/mech_stepper_up1_l3_low.blend",
-      "sha256": "3c999a29a33010fbc75ae528dcd6a9132e84221f1c0cc34105d6200af8767582",
-      "bytes": 181856
+      "sha256": "e42bacd17650e5a580b014abdbde05c23543f97a71eb8af9c6605c84f8a822ef",
+      "bytes": 179061
     }
   ],
   "references": [

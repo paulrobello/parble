@@ -3,16 +3,16 @@
   "colliderTris": 312,
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "b8b818b8ee18e1f14d61bf788758f580d8b5675f2a26b3794ada66416664eecb"
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
     }
   ],
   "lodParams": {
@@ -51,8 +51,8 @@
     }
   },
   "lodTris": {
-    "blk_slope_steep_l3_lod0": 1806,
-    "blk_slope_steep_l3_lod1": 326,
+    "blk_slope_steep_l3_lod0": 1810,
+    "blk_slope_steep_l3_lod1": 322,
     "blk_slope_steep_l3_lod2": 100
   },
   "mapSize": {
@@ -72,19 +72,19 @@
   "pieceId": "blk_slope_steep_l3",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2797.8,
-      "median": 2703.8,
-      "min": 2125.8
+      "max": 2768.8,
+      "median": 2667.9,
+      "min": 2145.3
     },
     "lod1": {
-      "max": 1410.9,
-      "median": 1380.6,
-      "min": 1072.0
+      "max": 1394.0,
+      "median": 1363.6,
+      "min": 1059.2
     },
     "lod2": {
-      "max": 690.9,
-      "median": 686.0,
-      "min": 586.3
+      "max": 689.7,
+      "median": 684.9,
+      "min": 584.8
     }
   }
 }

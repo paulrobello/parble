@@ -3,16 +3,16 @@
   "colliderTris": 80,
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "52d66541d215359b38230d881691fef0056465aa5d5cd90d645cf288678f685f"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "4af584be5af2ea3827da638e45c13fbba52ecec08950720b05597f733c591e9e"
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
     }
   ],
   "lodParams": {
@@ -72,19 +72,19 @@
   "pieceId": "blk_pillar",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2857.3,
-      "median": 2776.6,
-      "min": 2171.1
+      "max": 2819.3,
+      "median": 2739.7,
+      "min": 2142.1
     },
     "lod1": {
-      "max": 1412.0,
-      "median": 1387.7,
-      "min": 1072.9
+      "max": 1439.4,
+      "median": 1210.4,
+      "min": 1189.6
     },
     "lod2": {
-      "max": 711.1,
-      "median": 711.1,
-      "min": 683.5
+      "max": 704.0,
+      "median": 704.0,
+      "min": 676.6
     }
   }
 }

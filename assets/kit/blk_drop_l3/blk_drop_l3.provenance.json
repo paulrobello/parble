@@ -7,21 +7,21 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "7c2251a18e1a4fb4279da9a2ce54c0b676213eaa9f42e44ae9c4809dcaed3d03",
+    "sha256": "2acd4572252f06892d41a12eaa626866c06ae1010343f5d8f220259d6119ede1",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "38a1024cd340321b6d6aaea84734940cf44ec7d0e0afa0bd2712568e488566ef"
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
     }
   ],
   "authoringAgent": {
@@ -46,32 +46,32 @@
     "channels": {
       "blk_drop_l3_lod0_ao": {
         "colorspace": "Non-Color",
-        "sha256": "17153577fccc5d1da043a54849842f267b4c027f9974c119dc903d2feee88b08",
+        "sha256": "2e06f2125f831a78f1849b0927f55549a09498836010b2ace497d3e5778198fb",
         "size": 512
       },
       "blk_drop_l3_lod0_normal": {
         "colorspace": "Non-Color",
-        "sha256": "91823156f892bf36355a30f1e64aee9327c629069698a3fcffa3155589499159",
+        "sha256": "68d322af9e2d5d6353873adbb123c0def22086eacf762f7f10a2cd891d42c45f",
         "size": 512
       },
       "blk_drop_l3_lod1_ao": {
         "colorspace": "Non-Color",
-        "sha256": "1dcd38b8e0a7df2c3d24fb55c9f7c39f597658f6ca4023d9d12f52380c411fdd",
+        "sha256": "78867d300ab54bd97a7ab18f75f846a8e7751fc50a4ae4853e453b711c9a4f91",
         "size": 256
       },
       "blk_drop_l3_lod1_normal": {
         "colorspace": "Non-Color",
-        "sha256": "7e460ce9f6f3a8717489db33d0e6ba7684c7cb70acc79ebdcc93653f326644e3",
+        "sha256": "996cb44729ea5e8d3eea9ffefb50b8d1d7f9dd907c4cf2f2350cca2f845dd14c",
         "size": 256
       },
       "blk_drop_l3_lod2_ao": {
         "colorspace": "Non-Color",
-        "sha256": "e7fa834f83c192b7b517b15549aecb7374812d00e5a40de1ff2e018733190fa1",
+        "sha256": "ae9ee5fe559ef8ed1ccf81d7dc8fdcc5d38b0229ae6c2faff21b7b53b788623c",
         "size": 128
       },
       "blk_drop_l3_lod2_normal": {
         "colorspace": "Non-Color",
-        "sha256": "95e691fa2dcf850b0188f70b1d1004ee2dcca79526f3a6224ee6bc44241a7ee2",
+        "sha256": "c32bf653b7a8865e0cec4297c753670b33f8b105f31109ff44da2650c179e583",
         "size": 128
       }
     }
@@ -97,31 +97,31 @@
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2794,
-      "median": 2730.8,
-      "min": 2148.6
+      "max": 2678,
+      "median": 2615.1,
+      "min": 2028.8
     },
     "lod1": {
-      "max": 1545.8,
-      "median": 1419.2,
-      "min": 1238.5
+      "max": 1410,
+      "median": 1385.8,
+      "min": 1071.4
     },
     "lod2": {
-      "max": 704.8,
-      "median": 697.9,
-      "min": 625.4
+      "max": 700,
+      "median": 693.8,
+      "min": 621.8
     }
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 42484,
+    "glbBytes": 41872,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/blk_drop_l3/blk_drop_l3.glb",
-      "sha256": "11912ba5d9268b12dc119bb36a86d1ab3575004adaefcbe71bc9d7b1fe9257ce",
-      "bytes": 42484
+      "sha256": "5953d2f5360d23459ccd0a303c6893f23c0eabf2b2c771a07ece43daa915d3f4",
+      "bytes": 41872
     },
     {
       "path": "assets/kit/blk_drop_l3/blk_drop_l3.kit.json",
@@ -130,43 +130,43 @@
     },
     {
       "path": "assets/kit/blk_drop_l3/blk_drop_l3_lod0_ao.png",
-      "sha256": "17153577fccc5d1da043a54849842f267b4c027f9974c119dc903d2feee88b08",
-      "bytes": 68514
+      "sha256": "2e06f2125f831a78f1849b0927f55549a09498836010b2ace497d3e5778198fb",
+      "bytes": 65406
     },
     {
       "path": "assets/kit/blk_drop_l3/blk_drop_l3_lod0_normal.png",
-      "sha256": "91823156f892bf36355a30f1e64aee9327c629069698a3fcffa3155589499159",
-      "bytes": 46501
+      "sha256": "68d322af9e2d5d6353873adbb123c0def22086eacf762f7f10a2cd891d42c45f",
+      "bytes": 41312
     },
     {
       "path": "assets/kit/blk_drop_l3/blk_drop_l3_lod1_ao.png",
-      "sha256": "1dcd38b8e0a7df2c3d24fb55c9f7c39f597658f6ca4023d9d12f52380c411fdd",
-      "bytes": 24066
+      "sha256": "78867d300ab54bd97a7ab18f75f846a8e7751fc50a4ae4853e453b711c9a4f91",
+      "bytes": 21176
     },
     {
       "path": "assets/kit/blk_drop_l3/blk_drop_l3_lod1_normal.png",
-      "sha256": "7e460ce9f6f3a8717489db33d0e6ba7684c7cb70acc79ebdcc93653f326644e3",
-      "bytes": 21335
+      "sha256": "996cb44729ea5e8d3eea9ffefb50b8d1d7f9dd907c4cf2f2350cca2f845dd14c",
+      "bytes": 15701
     },
     {
       "path": "assets/kit/blk_drop_l3/blk_drop_l3_lod2_ao.png",
-      "sha256": "e7fa834f83c192b7b517b15549aecb7374812d00e5a40de1ff2e018733190fa1",
-      "bytes": 6668
+      "sha256": "ae9ee5fe559ef8ed1ccf81d7dc8fdcc5d38b0229ae6c2faff21b7b53b788623c",
+      "bytes": 6649
     },
     {
       "path": "assets/kit/blk_drop_l3/blk_drop_l3_lod2_normal.png",
-      "sha256": "95e691fa2dcf850b0188f70b1d1004ee2dcca79526f3a6224ee6bc44241a7ee2",
-      "bytes": 10589
+      "sha256": "c32bf653b7a8865e0cec4297c753670b33f8b105f31109ff44da2650c179e583",
+      "bytes": 8958
     },
     {
       "path": "assets-source/kit/blk_drop_l3/blk_drop_l3_high.blend",
-      "sha256": "bd77ae3b415e884542dcf574bca06f364cee9f8140ac6b5df2c007097f5306a6",
-      "bytes": 154925
+      "sha256": "c8d01ea191e931316c18b5d931e53f64ec27e314582a9fef4c65b23e4bc5fdec",
+      "bytes": 154671
     },
     {
       "path": "assets-source/kit/blk_drop_l3/blk_drop_l3_low.blend",
-      "sha256": "8fc645f977a886dcd0b974d58f521bf2f3b7b74d4f1c3e76dd8fd0149ee56083",
-      "bytes": 121733
+      "sha256": "b7d7c3aad9cd5d7cd656e459f65e2df841d09a6f1db12c0a2a8f2a01a948c555",
+      "bytes": 121758
     }
   ],
   "references": [

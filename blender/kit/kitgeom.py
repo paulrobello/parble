@@ -23,10 +23,10 @@ PIECE_VERSION = 1
 PIECE_VERSIONS = {"blk_slope_gentle_l3": 2, "blk_slope_gentle_l2": 2}
 
 CELL = 60.0          # mm (§2)
-INSET = 0.5          # visual seam inset per face, render mesh only (§2)
+INSET = 0.2          # visual seam inset per face, render mesh only (§2)
 R = 14.0             # channel half-round radius (§5.1)
 LIP_FILLET = 3.0     # block lip fillet, render only (§5.2)
-BEVEL = 1.5          # outer edge bevel, render only (§5.2)
+BEVEL = 0.4          # outer edge bevel, render only (§5.2)
 LEVEL_STEP = 15.0    # port level step (§3)
 END_AXIS_X = 6.0     # blk_end_*: the channel ends in a half-turn about the vertical axis x = 6 mm
 EXT = 6.0            # render cutter runs this far past the cell faces
@@ -107,7 +107,7 @@ def floor_mm(shape, level, t):
 def stations(shape, level, n, inset_stations=False):
     """Centreline frames from port 0 inward: (cx, cz, lx, lz, floor) in mm. (lx, lz) is the lateral
     (+u) unit vector in plan. For "end" the path stops at the cap axis (x = END_AXIS_X).
-    inset_stations adds frames exactly at the rendered faces (|x| or |z| = 29.5) on the curve and the
+    inset_stations adds frames exactly at the rendered faces (|x| or |z| = 29.8) on the curve and the
     slope, so the render floor at a port is not a chord interpolation."""
     out = []
     if shape in ("straight", "slope_gentle"):

@@ -5,32 +5,32 @@
   "channels": {
     "blk_funnel_3x3_l2_lod0_ao": {
       "colorspace": "Non-Color",
-      "sha256": "c9a634cf4674a21326225465c68edc94a8a8d9582cea3ff24cb41245362b3d92",
+      "sha256": "bea7191dd67901464c69d7b770da4c01cb4e35e3cd3fdde22b86d27d6879e6bb",
       "size": 2048
     },
     "blk_funnel_3x3_l2_lod0_normal": {
       "colorspace": "Non-Color",
-      "sha256": "ee8aad0dc4a2ef0ed250223ef6a17bb02da5b9474c7bf3e01ec41c78f42929e1",
+      "sha256": "710fad5359e881799b337355f780ec0cf2176be6b5c537c7f4b9dda1fc1837be",
       "size": 2048
     },
     "blk_funnel_3x3_l2_lod1_ao": {
       "colorspace": "Non-Color",
-      "sha256": "aa7f7001bd689472da65042cb2694f0aae7902d7ab61a37ae5dbc2badb309c38",
+      "sha256": "de935e00e35819fdc449f213aa00bebc68cc7cc59cfeb2b8cab9d543c9041c12",
       "size": 2048
     },
     "blk_funnel_3x3_l2_lod1_normal": {
       "colorspace": "Non-Color",
-      "sha256": "8e41e418e9b55188a3f3c47aa8465f52acbaa46ec6bdb7ae419268c8a45bf2a7",
+      "sha256": "4c76c89fd9f50e8d5db03f91793838eee58e786245e676ac7e05e7e467894210",
       "size": 2048
     },
     "blk_funnel_3x3_l2_lod2_ao": {
       "colorspace": "Non-Color",
-      "sha256": "284f8510989bf87aeac0df09b6dcec6c2dfd674a4eee35065736468382931958",
+      "sha256": "2c4f158a914420d15b8155d7a9f630ce2cfc3b6ddd1d92bc240067718fcc9356",
       "size": 1024
     },
     "blk_funnel_3x3_l2_lod2_normal": {
       "colorspace": "Non-Color",
-      "sha256": "d4c285af44474edb2350e536b65bfe761b942b194e63c4cf7d9bd19dfb6ea6f9",
+      "sha256": "83d0fe8d35bc1b2b7c0902b490a139af61f1d6d8567743168f7cef94240d125a",
       "size": 1024
     }
   },

@@ -7,21 +7,21 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "760b35d6f7a9e6926759cc641b78dfc88c5e19b486619d0ac7ff3a297c7e9637",
+    "sha256": "2acd4572252f06892d41a12eaa626866c06ae1010343f5d8f220259d6119ede1",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "dcf7195a751790e68529e5ffcb2aedbaa27db37b748bb051a145fc6a1468df13"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "2b032fa6636758cdf00059a508238ef7f13deee90dc0a14e737e7b08a8ccc1f4"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "b532be7b2d25fb6fa25beccc4dd1d7a41678e43639b11a17d855f0fd759ca009"
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
     }
   ],
   "authoringAgent": {
@@ -46,32 +46,32 @@
     "channels": {
       "blk_redirect_l2_lod0_ao": {
         "colorspace": "Non-Color",
-        "sha256": "c537810636b4eaf653eece6429c6208ca6b071465c1e6c67622733b2ba7c2eca",
+        "sha256": "ebcbda08bb525f989c8b38ba02893f47f5ec9a050397d1e3276f32f50d0cf940",
         "size": 1024
       },
       "blk_redirect_l2_lod0_normal": {
         "colorspace": "Non-Color",
-        "sha256": "f773d5426188c2aa33ea822abadb99269931371d982ebeb83d34eb934a2bdfcf",
+        "sha256": "b383daa2cb426dacdbe02cfa02a403eae7ed37250793101d3e78f5e312cbd827",
         "size": 1024
       },
       "blk_redirect_l2_lod1_ao": {
         "colorspace": "Non-Color",
-        "sha256": "8e1f45813a384deb21298aa9cff31d2e965e2981e497163c5d4690f53e6d2833",
+        "sha256": "2c98970b4fc8bf6aa96b5a41d072ed7b8ae71b3b1c8a95eb134464d7047086a5",
         "size": 512
       },
       "blk_redirect_l2_lod1_normal": {
         "colorspace": "Non-Color",
-        "sha256": "1a6537126faf40e60b20c2f4411db2d9f6623f1b391f93536050f9d1f8aa7adf",
+        "sha256": "3dfe230d37dde336778152ad201c5fdc6b075df2fae6298a73b10c424ff43394",
         "size": 512
       },
       "blk_redirect_l2_lod2_ao": {
         "colorspace": "Non-Color",
-        "sha256": "df9b6ecd59a5c3510e364d2625a8ad0ee05c6c7a769d89ddb6c1567365be2f0a",
+        "sha256": "0770590cb8af5ba6e2d09e8fe15fc7842b0bce51db3a2efd8a0ace4436bc2c73",
         "size": 256
       },
       "blk_redirect_l2_lod2_normal": {
         "colorspace": "Non-Color",
-        "sha256": "bb4bd31b7813b94148e016d3d5deb44d5b118a99bb79a64cd14bb943d5541dc9",
+        "sha256": "5da4274e290f8ae00f5badd3124363307ed0f15f7a0b5bedaeba0ca891e1c6a1",
         "size": 256
       }
     }
@@ -79,7 +79,7 @@
   "lods": [
     {
       "lod": "blk_redirect_l2_lod0",
-      "tris": 2510
+      "tris": 2407
     },
     {
       "lod": "blk_redirect_l2_lod1",
@@ -97,31 +97,31 @@
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 4402.3,
-      "median": 4225.1,
-      "min": 3386.4
+      "max": 4341.3,
+      "median": 4170.5,
+      "min": 3390.8
     },
     "lod1": {
-      "max": 2127,
-      "median": 1917.1,
-      "min": 1371.5
+      "max": 2116,
+      "median": 1890.3,
+      "min": 1364.5
     },
     "lod2": {
-      "max": 1060.1,
-      "median": 1042.5,
-      "min": 875.9
+      "max": 1054.8,
+      "median": 1037.3,
+      "min": 871.4
     }
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 113672,
+    "glbBytes": 111008,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/blk_redirect_l2/blk_redirect_l2.glb",
-      "sha256": "53e1dacdb0e30e8956475b67db910710a3ed3f0328ad314e0a3a7b9a39c47a20",
-      "bytes": 113672
+      "sha256": "3fbb492874fe69fe3daf768f6ab41511cbb32ffde7926b6c6728d3f18c1e628f",
+      "bytes": 111008
     },
     {
       "path": "assets/kit/blk_redirect_l2/blk_redirect_l2.kit.json",
@@ -130,43 +130,43 @@
     },
     {
       "path": "assets/kit/blk_redirect_l2/blk_redirect_l2_lod0_ao.png",
-      "sha256": "c537810636b4eaf653eece6429c6208ca6b071465c1e6c67622733b2ba7c2eca",
-      "bytes": 253748
+      "sha256": "ebcbda08bb525f989c8b38ba02893f47f5ec9a050397d1e3276f32f50d0cf940",
+      "bytes": 247594
     },
     {
       "path": "assets/kit/blk_redirect_l2/blk_redirect_l2_lod0_normal.png",
-      "sha256": "f773d5426188c2aa33ea822abadb99269931371d982ebeb83d34eb934a2bdfcf",
-      "bytes": 154084
+      "sha256": "b383daa2cb426dacdbe02cfa02a403eae7ed37250793101d3e78f5e312cbd827",
+      "bytes": 113439
     },
     {
       "path": "assets/kit/blk_redirect_l2/blk_redirect_l2_lod1_ao.png",
-      "sha256": "8e1f45813a384deb21298aa9cff31d2e965e2981e497163c5d4690f53e6d2833",
-      "bytes": 66005
+      "sha256": "2c98970b4fc8bf6aa96b5a41d072ed7b8ae71b3b1c8a95eb134464d7047086a5",
+      "bytes": 65716
     },
     {
       "path": "assets/kit/blk_redirect_l2/blk_redirect_l2_lod1_normal.png",
-      "sha256": "1a6537126faf40e60b20c2f4411db2d9f6623f1b391f93536050f9d1f8aa7adf",
-      "bytes": 59644
+      "sha256": "3dfe230d37dde336778152ad201c5fdc6b075df2fae6298a73b10c424ff43394",
+      "bytes": 51736
     },
     {
       "path": "assets/kit/blk_redirect_l2/blk_redirect_l2_lod2_ao.png",
-      "sha256": "df9b6ecd59a5c3510e364d2625a8ad0ee05c6c7a769d89ddb6c1567365be2f0a",
-      "bytes": 24620
+      "sha256": "0770590cb8af5ba6e2d09e8fe15fc7842b0bce51db3a2efd8a0ace4436bc2c73",
+      "bytes": 24143
     },
     {
       "path": "assets/kit/blk_redirect_l2/blk_redirect_l2_lod2_normal.png",
-      "sha256": "bb4bd31b7813b94148e016d3d5deb44d5b118a99bb79a64cd14bb943d5541dc9",
-      "bytes": 30477
+      "sha256": "5da4274e290f8ae00f5badd3124363307ed0f15f7a0b5bedaeba0ca891e1c6a1",
+      "bytes": 25755
     },
     {
       "path": "assets-source/kit/blk_redirect_l2/blk_redirect_l2_high.blend",
-      "sha256": "cce355d0f8efd6089ce2c81f922d5159ed026879b9cecb2536e9ef99762bc103",
-      "bytes": 354673
+      "sha256": "299b2129f3212e4fc6f5b7e19e431994bee3bd67e84e4999f0f6a985232bb23b",
+      "bytes": 351084
     },
     {
       "path": "assets-source/kit/blk_redirect_l2/blk_redirect_l2_low.blend",
-      "sha256": "28c17c507c9ed84dc5c45c98a3b253eeb01dbaf1246ad91ae8c5652eadc3a52e",
-      "bytes": 199600
+      "sha256": "e43f72587f0a2b67439097091cf9d28388922c092d87694f010237b29f255307",
+      "bytes": 196518
     }
   ],
   "references": [

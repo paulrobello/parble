@@ -7,21 +7,21 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "a13c69a3266ee63dea8295af3ec536aa93e4c358675b95e24628502ad217aaf1",
+    "sha256": "2acd4572252f06892d41a12eaa626866c06ae1010343f5d8f220259d6119ede1",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "52d66541d215359b38230d881691fef0056465aa5d5cd90d645cf288678f685f"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "4af584be5af2ea3827da638e45c13fbba52ecec08950720b05597f733c591e9e"
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
     }
   ],
   "authoringAgent": {
@@ -46,32 +46,32 @@
     "channels": {
       "blk_pillar_lod0_ao": {
         "colorspace": "Non-Color",
-        "sha256": "2aa2909a9a3ac2a80230a95fda6875881cbb59b5fa95bd44e1318610edf88243",
+        "sha256": "a279663d7f2d570bd68249f9b50978ca326e8d4c280e00f06c6317218afcb34c",
         "size": 512
       },
       "blk_pillar_lod0_normal": {
         "colorspace": "Non-Color",
-        "sha256": "7a57e978c4a25fb163711b681a1eac522077435dfe3afe4a1643989a9c32474e",
+        "sha256": "39d9838ced2236aa1b950aae6dc546044760a2cd432d3f1711425ca35fd55e2d",
         "size": 512
       },
       "blk_pillar_lod1_ao": {
         "colorspace": "Non-Color",
-        "sha256": "349b2deb4dddefbcb136abccda1c0c0be60ccc31da1b324672e61f1d2fa47ace",
+        "sha256": "56f300ad86cb77da417894842dd7675017742f8866c1d5d0e70565e1d43e9cde",
         "size": 256
       },
       "blk_pillar_lod1_normal": {
         "colorspace": "Non-Color",
-        "sha256": "d5a03ba196ae5874017376d9931d5eadb757fcb359b7c1a86f1473ac5a4e71ec",
+        "sha256": "e4ea56940fd6329b87017c0b09863f5a43f01681856b2ea7cb51b6b5ac125641",
         "size": 256
       },
       "blk_pillar_lod2_ao": {
         "colorspace": "Non-Color",
-        "sha256": "913bc1c351705d9160af538f8de61ff3916961b6e83df0a7c2582c0c1059f383",
+        "sha256": "94aee6d9008cb32ad938185d9d1783da2c49129f6dca6b2325b3aa73cc9a976f",
         "size": 128
       },
       "blk_pillar_lod2_normal": {
         "colorspace": "Non-Color",
-        "sha256": "2588a070dfe632474b8e086e678d51c26dffc88655bab3a96df7148554fc9c7e",
+        "sha256": "617edfa101b209b1c5ef8773e2b5e7919c2b5fe3cc3a2233079f7a3705f95fef",
         "size": 128
       }
     }
@@ -97,31 +97,31 @@
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2857.3,
-      "median": 2776.6,
-      "min": 2171.1
+      "max": 2819.3,
+      "median": 2739.7,
+      "min": 2142.1
     },
     "lod1": {
-      "max": 1412,
-      "median": 1387.7,
-      "min": 1072.9
+      "max": 1439.4,
+      "median": 1210.4,
+      "min": 1189.6
     },
     "lod2": {
-      "max": 711.1,
-      "median": 711.1,
-      "min": 683.5
+      "max": 704,
+      "median": 704,
+      "min": 676.6
     }
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 24484,
+    "glbBytes": 24084,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/blk_pillar/blk_pillar.glb",
-      "sha256": "1ddc90195d137475362a548cac8de90a88f7ec30f8fc282d8332061667953600",
-      "bytes": 24484
+      "sha256": "e9a2eeee69894875e19f13b77858f518f2ba014701ce19d22ae9eac6bcb0fc64",
+      "bytes": 24084
     },
     {
       "path": "assets/kit/blk_pillar/blk_pillar.kit.json",
@@ -130,43 +130,43 @@
     },
     {
       "path": "assets/kit/blk_pillar/blk_pillar_lod0_ao.png",
-      "sha256": "2aa2909a9a3ac2a80230a95fda6875881cbb59b5fa95bd44e1318610edf88243",
-      "bytes": 49628
+      "sha256": "a279663d7f2d570bd68249f9b50978ca326e8d4c280e00f06c6317218afcb34c",
+      "bytes": 50866
     },
     {
       "path": "assets/kit/blk_pillar/blk_pillar_lod0_normal.png",
-      "sha256": "7a57e978c4a25fb163711b681a1eac522077435dfe3afe4a1643989a9c32474e",
-      "bytes": 40574
+      "sha256": "39d9838ced2236aa1b950aae6dc546044760a2cd432d3f1711425ca35fd55e2d",
+      "bytes": 29407
     },
     {
       "path": "assets/kit/blk_pillar/blk_pillar_lod1_ao.png",
-      "sha256": "349b2deb4dddefbcb136abccda1c0c0be60ccc31da1b324672e61f1d2fa47ace",
-      "bytes": 17816
+      "sha256": "56f300ad86cb77da417894842dd7675017742f8866c1d5d0e70565e1d43e9cde",
+      "bytes": 13210
     },
     {
       "path": "assets/kit/blk_pillar/blk_pillar_lod1_normal.png",
-      "sha256": "d5a03ba196ae5874017376d9931d5eadb757fcb359b7c1a86f1473ac5a4e71ec",
-      "bytes": 14820
+      "sha256": "e4ea56940fd6329b87017c0b09863f5a43f01681856b2ea7cb51b6b5ac125641",
+      "bytes": 10065
     },
     {
       "path": "assets/kit/blk_pillar/blk_pillar_lod2_ao.png",
-      "sha256": "913bc1c351705d9160af538f8de61ff3916961b6e83df0a7c2582c0c1059f383",
-      "bytes": 4884
+      "sha256": "94aee6d9008cb32ad938185d9d1783da2c49129f6dca6b2325b3aa73cc9a976f",
+      "bytes": 4777
     },
     {
       "path": "assets/kit/blk_pillar/blk_pillar_lod2_normal.png",
-      "sha256": "2588a070dfe632474b8e086e678d51c26dffc88655bab3a96df7148554fc9c7e",
-      "bytes": 6747
+      "sha256": "617edfa101b209b1c5ef8773e2b5e7919c2b5fe3cc3a2233079f7a3705f95fef",
+      "bytes": 5450
     },
     {
       "path": "assets-source/kit/blk_pillar/blk_pillar_high.blend",
-      "sha256": "3e6e0f0cfafe11cfd93b14d5c587c178e53ddb52288cc3b6fcfa3f8760156711",
-      "bytes": 126722
+      "sha256": "d60c23cca1d1b5c8374dce476a4e0bd68a1d6e1e79d18fd0b519cabe1393d6a3",
+      "bytes": 126418
     },
     {
       "path": "assets-source/kit/blk_pillar/blk_pillar_low.blend",
-      "sha256": "83efec495f5d9e643f3c0610ae39e8cbbd910e631b88d6210d04ccb0db4f61be",
-      "bytes": 104565
+      "sha256": "95810d54db2dc341552010658f82300c9755b5bb523d8d45225a2d8bf3a1cfe4",
+      "bytes": 104372
     }
   ],
   "references": [

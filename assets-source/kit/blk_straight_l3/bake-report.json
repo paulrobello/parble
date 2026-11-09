@@ -5,32 +5,32 @@
   "channels": {
     "blk_straight_l3_lod0_ao": {
       "colorspace": "Non-Color",
-      "sha256": "c6ceea7771a48331a9e7c1b346001866ef529fd639e2dab7306ad022e30c7530",
+      "sha256": "b66c4e76b7e4a4a6344a92d71a318b1ab414ba7ff0edf2bfe0c664cea9dd51ac",
       "size": 512
     },
     "blk_straight_l3_lod0_normal": {
       "colorspace": "Non-Color",
-      "sha256": "508ef0b46d28817a472c588a8bdbe69a11a76d061dcaa55a418c3552de6f5a69",
+      "sha256": "b371dc6adc1b6716601acca54e9b410ad0a9a59e276325c2a63f0f2893ec9734",
       "size": 512
     },
     "blk_straight_l3_lod1_ao": {
       "colorspace": "Non-Color",
-      "sha256": "eae6d2a60e9d5c57fa70fede354e2557cf16f10f1c959222b085cc1d063ecc14",
+      "sha256": "f11a5405f13e3f3e00d247aa257fe728bbe814b06ee165f910b1670a24a964dc",
       "size": 256
     },
     "blk_straight_l3_lod1_normal": {
       "colorspace": "Non-Color",
-      "sha256": "317574d8a54983fb847a9bd95e463be947360a05584cffac1516dc283c4571bc",
+      "sha256": "d9019a00c2f97499361b406e5b0a58f7fd1f015f4e2a91e2811f0d4ed0532c98",
       "size": 256
     },
     "blk_straight_l3_lod2_ao": {
       "colorspace": "Non-Color",
-      "sha256": "23de7e2f5fb4b9817037aaf184b048a077672306a1bf8a51445d3da690a0dad5",
+      "sha256": "6639d3fd09f93d5d0af7af1e42eff5a02ae5e856c4c6ba194de056b993ce6038",
       "size": 128
     },
     "blk_straight_l3_lod2_normal": {
       "colorspace": "Non-Color",
-      "sha256": "85f239b40bf5ecc784a03f70715cc8602a9ab078bb3effbd927f53a6acd6a69c",
+      "sha256": "a52ba46aa2120cd4b695f09e3f14c890f88414b28f4e41a82e673c2755c5f7b2",
       "size": 128
     }
   },

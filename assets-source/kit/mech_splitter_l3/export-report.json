@@ -3,12 +3,12 @@
   "colliderTris": 505,
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "c4f75d639b933f91f7fc6c3da58452becce0efdde9771e13e44b154b38893155"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
@@ -16,7 +16,7 @@
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "a730a988db2f5e4242d2a619cff9c4eee0d1c306925f2606a35e786e7c56710e"
+      "sha256": "dedac9f780aaba48ce740a3a3c53b022b1fc9621b954940ffcfc767c3e8b3a11"
     },
     {
       "path": "blender/kit/kitstepper.py",
@@ -59,8 +59,8 @@
     }
   },
   "lodTris": {
-    "mech_splitter_l3_lod0": 2546,
-    "mech_splitter_l3_lod1": 464,
+    "mech_splitter_l3_lod0": 2562,
+    "mech_splitter_l3_lod1": 472,
     "mech_splitter_l3_lod2": 182
   },
   "mapSize": {
@@ -96,19 +96,19 @@
   "pieceId": "mech_splitter_l3",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2852.5,
-      "median": 2721.8,
-      "min": 2167.3
+      "max": 2811.1,
+      "median": 2695.6,
+      "min": 2134.9
     },
     "lod1": {
-      "max": 1446.5,
-      "median": 1390.4,
-      "min": 1099.1
+      "max": 1406.8,
+      "median": 1347.7,
+      "min": 1068.1
     },
     "lod2": {
-      "max": 708.5,
-      "median": 695.3,
-      "min": 599.0
+      "max": 701.6,
+      "median": 687.2,
+      "min": 585.8
     }
   }
 }

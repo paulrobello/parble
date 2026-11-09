@@ -7,17 +7,21 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "b95a038f2ee114d69bf190f2e0543a7494787e0e0a35a8463b439e1357d8bb99",
+    "sha256": "2acd4572252f06892d41a12eaa626866c06ae1010343f5d8f220259d6119ede1",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "d1ff95443f40abd5ee4cdd8f704911e193088db5007810ec7586ce7c1542b8c3"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
+    },
+    {
+      "path": "blender/kit/kitblocks.py",
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
     }
   ],
   "authoringAgent": {
@@ -42,32 +46,32 @@
     "channels": {
       "blk_straight_l3_lod0_ao": {
         "colorspace": "Non-Color",
-        "sha256": "c6ceea7771a48331a9e7c1b346001866ef529fd639e2dab7306ad022e30c7530",
+        "sha256": "b66c4e76b7e4a4a6344a92d71a318b1ab414ba7ff0edf2bfe0c664cea9dd51ac",
         "size": 512
       },
       "blk_straight_l3_lod0_normal": {
         "colorspace": "Non-Color",
-        "sha256": "508ef0b46d28817a472c588a8bdbe69a11a76d061dcaa55a418c3552de6f5a69",
+        "sha256": "b371dc6adc1b6716601acca54e9b410ad0a9a59e276325c2a63f0f2893ec9734",
         "size": 512
       },
       "blk_straight_l3_lod1_ao": {
         "colorspace": "Non-Color",
-        "sha256": "eae6d2a60e9d5c57fa70fede354e2557cf16f10f1c959222b085cc1d063ecc14",
+        "sha256": "f11a5405f13e3f3e00d247aa257fe728bbe814b06ee165f910b1670a24a964dc",
         "size": 256
       },
       "blk_straight_l3_lod1_normal": {
         "colorspace": "Non-Color",
-        "sha256": "317574d8a54983fb847a9bd95e463be947360a05584cffac1516dc283c4571bc",
+        "sha256": "d9019a00c2f97499361b406e5b0a58f7fd1f015f4e2a91e2811f0d4ed0532c98",
         "size": 256
       },
       "blk_straight_l3_lod2_ao": {
         "colorspace": "Non-Color",
-        "sha256": "23de7e2f5fb4b9817037aaf184b048a077672306a1bf8a51445d3da690a0dad5",
+        "sha256": "6639d3fd09f93d5d0af7af1e42eff5a02ae5e856c4c6ba194de056b993ce6038",
         "size": 128
       },
       "blk_straight_l3_lod2_normal": {
         "colorspace": "Non-Color",
-        "sha256": "85f239b40bf5ecc784a03f70715cc8602a9ab078bb3effbd927f53a6acd6a69c",
+        "sha256": "a52ba46aa2120cd4b695f09e3f14c890f88414b28f4e41a82e673c2755c5f7b2",
         "size": 128
       }
     }
@@ -93,31 +97,31 @@
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2870.4,
-      "median": 2803.4,
-      "min": 2181
+      "max": 2825.4,
+      "median": 2752.7,
+      "min": 2226.9
     },
     "lod1": {
-      "max": 1425.5,
-      "median": 1398.4,
-      "min": 1083.1
+      "max": 1411.6,
+      "median": 1387.7,
+      "min": 1072.6
     },
     "lod2": {
-      "max": 712.7,
-      "median": 712.6,
-      "min": 644.1
+      "max": 705.4,
+      "median": 705.4,
+      "min": 648.8
     }
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 26312,
+    "glbBytes": 26244,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/blk_straight_l3/blk_straight_l3.glb",
-      "sha256": "cd373561b1e04cba12942fa0f64a2e130ee53df0c06c0283ccb2147e587d3cd0",
-      "bytes": 26312
+      "sha256": "c2b1dd104903a2817262d7d7b8fb38a81a88d8eebfa515986697e567d41250b7",
+      "bytes": 26244
     },
     {
       "path": "assets/kit/blk_straight_l3/blk_straight_l3.kit.json",
@@ -126,43 +130,43 @@
     },
     {
       "path": "assets/kit/blk_straight_l3/blk_straight_l3_lod0_ao.png",
-      "sha256": "c6ceea7771a48331a9e7c1b346001866ef529fd639e2dab7306ad022e30c7530",
-      "bytes": 28449
+      "sha256": "b66c4e76b7e4a4a6344a92d71a318b1ab414ba7ff0edf2bfe0c664cea9dd51ac",
+      "bytes": 27215
     },
     {
       "path": "assets/kit/blk_straight_l3/blk_straight_l3_lod0_normal.png",
-      "sha256": "508ef0b46d28817a472c588a8bdbe69a11a76d061dcaa55a418c3552de6f5a69",
-      "bytes": 41176
+      "sha256": "b371dc6adc1b6716601acca54e9b410ad0a9a59e276325c2a63f0f2893ec9734",
+      "bytes": 31291
     },
     {
       "path": "assets/kit/blk_straight_l3/blk_straight_l3_lod1_ao.png",
-      "sha256": "eae6d2a60e9d5c57fa70fede354e2557cf16f10f1c959222b085cc1d063ecc14",
-      "bytes": 10152
+      "sha256": "f11a5405f13e3f3e00d247aa257fe728bbe814b06ee165f910b1670a24a964dc",
+      "bytes": 8575
     },
     {
       "path": "assets/kit/blk_straight_l3/blk_straight_l3_lod1_normal.png",
-      "sha256": "317574d8a54983fb847a9bd95e463be947360a05584cffac1516dc283c4571bc",
-      "bytes": 13427
+      "sha256": "d9019a00c2f97499361b406e5b0a58f7fd1f015f4e2a91e2811f0d4ed0532c98",
+      "bytes": 11455
     },
     {
       "path": "assets/kit/blk_straight_l3/blk_straight_l3_lod2_ao.png",
-      "sha256": "23de7e2f5fb4b9817037aaf184b048a077672306a1bf8a51445d3da690a0dad5",
-      "bytes": 4034
+      "sha256": "6639d3fd09f93d5d0af7af1e42eff5a02ae5e856c4c6ba194de056b993ce6038",
+      "bytes": 3800
     },
     {
       "path": "assets/kit/blk_straight_l3/blk_straight_l3_lod2_normal.png",
-      "sha256": "85f239b40bf5ecc784a03f70715cc8602a9ab078bb3effbd927f53a6acd6a69c",
-      "bytes": 6184
+      "sha256": "a52ba46aa2120cd4b695f09e3f14c890f88414b28f4e41a82e673c2755c5f7b2",
+      "bytes": 4297
     },
     {
       "path": "assets-source/kit/blk_straight_l3/blk_straight_l3_high.blend",
-      "sha256": "c25e893318e05cdc573b4971e1623463acd7475e0ebe0e44674fd5148079a05e",
-      "bytes": 131545
+      "sha256": "d043b2bf6349b96371c06830459ec94d9553d4a0c7d0491d7c8b099794f92028",
+      "bytes": 131386
     },
     {
       "path": "assets-source/kit/blk_straight_l3/blk_straight_l3_low.blend",
-      "sha256": "32b7627c5ce61e87c0b67b522d33e517143304687aaae23ece788e3e2200a1fb",
-      "bytes": 107676
+      "sha256": "092face47e99957930f47abd76c63fd1ca2ed1d3590485b2466e948cea2df9ef",
+      "bytes": 107554
     }
   ],
   "references": [

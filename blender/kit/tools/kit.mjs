@@ -21,7 +21,7 @@ const SCHEMA = 1;
 const ID_RE = /^(blk|rail|mech|terr|music|deco)_[a-z0-9]+(_[a-z0-9]+)*$/;
 const BUDGET_1CELL_BLOCK = [3000, 1000, 250];
 const COLLISION_TRIS_PER_CELL = 600;
-const CELL = 0.06, INSET = 0.0005;
+const CELL = 0.06, INSET = 0.0002;
 const TOL = 0.0001; // ±0.1 mm (§3.1)
 
 await MeshoptDecoder.ready;
@@ -402,7 +402,7 @@ async function checkPiece(runtime, source, id, opts) {
   for (const p of sc.ports.filter((p) => p.kind === "side")) {
     const [ax, sgn] = FACE[p.face];
     const other = ax === 0 ? 2 : 0;
-    // a spigot's render end is its full length past the face (the 0.5 mm seam is the socket's)
+    // a spigot's render end is its full length past the face (the 0.2 mm seam is the socket's)
     const plane = p.cell[ax] * CELL + sgn * (p.class === "spigot" ? CELL / 2 + p.inset_um * 1e-6 : CELL / 2 - INSET), uC = p.cell[other] * CELL;
     const floor = p.cell[1] * CELL + 0.015 * p.level, cy = floor + 0.014;
     for (const n of lodNames) {

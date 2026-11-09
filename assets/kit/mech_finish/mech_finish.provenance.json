@@ -7,25 +7,29 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "7c2251a18e1a4fb4279da9a2ce54c0b676213eaa9f42e44ae9c4809dcaed3d03",
+    "sha256": "2acd4572252f06892d41a12eaa626866c06ae1010343f5d8f220259d6119ede1",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "fe82520ff25b453ef318332b3b462d271b293e5a33b24e98e217add8ea311a52"
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "2c48f62102a112f0cf58e01301cf1ae46bcb3319a912dcba4494dd0aac63ad3c"
+      "sha256": "dedac9f780aaba48ce740a3a3c53b022b1fc9621b954940ffcfc767c3e8b3a11"
+    },
+    {
+      "path": "blender/kit/kitstepper.py",
+      "sha256": "f88d9ac0af5fe954566a5ca9856529dc2f721164e877e3775901f2cd2a96cc5a"
     }
   ],
   "authoringAgent": {
@@ -50,32 +54,32 @@
     "channels": {
       "mech_finish_lod0_ao": {
         "colorspace": "Non-Color",
-        "sha256": "6adb2049e3f1ff573069ae02071be2df813ad611570f9f967d71efe596875764",
+        "sha256": "4384836145032d803954fe33b8fdcf221e7936b4e21412f1f4441054487af654",
         "size": 512
       },
       "mech_finish_lod0_normal": {
         "colorspace": "Non-Color",
-        "sha256": "d63c1596eac1e369f1c5f9a081c31716e85a3ccd8986634ca305b6b7a72cb80f",
+        "sha256": "ba0f86da4747a91911296dd0ffa11582051cc250154c31680796632c955f9ad7",
         "size": 512
       },
       "mech_finish_lod1_ao": {
         "colorspace": "Non-Color",
-        "sha256": "5edcbd30758481fc4336fd639c5cbcf1c08dd7b045bf3e18e53043c0fa5fe23b",
+        "sha256": "1231ded95ea581d170949a7c74eb0af3d4f597ea63ee06b9bebd7b9cdc9483ce",
         "size": 256
       },
       "mech_finish_lod1_normal": {
         "colorspace": "Non-Color",
-        "sha256": "4f85c7a912f28989391fd6650639e4780e31b54775167a42d38b6358548fbdd4",
+        "sha256": "ba81527ee4b5b55df5a8403f34e556ae5677ee11195da3782bf5d3224e306bec",
         "size": 256
       },
       "mech_finish_lod2_ao": {
         "colorspace": "Non-Color",
-        "sha256": "f915be1df98a303e510f92ccde381355406d1696524e57bb1bb027fbfdeee135",
+        "sha256": "3102b51d224e14fc6fd89f92e683c1189dea14129a70c4fc86fcc03e790986c2",
         "size": 128
       },
       "mech_finish_lod2_normal": {
         "colorspace": "Non-Color",
-        "sha256": "1ecb8cabbc3d2b7d62ebe1b23d3e281c178b33de0af99fdb2e0398835b40c801",
+        "sha256": "7bf74fea0e6cd44835c68d169bfb94b1c3dbe3ff0f42522dfe0e4e3c36c3361d",
         "size": 128
       }
     }
@@ -101,31 +105,31 @@
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2612.2,
-      "median": 2513.9,
-      "min": 1984.9
+      "max": 2876.5,
+      "median": 2613.1,
+      "min": 2218.2
     },
     "lod1": {
-      "max": 1522.2,
-      "median": 1360.5,
-      "min": 1162.6
+      "max": 1302.4,
+      "median": 1259.9,
+      "min": 989.6
     },
     "lod2": {
-      "max": 657.3,
-      "median": 646.1,
-      "min": 526.7
+      "max": 653.5,
+      "median": 636.6,
+      "min": 569.4
     }
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 40496,
+    "glbBytes": 40224,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/mech_finish/mech_finish.glb",
-      "sha256": "e17cce8f1f066d69d9783587cc855d193af027c661381d4080477306aa7f140b",
-      "bytes": 40496
+      "sha256": "8ebdc0d48e22c1fa18a0733650f98248029e8a3c914b86f7209bc256c438ace9",
+      "bytes": 40224
     },
     {
       "path": "assets/kit/mech_finish/mech_finish.kit.json",
@@ -134,43 +138,43 @@
     },
     {
       "path": "assets/kit/mech_finish/mech_finish_lod0_ao.png",
-      "sha256": "6adb2049e3f1ff573069ae02071be2df813ad611570f9f967d71efe596875764",
-      "bytes": 57424
+      "sha256": "4384836145032d803954fe33b8fdcf221e7936b4e21412f1f4441054487af654",
+      "bytes": 68163
     },
     {
       "path": "assets/kit/mech_finish/mech_finish_lod0_normal.png",
-      "sha256": "d63c1596eac1e369f1c5f9a081c31716e85a3ccd8986634ca305b6b7a72cb80f",
-      "bytes": 46659
+      "sha256": "ba0f86da4747a91911296dd0ffa11582051cc250154c31680796632c955f9ad7",
+      "bytes": 36718
     },
     {
       "path": "assets/kit/mech_finish/mech_finish_lod1_ao.png",
-      "sha256": "5edcbd30758481fc4336fd639c5cbcf1c08dd7b045bf3e18e53043c0fa5fe23b",
-      "bytes": 21225
+      "sha256": "1231ded95ea581d170949a7c74eb0af3d4f597ea63ee06b9bebd7b9cdc9483ce",
+      "bytes": 20761
     },
     {
       "path": "assets/kit/mech_finish/mech_finish_lod1_normal.png",
-      "sha256": "4f85c7a912f28989391fd6650639e4780e31b54775167a42d38b6358548fbdd4",
-      "bytes": 19982
+      "sha256": "ba81527ee4b5b55df5a8403f34e556ae5677ee11195da3782bf5d3224e306bec",
+      "bytes": 16633
     },
     {
       "path": "assets/kit/mech_finish/mech_finish_lod2_ao.png",
-      "sha256": "f915be1df98a303e510f92ccde381355406d1696524e57bb1bb027fbfdeee135",
-      "bytes": 6592
+      "sha256": "3102b51d224e14fc6fd89f92e683c1189dea14129a70c4fc86fcc03e790986c2",
+      "bytes": 6757
     },
     {
       "path": "assets/kit/mech_finish/mech_finish_lod2_normal.png",
-      "sha256": "1ecb8cabbc3d2b7d62ebe1b23d3e281c178b33de0af99fdb2e0398835b40c801",
-      "bytes": 11201
+      "sha256": "7bf74fea0e6cd44835c68d169bfb94b1c3dbe3ff0f42522dfe0e4e3c36c3361d",
+      "bytes": 8796
     },
     {
       "path": "assets-source/kit/mech_finish/mech_finish_high.blend",
-      "sha256": "a44f00ec5072a032de81450645774a8d493ea48eede72b2b656a748b3a479936",
-      "bytes": 148956
+      "sha256": "3f2bbdd6ad6438c4b14dfe6db7874cbe5c53eb31ef9a12ebbc6227295054dde5",
+      "bytes": 148466
     },
     {
       "path": "assets-source/kit/mech_finish/mech_finish_low.blend",
-      "sha256": "80a4fe2491c42a0e002546892b9a15f02486de1dea9d744f2ae4702a04c5ee76",
-      "bytes": 117581
+      "sha256": "c9069c5f2329309ebe14f22d272c6677464087dcf5dec5fed26e3e3fea63a621",
+      "bytes": 117111
     }
   ],
   "references": [

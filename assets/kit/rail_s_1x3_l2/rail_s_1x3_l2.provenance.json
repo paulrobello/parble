@@ -7,21 +7,21 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "598168abc009ce13b7e42cfeb7194a4e1bb9939ee13669d3bb565ede5d7dd841",
+    "sha256": "2acd4572252f06892d41a12eaa626866c06ae1010343f5d8f220259d6119ede1",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "4af584be5af2ea3827da638e45c13fbba52ecec08950720b05597f733c591e9e"
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
     },
     {
       "path": "blender/kit/kitrails.py",
@@ -50,32 +50,32 @@
     "channels": {
       "rail_s_1x3_l2_lod0_ao": {
         "colorspace": "Non-Color",
-        "sha256": "4ac6ee7a51da22cf8c3c858084bfbd607655bf108b100fdb5f09405d00153e26",
+        "sha256": "b4fa7da553f814b161db4e24418727900047fefcf3d20007e806eb979c62a184",
         "size": 2048
       },
       "rail_s_1x3_l2_lod0_normal": {
         "colorspace": "Non-Color",
-        "sha256": "0915fd6b2d3009267bb7713eca9cdc4d07b7b3ed2af4cbcfcd60f22ca924a4b1",
+        "sha256": "b9b6dfeb49a09346818b5debaae6800dd49c07f07aba491c85dc35e5f36c5574",
         "size": 2048
       },
       "rail_s_1x3_l2_lod1_ao": {
         "colorspace": "Non-Color",
-        "sha256": "c3edf5541b2b00e23af3352a05254b3514c84a7fe47a4373923236c89539f091",
+        "sha256": "bda3607292298364710f18536adcfd630c390ecb27a8766d51d85bb261335e0a",
         "size": 1024
       },
       "rail_s_1x3_l2_lod1_normal": {
         "colorspace": "Non-Color",
-        "sha256": "9c72b3abbd0dbbdf21ca10b48346f4257fb667ed6f79417f940011fc0186d49e",
+        "sha256": "a66eb48994bf675c5e664b9b820675de463e1dd94f87b77d75b51bbca6e473cc",
         "size": 1024
       },
       "rail_s_1x3_l2_lod2_ao": {
         "colorspace": "Non-Color",
-        "sha256": "64ebd898f1c03213d2015146382797078e0ffce8f703b245c74fb646546b7042",
+        "sha256": "01ae97f48223dffce1a818fda644c0ce3e0c6520c27ca65d862cbac9d5db1cdc",
         "size": 512
       },
       "rail_s_1x3_l2_lod2_normal": {
         "colorspace": "Non-Color",
-        "sha256": "44f6f8ac6380df2c20746ba07648d24c3b47b5525ec91be3186bd9a36dd7ca90",
+        "sha256": "b3d167899b06392d20d7d4c9815f119ab2641b9e475bb8400be01e5a3eb7cf1f",
         "size": 512
       }
     }
@@ -101,31 +101,31 @@
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 10265.6,
-      "median": 9900.5,
-      "min": 8563.8
+      "max": 10237.3,
+      "median": 9873.5,
+      "min": 8540.4
     },
     "lod1": {
-      "max": 5144.6,
-      "median": 4974,
-      "min": 4308.4
+      "max": 5130.5,
+      "median": 4960.4,
+      "min": 4296.5
     },
     "lod2": {
-      "max": 2576.7,
-      "median": 2532.1,
-      "min": 2164.9
+      "max": 2569.6,
+      "median": 2525.1,
+      "min": 2158.9
     }
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 203288,
+    "glbBytes": 203240,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/rail_s_1x3_l2/rail_s_1x3_l2.glb",
-      "sha256": "ce07e931a336ac96548f0e1617d4191bf1285e9196db6486f6f264eaca5e35ac",
-      "bytes": 203288
+      "sha256": "c38f7e68dcc9691319875468b1b7081e35f876d25d5a9211c4d156cdcb3f80a7",
+      "bytes": 203240
     },
     {
       "path": "assets/kit/rail_s_1x3_l2/rail_s_1x3_l2.kit.json",
@@ -134,43 +134,43 @@
     },
     {
       "path": "assets/kit/rail_s_1x3_l2/rail_s_1x3_l2_lod0_ao.png",
-      "sha256": "4ac6ee7a51da22cf8c3c858084bfbd607655bf108b100fdb5f09405d00153e26",
-      "bytes": 955191
+      "sha256": "b4fa7da553f814b161db4e24418727900047fefcf3d20007e806eb979c62a184",
+      "bytes": 953585
     },
     {
       "path": "assets/kit/rail_s_1x3_l2/rail_s_1x3_l2_lod0_normal.png",
-      "sha256": "0915fd6b2d3009267bb7713eca9cdc4d07b7b3ed2af4cbcfcd60f22ca924a4b1",
-      "bytes": 260859
+      "sha256": "b9b6dfeb49a09346818b5debaae6800dd49c07f07aba491c85dc35e5f36c5574",
+      "bytes": 260687
     },
     {
       "path": "assets/kit/rail_s_1x3_l2/rail_s_1x3_l2_lod1_ao.png",
-      "sha256": "c3edf5541b2b00e23af3352a05254b3514c84a7fe47a4373923236c89539f091",
-      "bytes": 280873
+      "sha256": "bda3607292298364710f18536adcfd630c390ecb27a8766d51d85bb261335e0a",
+      "bytes": 280328
     },
     {
       "path": "assets/kit/rail_s_1x3_l2/rail_s_1x3_l2_lod1_normal.png",
-      "sha256": "9c72b3abbd0dbbdf21ca10b48346f4257fb667ed6f79417f940011fc0186d49e",
-      "bytes": 244383
+      "sha256": "a66eb48994bf675c5e664b9b820675de463e1dd94f87b77d75b51bbca6e473cc",
+      "bytes": 244967
     },
     {
       "path": "assets/kit/rail_s_1x3_l2/rail_s_1x3_l2_lod2_ao.png",
-      "sha256": "64ebd898f1c03213d2015146382797078e0ffce8f703b245c74fb646546b7042",
-      "bytes": 91441
+      "sha256": "01ae97f48223dffce1a818fda644c0ce3e0c6520c27ca65d862cbac9d5db1cdc",
+      "bytes": 91298
     },
     {
       "path": "assets/kit/rail_s_1x3_l2/rail_s_1x3_l2_lod2_normal.png",
-      "sha256": "44f6f8ac6380df2c20746ba07648d24c3b47b5525ec91be3186bd9a36dd7ca90",
-      "bytes": 93930
+      "sha256": "b3d167899b06392d20d7d4c9815f119ab2641b9e475bb8400be01e5a3eb7cf1f",
+      "bytes": 94005
     },
     {
       "path": "assets-source/kit/rail_s_1x3_l2/rail_s_1x3_l2_high.blend",
-      "sha256": "22d461d772c5128b6dec15dbfdd84718914759092bc0fed63eae3fc0f7acaa9b",
-      "bytes": 593252
+      "sha256": "44a11b0c491759b758a683ebabd740a5f0dbd90adf001d00507e327d61290c89",
+      "bytes": 595948
     },
     {
       "path": "assets-source/kit/rail_s_1x3_l2/rail_s_1x3_l2_low.blend",
-      "sha256": "24605ee60583a9d664c4ced3b1b9c62d7209fe058d8aecd4955304fdca33fbe4",
-      "bytes": 279614
+      "sha256": "bc5cfe81c92cb68beff9ccb8aaaa97cdb2a059da94edbe27880f9a9bc30da036",
+      "bytes": 279108
     }
   ],
   "references": [

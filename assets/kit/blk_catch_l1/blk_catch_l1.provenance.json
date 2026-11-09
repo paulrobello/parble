@@ -7,7 +7,7 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "9276cc61ec94c1da6189070705a99329f99a4a56b34a9c678741b00262f63829",
+    "sha256": "2acd4572252f06892d41a12eaa626866c06ae1010343f5d8f220259d6119ede1",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
@@ -17,7 +17,7 @@
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
@@ -50,32 +50,32 @@
     "channels": {
       "blk_catch_l1_lod0_ao": {
         "colorspace": "Non-Color",
-        "sha256": "b0f3049af858c2220d234ee71a3ffa5c194e93011b611641d0523ef469758691",
+        "sha256": "e8e63565caa8b6b80f289eeb4e2348338d76c40efb5a51b993cd0e3043790a39",
         "size": 512
       },
       "blk_catch_l1_lod0_normal": {
         "colorspace": "Non-Color",
-        "sha256": "f7d21e46e92c35084b2c2b17346e96975ba513561625c68922f937af5efa8743",
+        "sha256": "7d2abc1b552ca669b9e40da914d9dcf7eaa62e3e902ec7f4b0791fad33c4e669",
         "size": 512
       },
       "blk_catch_l1_lod1_ao": {
         "colorspace": "Non-Color",
-        "sha256": "88e2021a09ed2b591fa1329f2e4cb94b8578f2df5e30c5e28d12e4fbf190faa6",
+        "sha256": "5da65b9339dcaa8b9c4ebdf5dcb6a80eca6d09ee19267dbf36727214a757be8a",
         "size": 256
       },
       "blk_catch_l1_lod1_normal": {
         "colorspace": "Non-Color",
-        "sha256": "648d68451435e8abacce5ad86fc14897c815546977bf5d22e7bac5414946edfc",
+        "sha256": "36bead36d21332ce472ccc87b44157f270905cead76e6da9eaf2628b51056568",
         "size": 256
       },
       "blk_catch_l1_lod2_ao": {
         "colorspace": "Non-Color",
-        "sha256": "26636794f7dead45866df9974bd66cc066d4b06c9edc487fa86be0651c0a2793",
+        "sha256": "aabc78a8b337515f318822b67c928b40fad1ede42044c40b8d13b35592d6a124",
         "size": 128
       },
       "blk_catch_l1_lod2_normal": {
         "colorspace": "Non-Color",
-        "sha256": "7e542d5b5eeb47c7e78c297787fb2a6956dd25efccc87460d00e3c7212803dcf",
+        "sha256": "381d3ebb9980d46867c38d71409f0f170a47185a4dcda4e15cfcec2f276690f7",
         "size": 128
       }
     }
@@ -83,7 +83,7 @@
   "lods": [
     {
       "lod": "blk_catch_l1_lod0",
-      "tris": 2586
+      "tris": 2482
     },
     {
       "lod": "blk_catch_l1_lod1",
@@ -101,31 +101,31 @@
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2838.2,
-      "median": 2730.5,
-      "min": 1991.5
+      "max": 2822.6,
+      "median": 2738.6,
+      "min": 2371.5
     },
     "lod1": {
-      "max": 1466,
-      "median": 1415.7,
-      "min": 1143.8
+      "max": 1413.3,
+      "median": 1363,
+      "min": 1073.9
     },
     "lod2": {
-      "max": 654.2,
-      "median": 643,
-      "min": 550.1
+      "max": 702,
+      "median": 689.9,
+      "min": 590.3
     }
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 104724,
+    "glbBytes": 99848,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/blk_catch_l1/blk_catch_l1.glb",
-      "sha256": "4e40da93140f4646fcf4b3743eb484a3f5a65ce25971e897bcc827a7293558b8",
-      "bytes": 104724
+      "sha256": "42acc3d32bb85c38c3a44442532b6cf420ea9bc5aca1e065b3b58fb0cad1c045",
+      "bytes": 99848
     },
     {
       "path": "assets/kit/blk_catch_l1/blk_catch_l1.kit.json",
@@ -134,43 +134,43 @@
     },
     {
       "path": "assets/kit/blk_catch_l1/blk_catch_l1_lod0_ao.png",
-      "sha256": "b0f3049af858c2220d234ee71a3ffa5c194e93011b611641d0523ef469758691",
-      "bytes": 66358
+      "sha256": "e8e63565caa8b6b80f289eeb4e2348338d76c40efb5a51b993cd0e3043790a39",
+      "bytes": 65563
     },
     {
       "path": "assets/kit/blk_catch_l1/blk_catch_l1_lod0_normal.png",
-      "sha256": "f7d21e46e92c35084b2c2b17346e96975ba513561625c68922f937af5efa8743",
-      "bytes": 55129
+      "sha256": "7d2abc1b552ca669b9e40da914d9dcf7eaa62e3e902ec7f4b0791fad33c4e669",
+      "bytes": 32671
     },
     {
       "path": "assets/kit/blk_catch_l1/blk_catch_l1_lod1_ao.png",
-      "sha256": "88e2021a09ed2b591fa1329f2e4cb94b8578f2df5e30c5e28d12e4fbf190faa6",
-      "bytes": 24029
+      "sha256": "5da65b9339dcaa8b9c4ebdf5dcb6a80eca6d09ee19267dbf36727214a757be8a",
+      "bytes": 20367
     },
     {
       "path": "assets/kit/blk_catch_l1/blk_catch_l1_lod1_normal.png",
-      "sha256": "648d68451435e8abacce5ad86fc14897c815546977bf5d22e7bac5414946edfc",
-      "bytes": 21925
+      "sha256": "36bead36d21332ce472ccc87b44157f270905cead76e6da9eaf2628b51056568",
+      "bytes": 15909
     },
     {
       "path": "assets/kit/blk_catch_l1/blk_catch_l1_lod2_ao.png",
-      "sha256": "26636794f7dead45866df9974bd66cc066d4b06c9edc487fa86be0651c0a2793",
-      "bytes": 6324
+      "sha256": "aabc78a8b337515f318822b67c928b40fad1ede42044c40b8d13b35592d6a124",
+      "bytes": 6881
     },
     {
       "path": "assets/kit/blk_catch_l1/blk_catch_l1_lod2_normal.png",
-      "sha256": "7e542d5b5eeb47c7e78c297787fb2a6956dd25efccc87460d00e3c7212803dcf",
-      "bytes": 8516
+      "sha256": "381d3ebb9980d46867c38d71409f0f170a47185a4dcda4e15cfcec2f276690f7",
+      "bytes": 6742
     },
     {
       "path": "assets-source/kit/blk_catch_l1/blk_catch_l1_high.blend",
-      "sha256": "1b5f682bf593f2123fbfecfd38aea9001a628a91b4b80d520513f14ff313d7ff",
-      "bytes": 359226
+      "sha256": "5a2b0620f9bc6b1df0f40dc349dfd433701f65125b2f71568ca491179810ff4d",
+      "bytes": 356381
     },
     {
       "path": "assets-source/kit/blk_catch_l1/blk_catch_l1_low.blend",
-      "sha256": "4efa31566bc41270b62e0cc1b05f12e67b5b5a44d8f1bffdf78112f7ff1f78a6",
-      "bytes": 196658
+      "sha256": "f43a49dec99b885e06fd1894391709b5deb634f8b6894289db260d2238c2839e",
+      "bytes": 193316
     }
   ],
   "references": [

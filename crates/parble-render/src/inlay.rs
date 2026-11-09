@@ -71,8 +71,8 @@ const fn strip(center: [f32; 3], half: [f32; 3]) -> InlayStrip {
 /// Strip width and how far a strip stands proud of the wood face (half of it is sunk in).
 const W: f32 = 0.0006;
 const D: f32 = 0.0004;
-/// The render body's faces (cell half-width minus the 0.5 mm seam inset).
-const FACE: f32 = 0.0295;
+/// The render body's faces (cell half-width minus the 0.2 mm seam inset).
+const FACE: f32 = 0.0298;
 
 /// `mech_checkpoint_l1`, inlay 0: three upright strips on each side face (±z), at x −15, 0 and
 /// +15 mm. The arch faces (±x) carry none: in a track they abut the neighbouring pieces, so a strip

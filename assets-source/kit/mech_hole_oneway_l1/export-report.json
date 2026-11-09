@@ -3,12 +3,12 @@
   "colliderTris": 154,
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "c4f75d639b933f91f7fc6c3da58452becce0efdde9771e13e44b154b38893155"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
@@ -16,7 +16,7 @@
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "a730a988db2f5e4242d2a619cff9c4eee0d1c306925f2606a35e786e7c56710e"
+      "sha256": "dedac9f780aaba48ce740a3a3c53b022b1fc9621b954940ffcfc767c3e8b3a11"
     },
     {
       "path": "blender/kit/kitstepper.py",
@@ -59,7 +59,7 @@
     }
   },
   "lodTris": {
-    "mech_hole_oneway_l1_lod0": 596,
+    "mech_hole_oneway_l1_lod0": 604,
     "mech_hole_oneway_l1_lod1": 216,
     "mech_hole_oneway_l1_lod2": 108
   },
@@ -96,19 +96,19 @@
   "pieceId": "mech_hole_oneway_l1",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2690.7,
-      "median": 2632.0,
-      "min": 2044.5
+      "max": 2636.8,
+      "median": 2574.6,
+      "min": 1999.8
     },
     "lod1": {
-      "max": 1398.5,
-      "median": 1374.4,
-      "min": 1062.6
+      "max": 1377.6,
+      "median": 1353.9,
+      "min": 1046.7
     },
     "lod2": {
-      "max": 701.3,
-      "median": 700.8,
-      "min": 604.9
+      "max": 693.6,
+      "median": 693.1,
+      "min": 598.3
     }
   }
 }

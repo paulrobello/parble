@@ -3,16 +3,16 @@
   "colliderTris": 312,
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "52d66541d215359b38230d881691fef0056465aa5d5cd90d645cf288678f685f"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "4af584be5af2ea3827da638e45c13fbba52ecec08950720b05597f733c591e9e"
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
     }
   ],
   "lodParams": {
@@ -51,8 +51,8 @@
     }
   },
   "lodTris": {
-    "blk_curve90_l2_lod0": 2258,
-    "blk_curve90_l2_lod1": 426,
+    "blk_curve90_l2_lod0": 2274,
+    "blk_curve90_l2_lod1": 430,
     "blk_curve90_l2_lod2": 142
   },
   "mapSize": {
@@ -72,19 +72,19 @@
   "pieceId": "blk_curve90_l2",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2911.8,
-      "median": 2787.8,
-      "min": 2097.9
+      "max": 2815.1,
+      "median": 2696.7,
+      "min": 2028.4
     },
     "lod1": {
-      "max": 1453.1,
-      "median": 1411.0,
-      "min": 1050.8
+      "max": 1502.6,
+      "median": 1412.1,
+      "min": 1229.5
     },
     "lod2": {
-      "max": 713.1,
-      "median": 701.6,
-      "min": 596.5
+      "max": 705.8,
+      "median": 694.4,
+      "min": 589.9
     }
   }
 }

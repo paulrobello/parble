@@ -3,16 +3,16 @@
   "colliderTris": 76,
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "4af584be5af2ea3827da638e45c13fbba52ecec08950720b05597f733c591e9e"
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
     },
     {
       "path": "blender/kit/kitrails.py",
@@ -73,19 +73,19 @@
   "pieceId": "rail_straight_l2",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 4499.0,
-      "median": 4498.6,
-      "min": 3782.9
+      "max": 4498.2,
+      "median": 4497.9,
+      "min": 3782.4
     },
     "lod1": {
-      "max": 2281.3,
-      "median": 2281.3,
-      "min": 1918.3
+      "max": 2281.4,
+      "median": 2281.4,
+      "min": 1918.4
     },
     "lod2": {
-      "max": 1161.4,
-      "median": 1159.6,
-      "min": 1042.4
+      "max": 1161.2,
+      "median": 1159.5,
+      "min": 1042.3
     }
   }
 }

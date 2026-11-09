@@ -7,29 +7,29 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "3f8bb669497f4df1b3923b8c2c1364c095cb65bf3eeba26f79ce99159f861433",
+    "sha256": "2acd4572252f06892d41a12eaa626866c06ae1010343f5d8f220259d6119ede1",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "742a58fce816a812f9f7be1cdef010277ecb1297b5be758699e4d89201bb8936"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "b8b818b8ee18e1f14d61bf788758f580d8b5675f2a26b3794ada66416664eecb"
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "1ae8561f9adf82b89853646b80065a96d6679bbabb43ff397a6c583bca9bc6de"
+      "sha256": "dedac9f780aaba48ce740a3a3c53b022b1fc9621b954940ffcfc767c3e8b3a11"
     },
     {
       "path": "blender/kit/kitstepper.py",
-      "sha256": "4baef33742d2ea347dad3dae258fbbbe663c0123905487cf25c7ac485a2dacfd"
+      "sha256": "f88d9ac0af5fe954566a5ca9856529dc2f721164e877e3775901f2cd2a96cc5a"
     }
   ],
   "authoringAgent": {
@@ -54,32 +54,32 @@
     "channels": {
       "mech_gate_oneway_l1_lod0_ao": {
         "colorspace": "Non-Color",
-        "sha256": "b40ed542f761f266cb400ef242963f9a8b5351156277fdae19eeb0e0bc364c45",
+        "sha256": "ba8552a0b9c7f9e8fbe6223d05a31ddb03081db012ec57ae08347e29b39cba05",
         "size": 512
       },
       "mech_gate_oneway_l1_lod0_normal": {
         "colorspace": "Non-Color",
-        "sha256": "c419bea4ca19bad86cb2cfb21acdfe81d4617b7432a0ac53fba0e380987d140e",
+        "sha256": "f510aa4cb6f154caa70370a4cb82080caf292989652bf7bb717968c656ed2706",
         "size": 512
       },
       "mech_gate_oneway_l1_lod1_ao": {
         "colorspace": "Non-Color",
-        "sha256": "e8a5b4c39ed1d36cc696a23503ea19f24ed8699bace27bc6ac39c4df69069173",
+        "sha256": "fa5b5879e58bf9cd1de3b11f9b13a10ecb217902f14397b238f0780314f256f8",
         "size": 256
       },
       "mech_gate_oneway_l1_lod1_normal": {
         "colorspace": "Non-Color",
-        "sha256": "a94f4618e711a8724d49612dd0c77899e5ff5e705c766e8aa7fe630d2401cf5e",
+        "sha256": "b840f50901f2137c50dae7c551249beff6c219c5736fba7be7eb783c609de26a",
         "size": 256
       },
       "mech_gate_oneway_l1_lod2_ao": {
         "colorspace": "Non-Color",
-        "sha256": "1d4b8440d8687d9a4dc576eb1a60a7df07bf405c08fa36c4480a685590ad8cc6",
+        "sha256": "2f75e5744ee62a8e3c6646dc489953b5ffd97b3a26e42f42be857fc1f17c6003",
         "size": 128
       },
       "mech_gate_oneway_l1_lod2_normal": {
         "colorspace": "Non-Color",
-        "sha256": "ebdaba2be9fe024288e27bfdef9e28cdd5ba524e013fdf96b0f05054783cc60d",
+        "sha256": "bbc37609061ce06dded17ccb802498477dc2905193bbea3349a88b0588f98bf4",
         "size": 128
       }
     }
@@ -87,7 +87,7 @@
   "lods": [
     {
       "lod": "mech_gate_oneway_l1_lod0",
-      "tris": 460
+      "tris": 468
     },
     {
       "lod": "mech_gate_oneway_l1_lod1",
@@ -105,31 +105,31 @@
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2842.1,
-      "median": 2790.3,
-      "min": 2159.3
+      "max": 2792.7,
+      "median": 2743.4,
+      "min": 2120.9
     },
     "lod1": {
-      "max": 1413.9,
-      "median": 1403.6,
-      "min": 1074.3
+      "max": 1399.9,
+      "median": 1392.5,
+      "min": 1063.7
     },
     "lod2": {
-      "max": 697.2,
-      "median": 697.2,
-      "min": 598.6
+      "max": 692.1,
+      "median": 692.1,
+      "min": 594.2
     }
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 39568,
+    "glbBytes": 39404,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/mech_gate_oneway_l1/mech_gate_oneway_l1.glb",
-      "sha256": "9d5569956341b641be81d0c360e1fe4bf619bcb04c53b15fa7f70921ff718151",
-      "bytes": 39568
+      "sha256": "d3bc66886d6fb1c0a3ffdbc19fe1b0387a81a0eb179bec9da0bae2fa434be4fc",
+      "bytes": 39404
     },
     {
       "path": "assets/kit/mech_gate_oneway_l1/mech_gate_oneway_l1.kit.json",
@@ -138,43 +138,43 @@
     },
     {
       "path": "assets/kit/mech_gate_oneway_l1/mech_gate_oneway_l1_lod0_ao.png",
-      "sha256": "b40ed542f761f266cb400ef242963f9a8b5351156277fdae19eeb0e0bc364c45",
-      "bytes": 57470
+      "sha256": "ba8552a0b9c7f9e8fbe6223d05a31ddb03081db012ec57ae08347e29b39cba05",
+      "bytes": 57635
     },
     {
       "path": "assets/kit/mech_gate_oneway_l1/mech_gate_oneway_l1_lod0_normal.png",
-      "sha256": "c419bea4ca19bad86cb2cfb21acdfe81d4617b7432a0ac53fba0e380987d140e",
-      "bytes": 46262
+      "sha256": "f510aa4cb6f154caa70370a4cb82080caf292989652bf7bb717968c656ed2706",
+      "bytes": 35681
     },
     {
       "path": "assets/kit/mech_gate_oneway_l1/mech_gate_oneway_l1_lod1_ao.png",
-      "sha256": "e8a5b4c39ed1d36cc696a23503ea19f24ed8699bace27bc6ac39c4df69069173",
-      "bytes": 17657
+      "sha256": "fa5b5879e58bf9cd1de3b11f9b13a10ecb217902f14397b238f0780314f256f8",
+      "bytes": 17832
     },
     {
       "path": "assets/kit/mech_gate_oneway_l1/mech_gate_oneway_l1_lod1_normal.png",
-      "sha256": "a94f4618e711a8724d49612dd0c77899e5ff5e705c766e8aa7fe630d2401cf5e",
-      "bytes": 17343
+      "sha256": "b840f50901f2137c50dae7c551249beff6c219c5736fba7be7eb783c609de26a",
+      "bytes": 14578
     },
     {
       "path": "assets/kit/mech_gate_oneway_l1/mech_gate_oneway_l1_lod2_ao.png",
-      "sha256": "1d4b8440d8687d9a4dc576eb1a60a7df07bf405c08fa36c4480a685590ad8cc6",
-      "bytes": 5540
+      "sha256": "2f75e5744ee62a8e3c6646dc489953b5ffd97b3a26e42f42be857fc1f17c6003",
+      "bytes": 5382
     },
     {
       "path": "assets/kit/mech_gate_oneway_l1/mech_gate_oneway_l1_lod2_normal.png",
-      "sha256": "ebdaba2be9fe024288e27bfdef9e28cdd5ba524e013fdf96b0f05054783cc60d",
-      "bytes": 6657
+      "sha256": "bbc37609061ce06dded17ccb802498477dc2905193bbea3349a88b0588f98bf4",
+      "bytes": 4928
     },
     {
       "path": "assets-source/kit/mech_gate_oneway_l1/mech_gate_oneway_l1_high.blend",
-      "sha256": "43fa0e72cd334bea749d54b39d8d2a8d8aa0e31e93abec3859f65b5730252586",
-      "bytes": 143280
+      "sha256": "a475d8c4b5da9deb09627d66abb11fd80f52289ec23020775719bd741ba83925",
+      "bytes": 143464
     },
     {
       "path": "assets-source/kit/mech_gate_oneway_l1/mech_gate_oneway_l1_low.blend",
-      "sha256": "f511fd7bbb6fae6d989a7a95d0b29701d6bee2e7cea9997b4f09d622a8585197",
-      "bytes": 116870
+      "sha256": "15cf0f84eeacac516f67eb415cb026b1c8db2540f8c1e7a6887792c9b02b9dfa",
+      "bytes": 116957
     }
   ],
   "references": [

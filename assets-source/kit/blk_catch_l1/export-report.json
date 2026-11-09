@@ -8,7 +8,7 @@
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
@@ -55,7 +55,7 @@
     }
   },
   "lodTris": {
-    "blk_catch_l1_lod0": 2586,
+    "blk_catch_l1_lod0": 2482,
     "blk_catch_l1_lod1": 562,
     "blk_catch_l1_lod2": 232
   },
@@ -76,19 +76,19 @@
   "pieceId": "blk_catch_l1",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2838.2,
-      "median": 2730.5,
-      "min": 1991.5
+      "max": 2822.6,
+      "median": 2738.6,
+      "min": 2371.5
     },
     "lod1": {
-      "max": 1466.0,
-      "median": 1415.7,
-      "min": 1143.8
+      "max": 1413.3,
+      "median": 1363.0,
+      "min": 1073.9
     },
     "lod2": {
-      "max": 654.2,
-      "median": 643.0,
-      "min": 550.1
+      "max": 702.0,
+      "median": 689.9,
+      "min": 590.3
     }
   }
 }

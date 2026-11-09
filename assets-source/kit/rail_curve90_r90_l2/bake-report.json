@@ -5,32 +5,32 @@
   "channels": {
     "rail_curve90_r90_l2_lod0_ao": {
       "colorspace": "Non-Color",
-      "sha256": "5c7a36ff5fb3a5a942481bcd94ccab4699b22045c931c43cbf1541c8d07ffc48",
+      "sha256": "4805e933437b1ff8aaae514f10bebd2935872ee9fca81a4d3af95c58f629108a",
       "size": 1024
     },
     "rail_curve90_r90_l2_lod0_normal": {
       "colorspace": "Non-Color",
-      "sha256": "6e349ebe65133a68c798f6843b7aed8e64a1f039d20ad3903a3c8177cd01b665",
+      "sha256": "387265776536fd10f5f393212113d6e4b15fa93bc520e4e30ede21f6b3c60250",
       "size": 1024
     },
     "rail_curve90_r90_l2_lod1_ao": {
       "colorspace": "Non-Color",
-      "sha256": "19617987f6a65f3c6c01d6003823fa64710c59ad73c6dc8d6de03e00e36fd89a",
+      "sha256": "9dc4a52a6da552f2f979b3670dd7e87f6c38d6498b3d1bc6d31846f28721c449",
       "size": 512
     },
     "rail_curve90_r90_l2_lod1_normal": {
       "colorspace": "Non-Color",
-      "sha256": "78a03bfc00cadf74bd62ee3be4609535cbe4e8bdd5102059bdfbae84a5fb7c3a",
+      "sha256": "443db33ebf94d58a0cdd2f7bb2c8c66db62870e1e53a7f8263847d67f893710c",
       "size": 512
     },
     "rail_curve90_r90_l2_lod2_ao": {
       "colorspace": "Non-Color",
-      "sha256": "79815b2f476e092b74b4ba629508e30c1227464b84ae465651e02f887b1b7544",
+      "sha256": "32438a7de09e79b142dd219496328fd71bb977010b82d5da681162f09eea022f",
       "size": 256
     },
     "rail_curve90_r90_l2_lod2_normal": {
       "colorspace": "Non-Color",
-      "sha256": "f031b763832ac06b644be22c40a99604a7017299a96922b99acee045547bce91",
+      "sha256": "66b3d03706707b1a82e2d28df13732cea0d37610e978c4b5509d6cf3137b0b05",
       "size": 256
     }
   },

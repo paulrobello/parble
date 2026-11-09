@@ -3,16 +3,16 @@
   "colliderTris": 192,
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "38a1024cd340321b6d6aaea84734940cf44ec7d0e0afa0bd2712568e488566ef"
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
     }
   ],
   "lodParams": {
@@ -51,7 +51,7 @@
     }
   },
   "lodTris": {
-    "blk_drop_l2_lod0": 637,
+    "blk_drop_l2_lod0": 641,
     "blk_drop_l2_lod1": 221,
     "blk_drop_l2_lod2": 117
   },
@@ -72,19 +72,19 @@
   "pieceId": "blk_drop_l2",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 3031.6,
-      "median": 2671.8,
-      "min": 2394.0
+      "max": 2696.1,
+      "median": 2635.1,
+      "min": 2042.5
     },
     "lod1": {
-      "max": 1520.0,
-      "median": 1323.8,
-      "min": 1217.8
+      "max": 1527.6,
+      "median": 1354.0,
+      "min": 1223.9
     },
     "lod2": {
-      "max": 702.2,
-      "median": 701.0,
-      "min": 602.8
+      "max": 695.2,
+      "median": 694.0,
+      "min": 596.8
     }
   }
 }

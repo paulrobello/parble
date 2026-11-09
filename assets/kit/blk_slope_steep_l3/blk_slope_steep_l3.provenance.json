@@ -7,21 +7,21 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "5e438b85ea64fc9433a214167af6c68aff541177c84feb78d5fdd76cee53e8d6",
+    "sha256": "2acd4572252f06892d41a12eaa626866c06ae1010343f5d8f220259d6119ede1",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "b8b818b8ee18e1f14d61bf788758f580d8b5675f2a26b3794ada66416664eecb"
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
     }
   ],
   "authoringAgent": {
@@ -46,32 +46,32 @@
     "channels": {
       "blk_slope_steep_l3_lod0_ao": {
         "colorspace": "Non-Color",
-        "sha256": "5afedbb7c8546af5bbdda19f048b3596c8adf3acad98697f10949d5febae140c",
+        "sha256": "4acafe43f1d10f3a53fee30eba909f1ae71f608c9090a136cbdad100063bb51d",
         "size": 512
       },
       "blk_slope_steep_l3_lod0_normal": {
         "colorspace": "Non-Color",
-        "sha256": "37c35aec24c2be1e1d3164881cdbe47b7abdefe6ce72a30ccf928022ebae7c49",
+        "sha256": "d6161da8b5051d16c11a99487a26119960af27e36ffce69f0fe73d5967174270",
         "size": 512
       },
       "blk_slope_steep_l3_lod1_ao": {
         "colorspace": "Non-Color",
-        "sha256": "0fe60048865a0e7a3f9d079ffb17993dab7bebe5bc0956316accaf5d9b1eaeba",
+        "sha256": "7b8d31da60860127def9d29622cf1da952273eea39146677db87207dd71e0fb6",
         "size": 256
       },
       "blk_slope_steep_l3_lod1_normal": {
         "colorspace": "Non-Color",
-        "sha256": "22d3a09c2fc856aaa6cf8b692bfd3065dc35da2067ceac63883b3a8e4466a849",
+        "sha256": "7ba0d466f3e467446a776d1eadb48db9db7f9e822cbddb523615bd2b272bc333",
         "size": 256
       },
       "blk_slope_steep_l3_lod2_ao": {
         "colorspace": "Non-Color",
-        "sha256": "af5869cd69cb1371e9c7ba9cf66d5a4d60a68771edc574ae75978e979a2370fa",
+        "sha256": "3caee895246e238a4f1294e125db15c5ad37ef29e881b7b567b6eaa8b2f16c46",
         "size": 128
       },
       "blk_slope_steep_l3_lod2_normal": {
         "colorspace": "Non-Color",
-        "sha256": "6963da5d913991c097588ab147c0539103235b20432a1c5f50023bd4905b2eae",
+        "sha256": "ed0d3c4ace07a459a379cdec094cc9fb42eaad0c2aaa8ff644eda2c0addbeb78",
         "size": 128
       }
     }
@@ -79,11 +79,11 @@
   "lods": [
     {
       "lod": "blk_slope_steep_l3_lod0",
-      "tris": 1806
+      "tris": 1810
     },
     {
       "lod": "blk_slope_steep_l3_lod1",
-      "tris": 326
+      "tris": 322
     },
     {
       "lod": "blk_slope_steep_l3_lod2",
@@ -97,31 +97,31 @@
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2797.8,
-      "median": 2703.8,
-      "min": 2125.8
+      "max": 2768.8,
+      "median": 2667.9,
+      "min": 2145.3
     },
     "lod1": {
-      "max": 1410.9,
-      "median": 1380.6,
-      "min": 1072
+      "max": 1394,
+      "median": 1363.6,
+      "min": 1059.2
     },
     "lod2": {
-      "max": 690.9,
-      "median": 686,
-      "min": 586.3
+      "max": 689.7,
+      "median": 684.9,
+      "min": 584.8
     }
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 65104,
+    "glbBytes": 64564,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/blk_slope_steep_l3/blk_slope_steep_l3.glb",
-      "sha256": "7ab3c3603a65484a776a60d598527927a6282356292c007051fea322dc12476d",
-      "bytes": 65104
+      "sha256": "fe2d97bd6bccd740591bd955bd3ef1e0e62eeb3b08b5bd3f87512312251cbe50",
+      "bytes": 64564
     },
     {
       "path": "assets/kit/blk_slope_steep_l3/blk_slope_steep_l3.kit.json",
@@ -130,43 +130,43 @@
     },
     {
       "path": "assets/kit/blk_slope_steep_l3/blk_slope_steep_l3_lod0_ao.png",
-      "sha256": "5afedbb7c8546af5bbdda19f048b3596c8adf3acad98697f10949d5febae140c",
-      "bytes": 43300
+      "sha256": "4acafe43f1d10f3a53fee30eba909f1ae71f608c9090a136cbdad100063bb51d",
+      "bytes": 42249
     },
     {
       "path": "assets/kit/blk_slope_steep_l3/blk_slope_steep_l3_lod0_normal.png",
-      "sha256": "37c35aec24c2be1e1d3164881cdbe47b7abdefe6ce72a30ccf928022ebae7c49",
-      "bytes": 58064
+      "sha256": "d6161da8b5051d16c11a99487a26119960af27e36ffce69f0fe73d5967174270",
+      "bytes": 46921
     },
     {
       "path": "assets/kit/blk_slope_steep_l3/blk_slope_steep_l3_lod1_ao.png",
-      "sha256": "0fe60048865a0e7a3f9d079ffb17993dab7bebe5bc0956316accaf5d9b1eaeba",
-      "bytes": 13996
+      "sha256": "7b8d31da60860127def9d29622cf1da952273eea39146677db87207dd71e0fb6",
+      "bytes": 13726
     },
     {
       "path": "assets/kit/blk_slope_steep_l3/blk_slope_steep_l3_lod1_normal.png",
-      "sha256": "22d3a09c2fc856aaa6cf8b692bfd3065dc35da2067ceac63883b3a8e4466a849",
-      "bytes": 22834
+      "sha256": "7ba0d466f3e467446a776d1eadb48db9db7f9e822cbddb523615bd2b272bc333",
+      "bytes": 19931
     },
     {
       "path": "assets/kit/blk_slope_steep_l3/blk_slope_steep_l3_lod2_ao.png",
-      "sha256": "af5869cd69cb1371e9c7ba9cf66d5a4d60a68771edc574ae75978e979a2370fa",
-      "bytes": 5153
+      "sha256": "3caee895246e238a4f1294e125db15c5ad37ef29e881b7b567b6eaa8b2f16c46",
+      "bytes": 4745
     },
     {
       "path": "assets/kit/blk_slope_steep_l3/blk_slope_steep_l3_lod2_normal.png",
-      "sha256": "6963da5d913991c097588ab147c0539103235b20432a1c5f50023bd4905b2eae",
-      "bytes": 9600
+      "sha256": "ed0d3c4ace07a459a379cdec094cc9fb42eaad0c2aaa8ff644eda2c0addbeb78",
+      "bytes": 8113
     },
     {
       "path": "assets-source/kit/blk_slope_steep_l3/blk_slope_steep_l3_high.blend",
-      "sha256": "8f415b6fa875a6ff665256158027a1794e7cb80eb539ec06fad6934387564197",
-      "bytes": 271072
+      "sha256": "f29827633b4c696d36b7daeb941d5979144c6e82cc90e6bf649e4935e7e55f89",
+      "bytes": 271111
     },
     {
       "path": "assets-source/kit/blk_slope_steep_l3/blk_slope_steep_l3_low.blend",
-      "sha256": "24873716098ffade92cc75e218aaf273c180203fd1d3d49fbd323dd034768635",
-      "bytes": 151153
+      "sha256": "226e098f0e76e9e29289ef04ddb2fe6df9b5414761e34af855ed7f8c214f2ccb",
+      "bytes": 151213
     }
   ],
   "references": [
