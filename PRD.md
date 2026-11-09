@@ -110,6 +110,7 @@ parble-sim-wasm ──► parble-procgen, parble-sim   (wasm-bindgen worker buil
 - Pieces in a chunk merge into one trimesh with `FIX_INTERNAL_EDGES` so marbles never bump at seams. A chunk rebuilds when the track is edited.
 - Mechanisms (toggle, splitter, one-way gate, one-way hole, checkpoint, hopper) are **kinematic**: sensors detect the marble, a state machine decides the outcome (the splitter uses the seeded RNG), and an animated flap with a kinematic collider routes the marble.
 - The redirect drop uses real internal tunnel geometry. The marble never teleports.
+- Controlled free falls are allowed (owner ruling 2026-11-08): a marble may leave a port and fall a short way if its landing is controlled, for example into a catcher, funnel, cup or channel entry below. The validator treats such a drop as a link, not an open port, when the landing piece is within the allowed fall height and horizontal tolerance of the predicted trajectory. A launcher or catapult piece is planned later.
 - Channel floors that a marble rolls or lands on (bends, slopes, joiners, redirect and tower landings) use exact analytic contacts instead of the faceted trimesh, so seams stay under the seam bump limits.
 - A low-speed rolling-resistance model lets slow marbles settle instead of creeping forever (approved 2026-11-08; it moves every golden hash once, deliberately).
 - Marbles keep their natural bounce on landings: the tower landing's sideways wobble is accepted as is (2026-11-08) and revisited only if play feels off.
