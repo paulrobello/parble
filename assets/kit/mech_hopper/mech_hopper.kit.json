@@ -1128,7 +1128,7 @@
   ],
   "id": "mech_hopper",
   "kit_contract": 1,
-  "piece_version": 2,
+  "piece_version": 3,
   "ports": [
     {
       "cell": [

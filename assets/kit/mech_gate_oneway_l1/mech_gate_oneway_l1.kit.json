@@ -690,7 +690,7 @@
   ],
   "id": "mech_gate_oneway_l1",
   "kit_contract": 1,
-  "piece_version": 2,
+  "piece_version": 3,
   "ports": [
     {
       "cell": [

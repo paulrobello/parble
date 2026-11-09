@@ -27,7 +27,7 @@ PIECE_VERSION = 1
 # mech_gate_oneway_l1 2, open port faces.
 # 2026-11-08: mech_finish, mech_hopper, mech_splitter_l3, mech_toggle_l3, mech_checkpoint_l1 2,
 # open port faces.
-PIECE_VERSIONS = {"mech_gate_oneway_l1": 2, "mech_hole_oneway_l1": 2, "mech_finish": 2, "mech_hopper": 2,
+PIECE_VERSIONS = {"mech_gate_oneway_l1": 3, "mech_hole_oneway_l1": 2, "mech_finish": 2, "mech_hopper": 3,
                   "mech_splitter_l3": 2, "mech_toggle_l3": 2, "mech_checkpoint_l1": 2}
 BUILD = ("mech_finish", "mech_hopper", "mech_splitter_l3", "mech_toggle_l3", "mech_checkpoint_l1",
          "mech_gate_oneway_l1", "mech_hole_oneway_l1", "mech_arch_rope_l1") + tuple(S.STEPPERS)

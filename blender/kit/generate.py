@@ -31,6 +31,10 @@ import kitrails as R  # noqa: E402
 SKIP_BAKE = os.environ.get("PARBLE_SKIP_BAKE") == "1"
 DEVICE = os.environ.get("PARBLE_BAKE_DEVICE", "GPU")
 MAP_SIZE = {0: 512, 1: 256, 2: 128}  # §12: 2,048 texels/m -> 512² for a 1-cell block at LOD0
+# Pieces whose animated parts are unwrapped and baked into the body's AO/normal atlas, which the
+# engine binds to the parts at their UV0. Other pieces' parts still unwrap to fill 0..1 on their own
+# and sample unrelated body texels.
+ATLAS_PARTS = {"mech_gate_oneway_l1", "mech_hopper"}
 BAKE = {"samples": 16, "cageExtrusionM": 0.0005, "maxRayDistanceM": 0.002, "marginPx": 8, "aoDistanceM": 0.02}
 
 
@@ -59,9 +63,11 @@ def tri_count(ob):
     return sum(len(p.vertices) - 2 for p in ob.data.polygons)
 
 
-def unwrap(ob):
-    ob.data.uv_layers.new(name="UVMap")
-    select_only([ob])
+def unwrap(ob, *others):
+    """Smart UV Project; with `others`, all of them packed into one shared 0..1 atlas."""
+    for o in (ob, *others):
+        o.data.uv_layers.new(name="UVMap")
+    select_only([ob, *others], ob)
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.uv.smart_project(angle_limit=math.radians(66.0), island_margin=0.01, area_weight=0.0,
@@ -158,6 +164,26 @@ def bake(low, kind, image, highs=()):
             o.hide_render = False
 
 
+def bake_proxy(low, parts, high, coll):
+    """`low` joined with copies of its parts, each part 1 m apart so no AO ray reaches across, plus
+    high-poly targets (`high` and the parts' own copies) at the same offsets. One bake then fills
+    the shared atlas: a second pass would clear or dilate over the first one's islands."""
+    from mathutils import Matrix
+    bpy.context.view_layer.update()
+    lows, highs = [], [high]
+    for i, o in enumerate([low, *parts]):
+        for dst in (lows, highs) if i else (lows,):
+            c = o.copy()
+            c.data = o.data.copy()
+            c.parent = None
+            coll.objects.link(c)
+            c.matrix_world = Matrix.Translation((float(i), 0.0, 0.0)) @ o.matrix_world
+            dst.append(c)
+    select_only(lows, lows[0])
+    bpy.ops.object.join()
+    return lows[0], highs
+
+
 def tree(root):
     out = [root]
     for c in sorted(root.children, key=lambda o: o.name):
@@ -193,18 +219,20 @@ def build_piece(pid, out):
     if ctris > K.COLLISION_TRIS_PER_CELL * ncells:
         raise RuntimeError(f"{pid} collider: {ctris} tris > {K.COLLISION_TRIS_PER_CELL * ncells}")
     G.build_socket_empties(pid, coll, parent=root)
-    part_tris = {}
+    part_tris, part_objs = {}, {}
     if G is M:  # animated parts (P2-T3): §12 budget for all parts together, per LOD
-        for lod, obs in M.build_part_objects(pid, coll, root, mat).items():
+        part_objs = M.build_part_objects(pid, coll, root, mat)
+        for lod, obs in part_objs.items():
             part_tris[f"lod{lod}"] = {o.name: tri_count(o) for o in obs}
             total = sum(part_tris[f"lod{lod}"].values())
             print(f"[kit] {pid} parts LOD{lod}: {total} tris (budget {M.PART_BUDGET[lod]})")
             if total > M.PART_BUDGET[lod]:
                 raise RuntimeError(f"{pid} parts LOD{lod}: {total} tris > {M.PART_BUDGET[lod]}")
-            for o in obs:
-                unwrap(o)
-    for ob in lods.values():
-        unwrap(ob)
+            if pid not in ATLAS_PARTS:
+                for o in obs:
+                    unwrap(o)
+    for lod, ob in lods.items():
+        unwrap(ob, *(part_objs[lod] if pid in ATLAS_PARTS else ()))
     density = {f"lod{lod}": texel_density(ob, map_size(pid, lod)) for lod, ob in lods.items()}
 
     bake_rep = {"skipped": True}
@@ -220,7 +248,13 @@ def build_piece(pid, out):
                 name = f"{pid}_lod{lod}_{kind.lower()}"
                 img = bpy.data.images.new(name, s, s, alpha=False, float_buffer=False)
                 img.colorspace_settings.name = "Non-Color"
-                bake(ob, kind, img, highs)
+                if pid in ATLAS_PARTS:
+                    proxy, phighs = bake_proxy(ob, part_objs[lod], high, coll)
+                    bake(proxy, kind, img, phighs if highs else [])
+                    for o in [proxy, *phighs[1:]]:
+                        bpy.data.objects.remove(o)
+                else:
+                    bake(ob, kind, img, highs)
                 path = out / f"{name}.png"
                 img.filepath_raw = str(path)
                 img.file_format = "PNG"

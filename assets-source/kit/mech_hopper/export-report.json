@@ -3,7 +3,7 @@
   "colliderTris": 177,
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
+    "sha256": "742a58fce816a812f9f7be1cdef010277ecb1297b5be758699e4d89201bb8936"
   },
   "generatorDeps": [
     {
@@ -12,11 +12,15 @@
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "fe82520ff25b453ef318332b3b462d271b293e5a33b24e98e217add8ea311a52"
+      "sha256": "b8b818b8ee18e1f14d61bf788758f580d8b5675f2a26b3794ada66416664eecb"
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "2c48f62102a112f0cf58e01301cf1ae46bcb3319a912dcba4494dd0aac63ad3c"
+      "sha256": "1ae8561f9adf82b89853646b80065a96d6679bbabb43ff397a6c583bca9bc6de"
+    },
+    {
+      "path": "blender/kit/kitstepper.py",
+      "sha256": "4baef33742d2ea347dad3dae258fbbbe663c0123905487cf25c7ac485a2dacfd"
     }
   ],
   "lodParams": {
@@ -90,19 +94,19 @@
   "pieceId": "mech_hopper",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2908.5,
-      "median": 2822.9,
-      "min": 2207.6
+      "max": 2623.9,
+      "median": 2546.6,
+      "min": 1991.5
     },
     "lod1": {
-      "max": 1549.6,
-      "median": 1336.1,
-      "min": 1254.1
+      "max": 1542.5,
+      "median": 1330.0,
+      "min": 1248.3
     },
     "lod2": {
-      "max": 698.0,
-      "median": 680.9,
-      "min": 602.5
+      "max": 660.5,
+      "median": 644.3,
+      "min": 570.1
     }
   }
 }
