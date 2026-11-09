@@ -57,7 +57,8 @@ test("a 40-marble run plays with no audio errors and a bounded voice count", asy
 
   // Every audio fetch carries its version-dist content hash (scripts/web/version-dist.mjs).
   const hashes = await page.evaluate(() => window.__PARBLE_HASHES);
-  expect(audioUrls.length).toBe(loaded.files + 1);
+  // The SFX files and sfx.json; the music player (music.json, one cue) is counted in music.spec.mjs.
+  expect(audioUrls.filter((u) => !/\/audio\/music(\/|\.json)/.test(u.pathname)).length).toBe(loaded.files + 1);
   expect(audioUrls.filter((u) => u.searchParams.get("v") !== hashes[u.pathname.slice(1)]).map(String)).toEqual([]);
 
   await page.locator("#parble-import").setInputFiles({

@@ -6,6 +6,8 @@
 // no wire surface maps to them: the sim has no rug collider (the tray and the open floor are wood
 // slabs and report `wood`), so the audio stream carries only kit surfaces and `marble`. The tunnel rumble
 // ships as a loop layered over a roll while the marble is in a redirect tunnel (`TUNNEL_CUE`).
+// The music loops (P4-T5, scripts/audio/music_loops.py into audition/music-loops) are staged the same
+// way into <out>/music/ with <out>/music.json, which carries each cue's loop points in samples.
 // Runs from `make ui-build` (Trunk's pre_build hook) after Vite, into web/ui/dist/audio.
 // Usage: node scripts/web/stage-audio.mjs <out-dir>
 import { createHash } from "node:crypto";
@@ -95,6 +97,49 @@ export function stage({ picks, manifest, sfxDir, out }) {
   return files;
 }
 
+export const MUSIC_SCHEMA = "parble.music-runtime/1";
+
+/** The music catalog over the music-loops manifest: cue id -> { files, sample rate, loop points }. */
+export function buildMusicCatalog(manifest) {
+  const cues = {};
+  for (const it of [...manifest.items].sort((a, b) => a.cue_id.localeCompare(b.cue_id))) {
+    if (it.issues?.length) throw new Error(`music loop ${it.cue_id} has issues: ${it.issues.join("; ")}`);
+    const r = it.runtime;
+    if (!(r.loop_start_sample > 0 && r.loop_end_sample > r.loop_start_sample && r.samples > r.loop_end_sample))
+      throw new Error(`music loop ${it.cue_id}: bad loop points`);
+    cues[it.cue_id] = {
+      ogg: `music/${it.files.ogg.path}`,
+      m4a: `music/${it.files.m4a.path}`,
+      sampleRate: r.sample_rate,
+      samples: r.samples,
+      loopStart: r.loop_start_sample,
+      loopEnd: r.loop_end_sample,
+    };
+  }
+  return { schema: MUSIC_SCHEMA, cues };
+}
+
+/** Copy the music loops from `dir` into `out`/music and write `out`/music.json. Returns the file count. */
+export function stageMusic({ manifest, dir, out }) {
+  const catalog = buildMusicCatalog(manifest);
+  const hashes = new Map(manifest.items.flatMap((it) => Object.values(it.files).map((f) => [f.path, f.sha256])));
+  rmSync(join(out, "music"), { recursive: true, force: true });
+  mkdirSync(join(out, "music"), { recursive: true });
+  let files = 0;
+  for (const cue of Object.values(catalog.cues)) {
+    for (const rel of [cue.ogg, cue.m4a]) {
+      const name = rel.slice("music/".length);
+      const src = join(dir, name);
+      const sha = createHash("sha256").update(readFileSync(src)).digest("hex");
+      if (sha !== hashes.get(name)) throw new Error(`${src}: sha256 ${sha} does not match the manifest`);
+      copyFileSync(src, join(out, rel));
+      files++;
+    }
+  }
+  writeFileSync(join(out, "music.json"), `${JSON.stringify(catalog)}\n`);
+  return files;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const out = process.argv[2];
   if (!out) {
@@ -105,5 +150,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const picks = JSON.parse(readFileSync(join(root, "docs/audio/audition-picks.json"), "utf8"));
   const manifest = JSON.parse(readFileSync(join(root, "audition/sfx/manifest.json"), "utf8"));
   const n = stage({ picks, manifest, sfxDir: join(root, "audition/sfx"), out });
-  console.log(`stage-audio: ${n} files into ${out}`);
+  const loops = join(root, "audition/music-loops");
+  const music = JSON.parse(readFileSync(join(loops, "manifest.json"), "utf8"));
+  const m = stageMusic({ manifest: music, dir: loops, out });
+  console.log(`stage-audio: ${n} SFX and ${m} music files into ${out}`);
 }

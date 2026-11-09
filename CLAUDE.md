@@ -33,13 +33,15 @@ make run-diag       # native: run 3 s, print the state JSON, exit
 make web-e2e        # build-web + Playwright smoke in GPU Chromium on the 5311 preview (local only)
 make shots-test     # native lockstep look-dev shots, checked against the drawn state (local only)
 make web-editor-perf # opt-in editor perf trace: 2,000 pieces, load-guarded, writes target/perf/p3t4-editor.json
+make music-loops     # rebuild the Suno music loop derivatives into audition/music-loops (+ provenance record)
+make music-soak      # manual 10-minute muted music loop soak in GPU Chromium (local only)
 make perf-gate      # P1-T8 gate: p95 at 1440p High, showcase + stress2000, GPU Chromium + Safari, load-guarded (local only; docs/perf/README.md)
 ```
 
 - Agent switches (native flags, URL query on web, `window.__parble`): `docs/agent-operability.md`.
 
 - `checkall` legs run in fail-fast order. The web/ui legs (Biome, tsc, Vitest) run `npm ci` in `web/ui` only when its lockfile changes.
-- `web/ui` is the TS HUD overlay (Vite) and the Web Audio engine (`web/ui/src/audio`). Trunk's `pre_build` hook runs `make ui-build`, which also stages the approved SFX picks into `web/ui/dist/audio` (`scripts/web/stage-audio.mjs`). The wasm `Bridge` (`crates/parble-app/src/bridge.rs`) and `web/ui/src/bridge.ts` are kept in sync by hand; `web/ui/src/bridge-fixtures.json` is checked by both the Rust tests and Vitest.
+- `web/ui` is the TS HUD overlay (Vite) and the Web Audio engine (`web/ui/src/audio`, with the music player and mixer). Trunk's `pre_build` hook runs `make ui-build`, which also stages the approved SFX picks and the music loops into `web/ui/dist/audio` (`scripts/web/stage-audio.mjs`). The wasm `Bridge` (`crates/parble-app/src/bridge.rs`) and `web/ui/src/bridge.ts` are kept in sync by hand; `web/ui/src/bridge-fixtures.json` is checked by both the Rust tests and Vitest.
 - `checkall-ci` grows as Phase 0 lands: P0-T4 added `determinism-wasm`, P0-T5 `web-size`, P0-T8 `actionlint` (first leg). Keep it a superset of what `.github/workflows/ci.yml` runs.
 - Capture real exit codes when running a gate: `make checkall > /tmp/x.log 2>&1; echo EXIT=$?`. Never trust a piped exit status.
 

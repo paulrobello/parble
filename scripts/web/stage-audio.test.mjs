@@ -6,7 +6,15 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { buildCatalog, isRuntimeCue, MECHANISM_CUES, stage, TUNNEL_CUE } from "./stage-audio.mjs";
+import {
+  buildCatalog,
+  buildMusicCatalog,
+  isRuntimeCue,
+  MECHANISM_CUES,
+  stage,
+  stageMusic,
+  TUNNEL_CUE,
+} from "./stage-audio.mjs";
 
 const sha = (s) => createHash("sha256").update(s).digest("hex");
 
@@ -112,4 +120,58 @@ test("the real picks resolve against the real manifest", () => {
   );
   assert.equal(ids.length, 6 + 18 + 18 + MECHANISM_CUES.length + 1);
   assert.ok(ids.every((id) => c.cues[id].variants.length > 0));
+});
+
+const musicItem = (cue, o = {}) => ({
+  cue_id: cue,
+  issues: [],
+  runtime: { sample_rate: 48000, samples: 1000, loop_start_sample: 100, loop_end_sample: 900 },
+  files: { ogg: { path: `${cue}.ogg`, sha256: sha(`${cue}.ogg`) }, m4a: { path: `${cue}.m4a`, sha256: sha(`${cue}.m4a`) } },
+  ...o,
+});
+
+test("the music catalog carries each loop's points in samples and refuses a flagged or broken loop", () => {
+  const c = buildMusicCatalog({ items: [musicItem("music_title"), musicItem("music_build_calm")] });
+  assert.equal(c.schema, "parble.music-runtime/1");
+  assert.deepEqual(Object.keys(c.cues), ["music_build_calm", "music_title"]);
+  assert.deepEqual(c.cues.music_title, {
+    ogg: "music/music_title.ogg",
+    m4a: "music/music_title.m4a",
+    sampleRate: 48000,
+    samples: 1000,
+    loopStart: 100,
+    loopEnd: 900,
+  });
+  assert.throws(() => buildMusicCatalog({ items: [musicItem("a", { issues: ["seam"] })] }), /has issues/);
+  const bad = musicItem("b", { runtime: { sample_rate: 48000, samples: 900, loop_start_sample: 100, loop_end_sample: 900 } });
+  assert.throws(() => buildMusicCatalog({ items: [bad] }), /bad loop points/);
+});
+
+test("stageMusic copies hash-checked loops next to the SFX and writes music.json", () => {
+  const dir = mkdtempSync(join(tmpdir(), "stage-music-"));
+  try {
+    const manifest = { items: [musicItem("music_run_flow")] };
+    for (const f of Object.values(manifest.items[0].files)) writeFileSync(join(dir, f.path), f.path);
+    const out = join(dir, "out");
+    assert.equal(stageMusic({ manifest, dir, out }), 2);
+    assert.ok(existsSync(join(out, "music/music_run_flow.ogg")));
+    assert.equal(JSON.parse(readFileSync(join(out, "music.json"), "utf8")).cues.music_run_flow.loopEnd, 900);
+    writeFileSync(join(dir, "music_run_flow.m4a"), "tampered");
+    assert.throws(() => stageMusic({ manifest, dir, out }), /does not match/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the real music loops build a catalog of the five cues", () => {
+  const root = new URL("../../", import.meta.url);
+  const manifest = JSON.parse(readFileSync(new URL("audition/music-loops/manifest.json", root), "utf8"));
+  const c = buildMusicCatalog(manifest);
+  assert.deepEqual(Object.keys(c.cues), [
+    "music_build_calm",
+    "music_build_playful",
+    "music_night_lanterns",
+    "music_run_flow",
+    "music_title",
+  ]);
 });

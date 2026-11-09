@@ -128,6 +128,14 @@ web-smoke: build-web $(E2E_STAMP)
 web-e2e: build-web $(E2E_STAMP)
 	cd e2e && ./node_modules/.bin/playwright test
 
+# P4-T5 manual music soak (local only, not in any gate): one muted loop for MUSIC_SOAK_S seconds in GPU
+# Chromium, checked for gaps, restarts and errors (e2e/tests/music.spec.mjs). MUSIC_SOAK_STATE picks the cue.
+MUSIC_SOAK_S ?= 600
+MUSIC_SOAK_STATE ?= run
+.PHONY: music-soak
+music-soak: build-web $(E2E_STAMP)
+	cd e2e && MUSIC_SOAK_S=$(MUSIC_SOAK_S) MUSIC_SOAK_STATE=$(MUSIC_SOAK_STATE) ./node_modules/.bin/playwright test tests/music.spec.mjs -g soak
+
 # P0-T6 agent switches on the native build (docs/agent-operability.md). Both exit by themselves;
 # run-shot exits non-zero unless the PNG shows a lit scene.
 SHOT ?= target/shots/run-shot.png

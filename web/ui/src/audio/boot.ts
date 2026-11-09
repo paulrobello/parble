@@ -1,10 +1,23 @@
 // Browser glue for the audio engine: fetch the staged SFX (web/ui/audio, versioned from
 // window.__PARBLE_HASHES), create and resume the AudioContext on the first user gesture, decode, and
-// expose window.__parbleAudio for drivers (docs/agent-operability.md).
+// expose window.__parbleAudio for drivers (docs/agent-operability.md). The music player (music.ts)
+// rides on the engine's music bus and fetches one cue at a time; the mixer panel (mixer.ts) sets the
+// bus gains.
 
 import { type AudioFrame, decodeEvent } from "../bridge";
 import { type Catalog, decodeCatalog } from "./catalog";
 import { AudioEngine, type AudioStats } from "./engine";
+import { ROLL_MIN_SPEED } from "./mapping";
+import { busGains, type MixerSettings, mountMixer } from "./mixer";
+import {
+  decodeMusicCatalog,
+  MUSIC_STATES,
+  type MusicCatalog,
+  MusicDirector,
+  MusicPlayer,
+  type MusicState,
+  type MusicStats,
+} from "./music";
 
 /** Site path of the staged audio (scripts/web/stage-audio.mjs into web/ui/dist/audio, copied to web/ui). */
 const BASE = "web/ui/audio/";
@@ -24,13 +37,33 @@ export interface AudioDiagStats extends Partial<AudioStats> {
   /** Frames handed over while the context was not running (skipped). */
   skippedFrames: number;
   injected: boolean;
+  music: MusicDiagStats;
+  mixer: MixerSettings;
+  /** The AudioContext's rate (null before the first gesture); decoded music is resampled to it. */
+  sampleRate?: number;
+}
+
+export interface MusicDiagStats extends Partial<MusicStats> {
+  /** Cues in music.json (0 until it loads). */
+  cues: number;
+  /** The pinned state (?music= or musicForce), or null when the director decides. */
+  forced: MusicState | "off" | null;
+  catalogError: boolean;
 }
 
 export interface AudioDiag {
   stats(): AudioDiagStats;
   /** Test hook: decode `raw` as a bridge event and feed it if it is an audioFrame. From then on live bridge frames are ignored. */
   inject(raw: unknown): boolean;
+  /** Test hook: restart the playing music cue at file position `seconds`. */
+  musicSeek(seconds: number): boolean;
+  /** Test hook: pin the music state ("off" silences it), or null to hand it back to the director. */
+  musicForce(state: MusicState | "off" | null): void;
+  /** Test hook: RMS of the music bus over the last 2048 samples (before the master and the mute). */
+  musicLevel(): number;
 }
+
+const MUSIC_PARAM = new Set<string>(["off", ...MUSIC_STATES]);
 
 declare global {
   interface Window {
@@ -58,6 +91,14 @@ async function pool<T>(items: readonly T[], n: number, work: (item: T) => Promis
   await Promise.all(Array.from({ length: Math.min(n, items.length) }, run));
 }
 
+function storageOf(win: Window): Storage | null {
+  try {
+    return win.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export interface AudioHandle {
   consume(frame: AudioFrame): void;
 }
@@ -77,7 +118,18 @@ export function startAudio(win: Window): AudioHandle {
     loadErrors: 0,
     skippedFrames: 0,
     injected: false,
+    music: { cues: 0, forced: null, catalogError: false },
+    mixer: { master: 1, music: 1, sfx: 1, muted: false },
   };
+  const musicParam = new URLSearchParams(win.location.search).get("music");
+  let forced: MusicState | "off" | null =
+    musicParam && MUSIC_PARAM.has(musicParam) ? (musicParam as MusicState | "off") : null;
+  diag.music.forced = forced;
+  const director = new MusicDirector();
+  let musicCatalog: MusicCatalog | null = null;
+  let player: MusicPlayer | null = null;
+  let analyser: AnalyserNode | null = null;
+  let mixer: MixerSettings = diag.mixer;
   let catalog: Catalog | null = null;
   let ctx: AudioContext | null = null;
   let engine: AudioEngine | null = null;
@@ -86,6 +138,43 @@ export function startAudio(win: Window): AudioHandle {
   const loadFail = (what: string, err: unknown): void => {
     diag.loadErrors++;
     console.warn(`parble audio: could not load ${what}`, err);
+  };
+
+  const applyMixer = (s: MixerSettings): void => {
+    mixer = diag.mixer = s;
+    if (!engine) return;
+    const g = busGains(s);
+    for (const bus of ["master", "music", "sfx"] as const) engine.setBusGain(bus, g[bus]);
+  };
+
+  const startMusic = (): void => {
+    if (player || !ctx || !engine || !musicCatalog) return;
+    const c = ctx;
+    const cat = musicCatalog;
+    player = new MusicPlayer(c, engine.bus("music"), cat, async (cue) => {
+      const entry = cat.cues[cue];
+      if (!entry) throw new Error(`no music cue ${cue}`);
+      const r = await fetch(versioned(win, format === "ogg" ? entry.ogg : entry.m4a));
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return c.decodeAudioData(await r.arrayBuffer());
+    });
+  };
+
+  const newEngine = (c: AudioContext, cat: Catalog): AudioEngine => {
+    const e = new AudioEngine(c, { catalog: cat, muted });
+    engine = e;
+    applyMixer(mixer);
+    startMusic();
+    return e;
+  };
+
+  const loadMusic = async (): Promise<void> => {
+    const res = await fetch(versioned(win, "music.json"));
+    if (!res.ok) throw new Error(`music.json: HTTP ${res.status}`);
+    musicCatalog = decodeMusicCatalog(await res.json());
+    if (!musicCatalog) throw new Error("music.json is not a parble.music-runtime/1 catalog");
+    diag.music.cues = Object.keys(musicCatalog.cues).length;
+    startMusic();
   };
 
   const decode = (stem: string, bytes: ArrayBuffer): void => {
@@ -106,7 +195,7 @@ export function startAudio(win: Window): AudioHandle {
     if (!res.ok) throw new Error(`sfx.json: HTTP ${res.status}`);
     catalog = decodeCatalog(await res.json());
     if (!catalog) throw new Error("sfx.json is not a parble.sfx-runtime/1 catalog");
-    if (ctx && !engine) engine = new AudioEngine(ctx, { catalog, muted });
+    if (ctx && !engine) newEngine(ctx, catalog);
     const variants = Object.values(catalog.cues).flatMap((c) => c.variants);
     diag.cues = Object.keys(catalog.cues).length;
     diag.files = variants.length;
@@ -137,7 +226,7 @@ export function startAudio(win: Window): AudioHandle {
       c = ctx = new Ctx({ latencyHint: "interactive" });
       c.onstatechange = syncState;
       diag.state = "starting";
-      if (catalog) engine = new AudioEngine(c, { catalog, muted });
+      if (catalog) newEngine(c, catalog);
       for (const [stem, bytes] of [...raw]) decode(stem, bytes);
     }
     if (c.state !== "running")
@@ -148,15 +237,57 @@ export function startAudio(win: Window): AudioHandle {
   if (Ctx) {
     for (const g of GESTURES) win.addEventListener(g, unlock, true);
     load().catch((err: unknown) => loadFail("the SFX catalog", err));
+    loadMusic().catch((err: unknown) => {
+      diag.music.catalogError = true;
+      console.warn("parble audio: could not load the music catalog", err);
+    });
+    mountMixer(win.document, storageOf(win), applyMixer);
   }
+
+  const steerMusic = (frame: AudioFrame): void => {
+    const state = director.update({
+      now: win.performance.now() / 1000,
+      paused: frame.paused === true,
+      editor: ((win as unknown as { __parble?: { editor?: unknown } }).__parble?.editor ?? null) !== null,
+      moving: frame.rolls.some((r) => r.contact && r.speed > ROLL_MIN_SPEED),
+    });
+    if (!player) return;
+    player.setState(forced ?? state);
+    player.update();
+  };
 
   const feed = (frame: AudioFrame): void => {
     if (engine && ctx?.state === "running") engine.consume(frame);
     else diag.skippedFrames++;
+    steerMusic(frame);
   };
 
   win.__parbleAudio = {
-    stats: () => ({ ...diag, ...(engine ? engine.stats() : {}) }),
+    stats: () => ({
+      ...diag,
+      ...(engine ? engine.stats() : {}),
+      music: { ...diag.music, ...(player ? player.stats() : {}) },
+      mixer: { ...mixer },
+      ...(ctx ? { sampleRate: ctx.sampleRate } : {}),
+    }),
+    musicSeek: (s) => player?.seek(s) ?? false,
+    musicForce: (state) => {
+      forced = diag.music.forced = state;
+      if (state) player?.setState(state);
+    },
+    musicLevel: () => {
+      if (!ctx || !engine) return 0;
+      if (!analyser) {
+        analyser = ctx.createAnalyser();
+        analyser.fftSize = 2048;
+        engine.bus("music").connect(analyser);
+      }
+      const buf = new Float32Array(analyser.fftSize);
+      analyser.getFloatTimeDomainData(buf);
+      let sum = 0;
+      for (const v of buf) sum += v * v;
+      return Math.sqrt(sum / buf.length);
+    },
     inject: (v) => {
       const e = decodeEvent(v);
       if (e?.type !== "audioFrame") return false;

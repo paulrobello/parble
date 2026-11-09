@@ -45,6 +45,8 @@ export const TUNNEL_CUE = "tunnel_rumble";
 const TUNNEL_LEVEL = 1;
 const IMPACT_LEVEL = 0.8;
 export const BUS_DEFAULTS = { master: 0.9, sfx: 1, music: 0.6 } as const;
+/** Bus gain glide time constant, s. */
+const BUS_GLIDE_TC = 0.02;
 export type Bus = keyof typeof BUS_DEFAULTS;
 
 export interface AudioStats {
@@ -194,13 +196,14 @@ export class AudioEngine {
     };
   }
 
-  /** The bus a later music player (P4-T5) or mixer UI connects to. */
+  /** The bus the music player (music.ts) connects to, or the mixer reads. */
   bus(name: Bus): GainNode {
     return this.#bus[name];
   }
 
+  /** Glide bus `name` to `gain` (the mixer): a short time constant so slider moves do not click. */
   setBusGain(name: Bus, gain: number): void {
-    this.#bus[name].gain.value = Math.max(0, gain);
+    this.#bus[name].gain.setTargetAtTime(Math.max(0, gain), this.#ctx.currentTime, BUS_GLIDE_TC);
   }
 
   addBuffer(stem: string, buffer: AudioBuffer): void {
