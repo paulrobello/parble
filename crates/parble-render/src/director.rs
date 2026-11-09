@@ -120,6 +120,8 @@ pub const FRAME_LIFTS: [(f32, f32); 5] =
     [(0.0, 0.0), (0.2, 0.0), (0.4, 0.0), (0.6, 0.0), (0.8, 0.0)];
 /// The follow shot returns to its plain view once that has been clear this long (seconds).
 pub const CLEAR_RELEASE_S: f32 = 0.5;
+/// A camera whose bearing is this far off the shot's own (radians) counts as swung to that side.
+pub const CLEAR_SWUNG: f32 = 0.05;
 /// Acceleration limit of the rise a blend takes when its mixed view looks through solid track
 /// (rad/s²). A blend lasts about a second, so the rise must reach its pace sooner than the follow
 /// yaw's; its rate keeps the follow limit.
@@ -677,7 +679,9 @@ impl Shot {
     /// Picks the clear-view move in play from `moves` (cheapest first) and eases the elevation
     /// towards it with the follow rate limits. `clear` tests a move from where the shot is going,
     /// `blocked_now` says the camera's own eye is blocked (its springs lag), and `off` turns the
-    /// search off (nothing solid, or the marble is meant to be hidden).
+    /// search off (nothing solid). `at` is where the camera is now: its eased elevation and its
+    /// bearing offset from the shot's own bearing.
+    #[allow(clippy::too_many_arguments)]
     fn avoid(
         &mut self,
         off: bool,
@@ -685,6 +689,7 @@ impl Shot {
         dt: f32,
         clear: &dyn Fn((f32, f32)) -> bool,
         blocked_now: bool,
+        at: (f32, f32),
         moves: &[(f32, f32)],
     ) {
         if off {
@@ -709,18 +714,27 @@ impl Shot {
                 0
             };
             if from > 0 || !clear(self.clear) {
-                // A swing under way keeps its side: reversing it while the camera is still on its
-                // way leaves the eased swing where it was, behind the same piece.
-                let side = if from > 0 { self.clear.1 } else { 0.0 };
-                let mut on_side = moves[from.min(moves.len() - 1)..]
-                    .iter()
-                    .copied()
-                    .filter(|c| c.1 * side >= 0.0);
-                let last = on_side
-                    .clone()
-                    .next_back()
-                    .unwrap_or(moves[moves.len() - 1]);
-                self.clear = on_side.find(|c| clear(*c)).unwrap_or(last);
+                // A swing keeps the side the camera is on: reversing it while the camera is still
+                // on its way leaves the eased swing where it was, behind the same piece. An
+                // escalation that runs out of moves keeps the one in play while that is clear
+                // where it is going, else starts again from the cheapest clear one on that side
+                // rather than holding a blocked view, and the other side is tried only while the
+                // camera is at its own bearing.
+                let swung = at.1.abs() >= CLEAR_SWUNG;
+                let side = if swung { at.1 } else { self.clear.1 };
+                let on_side = |c: &(f32, f32)| c.1 * side >= 0.0;
+                let first_clear = |from: usize, side_only: bool| {
+                    moves[from.min(moves.len())..]
+                        .iter()
+                        .copied()
+                        .filter(|c| !side_only || on_side(c))
+                        .find(|c| clear(*c))
+                };
+                self.clear = first_clear(from, true)
+                    .or_else(|| clear(self.clear).then_some(self.clear))
+                    .or_else(|| first_clear(0, true))
+                    .or_else(|| (!swung).then(|| first_clear(0, false))?)
+                    .unwrap_or(self.clear);
             }
         }
         if first {
@@ -870,6 +884,7 @@ impl Shot {
                         sees(view(aim + swing, lift).1) && (blocked_now || sees(view(az, lift).1))
                     },
                     blocked_now,
+                    (self.lift, wrap_angle(az - aim)),
                     &CLEAR_VIEWS,
                 );
                 let (_, eye_t) = view(self.azimuth, self.lift);
@@ -969,7 +984,18 @@ impl Shot {
                     look - forward_of(az + swing, (elevation + lift).min(FOLLOW_MAX_ELEVATION))
                         * dist
                 };
-                let hidden = f.hidden.iter().any(|h| h.contains(m.p));
+                // While the marble is in a hidden path the view must see the exit instead, and a
+                // little way out of it, as the follow shot's does: the camera is then already
+                // round when the marble comes out, rather than easing back from the swing it took
+                // on the way in.
+                let probes: Vec<Vec3> = match f.hidden.iter().find(|h| h.contains(m.p)) {
+                    Some(h) => {
+                        let mid = (h.min + h.max) * 0.5;
+                        let out = Vec3::new(h.exit.x - mid.x, 0.0, h.exit.z - mid.z);
+                        vec![h.exit, h.exit + out.normalize_or_zero() * 0.04]
+                    }
+                    None => vec![m.p, m.p + m.v * 0.25, m.p + m.v * 0.5],
+                };
                 let eye_now = eye_at(self.lift, self.swing);
                 let moves: &[(f32, f32)] = if azimuth.is_some() {
                     &FRAME_LIFTS
@@ -977,16 +1003,15 @@ impl Shot {
                     &CLEAR_VIEWS
                 };
                 self.avoid(
-                    hidden || f.solids.is_empty(),
+                    f.solids.is_empty(),
                     first,
                     dt,
                     &|(lift, swing)| {
                         let e = eye_at(lift, swing);
-                        [m.p, m.p + m.v * 0.25, m.p + m.v * 0.5]
-                            .iter()
-                            .all(|p| line_of_sight(e, *p, f.solids))
+                        probes.iter().all(|p| line_of_sight(e, *p, f.solids))
                     },
-                    !line_of_sight(eye_now, m.p, f.solids),
+                    !line_of_sight(eye_now, probes[0], f.solids),
+                    (self.lift, self.swing),
                     moves,
                 );
                 if first {
