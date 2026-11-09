@@ -42,8 +42,14 @@ pub struct PartFrame {
 }
 
 /// Bands a rope of the rope arch is cut into per LOD: each covers `SEGMENTS / bands` sim
-/// segments. The generator puts strand rings at these heights (`blender/kit/kitmech.py`).
-pub const ROPE_LOD_BANDS: [usize; LODS] = [6, 3, 2];
+/// segments. The generator puts strand rings at these heights (`blender/kit/kitmech.py`). A band
+/// over several segments is drawn as their chord, which cuts the inside of a sharp bend, where the
+/// marble sits, through the clearance the sim keeps, so LOD0 and LOD1 draw one band per segment.
+/// LOD2 keeps two: the §12 part budget (120 triangles for all eight ropes) has no room for six,
+/// and its chords are held to at most a pixel inside the marble where LOD2 starts (`parble_sim`
+/// test `rope_arch_ropes_bend_round_the_marble_and_never_pass_through_it`).
+pub const ROPE_LOD_BANDS: [usize; LODS] =
+    [parble_sim::rope::SEGMENTS, parble_sim::rope::SEGMENTS, 2];
 
 /// Bands per LOD of part `part` of piece `piece`: [`ROPE_LOD_BANDS`] for the rope arch's ropes, 1
 /// for a rigid part.
@@ -365,6 +371,13 @@ mod tests {
         }
         let k = &kits[1];
         for (lod, &bands) in ROPE_LOD_BANDS.iter().enumerate() {
+            if lod < 2 {
+                assert_eq!(
+                    bands,
+                    parble_sim::rope::SEGMENTS,
+                    "lod{lod} draws a band per segment"
+                );
+            }
             assert_eq!(k.lods[lod].len(), bands);
             for mdeg in [-30_000.0_f32, 0.0, 12_500.0] {
                 let seg = [mdeg; parble_sim::rope::SEGMENTS];

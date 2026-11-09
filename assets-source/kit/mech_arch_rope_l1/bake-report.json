@@ -15,12 +15,12 @@
     },
     "mech_arch_rope_l1_lod1_ao": {
       "colorspace": "Non-Color",
-      "sha256": "b125b8915636669c785dbbaf2a216b254df2be35ceb7f93627c211258fec693b",
+      "sha256": "8c1efcc5def989df993fd5677adfcb98b588757c865f09e2014b51318cb4a290",
       "size": 256
     },
     "mech_arch_rope_l1_lod1_normal": {
       "colorspace": "Non-Color",
-      "sha256": "61df9da06dcf2efd66da3637416d68f3fa2a21ad884715c1ba70c61cf4678e71",
+      "sha256": "e079b76e23e3a4a743841fffbcaf6bdd4d98e53ee1495ecc60b3388e14028d55",
       "size": 256
     },
     "mech_arch_rope_l1_lod2_ao": {

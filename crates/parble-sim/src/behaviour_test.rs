@@ -1244,6 +1244,16 @@ fn rope_arch_ropes_swing_away_from_the_marble_and_settle() {
 /// `part_segments`). At every tick of a pass, in both directions and across the speed sweep, no
 /// drawn strand point is inside the marble, and the ropes the marble reaches bend along their
 /// length (their segments differ by more than 20°) rather than turning as sticks.
+///
+/// The far LOD draws each rope as two straight bands, the chords of joints 0–3 and 3–6
+/// (`parble_render::kit::parts::ROPE_LOD_BANDS`), which cut the inside of a bend. That LOD is
+/// drawn only once a 60 mm cell is under 48 × 1.15 px tall at 1440p (`LOD_PX`, `LOD_FADE`), at
+/// most 0.92 px per mm, so the chords may enter the marble by up to a pixel there:
+/// [`FAR_CHORD_INTRUSION_M`].
+/// How far the far LOD's two-band chords may enter the marble: one pixel where that LOD starts
+/// (0.92 px per mm).
+const FAR_CHORD_INTRUSION_M: f32 = 1.0e-3 / 0.92;
+
 #[test]
 fn rope_arch_ropes_bend_round_the_marble_and_never_pass_through_it() {
     let piece = parble_kit::builtin()
@@ -1264,6 +1274,7 @@ fn rope_arch_ropes_bend_round_the_marble_and_never_pass_through_it() {
                 Vector::X * speed * dir,
             );
             let mut worst = f32::MAX;
+            let mut far = f32::MAX;
             let mut bend = [0_i32; 8];
             for _ in 0..600 {
                 sim.tick(1);
@@ -1287,8 +1298,22 @@ fn rope_arch_ropes_bend_round_the_marble_and_never_pass_through_it() {
                             worst = worst.min(gap);
                         }
                     }
+                    for w in [[pts[0], pts[3]], [pts[3], pts[6]]] {
+                        for i in 0..=16 {
+                            let t = i as f32 / 16.0;
+                            let u = w[0].0 + (w[1].0 - w[0].0) * t;
+                            let y = w[0].1 + (w[1].1 - w[0].1) * t;
+                            let p = pivot + Vector::new(u, y, 0.0);
+                            far = far.min((p - c).length() - R - crate::rope::STRAND_R_M);
+                        }
+                    }
                 }
             }
+            assert!(
+                far > -FAR_CHORD_INTRUSION_M,
+                "dir {dir} speed {speed}: a far-LOD chord is {:.2} mm inside the marble",
+                -far * 1.0e3
+            );
             assert!(
                 worst > -1.0e-4,
                 "dir {dir} speed {speed}: a strand point is {:.2} mm inside the marble",

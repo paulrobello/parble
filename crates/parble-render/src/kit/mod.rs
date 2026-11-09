@@ -1418,11 +1418,11 @@ mod tests {
         // Four chunks. The row's two, the lift lane crossing into the second: three (block type,
         // chunk) pairs at 3 draws each, and the toggle, the gate and the stepper at 3 for the body
         // and 3 for their one part each. The rope lane's: a block, and the rope arch at 3 for the
-        // body and, for each of its 8 ropes, one per band of each LOD (6 + 3 + 2). The checkpoint
+        // body and, for each of its 8 ropes, one per band of each LOD (6 + 6 + 2). The checkpoint
         // lane's: the L1 straight and the checkpoint at 3 each.
         assert_eq!(
             chunk_stats(&layout),
-            (4, 3 * 3 + 3 * 6 + 3 + (3 + 8 * 11) + 3 + 3)
+            (4, 3 * 3 + 3 * 6 + 3 + (3 + 8 * 14) + 3 + 3)
         );
         // No parts, no change: the P1-T4 bounds stay.
         for l in [playroom_layout(), stress_layout()] {

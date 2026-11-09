@@ -16,7 +16,7 @@
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "59040698de5578779afe19ff41a4ca955b39c6b049b653b4c794438b5874726c"
+      "sha256": "dedac9f780aaba48ce740a3a3c53b022b1fc9621b954940ffcfc767c3e8b3a11"
     },
     {
       "path": "blender/kit/kitstepper.py",
@@ -121,14 +121,14 @@
       "anim_rope_7_lod0": 164
     },
     "lod1": {
-      "anim_rope_0_lod1": 60,
-      "anim_rope_1_lod1": 60,
-      "anim_rope_2_lod1": 60,
-      "anim_rope_3_lod1": 60,
-      "anim_rope_4_lod1": 60,
-      "anim_rope_5_lod1": 60,
-      "anim_rope_6_lod1": 60,
-      "anim_rope_7_lod1": 60
+      "anim_rope_0_lod1": 62,
+      "anim_rope_1_lod1": 62,
+      "anim_rope_2_lod1": 62,
+      "anim_rope_3_lod1": 62,
+      "anim_rope_4_lod1": 62,
+      "anim_rope_5_lod1": 62,
+      "anim_rope_6_lod1": 62,
+      "anim_rope_7_lod1": 62
     },
     "lod2": {
       "anim_rope_0_lod2": 14,
@@ -149,9 +149,9 @@
       "min": 1997.2
     },
     "lod1": {
-      "max": 1403.8,
-      "median": 1393.6,
-      "min": 1066.6
+      "max": 1323.5,
+      "median": 1313.9,
+      "min": 1005.6
     },
     "lod2": {
       "max": 699.3,

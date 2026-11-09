@@ -33,8 +33,10 @@ PIECE_VERSION = 1
 # mech_stepper_up1_l1 2, mech_stepper_up1_l3 2, animated parts baked into the body's atlas.
 # 2026-11-09: mech_arch_rope_l1 3, each rope's strand cut into bands at the sim's rope segment
 # joints (ROPE_LOD_BANDS), so the renderer bends it along the sim's segments.
+# 2026-11-09: mech_arch_rope_l1 4, six 4-sided bands at LOD1: three drew a sharp bend's chord
+# through the marble. LOD2 keeps two bands (PART_BUDGET).
 PIECE_VERSIONS = {"mech_gate_oneway_l1": 3, "mech_hole_oneway_l1": 4, "mech_finish": 2, "mech_hopper": 3,
-                  "mech_splitter_l3": 3, "mech_toggle_l3": 3, "mech_checkpoint_l1": 2, "mech_arch_rope_l1": 3,
+                  "mech_splitter_l3": 3, "mech_toggle_l3": 3, "mech_checkpoint_l1": 2, "mech_arch_rope_l1": 4,
                   "mech_stepper_up1_l1": 2, "mech_stepper_up1_l3": 2}
 BUILD = ("mech_finish", "mech_hopper", "mech_splitter_l3", "mech_toggle_l3", "mech_checkpoint_l1",
          "mech_gate_oneway_l1", "mech_hole_oneway_l1", "mech_arch_rope_l1") + tuple(S.STEPPERS)
@@ -85,7 +87,7 @@ ROPE_LIMIT_MDEG = 45000  # at 45 degrees a rope's tip stays inside the inset cel
 # ROPE_BAND_STEP larger on odd bands, so the two never share a surface), so the bend's outer side
 # shows no gap.
 ROPE_SEGMENTS = 6
-ROPE_LOD_BANDS = (6, 3, 2)
+ROPE_LOD_BANDS = (6, 6, 2)
 ROPE_OVERLAP = 0.6
 ROPE_BAND_STEP = 0.04
 
@@ -571,8 +573,8 @@ def parts(piece_id, segs=None):
         return [_switch_blade(shape, f0, s)]
     if shape == "arch_rope":  # each rope: a strand from the arch underside and a knot at its end
         # Collision (segs None): the whole strand and knot. Render LODs: banded strands
-        # (_rope_bands), 10 / 6 / 3 sides, the LOD2 one without a knot, inside the part budget.
-        n = 8 if segs is None else (10 if segs >= 12 else 6 if segs >= 5 else 3)
+        # (_rope_bands), 10 / 4 / 3 sides, the LOD2 one without a knot, inside the part budget.
+        n = 8 if segs is None else (10 if segs >= 12 else 4 if segs >= 5 else 3)
         lod = None if segs is None else (0 if segs >= 12 else 1 if segs >= 5 else 2)
         out = []
         for i, (x, z) in enumerate((x, z) for x in ROPE_ROWS_X for z in ROPE_Z):

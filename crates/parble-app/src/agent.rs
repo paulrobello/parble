@@ -222,9 +222,12 @@ pub enum CameraChoice {
     /// A fixed set shot on the mechanism showcase's checkpoint arch (its entry face and side), for
     /// judging its glow inlay.
     Checkpoint,
-    /// A fixed set shot on the mechanism showcase's rope arch from the side, across the ropes'
-    /// swing plane, for judging how the ropes bend round the passing marble.
+    /// A fixed set shot down the mechanism showcase's rope lane into the rope arch, for judging the
+    /// marble's pass under the ropes. The ropes swing towards the camera, so the bend is foreshortened.
     Rope,
+    /// A fixed set shot on the showcase rope arch from 45 degrees off the lane and above, so the
+    /// ropes' swing plane faces the camera, for judging how the ropes bend round the marble.
+    RopeSide,
     /// Fly only, from the opening shot of the scenario's cues: no director, and no key leaves fly
     /// ([`parble_render::camera::FlyOnly`]). The mechanism showcase's default when `--camera` is not
     /// given; not a `--camera` value.
@@ -239,6 +242,7 @@ impl CameraChoice {
             "overview" => Some(Self::Overview),
             "checkpoint" => Some(Self::Checkpoint),
             "rope" => Some(Self::Rope),
+            "rope-side" => Some(Self::RopeSide),
             _ => None,
         }
     }
@@ -246,7 +250,9 @@ impl CameraChoice {
     pub fn mode(self) -> CameraMode {
         match self {
             Self::Orbit => CameraMode::Orbit,
-            Self::Director | Self::Overview | Self::Checkpoint | Self::Rope => CameraMode::Director,
+            Self::Director | Self::Overview | Self::Checkpoint | Self::Rope | Self::RopeSide => {
+                CameraMode::Director
+            }
             Self::FlyOnly => CameraMode::Fly,
         }
     }
@@ -271,6 +277,7 @@ impl CameraChoice {
             (Self::Overview, ..) => Cues::overview(),
             (Self::Checkpoint, ..) => checkpoint_cues(),
             (Self::Rope, ..) => rope_cues(),
+            (Self::RopeSide, ..) => rope_side_cues(),
             (_, Scenario::Kit2000, _) => Cues::kit(),
             (_, Scenario::Playroom, Some(v)) => Cues::playroom(v),
             (_, Scenario::Playroom, None) => Cues::playroom_run(),
@@ -301,14 +308,28 @@ pub fn checkpoint_cues() -> Cues {
     )])
 }
 
-/// One set shot on the showcase rope arch from its +x side and above, looking across the lane
-/// (which runs along −Z) so the ropes' swing plane faces the camera, focused on the ropes.
+/// One set shot on the showcase rope arch from behind the marble's approach (the lane runs along
+/// −Z) and above, looking down the lane into the arch, focused on the ropes.
 pub fn rope_cues() -> Cues {
+    rope_shot(Vec3::new(0.02, 0.065, 0.11))
+}
+
+/// One set shot into the showcase rope arch's entry mouth from about 16 degrees off the lane, −x
+/// of it and at rope height, so the ropes' swing plane (the lane's) shows its bend. The arch's
+/// side walls and roof enclose the curtain, so a steeper side or raised view sees only wood.
+pub fn rope_side_cues() -> Cues {
+    rope_shot(ROPE_SIDE_EYE)
+}
+
+/// [`rope_side_cues`]' eye, from the rope arch's look point.
+pub const ROPE_SIDE_EYE: Vec3 = Vec3::new(-0.017, 0.026, 0.06);
+
+fn rope_shot(offset: Vec3) -> Cues {
     use parble_render::camera::Shot;
     let [x, y, z] = parble_sim::mech_showcase::ROPE_CELL;
     let cell = parble_sim::scene::cell_m();
     let look = Vec3::new(x as f32, y as f32, z as f32) * cell + Vec3::Y * 0.03;
-    let eye = look + Vec3::new(0.02, 0.065, 0.11);
+    let eye = look + offset;
     Cues(vec![(
         0,
         Shot::Set {
@@ -454,7 +475,7 @@ impl AgentOpts {
                     camera_given = true;
                     let v = need(value)?;
                     o.camera = CameraChoice::parse(&v).ok_or_else(|| {
-                        format!("camera: unknown {v:?} (director|orbit|overview|checkpoint|rope)")
+                        format!("camera: unknown {v:?} (director|orbit|overview|checkpoint|rope|rope-side)")
                     })?;
                 }
                 "taa" => o.post.taa = Some(parse_bool(&key, value.as_deref())?),
@@ -1188,6 +1209,9 @@ mod tests {
         let c = args("--scenario mechanisms --camera rope").unwrap();
         assert_eq!(c.camera.mode(), CameraMode::Director);
         assert_eq!(c.camera.cues(c.scenario, None), rope_cues());
+        let c = args("--scenario mechanisms --camera rope-side").unwrap();
+        assert_eq!(c.camera.mode(), CameraMode::Director);
+        assert_eq!(c.camera.cues(c.scenario, None), rope_side_cues());
     }
 
     #[test]
