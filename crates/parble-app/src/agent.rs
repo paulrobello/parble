@@ -222,6 +222,9 @@ pub enum CameraChoice {
     /// A fixed set shot on the mechanism showcase's checkpoint arch (its entry face and side), for
     /// judging its glow inlay.
     Checkpoint,
+    /// A fixed set shot on the mechanism showcase's rope arch from the side, across the ropes'
+    /// swing plane, for judging how the ropes bend round the passing marble.
+    Rope,
     /// Fly only, from the opening shot of the scenario's cues: no director, and no key leaves fly
     /// ([`parble_render::camera::FlyOnly`]). The mechanism showcase's default when `--camera` is not
     /// given; not a `--camera` value.
@@ -235,6 +238,7 @@ impl CameraChoice {
             "orbit" => Some(Self::Orbit),
             "overview" => Some(Self::Overview),
             "checkpoint" => Some(Self::Checkpoint),
+            "rope" => Some(Self::Rope),
             _ => None,
         }
     }
@@ -242,7 +246,7 @@ impl CameraChoice {
     pub fn mode(self) -> CameraMode {
         match self {
             Self::Orbit => CameraMode::Orbit,
-            Self::Director | Self::Overview | Self::Checkpoint => CameraMode::Director,
+            Self::Director | Self::Overview | Self::Checkpoint | Self::Rope => CameraMode::Director,
             Self::FlyOnly => CameraMode::Fly,
         }
     }
@@ -266,6 +270,7 @@ impl CameraChoice {
             (_, Scenario::Stress2000, _) => stress_cues(),
             (Self::Overview, ..) => Cues::overview(),
             (Self::Checkpoint, ..) => checkpoint_cues(),
+            (Self::Rope, ..) => rope_cues(),
             (_, Scenario::Kit2000, _) => Cues::kit(),
             (_, Scenario::Playroom, Some(v)) => Cues::playroom(v),
             (_, Scenario::Playroom, None) => Cues::playroom_run(),
@@ -286,6 +291,24 @@ pub fn checkpoint_cues() -> Cues {
     let cell = parble_sim::scene::cell_m();
     let look = Vec3::new(x as f32, y as f32, z as f32) * cell + Vec3::Y * 0.028;
     let eye = look + Vec3::new(-0.10, 0.07, 0.17);
+    Cues(vec![(
+        0,
+        Shot::Set {
+            eye: eye.to_array(),
+            look: look.to_array(),
+            focus_m: eye.distance(look),
+        },
+    )])
+}
+
+/// One set shot on the showcase rope arch from its +x side and above, looking across the lane
+/// (which runs along −Z) so the ropes' swing plane faces the camera, focused on the ropes.
+pub fn rope_cues() -> Cues {
+    use parble_render::camera::Shot;
+    let [x, y, z] = parble_sim::mech_showcase::ROPE_CELL;
+    let cell = parble_sim::scene::cell_m();
+    let look = Vec3::new(x as f32, y as f32, z as f32) * cell + Vec3::Y * 0.03;
+    let eye = look + Vec3::new(0.02, 0.065, 0.11);
     Cues(vec![(
         0,
         Shot::Set {
@@ -431,7 +454,7 @@ impl AgentOpts {
                     camera_given = true;
                     let v = need(value)?;
                     o.camera = CameraChoice::parse(&v).ok_or_else(|| {
-                        format!("camera: unknown {v:?} (director|orbit|overview|checkpoint)")
+                        format!("camera: unknown {v:?} (director|orbit|overview|checkpoint|rope)")
                     })?;
                 }
                 "taa" => o.post.taa = Some(parse_bool(&key, value.as_deref())?),
@@ -1158,6 +1181,13 @@ mod tests {
             assert_eq!(o.camera.mode(), CameraMode::Director, "{name}");
         }
         assert_eq!(AgentOpts::default().camera, CameraChoice::Director);
+    }
+
+    #[test]
+    fn rope_camera_parses() {
+        let c = args("--scenario mechanisms --camera rope").unwrap();
+        assert_eq!(c.camera.mode(), CameraMode::Director);
+        assert_eq!(c.camera.cues(c.scenario, None), rope_cues());
     }
 
     #[test]
