@@ -338,6 +338,17 @@ impl ChannelBend {
     /// tube continues straight, as the mating straight does, so a ball leaving the bend while
     /// still touching a bend triangle sees no torus curving away under it.
     fn contact(&self, c: Vector, r: f32) -> Option<(Vector, f32)> {
+        let axis = self.axis_point(c)?;
+        let off = (axis - c).length();
+        if off <= 0.0 {
+            return None;
+        }
+        Some(((axis - c) / off, FACET_TUBE_RADIUS_M - r - off))
+    }
+
+    /// The point of the bend's axis (or its straight continuation past a port) nearest the ball
+    /// centre `c`, metres.
+    fn axis_point(&self, c: Vector) -> Option<Vector> {
         let m = |v: i64| v as f32 * 1.0e-6;
         let (cx, cz, ay) = (
             m(self.centre_um[0]),
@@ -359,11 +370,7 @@ impl ChannelBend {
             }
             Vector::new(cx, ay, cz) + plan * (bend_r / d)
         };
-        let off = (axis - c).length();
-        if off <= 0.0 {
-            return None;
-        }
-        Some(((axis - c) / off, FACET_TUBE_RADIUS_M - r - off))
+        Some(axis)
     }
 }
 
@@ -372,6 +379,42 @@ impl ChannelBend {
 /// (§5.4). A marble on a straight rests on the two facets beside the bottom crease at their
 /// midlines, so where it passes from facet contacts to the exact tube the floor does not move.
 pub(crate) const FACET_TUBE_RADIUS_M: f32 = 0.013_932_586;
+
+/// Sine and cosine of the half-round facets' midline angles from straight down, 5.625° +
+/// 11.25° k for k = 0..8 (one side of the section; the other mirrors it).
+const FACET_MIDLINES: [(f32, f32); 8] = [
+    (0.098_017_14, 0.995_184_7),
+    (0.290_284_7, 0.956_940_3),
+    (0.471_396_74, 0.881_921_3),
+    (0.634_393_3, 0.773_010_4),
+    (0.773_010_4, 0.634_393_3),
+    (0.881_921_3, 0.471_396_74),
+    (0.956_940_3, 0.290_284_7),
+    (0.995_184_7, 0.098_017_14),
+];
+
+/// The contact of a ball (centre `c`, radius `r`, metres) with the faceted channel section about
+/// the axis point `axis` (on the channel axis, in the section through `c`): the normal from the
+/// nearest of the 16 half-round facets toward the ball, and the gap (negative when penetrating).
+/// The section is the collision mesh's own (contract §5.4: 17 vertices at 11.25° steps, one at
+/// the bottom crease). A ball exactly on the axis plane rests on both crease facets: one
+/// vertical contact at their height.
+fn facet_contact(axis: Vector, c: Vector, r: f32) -> Option<(Vector, f32)> {
+    let d = c - axis;
+    let plan = Vector::new(d.x, 0.0, d.z);
+    let u = plan.length();
+    let (mut gap, mut best) = (f32::INFINITY, FACET_MIDLINES[0]);
+    for (sin, cos) in FACET_MIDLINES {
+        let g = FACET_TUBE_RADIUS_M - (u * sin - d.y * cos) - r;
+        if g < gap {
+            (gap, best) = (g, (sin, cos));
+        }
+    }
+    if u <= 0.0 {
+        return Some((Vector::Y, gap / best.1));
+    }
+    Some((Vector::Y * best.1 - plan * (best.0 / u), gap))
+}
 
 /// A one-cell channel junction: three or more channel side ports at one level, as on the joiner
 /// (in at −x and −z, out at +x) and the forks (in at −x, out at ±z). Its channel is the union of
@@ -394,6 +437,9 @@ pub struct ChannelJunction {
     pub axis_y_um: i64,
     /// World µm `(min x, min z)` of the junction's cell.
     pub cell_min_um: [i64; 2],
+    /// Whether the contact follows the faceted channel section rather than the round tube (the
+    /// forks).
+    pub faceted: bool,
 }
 
 /// Tolerance of [`ChannelJunction::holds`], µm: over the 144 µm sag of a bend's 8 path facets
@@ -406,23 +452,14 @@ impl ChannelJunction {
         let ports = def.ports.as_slice();
         let level = ports.first()?.level?;
         let side = |f: PortFace| !matches!(f, PortFace::Top | PortFace::Bottom);
-        // The forks (a moving blade at the crotch) keep the mesh contact for now. With the exact
-        // contact their inlet seam meets the thresholds (kick 0.56 mm/s against 73.40) and the
-        // blade is untouched (the ball-blade pair is not a chunk pair, so this hook never sees
-        // it), but the splitter's -z outlet seam goes from 6.67 to 15.35 mm/s upward (limit
-        // 15.15): its outlet straight is in the next chunk, and over the first 10 mm past the seam
-        // the vertical speed alternates by 6-15 mm/s a tick, where the junction contact's 16 mm
-        // reach past the cell overlaps that chunk's mesh contact. An 8 mm reach brings both fork
-        // outlets under the limits (splitter 8.79, toggle 13.48) but takes the joiner's -x inlet
-        // kick from 0.31 to 19.97 (limit 24.25), so it was not taken (measured 2026-11-08 in
-        // `block_seam_test`). The all-pieces track runs clean with it
-        // (10 of 10 in a cup). The earlier all-pieces failure, before the redirect exit and
-        // landing changes, was the one-way hole's: a slow marble (0.14 m/s) and the next one
-        // collided on the door, the second rested between the hole's two sensors for 300 ticks,
-        // past `HEADING_FORGET_TICKS`, and when a third pushed it into `trap` it counted as a
-        // trap-side marble, the door opened and both fell through.
-        if !piece.animated_parts.is_empty()
-            || def.footprint.len() != 1
+        // The forks (a moving blade at the crotch) take the exact contact on the faceted section
+        // ([`ChannelJunction::faceted`]); the blade is untouched (the ball-blade pair is not a
+        // chunk pair, so this hook never sees it). Against the mesh contact the splitter's -z
+        // outlet seam goes from upward 3.51 / kick 3.61 to 2.62 / 0.70 mm/s (limit 2.19, still
+        // over) and its fork interior from 80.10 / 65.47 to 14.10 / 26.89; the round tube took
+        // the outlet to 15.35. An 8 mm reach on the faceted forks takes it to 15.09 (measured
+        // 2026-11-08 in `block_seam_test`).
+        if def.footprint.len() != 1
             || ports.len() < 3
             || ports
                 .iter()
@@ -473,6 +510,7 @@ impl ChannelJunction {
             straights,
             axis_y_um: world([0, axis_y, 0])[1],
             cell_min_um,
+            faceted: !piece.animated_parts.is_empty(),
         })
     }
 
@@ -511,12 +549,21 @@ impl ChannelJunction {
             } else {
                 Vector::new(m(at), ay, c.z)
             };
+            if self.faceted {
+                return facet_contact(axis_point, c, r);
+            }
             let off = (axis_point - c).length();
             (off > 0.0).then(|| ((axis_point - c) / off, FACET_TUBE_RADIUS_M - r - off))
         });
         self.bends
             .iter()
-            .filter_map(|b| b.contact(c, r))
+            .filter_map(|b| {
+                if self.faceted {
+                    facet_contact(b.axis_point(c)?, c, r)
+                } else {
+                    b.contact(c, r)
+                }
+            })
             .chain(straight)
             .max_by(|a, b| a.1.total_cmp(&b.1))
     }
