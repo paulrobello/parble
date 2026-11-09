@@ -2,11 +2,12 @@
 //!
 //! Coulomb rolling resistance ([`crate::marble::apply_rolling_resistance`]) decelerates a marble
 //! rolling on the level at 5/7·c_rr·g, 14.0 mm/s² for a cat's eye. Each case below rolls a marble
-//! slowly over one contact type twice, with and without rolling resistance, and takes the
-//! deceleration rolling resistance adds as the difference of the two runs' speed slopes over the
-//! ticks both spend in the case's window. Dividing by the normal load the control run's motion
-//! needs (|a − g| / g, about 1 on the level and on these slow bends) gives the level-equivalent
-//! deceleration, so the slope is compared on the same terms.
+//! slowly over one contact type twice, with and without rolling resistance, and compares the two
+//! runs at the same place (see [`deceleration`]): the ½v² the run with rolling resistance has lost
+//! against the control grows by the deceleration per metre travelled. Dividing by the normal load
+//! that run's motion needs (|a − g| / g averaged over path length, about 1 on the level and on
+//! these slow bends) gives the level-equivalent deceleration. The control loads the rolling
+//! resistance with every manifold point's impulse, stale ones included, as before 2026-11-08.
 
 use crate::marble::{CATS_EYE, G};
 use crate::{DT, MarbleState, Sim};
@@ -76,7 +77,7 @@ fn cases() -> Vec<Case> {
             // The slope's exact contact owns the ball from a ball diameter before its cell, on the
             // level end of the straight before it: the level-equivalent of the slope contact. On
             // the descent itself (x 30..78 mm, gravity cancelled by matching x) it measures 12.47
-            // mm/s² (12.39 for its 1.06 g mean load) and 16.42 with the stale load, while the
+            // mm/s² (12.39 for its 1.01 g mean load) and 16.42 with the stale load, while the
             // solved load matches the |a − g| the motion needs to 0.01 g every tick.
             name: "slope (blk_slope_gentle_l3 exact contact, level lead-in)",
             layout: vec![
