@@ -471,11 +471,9 @@ fn check(h: &HandOver) -> Result<(), String> {
     if h.on_slat != up || h.out.is_none() {
         return Err(format!("not one slat per cycle to the exit: {h:?}"));
     }
-    // The roll-back must leave the marble on its slat (`roll_back_bar_m`). Its largest source is
-    // not a riser bounce: a descending moving slat's top corner sweeps down over the shoulder of a
-    // marble at rest on the fixed slat behind it and pushes it back (measured 2026-11-08, L1:
-    // 0.106 m/s from rest on stock Rapier, 1.79 mm; 0.140 m/s with the vendored contact fix,
-    // 3.48 mm, bar 3.75). Stepper card 01a1be6d632e739eab5629999a2a6244 tracks the push.
+    // The roll-back must leave the marble on its slat (`roll_back_bar_m`). A descending slat's top
+    // edge once swept over the shoulder of a marble at rest against it and pushed it back (L1:
+    // 3.48 mm); `the_descending_slats_never_push_a_resting_marble_back` keeps that out.
     if h.roll_back > h.roll_back_bar {
         return Err(format!(
             "rolled back {} m over the {} m the slat holds: {h:?}",
@@ -584,5 +582,85 @@ fn the_roll_back_bar_is_the_slat_depth_less_the_contact_margin() {
         h.roll_back = 0.001;
         h.onto_previous = true;
         assert!(check(&h).is_err(), "{piece}: onto the previous slat passed");
+    }
+}
+
+/// What the moving slats did to the marble while they descended and its centre was over a fixed
+/// slat's own top: the contact impulse (N s) on normals that point down into the marble (the slat
+/// edge sweeping over its shoulder), the impulse on every other moving-slat normal (the riser it
+/// rests against on the slope), and the most negative x velocity it reached (m/s).
+fn downstroke_contacts(piece: &str, entry: &str, floor: f32) -> (f32, f32, f32) {
+    let def = parble_kit::builtin()
+        .piece(&PieceId::new(piece).unwrap())
+        .unwrap();
+    let cols = moving_columns(def);
+    let mut sim = hand_over_rig(piece, entry, None);
+    launch_at(&mut sim, floor, 0.3);
+    let (mut prev, mut sweep, mut rest, mut min_vx) = (0, 0.0f32, 0.0f32, 0.0f32);
+    for _ in 0..6_000u32 {
+        sim.tick(1);
+        let at = slats(&sim);
+        let h = sim.marbles[0];
+        let ch = sim.world.bodies[h].colliders()[0];
+        let x = sim.world.bodies[h].translation().x;
+        let on_fixed = cols.windows(2).any(|w| x > w[0].1 && x < w[1].0);
+        if at < prev && on_fixed {
+            for pair in sim.world.narrow_phase.contact_pairs_with(ch) {
+                let (other, toward) = if pair.collider1 == ch {
+                    (pair.collider2, -1.0)
+                } else {
+                    (pair.collider1, 1.0)
+                };
+                let moving = sim.world.colliders[other]
+                    .parent()
+                    .is_some_and(|b| sim.world.bodies[b].is_kinematic());
+                if !moving {
+                    continue;
+                }
+                for m in pair.manifolds() {
+                    // Manifold normals point from collider 1 to 2; `n` points into the marble.
+                    let n = m.data.normal * toward;
+                    let imp: f32 = m.points.iter().map(|p| p.data.impulse).sum();
+                    if n.y < -0.05 {
+                        sweep += imp;
+                    } else {
+                        rest += imp;
+                    }
+                }
+            }
+            min_vx = min_vx.min(sim.world.bodies[h].linvel().x);
+        }
+        prev = at;
+        if x > EXIT_X + 0.25 * CELL {
+            break;
+        }
+    }
+    (sweep, rest, min_vx)
+}
+
+#[test]
+fn the_descending_slats_never_push_a_resting_marble_back() {
+    // A marble at rest on a fixed slat leans on the riser ahead, the next moving slat's back face,
+    // while that slat descends past it. The face's top edge sweeps down over the marble's shoulder;
+    // its double-sided top triangle once gave a contact with a normal down into the marble, and
+    // the slat's drive shoved the marble back toward the entry (measured 2026-11-08: L1 from rest
+    // to -0.140 m/s in one tick, 3.48 mm roll-back; L3 -0.092 m/s, 1.45 mm). Slide parts now take
+    // Parry's edge pseudo-normals (`FIX_INTERNAL_EDGES`), so the only slat contact left is the
+    // horizontal riser holding the marble on the slope.
+    for (piece, entry, floor) in STEPPERS {
+        let (sweep, rest, min_vx) = downstroke_contacts(piece, entry, floor);
+        eprintln!("{piece}: sweep {sweep:e} N s, riser {rest:e} N s, min vx {min_vx} m/s");
+        assert_eq!(
+            sweep, 0.0,
+            "{piece}: the descending slat edge pushed the marble"
+        );
+        assert!(rest > 0.0, "{piece}: the marble never leaned on the riser");
+        assert!(min_vx > -0.002, "{piece}: pushed back to {min_vx} m/s");
+        let h = hand_over(piece, entry, floor, None);
+        assert!(
+            h.roll_back < 0.001,
+            "{piece}: rolled back {} m",
+            h.roll_back
+        );
     }
 }

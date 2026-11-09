@@ -736,7 +736,15 @@ impl Mechanisms {
                     .iter()
                     .map(|&[a, b, c]| if mirrored { [a, c, b] } else { [a, b, c] })
                     .collect();
-                let collider = ColliderBuilder::trimesh(vertices, triangles)
+                // A slide part's top edge sweeps past a marble resting against its face; without
+                // the edge pseudo-normals that edge's double-sided triangle contact points down
+                // into the marble and the slide's motion shoves it back (stepper slats).
+                let flags = if part.joint == Joint::Slide {
+                    TriMeshFlags::FIX_INTERNAL_EDGES
+                } else {
+                    TriMeshFlags::empty()
+                };
+                let collider = ColliderBuilder::trimesh_with_flags(vertices, triangles, flags)
                     .map_err(|_| MechanismError::PartMesh {
                         part: pi,
                         group: gi,
