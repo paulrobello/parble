@@ -1217,6 +1217,10 @@ impl Sim {
         seed: u64,
         behaviour: Box<dyn Mechanism>,
     ) -> Result<InstanceId, MechanismError> {
+        #[cfg(test)]
+        let swapped = crate::fork_contact_test::blade_override(piece);
+        #[cfg(test)]
+        let piece = swapped.as_ref().unwrap_or(piece);
         self.mechanisms.add(
             &mut self.world,
             self.tick,

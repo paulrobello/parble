@@ -31,6 +31,12 @@
 //! The prototype also fails 8 sim tests D1 alone passes (stepper climb, straight_to_slope_join,
 //! both tower drop tests, rail contacts, the bend-row rest control, the showcase toggle shot, the
 //! playroom hash); D1 alone fails the 7 all-pieces runs.
+//!
+//! In the tree since 191b7c8: the straights take the exact tube (`chunk::ChannelStraight`) and the
+//! forks a round junction whose two arcs are blended within 50 um of the crotch ridge
+//! (`chunk::ChannelJunction::fork`), so a centred marble has no side bias. [`Blade`] and
+//! `behaviour::tests::fork_blade_sweep` swap the fork blade's collider for a fan prism built like
+//! kitmech's, to score blade designs without a kit build.
 
 use crate::behaviour::{SPLITTER, TOGGLE, registry};
 use crate::marble::{MarbleKind, MarbleSize, MarbleSpec};
@@ -392,4 +398,108 @@ fn fork_outlet_dump() {
         touches: ts,
     };
     dump(&t, env_usize("FORK_FROM", 0), env_usize("FORK_TO", 900));
+}
+
+/// A straight fork blade for the blade sweep (`behaviour::tests::fork_blade_sweep`): hinged
+/// about +Y at piece-local `(pivot_x_mm, floor, 0)`, its tip `len_mm` upstream, swinging to
+/// `±limit_deg`, 2 mm thick and 14 mm tall, its underside 0.5 mm over the exact fork floor
+/// everywhere in the sweep (as kitmech's `BLADE_UNDER`).
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Blade {
+    pub pivot_x_mm: f32,
+    pub len_mm: f32,
+    pub limit_deg: f32,
+    /// Underside clearance over the floor, mm (kitmech: 0.5).
+    pub clear_mm: f32,
+}
+
+thread_local! {
+    static BLADE: std::cell::Cell<Option<Blade>> = const { std::cell::Cell::new(None) };
+}
+
+/// Make [`blade_override`] replace the fork parts' blade with `b` on this thread (`None`: the
+/// sidecar's).
+pub(crate) fn set_blade(b: Option<Blade>) {
+    BLADE.with(|c| c.set(b));
+}
+
+/// The fork piece with the blade set by [`set_blade`], for `Sim::add_mechanism`.
+pub(crate) fn blade_override(piece: &parble_kit::KitPiece) -> Option<parble_kit::KitPiece> {
+    let b = BLADE.with(|c| c.get())?;
+    let id = piece.def.id.as_str();
+    if id != SPLITTER && id != TOGGLE {
+        return None;
+    }
+    let mut out = piece.clone();
+    let part = &mut out.animated_parts[0];
+    let lim = (b.limit_deg * 1000.0).round() as i32;
+    part.pivot_um = [(b.pivot_x_mm * 1000.0).round() as i32, 45_000, 0];
+    part.limits_mdeg = [-lim, lim];
+    part.rest_mdeg = if id == SPLITTER { lim } else { -lim };
+    part.collision = vec![blade_mesh(&b)];
+    Some(out)
+}
+
+/// Height of the exact fork channel floor over the `L3` floor at piece-local plan point `(x, z)`
+/// (mm): the lower of the two arcs' half-rounds (radius 14 mm about quarter circles of radius
+/// 30 mm about `(-30, ±30)`), the inlet straight's for `x < -30`; 14 where neither holds it.
+fn fork_floor_mm(x: f32, z: f32) -> f32 {
+    let half_round = |rho: f32| {
+        if rho.abs() >= 14.0 {
+            14.0
+        } else {
+            14.0 - (196.0 - rho * rho).sqrt()
+        }
+    };
+    if x < -30.0 {
+        return half_round(z);
+    }
+    [30.0f32, -30.0]
+        .iter()
+        .map(|&cz| half_round(((x + 30.0).hypot(z - cz)) - 30.0))
+        .fold(14.0, f32::min)
+}
+
+fn blade_mesh(b: &Blade) -> parble_kit::CollisionGroup {
+    // kitmech's outline: underside knots from the pivot to the tip (at D1's 0, 2, 5, 9, 14, 19 and
+    // 24 of 24 mm), then the tip's and the pivot's top, extruded ±1 mm and fanned from vertex 0.
+    let mut poly = Vec::new();
+    for f in [0.0f32, 2.0, 5.0, 9.0, 14.0, 19.0, 24.0] {
+        let s = b.len_mm * f / 24.0;
+        let mut under: f32 = 0.0;
+        for k in -40..=40 {
+            let th = (b.limit_deg * k as f32 / 40.0).to_radians();
+            let (sn, cs) = th.sin_cos();
+            for w in [-1.0f32, 0.0, 1.0] {
+                let x = b.pivot_x_mm - s * cs + w * sn;
+                let z = s * sn + w * cs;
+                under = under.max(fork_floor_mm(x, z));
+            }
+        }
+        let under = ((under + b.clear_mm) * 10.0).round() / 10.0;
+        poly.push((b.pivot_x_mm - s, under.min(13.0)));
+    }
+    poly.push((b.pivot_x_mm - b.len_mm, 14.0));
+    poly.push((b.pivot_x_mm, 14.0));
+    let um = |v: f32| (v * 1000.0).round() as i32;
+    let n = poly.len() as u32;
+    let mut vertices = Vec::new();
+    for z in [-1000, 1000] {
+        vertices.extend(poly.iter().map(|&(x, y)| [um(x), 45_000 + um(y), z]));
+    }
+    let mut triangles = Vec::new();
+    for i in 1..n - 1 {
+        triangles.push([0, i, i + 1]);
+        triangles.push([2 * n - 1, 2 * n - 1 - i, 2 * n - 2 - i]);
+    }
+    for i in 0..n {
+        let j = (i + 1) % n;
+        triangles.push([i, j, n + j]);
+        triangles.push([i, n + j, n + i]);
+    }
+    parble_kit::CollisionGroup {
+        surface: parble_kit::Surface::WoodEndGrain,
+        vertices_um: vertices,
+        triangles,
+    }
 }

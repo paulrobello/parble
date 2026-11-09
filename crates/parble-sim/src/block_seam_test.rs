@@ -850,7 +850,7 @@ struct MechCase {
 /// a fork. Its two arcs leave the inlet port together and part in a crotch from 6 mm inside the
 /// cell face, where the blade's tip also meets the marble, so the inlet window stops 3 mm inside
 /// the cell and is run without the blade. The outlets are run with it, and their windows start at
-/// the seam: the faceted fork arcs have no exact contact and chatter up to it.
+/// the seam, where the marble is still swinging off the blade.
 fn mech_cases() -> Vec<MechCase> {
     let s3 = |x, z, yaw| place("blk_straight_l3", x, 0, z, yaw, false);
     let s1 = |x, z, yaw| place("blk_straight_l1", x, 0, z, yaw, false);
@@ -959,6 +959,22 @@ fn mech_run(case: &MechCase, extra_triangles: Vec<[[i64; 3]; 3]>) -> Vec<MarbleS
         ..Control::default()
     };
     run_with(&case.layout, case.at, Vector::X * SPEED, 900, &control)
+}
+
+/// `(piece, window, upward, kick)` of the fork cases of [`mech_cases`], for the blade sweep.
+pub(crate) fn fork_seam_metrics() -> Vec<(&'static str, &'static str, f32, f32)> {
+    let mut out = Vec::new();
+    for case in mech_cases()
+        .into_iter()
+        .filter(|c| matches!(c.id, "mech_splitter_l3" | "mech_toggle_l3"))
+    {
+        let tr = mech_run(&case, Vec::new());
+        for (name, lo, hi) in &case.windows {
+            let sel = window(*lo, *hi);
+            out.push((case.id, *name, upward(&tr, &sel), kick(&tr, &sel)));
+        }
+    }
+    out
 }
 
 #[test]

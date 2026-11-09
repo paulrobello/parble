@@ -24,7 +24,9 @@
 //! In a 90° bend the same hook replaces facet contacts with one contact against the exact channel
 //! tube ([`ChannelBend`]), since the faceted tube chatters under the marble's outward load. On a
 //! slope it replaces them with one contact against the exact slope channel
-//! ([`ChannelSlope`]), and on a curved rail against the exact rail tube ([`ChannelArc`]).
+//! ([`ChannelSlope`]), on a curved rail against the exact rail tube ([`ChannelArc`]), on a
+//! junction against the exact union of its paths ([`ChannelJunction`]), and on a straight block
+//! against the exact straight tube ([`ChannelStraight`]).
 //!
 //! [`ChunkColliders`] is the incremental API: insert or remove placements, then
 //! [`ChunkColliders::rebuild`] replaces the collider of each dirty chunk, in chunk order.
@@ -485,7 +487,7 @@ impl ChannelStraight {
 /// A one-cell channel junction: three or more channel side ports at one level, as on the joiner
 /// (in at −x and −z, out at +x) and the forks (in at −x, out at ±z). Its channel is the union of
 /// one path per in-to-out port pair: a straight tube between opposite faces, a [`ChannelBend`]
-/// between adjacent ones. The joiner takes the round tube, the forks the faceted section (see
+/// between adjacent ones. The joiner takes the bend's round tube, the forks the straight's (see
 /// [`ChannelJunction::of`]).
 ///
 /// The sidecar samples each path with flat facets and the boolean union meets them in a faceted
@@ -521,14 +523,14 @@ impl ChannelJunction {
         let ports = def.ports.as_slice();
         let level = ports.first()?.level?;
         let side = |f: PortFace| !matches!(f, PortFace::Top | PortFace::Bottom);
-        // The forks (a moving blade at the crotch) take the exact contact on the faceted section
-        // ([`ChannelJunction::faceted`]); the blade is untouched (the ball-blade pair is not a
-        // chunk pair, so this hook never sees it). Against the mesh contact the splitter's -z
-        // outlet seam goes from upward 3.51 / kick 3.61 to 2.62 / 0.70 mm/s (limit 2.19, still
-        // over; 4.45 / 4.96 with the solved rolling-resistance load) and its fork interior from
-        // 80.10 / 65.47 to 14.10 / 26.89 (14.18 / 28.26); the round tube took
-        // the outlet to 15.35. An 8 mm reach on the faceted forks takes it to 15.09 (measured
-        // 2026-11-08 in `block_seam_test`).
+        // The forks (a moving blade at the crotch) take the round tube of the exact straight
+        // ([`ChannelJunction::fork`]); the blade is untouched (the ball-blade pair is not a chunk
+        // pair, so this hook never sees it). With the forks on the faceted section until
+        // 2026-11-09, the outlet kicks were the downstream straight's facet crease and the
+        // section's 5.6° ridge where the arcs part drifted off-centre marbles to a side
+        // (`fork_contact_test`). On the round tube, with the exact straights, the inlet reads
+        // upward 0.30 / kick 0.26 mm/s and the splitter's -z outlet 4.77 / 0.20 on the shipped
+        // blade (measured 2026-11-09 in `block_seam_test`).
         if def.footprint.len() != 1
             || ports.len() < 3
             || ports

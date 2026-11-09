@@ -781,6 +781,13 @@ fn registry_covers_every_mechanism_piece() {
 /// faster marbles leave the L3 bend over its 15 mm lip) or lateral offset in the feed channel.
 #[test]
 fn shipped_fork_parts_route_slow_and_off_centre_marbles() {
+    let bad = slow_and_off_centre_misses();
+    assert!(bad.is_empty(), "missed the commanded branch: {bad:?}");
+}
+
+/// The runs of [`shipped_fork_parts_route_slow_and_off_centre_marbles`] that miss their branch:
+/// `(piece, commanded side, speed, lateral offset)`.
+pub(crate) fn slow_and_off_centre_misses() -> Vec<(&'static str, Side, f32, f32)> {
     let mut bad = Vec::new();
     for piece in [TOGGLE, SPLITTER] {
         for (first, seed) in [(0, 3), (1, 11)] {
@@ -804,7 +811,7 @@ fn shipped_fork_parts_route_slow_and_off_centre_marbles() {
             }
         }
     }
-    assert!(bad.is_empty(), "missed the commanded branch: {bad:?}");
+    bad
 }
 
 /// Every marble type at every size (mini 10 mm, standard 16 mm, shooter 25 mm) passes each fork
@@ -825,6 +832,30 @@ fn shipped_fork_parts_route_slow_and_off_centre_marbles() {
 #[test]
 #[ignore]
 fn shipped_fork_parts_route_every_marble_type_and_size() {
+    let bad = every_type_and_size_misses();
+    assert!(
+        bad.is_empty(),
+        "{} missed the commanded branch: {bad:?}",
+        bad.len()
+    );
+}
+
+/// One missed run of [`shipped_fork_parts_route_every_marble_type_and_size`]: piece, size, type,
+/// commanded side, speed, the exit (`None` at rest in the fork or back in the feed, `Some(None)`
+/// sideways), the end position (mm) and speed (mm/s).
+pub(crate) type Miss = (
+    &'static str,
+    &'static str,
+    &'static str,
+    Side,
+    f32,
+    Option<Option<Side>>,
+    [f32; 3],
+    f32,
+);
+
+/// The runs of [`shipped_fork_parts_route_every_marble_type_and_size`] that miss their branch.
+pub(crate) fn every_type_and_size_misses() -> Vec<Miss> {
     let mut bad = Vec::new();
     for piece in [TOGGLE, SPLITTER] {
         for (first_side, seed) in [(0, 3), (1, 11)] {
@@ -866,11 +897,50 @@ fn shipped_fork_parts_route_every_marble_type_and_size() {
             }
         }
     }
-    assert!(
-        bad.is_empty(),
-        "{} missed the commanded branch: {bad:?}",
-        bad.len()
-    );
+    bad
+}
+
+/// Blade sweep (diagnostic, not a gate): each [`crate::fork_contact_test::Blade`] in
+/// `PARBLE_BLADES` (`pivot_x,len,limit;...`, mm and degrees) scored on the acceptance and routing
+/// tests and the fork seam windows.
+#[test]
+#[ignore]
+fn fork_blade_sweep() {
+    use crate::fork_contact_test::{Blade, set_blade};
+    let mut spec = std::env::var("PARBLE_BLADES").unwrap_or_else(|_| "1,24,36".into());
+    if let Some(path) = spec.strip_prefix('@') {
+        spec = std::fs::read_to_string(path).unwrap().trim().to_owned();
+    }
+    for b in spec.split(';') {
+        let v: Vec<f32> = b.split(',').map(|x| x.trim().parse().unwrap()).collect();
+        set_blade(Some(Blade {
+            pivot_x_mm: v[0],
+            len_mm: v[1],
+            limit_deg: v[2],
+            clear_mm: v.get(3).copied().unwrap_or(0.5),
+        }));
+        let accept = every_type_and_size_misses();
+        let route = slow_and_off_centre_misses();
+        let seams = crate::block_seam_test::fork_seam_metrics();
+        set_blade(None);
+        if accept.len() <= 20 {
+            eprintln!("MISSES {b}: {accept:?}");
+        }
+        let mut by: BTreeMap<String, usize> = BTreeMap::new();
+        for m in &accept {
+            *by.entry(format!("{}/{}/{}", &m.0[5..], m.1, m.4))
+                .or_default() += 1;
+        }
+        let seams: Vec<String> = seams
+            .iter()
+            .map(|(id, w, u, k)| format!("{}:{w} {u:.2}/{k:.2}", &id[5..]))
+            .collect();
+        eprintln!(
+            "BLADE {b}: accept {} {by:?} route {} {route:?} seams {seams:?}",
+            accept.len(),
+            route.len()
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------------------------
