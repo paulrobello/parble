@@ -129,6 +129,17 @@ fn cases() -> Vec<Case> {
 /// One run of `case`: the marble's state each tick, with rolling resistance `crr` and the load
 /// summed over stale manifold points when `stale`.
 fn run(case: &Case, crr: f32, stale: bool) -> Vec<MarbleState> {
+    let mut sim = setup(case, crr, stale);
+    (0..case.ticks)
+        .map(|_| {
+            sim.tick(1);
+            sim.marbles()[0]
+        })
+        .collect()
+}
+
+/// The world of `case` before its first tick.
+fn setup(case: &Case, crr: f32, stale: bool) -> Sim {
     let kit = parble_kit::builtin();
     let mut sim = Sim::empty();
     sim.stale_rolling_load = stale;
@@ -152,12 +163,7 @@ fn run(case: &Case, crr: f32, stale: bool) -> Vec<MarbleState> {
         .colliders
         .insert_with_parent(collider, h, &mut sim.world.bodies);
     sim.marbles.push(h);
-    (0..case.ticks)
-        .map(|_| {
-            sim.tick(1);
-            sim.marbles()[0]
-        })
-        .collect()
+    sim
 }
 
 fn speed(m: &MarbleState) -> f32 {
@@ -275,4 +281,102 @@ fn rolling_resistance_decelerates_at_the_design_value_on_every_contact_type() {
         control_failures > 0,
         "the stale-load control met the design everywhere"
     );
+}
+
+/// `(solved, stale)` normal impulse of every active pair of marble 0, sorted by collider: the
+/// solved load ([`crate::marble::solved_impulse`]) and the sum over every manifold point.
+fn pair_impulses(sim: &Sim) -> Vec<(f32, f32)> {
+    let ch = sim.world.bodies[sim.marbles[0]].colliders()[0];
+    let mut v: Vec<_> = sim
+        .world
+        .narrow_phase
+        .contact_pairs_with(ch)
+        .filter(|pair| pair.has_any_active_contact())
+        .map(|pair| {
+            let other = if pair.collider1 == ch {
+                pair.collider2
+            } else {
+                pair.collider1
+            };
+            let solved: f32 = pair
+                .solver_manifolds()
+                .iter()
+                .map(crate::marble::solved_impulse)
+                .sum();
+            (
+                other.into_raw_parts(),
+                solved,
+                pair.total_impulse_magnitude(),
+            )
+        })
+        .collect();
+    v.sort_by_key(|p| p.0);
+    v.into_iter().map(|p| (p.1, p.2)).collect()
+}
+
+/// A contact event recorded on a hand-over tick (an exact contact claimed off a manifold that
+/// keeps the impulse of the last step it was solved) carries the solved load, not the stale sum.
+///
+/// The first touch of a pair never has stale points, so the event is forced on the worst
+/// hand-over tick by turning recording on just before it: every pair active then reports a
+/// contact. Recording reads the world only, so the run up to that tick is the same.
+#[test]
+fn contact_events_carry_the_solved_impulse_on_hand_over_ticks() {
+    let mut checked = 0;
+    for case in cases() {
+        // The tick where the stale sum overstates the solved load most.
+        let mut sim = setup(&case, CATS_EYE.rolling_resistance, false);
+        let mut worst = (0, 1.0_f32);
+        for _ in 0..case.ticks {
+            sim.tick(1);
+            for (solved, stale) in pair_impulses(&sim) {
+                if solved > 0.0 && stale / solved > worst.1 {
+                    worst = (sim.tick_count(), stale / solved);
+                }
+            }
+        }
+        let (at, _) = worst;
+        if at == 0 {
+            eprintln!("{}: no hand-over tick", case.name);
+            continue;
+        }
+        let mut sim = setup(&case, CATS_EYE.rolling_resistance, false);
+        sim.tick(at as u32 - 1);
+        sim.set_event_recording(true);
+        sim.tick(1);
+        let events: Vec<f32> = sim
+            .drain_events()
+            .into_iter()
+            .filter_map(|e| match e {
+                crate::mechanism::SimEvent::Contact(c) => Some(c.impulse),
+                _ => None,
+            })
+            .collect();
+        let pairs = pair_impulses(&sim);
+        assert_eq!(events.len(), pairs.len(), "{} tick {at}", case.name);
+        for (&event, &(solved, stale)) in events.iter().zip(&pairs) {
+            eprintln!(
+                "{} tick {at}: event {:.3} mN·s, solved {:.3}, stale {:.3} ({:.2}×)",
+                case.name,
+                event * 1e3,
+                solved * 1e3,
+                stale * 1e3,
+                stale / solved
+            );
+            assert_eq!(event.to_bits(), solved.to_bits(), "{} tick {at}", case.name);
+        }
+        // Negative control: the old reading, every manifold point, about doubles it there.
+        let (solved, stale) = pairs
+            .iter()
+            .copied()
+            .max_by(|a, b| (a.1 / a.0).total_cmp(&(b.1 / b.0)))
+            .unwrap();
+        assert!(
+            stale > 1.8 * solved,
+            "{} tick {at}: stale {stale} vs solved {solved}",
+            case.name
+        );
+        checked += 1;
+    }
+    assert!(checked >= 3, "only {checked} cases with a hand-over tick");
 }

@@ -47,6 +47,7 @@ use rapier3d::prelude::*;
 
 use crate::chunk::place_point_um;
 use crate::hash::Fnv1a64;
+use crate::marble::solved_impulse;
 use crate::{HASH_SAMPLE_TICKS, Sim, scene};
 
 /// A [`RollSample`] per marble every 4 ticks (60 Hz).
@@ -1004,21 +1005,19 @@ impl Mechanisms {
                         (pair.collider1, -1.0)
                     };
                     let key = other.into_raw_parts();
-                    // The deepest point of the marble toward the collider, by the manifold that
-                    // carries the most impulse; manifold normals point from collider 1 to 2.
+                    // Impulses are read from the points the solver solved this step only
+                    // (`solved_impulse`): a manifold a contact hook cleared keeps stale ones.
+                    // The deepest point of the marble toward the collider, by the solved manifold
+                    // that carries the most impulse; manifold normals point from collider 1 to 2.
                     let probe = chunk_colliders.contains(&key).then(|| {
-                        pair.manifolds()
+                        pair.solver_manifolds()
                             .iter()
-                            .filter(|m| !m.points.is_empty())
-                            .max_by(|a, b| {
-                                let w = |m: &ContactManifold| {
-                                    m.points.iter().map(|p| p.data.impulse).sum::<f32>()
-                                };
-                                w(a).total_cmp(&w(b))
-                            })
+                            .filter(|m| !m.data.solver_contacts.is_empty())
+                            .max_by(|a, b| solved_impulse(a).total_cmp(&solved_impulse(b)))
                             .map(|m| centre + m.data.normal * (toward * (r + SURFACE_PROBE_M)))
                     });
-                    (key, pair.total_impulse_magnitude(), probe.flatten())
+                    let impulse = pair.solver_manifolds().iter().map(solved_impulse).sum();
+                    (key, impulse, probe.flatten())
                 })
                 .collect();
             active.sort_by_key(|a| a.0);
