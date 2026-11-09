@@ -210,8 +210,10 @@ async function sample(browser, scene) {
       frameTimes: st,
       passP95Ms: passMs(browser),
       pass: st.p95Ms <= passMs(browser),
+      // The criterion read literally: p95 rounded to 0.1 ms at most 16.7 ms, no jitter allowance.
+      passStrict: Math.round(st.p95Ms * 10) / 10 <= 16.7,
     };
-    console.log(`${browser} ${scene}: p95 ${st.p95Ms.toFixed(2)} ms (p50 ${st.p50Ms.toFixed(2)}, max ${st.maxMs.toFixed(1)}, dropped ${st.dropped}/${st.frames}) canvas ${r.canvas} load ${res.loadBefore} -> ${res.loadAfter}${res.taken ? "" : " NOT TAKEN"}`);
+    console.log(`${browser} ${scene}: p95 ${st.p95Ms.toFixed(2)} ms [pass ${res.pass}, strict ${res.passStrict}] (p50 ${st.p50Ms.toFixed(2)}, max ${st.maxMs.toFixed(1)}, dropped ${st.dropped}/${st.frames}) canvas ${r.canvas} load ${res.loadBefore} -> ${res.loadAfter}${res.taken ? "" : " NOT TAKEN"}`);
     if (res.taken || SMOKE) return { ...res, discarded };
     discarded.push({ attempt, loadBefore: res.loadBefore, loadAfter: res.loadAfter, p95Ms: st.p95Ms });
     console.log(`  discarded: post-run load ${res.loadAfter} > ${LOAD_MAX}, re-running`);
@@ -263,6 +265,7 @@ async function main() {
     problems,
     allTaken,
     pass: !SMOKE && allTaken && problems.length === 0 && samples.every((s) => s.pass),
+    passStrict: !SMOKE && allTaken && problems.length === 0 && samples.every((s) => s.passStrict),
   };
   mkdirSync(dirname(OUT), { recursive: true });
   writeFileSync(OUT, `${JSON.stringify(result, null, 2)}\n`);

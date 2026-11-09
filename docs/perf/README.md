@@ -9,7 +9,7 @@ The sampler waits for `window.__parble.ready`, skips 60 frames (`PARBLE_PERF_SET
 
 ## Pass rule
 
-The criterion is p95 ≤ 16.7 ms. A rAF delta is a whole number of display refreshes plus the browser's timestamp quantum: Chromium coarsens rAF times to 0.1 ms, so a frame on every 60 Hz vsync reads 16.6 to 16.8 ms, and Safari to 1 ms (16 or 17 ms). A missed refresh at 60 Hz reads 25 ms or more. Each sample therefore passes when its p95 is at most 16.7 ms plus the browser's quantum (`jitterMs`: Chromium 0.3 ms, Safari 1.0 ms), meaning the 95th-percentile frame made its vsync. The raw p95 is recorded unrounded next to the threshold it was judged against.
+The criterion is p95 ≤ 16.7 ms. A rAF delta is a whole number of display refreshes plus the browser's timestamp quantum: Chromium coarsens rAF times to 0.1 ms, so a frame on every 60 Hz vsync reads 16.6 to 16.8 ms, and Safari to 1 ms (16 or 17 ms). A missed refresh at 60 Hz reads 25 ms or more. Each sample therefore passes when its p95 is at most 16.7 ms plus the browser's quantum (`jitterMs`: Chromium 0.3 ms, Safari 1.0 ms), meaning the 95th-percentile frame made its vsync. The raw p95 is recorded unrounded next to the threshold it was judged against. This allowance is a reading of the criterion, not the criterion itself, so each sample (and the whole run) also records `passStrict`: p95 rounded to 0.1 ms at most 16.7 ms, with no allowance. A Safari run can only pass strictly when its p95 frame reads 16 ms. The gate's exit status follows `pass`; report both.
 
 ## Load guard
 
@@ -61,6 +61,12 @@ tail -f /tmp/parble-perf.log   # or par-mux capture-pane
 ```bash
 scp -i <ssh-key> <user>@gpu-host-b.local:Repos/parble-perf/docs/perf/p1-gate.json docs/perf/p1-gate.json
 ssh -i <ssh-key> <user>@gpu-host-b.local 'rm -rf ~/Repos/parble-perf /tmp/parble-perf.tgz /tmp/parble-perf.log'
+```
+
+Headless Chromium paces rAF from its own frame source. Run a second, headed Chromium pass and keep it as a separate baseline (house rule: headed and headless timings are never mixed), written to its own file:
+
+```bash
+PARBLE_PERF_HEADED=1 PARBLE_PERF_BROWSERS=chromium PARBLE_PERF_OUT=docs/perf/p1-gate-chromium-headed.json node e2e/perf-gate.mjs
 ```
 
 Useful overrides for a partial run: `PARBLE_PERF_BROWSERS=safari`, `PARBLE_PERF_SCENES=stress2000`, `PARBLE_PERF_HEADED=1`.
