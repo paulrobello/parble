@@ -38,6 +38,8 @@ mod kit_pieces_test;
 #[cfg(test)]
 mod rail_test;
 #[cfg(test)]
+mod rolling_sink_test;
+#[cfg(test)]
 mod seam_test;
 
 use hash::{Fnv1a64, POSITION_QUANTA_PER_M, VELOCITY_QUANTA_PER_M_PER_S, quantize};

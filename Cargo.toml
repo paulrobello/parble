@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = ["crates/*"]
+exclude = ["third_party"]
 
 [workspace.package]
 version = "0.1.0"
@@ -56,3 +57,7 @@ opt-level = 3
 
 [profile.wasm-release.package.parble-app]
 opt-level = 3
+
+# Rapier 0.36.1 with the rolling-ball contact fix (third_party/rapier3d-0.36.1/README.parble.md).
+[patch.crates-io]
+rapier3d = { path = "third_party/rapier3d-0.36.1" }
