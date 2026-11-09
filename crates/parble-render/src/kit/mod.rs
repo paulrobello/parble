@@ -270,6 +270,9 @@ pub enum KitScene {
     /// The P2-T7 all-pieces test track ([`parble_sim::allpieces`]): every PRD P2 kit item, the
     /// same placements the sim runs.
     AllPieces,
+    /// The P1-T8 stress scene: the all-pieces track (first, so its mechanism parts keep their sim
+    /// order) and a render-only tower of showcase blocks behind it, [`TOWER_TOTAL`] pieces in all.
+    Tower2000,
 }
 
 impl KitScene {
@@ -281,6 +284,7 @@ impl KitScene {
             Self::Playroom => playroom_layout(),
             Self::Mechanisms => run_layout(&parble_sim::mech_showcase::LAYOUT),
             Self::AllPieces => run_layout(&parble_sim::allpieces::LAYOUT),
+            Self::Tower2000 => tower_layout(),
         }
     }
 }
@@ -351,6 +355,54 @@ pub fn grid_footprint_m() -> (Vec2, Vec2) {
     let half = CELL_M / 2.0;
     let a = grid_origin(0, 0);
     let b = grid_origin(GRID_COLS - 1, GRID_ROWS - 1);
+    (
+        Vec2::new(a.x.min(b.x) - half, a.z.min(b.z) - half),
+        Vec2::new(a.x.max(b.x) + half, a.z.max(b.z) + half),
+    )
+}
+
+/// Stress tower (P1-T8): [`TOWER_COLS`] × [`TOWER_ROWS`] showcase blocks per layer at
+/// [`GRID_PITCH_M`] on every axis, layers filled from the floor up until the scene holds
+/// [`TOWER_TOTAL`] pieces (20 layers, the top one partial: 1.8 m tall).
+pub const TOWER_COLS: i32 = 10;
+pub const TOWER_ROWS: i32 = 10;
+pub const TOWER_TOTAL: usize = 2_000;
+/// Origin of tower piece (0, 0, 0): on the floor behind the all-pieces track (its back row is
+/// cell z = −8, −0.48 m) and centred on its length.
+pub const TOWER_ORIGIN_M: Vec3 = Vec3::new(0.30, 0.0, -0.66);
+
+/// World origin of tower piece (`col`, `layer`, `row`).
+pub fn tower_origin(col: i32, layer: i32, row: i32) -> Vec3 {
+    TOWER_ORIGIN_M + Vec3::new(col as f32, layer as f32, -(row as f32)) * GRID_PITCH_M
+}
+
+/// The stress scene: the all-pieces track, then tower blocks to [`TOWER_TOTAL`]. Type and yaw come
+/// from the same hash as the [`stress_layout`] grid, of the (col, layer + 1, row) index.
+pub fn tower_layout() -> Vec<Placement> {
+    let mut out = run_layout(&parble_sim::allpieces::LAYOUT);
+    let per_layer = (TOWER_COLS * TOWER_ROWS) as usize;
+    let mut i = 0;
+    while out.len() < TOWER_TOTAL {
+        let (layer, k) = ((i / per_layer) as i32, (i % per_layer) as i32);
+        let (row, col) = (k / TOWER_COLS, k % TOWER_COLS);
+        let cell = IVec3::new(col, layer + 1, row);
+        let h = cell_hash(cell);
+        out.push(Placement {
+            piece: showcase_piece((h % SHOWCASE.len() as u32) as usize),
+            cell,
+            origin: tower_origin(col, layer, row),
+            yaw: ((h >> 8) % 4) as u8,
+        });
+        i += 1;
+    }
+    out
+}
+
+/// The tower's floor-plan footprint, min and max corners in (x, z) metres.
+pub fn tower_footprint_m() -> (Vec2, Vec2) {
+    let half = CELL_M / 2.0;
+    let a = tower_origin(0, 0, 0);
+    let b = tower_origin(TOWER_COLS - 1, 0, TOWER_ROWS - 1);
     (
         Vec2::new(a.x.min(b.x) - half, a.z.min(b.z) - half),
         Vec2::new(a.x.max(b.x) + half, a.z.max(b.z) + half),
@@ -1365,6 +1417,22 @@ mod tests {
         for l in [playroom_layout(), stress_layout()] {
             assert!(l.iter().all(|p| piece_parts(p.piece) == 0));
         }
+    }
+
+    #[test]
+    fn the_stress_tower_holds_2000_pieces_behind_the_allpieces_track() {
+        let layout = KitScene::Tower2000.layout();
+        assert_eq!(layout.len(), TOWER_TOTAL);
+        let track = KitScene::AllPieces.layout();
+        assert_eq!(&layout[..track.len()], &track[..]);
+        let tower = &layout[track.len()..];
+        // Track cells stop at z = −8 (−0.48 m, its far face −0.51 m); the tower starts behind it.
+        assert!(tower.iter().all(|p| p.origin.z < -0.51 - CELL_M / 2.0));
+        let top = tower.iter().map(|p| p.origin.y).fold(0.0, f32::max);
+        assert!(top > 1.6, "tower top {top} m");
+        let (chunks, bound) = chunk_stats(&layout);
+        assert!(chunks > 10 && bound > 0, "{chunks} chunks, bound {bound}");
+        assert_eq!(layout, tower_layout(), "deterministic");
     }
 
     #[test]

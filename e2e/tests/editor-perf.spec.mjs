@@ -9,9 +9,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { loadavg } from "node:os";
 import { expect, test } from "@playwright/test";
+import { BUDGET_MS, LOAD_MAX, stats, waitForLoad as waitForLoadWithin } from "../perf-helpers.mjs";
 
-const BUDGET_MS = 1000 / 60;
-const LOAD_MAX = 15;
 const LOAD_WAIT_MS = Number(process.env.PARBLE_LOAD_WAIT_MS ?? 20 * 60_000);
 const OUT = new URL("../../target/perf/p3t4-editor.json", import.meta.url);
 
@@ -31,27 +30,8 @@ async function settle(page) {
   for (let i = 0; i < 4; i++) await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r())));
 }
 
-function stats(ms) {
-  const s = [...ms].sort((a, b) => a - b);
-  const q = (p) => s[Math.min(s.length - 1, Math.floor(p * s.length))];
-  return {
-    frames: s.length,
-    meanMs: s.reduce((a, b) => a + b, 0) / s.length,
-    p50Ms: q(0.5),
-    p95Ms: q(0.95),
-    p99Ms: q(0.99),
-    maxMs: s[s.length - 1],
-    // Frames longer than 1.5 budgets: a missed vsync (16.8 ms is rAF jitter at 60 Hz, not a drop).
-    dropped: s.filter((v) => v > 1.5 * BUDGET_MS).length,
-  };
-}
-
 async function waitForLoad() {
-  const start = Date.now();
-  while (loadavg()[0] > LOAD_MAX && Date.now() - start < LOAD_WAIT_MS) {
-    await new Promise((r) => setTimeout(r, 15_000));
-  }
-  return loadavg()[0];
+  return waitForLoadWithin(LOAD_WAIT_MS);
 }
 
 test("editing a 2,000-piece track keeps the chunk rebuild inside one frame", async ({ page }) => {

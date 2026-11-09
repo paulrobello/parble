@@ -304,7 +304,7 @@ pub fn allpieces_demo() -> CameraZone {
 /// The scenario's track as the director sees it, when the scenario is a kit track.
 pub fn scenario_track(scenario: Scenario) -> Option<Track> {
     match scenario {
-        Scenario::AllPieces => {
+        Scenario::AllPieces | Scenario::Showcase => {
             let mut t = parble_sim::allpieces::track();
             t.camera_zones.push(allpieces_demo());
             Some(t)

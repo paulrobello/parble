@@ -33,6 +33,7 @@ make run-diag       # native: run 3 s, print the state JSON, exit
 make web-e2e        # build-web + Playwright smoke in GPU Chromium on the 5311 preview (local only)
 make shots-test     # native lockstep look-dev shots, checked against the drawn state (local only)
 make web-editor-perf # opt-in editor perf trace: 2,000 pieces, load-guarded, writes target/perf/p3t4-editor.json
+make perf-gate      # P1-T8 gate: p95 at 1440p High, showcase + stress2000, GPU Chromium + Safari, load-guarded (local only; docs/perf/README.md)
 ```
 
 - Agent switches (native flags, URL query on web, `window.__parble`): `docs/agent-operability.md`.
@@ -45,10 +46,11 @@ make web-editor-perf # opt-in editor perf trace: 2,000 pieces, load-guarded, wri
 ## Ports
 
 - 5310 — Trunk dev server (`make dev`).
-- 5311 — static preview of `dist/` for Playwright smoke, shots and the perf gate.
+- 5311 — static preview of `dist/` for the Playwright suites.
 - 5312 — standalone audio audition page (`make audition`).
+- 5313 — the perf gate's own static server (`make perf-gate`), so it never shares 5311 with another suite.
 
-All three are reserved in `~/.claude/used_ports.md`.
+All four are reserved in `~/.claude/used_ports.md`.
 
 ## Architecture
 

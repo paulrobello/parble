@@ -471,8 +471,10 @@ fn spawn_playroom_set(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut images: ResMut<Assets<Image>>,
+    kit_scene: Option<Res<crate::kit::KitScene>>,
 ) {
     let lay = layout();
+    let kit = kit_scene.map_or_else(Vec::new, |k| k.layout());
 
     // Room shell: an inside-out box, dark blue, lit only by the room's own lights.
     let lo = v3(lay.room.min);
@@ -633,7 +635,7 @@ fn spawn_playroom_set(
         let path = format!("parble_render/playroom/toy_{name}.glb");
         registry.insert_asset(Path::new(&path).to_path_buf(), Path::new(&path), bytes);
     }
-    for b in &lay.blocks {
+    for b in lay.blocks.iter().filter(|b| block_clear_of(b, &kit)) {
         let scene = assets.load(GltfAssetLabel::Scene(0).from_asset(format!(
             "embedded://parble_render/playroom/toy_{}.glb",
             b.piece
@@ -644,6 +646,19 @@ fn spawn_playroom_set(
                 .with_rotation(Quat::from_rotation_y(b.yaw_deg.to_radians())),
         ));
     }
+}
+
+/// Whether toy block `b` stands clear of every kit piece's cell (plus a 12 mm margin). The
+/// playroom run is laid clear of all of them; the showcase puts the all-pieces track on the rug and
+/// leaves out the blocks it would go through.
+pub fn block_clear_of(b: &Block, kit: &[crate::kit::Placement]) -> bool {
+    let r = piece_radius(&b.piece).unwrap_or(0.0);
+    let half = crate::kit::CELL_M / 2.0 + 0.012;
+    let p = Vec2::new(b.at[0], b.at[2]);
+    kit.iter().all(|k| {
+        let c = Vec2::new(k.origin.x, k.origin.z);
+        (p - p.clamp(c - half, c + half)).length() > r
+    })
 }
 
 /// Attaches the baked probe to the main camera as its environment light (browser WebGPU has no
@@ -824,6 +839,34 @@ mod tests {
             Vec2::from_array(lay.rug.size),
         );
         assert!(lo.cmpge(c - s / 2.0).all() && hi.cmple(c + s / 2.0).all());
+    }
+
+    #[test]
+    fn the_showcase_leaves_out_only_the_blocks_on_the_allpieces_track() {
+        use crate::kit::{KitScene, run_layout};
+        let lay = layout();
+        let playroom = run_layout(&parble_sim::playroom_run::RUN);
+        assert!(lay.blocks.iter().all(|b| block_clear_of(b, &playroom)));
+        let track = KitScene::AllPieces.layout();
+        let dropped: Vec<_> = lay
+            .blocks
+            .iter()
+            .filter(|b| !block_clear_of(b, &track))
+            .map(|b| (b.piece.as_str(), b.at))
+            .collect();
+        assert_eq!(dropped, [("cube", [0.68, 0.0, -0.42])]);
+        // The track stands on the rug, clear of both lanterns.
+        let (c, s) = (
+            Vec2::from_array(lay.rug.center),
+            Vec2::from_array(lay.rug.size),
+        );
+        for k in &track {
+            let p = Vec2::new(k.origin.x, k.origin.z);
+            assert!(p.cmpge(c - s / 2.0).all() && p.cmple(c + s / 2.0).all());
+            for l in &lay.lanterns {
+                assert!(p.distance(Vec2::new(l.center[0], l.center[2])) > l.radius + 0.03);
+            }
+        }
     }
 
     #[test]

@@ -171,6 +171,11 @@ fn spawn_scene(
             min = min.min(a - Vec2::splat(0.6));
             max = max.max(b + Vec2::splat(0.6));
         }
+        if *kit_scene == kit::KitScene::Tower2000 {
+            let (a, b) = kit::tower_footprint_m();
+            min = min.min(a - Vec2::splat(0.6));
+            max = max.max(b + Vec2::splat(0.6));
+        }
         if *kit_scene == kit::KitScene::Editor {
             let (a, b) = kit::edit::EDITOR_FLOOR_M;
             min = min.min(Vec2::from_array(a));

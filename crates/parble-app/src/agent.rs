@@ -74,6 +74,14 @@ pub enum Scenario {
     /// from the hopper into two finish cups ([`parble_sim::allpieces`]), with its own committed
     /// hash. Ignores `--marble`.
     AllPieces,
+    /// The P1-T8 showcase: the all-pieces run (46 hand-placed pieces, 10 marbles, its own golden)
+    /// standing on the night playroom's rug, followed by the director. The toy blocks the track
+    /// would go through are left out ([`parble_render::playroom::block_clear_of`]).
+    Showcase,
+    /// The P1-T8 stress scene: the all-pieces run (10 marbles, its golden) plus a render-only
+    /// 1.8 m tower of showcase blocks behind it, 2,000 pieces in all
+    /// ([`KitScene::Tower2000`]), under one fixed set shot of the whole scene.
+    Stress2000,
 }
 
 impl Scenario {
@@ -87,6 +95,8 @@ impl Scenario {
             "editor" => Some(Self::Editor),
             "mechanisms" => Some(Self::Mechanisms),
             "allpieces" => Some(Self::AllPieces),
+            "showcase" => Some(Self::Showcase),
+            "stress2000" => Some(Self::Stress2000),
             _ => None,
         }
     }
@@ -101,6 +111,8 @@ impl Scenario {
             Self::Editor => "editor",
             Self::Mechanisms => "mechanisms",
             Self::AllPieces => "allpieces",
+            Self::Showcase => "showcase",
+            Self::Stress2000 => "stress2000",
         }
     }
 
@@ -117,7 +129,7 @@ impl Scenario {
             Self::Lineup => Sim::lineup_scene(),
             Self::Editor => Sim::tray_scene(),
             Self::Mechanisms => Sim::mech_showcase_scene(),
-            Self::AllPieces => {
+            Self::AllPieces | Self::Showcase | Self::Stress2000 => {
                 return parble_sim::allpieces::run().expect("the all-pieces track runs");
             }
         })
@@ -138,7 +150,7 @@ impl Scenario {
             Self::Mechanisms => {
                 vec![(MarbleKind::CatsEye, parble_sim::marble::CATS_EYE.radius_m); 5]
             }
-            Self::AllPieces => ALLPIECES_LOOKS
+            Self::AllPieces | Self::Showcase | Self::Stress2000 => ALLPIECES_LOOKS
                 .iter()
                 .cycle()
                 .take(parble_sim::allpieces::MARBLES)
@@ -159,8 +171,9 @@ impl Scenario {
             | Self::Lineup
             | Self::Editor
             | Self::Mechanisms
-            | Self::AllPieces => Environment::Plain,
-            Self::Playroom => Environment::Playroom,
+            | Self::AllPieces
+            | Self::Stress2000 => Environment::Plain,
+            Self::Playroom | Self::Showcase => Environment::Playroom,
         }
     }
 
@@ -170,7 +183,8 @@ impl Scenario {
             Self::Playroom => KitScene::Playroom,
             Self::Editor => KitScene::Editor,
             Self::Mechanisms => KitScene::Mechanisms,
-            Self::AllPieces => KitScene::AllPieces,
+            Self::AllPieces | Self::Showcase => KitScene::AllPieces,
+            Self::Stress2000 => KitScene::Tower2000,
             _ => KitScene::None,
         }
     }
@@ -179,7 +193,7 @@ impl Scenario {
     /// playroom never restarts: its train settles at the finish stop and stays there.
     pub fn run_ticks(self) -> u32 {
         match self {
-            Self::AllPieces => parble_sim::allpieces::RUN_TICKS,
+            Self::AllPieces | Self::Showcase | Self::Stress2000 => parble_sim::allpieces::RUN_TICKS,
             Self::Editor | Self::Playroom => u32::MAX,
             _ => parble_sim::golden::RAMP_10S_TICKS,
         }
@@ -246,7 +260,10 @@ impl CameraChoice {
     /// lead marble round its kit run.
     pub fn cues(self, scenario: Scenario, view: Option<PlayroomView>) -> Cues {
         match (self, scenario, view) {
-            (Self::Overview, Scenario::AllPieces, _) => Cues::allpieces_overview(),
+            (Self::Overview, Scenario::AllPieces | Scenario::Showcase, _) => {
+                Cues::allpieces_overview()
+            }
+            (_, Scenario::Stress2000, _) => stress_cues(),
             (Self::Overview, ..) => Cues::overview(),
             (Self::Checkpoint, ..) => checkpoint_cues(),
             (_, Scenario::Kit2000, _) => Cues::kit(),
@@ -256,7 +273,7 @@ impl CameraChoice {
             (_, Scenario::Closeup, _) => Cues::closeup(),
             (_, Scenario::Lineup, _) => Cues::lineup(),
             (_, Scenario::Mechanisms, _) => Cues::mechanisms(),
-            (_, Scenario::AllPieces, _) => Cues::allpieces(),
+            (_, Scenario::AllPieces | Scenario::Showcase, _) => Cues::allpieces(),
         }
     }
 }
@@ -269,6 +286,22 @@ pub fn checkpoint_cues() -> Cues {
     let cell = parble_sim::scene::cell_m();
     let look = Vec3::new(x as f32, y as f32, z as f32) * cell + Vec3::Y * 0.028;
     let eye = look + Vec3::new(-0.10, 0.07, 0.17);
+    Cues(vec![(
+        0,
+        Shot::Set {
+            eye: eye.to_array(),
+            look: look.to_array(),
+            focus_m: eye.distance(look),
+        },
+    )])
+}
+
+/// The stress scene's one set shot: from in front of, above and right of the all-pieces track,
+/// the whole 1.8 m tower behind it in frame.
+pub fn stress_cues() -> Cues {
+    use parble_render::camera::Shot;
+    let look = Vec3::new(0.72, 0.78, -0.8);
+    let eye = look + Vec3::new(1.45, 0.6, 3.0);
     Cues(vec![(
         0,
         Shot::Set {
@@ -380,7 +413,7 @@ impl AgentOpts {
                 "scenario" => {
                     let v = need(value)?;
                     o.scenario = Scenario::parse(&v).ok_or_else(|| {
-                        format!("scenario: unknown {v:?} (known: ramp, closeup, playroom, kit2000, lineup, editor, mechanisms, allpieces)")
+                        format!("scenario: unknown {v:?} (known: ramp, closeup, playroom, kit2000, lineup, editor, mechanisms, allpieces, showcase, stress2000)")
                     })?;
                 }
                 "seed" => {
@@ -490,7 +523,10 @@ impl AgentOpts {
         if o.post.dof.is_none()
             && matches!(
                 o.scenario,
-                Scenario::Kit2000 | Scenario::Mechanisms | Scenario::AllPieces
+                Scenario::Kit2000
+                    | Scenario::Mechanisms
+                    | Scenario::AllPieces
+                    | Scenario::Stress2000
             )
         {
             // Owner direction 2026-11-08: the piece showcases are judged sharp, with no depth of field.
@@ -682,7 +718,7 @@ fn diag<'a>(
             (Scenario::Lineup, ..) => "lineup",
             (Scenario::Playroom, ..) => "playroom",
             (Scenario::Mechanisms, ..) => "mechanisms",
-            (Scenario::AllPieces, ..) => "allpieces",
+            (Scenario::AllPieces | Scenario::Showcase | Scenario::Stress2000, ..) => "allpieces",
             (_, None, MarbleSize::Standard) => "legacy",
             (_, m, _) => m.unwrap_or_default().name(),
         },
@@ -1114,6 +1150,8 @@ mod tests {
             "lineup",
             "editor",
             "allpieces",
+            "showcase",
+            "stress2000",
         ] {
             let o = args(&format!("--scenario {name}")).unwrap();
             assert_eq!(o.camera, CameraChoice::Director, "{name}");
@@ -1228,6 +1266,46 @@ mod tests {
         assert_eq!(sim.marbles().len(), parble_sim::allpieces::MARBLES);
         let golden = include_str!("../../parble-sim/tests/golden/allpieces_30s.hash");
         assert_eq!(format!("{:016x}", sim.trajectory_hash()), golden.trim());
+    }
+
+    #[test]
+    fn showcase_and_stress2000_run_the_allpieces_track_and_keep_its_golden() {
+        let mut want = Scenario::AllPieces.build(None, MarbleSize::Standard);
+        want.tick(960);
+        for (name, s) in [
+            ("showcase", Scenario::Showcase),
+            ("stress2000", Scenario::Stress2000),
+        ] {
+            let o = args(&format!("--scenario {name}")).unwrap();
+            assert_eq!(o.scenario, s);
+            assert_eq!(Scenario::parse(s.name()), Some(s));
+            let q =
+                AgentOpts::from_query(&format!("?scenario={name}&mute=1"), str::to_owned).unwrap();
+            assert_eq!(q.scenario, s);
+            assert_eq!(s.run_ticks(), parble_sim::allpieces::RUN_TICKS);
+            assert_eq!(
+                s.looks(None, MarbleSize::Standard).len(),
+                parble_sim::allpieces::MARBLES
+            );
+            let mut sim = s.build(None, MarbleSize::Standard);
+            sim.tick(960);
+            assert_eq!(sim.trajectory_hash(), want.trajectory_hash(), "{name}");
+        }
+        let o = args("--scenario showcase").unwrap();
+        assert_eq!(o.scenario.environment(), Environment::Playroom);
+        assert_eq!(o.scenario.kit(), KitScene::AllPieces);
+        assert_eq!(o.camera.cues(o.scenario, None), Cues::allpieces());
+        assert_eq!(
+            o.post.dof, None,
+            "the showcase keeps the tier's depth of field"
+        );
+        assert!(crate::zones::scenario_track(Scenario::Showcase).is_some());
+        let o = args("--scenario stress2000").unwrap();
+        assert_eq!(o.scenario.environment(), Environment::Plain);
+        assert_eq!(o.scenario.kit(), KitScene::Tower2000);
+        assert_eq!(o.scenario.kit().layout().len(), 2_000);
+        assert_eq!(o.camera.cues(o.scenario, None), stress_cues());
+        assert_eq!(o.post.dof, Some(false));
     }
 
     #[test]

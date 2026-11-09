@@ -146,16 +146,30 @@ shots-p1t7:
 
 # Look-dev shots test (local only, native). P2-T6: the mechanism showcase in lockstep, a toggle
 # mid-flip and a one-way gate open, each checked against the part poses drawn on the shot frame.
-# Writes target/shots/mechanisms; docs/shots/p2-t6-*.png are reviewed copies. P1-T8 grows it.
+# Writes target/shots/mechanisms; docs/shots/p2-t6-*.png are reviewed copies. P1-T8: the showcase
+# and stress2000 at one fixed lockstep shot per tier, compared with docs/shots/p1-t8-*.png and
+# across tiers (scripts/shots/p1t8.py; `--update` rewrites those references).
 .PHONY: shots-test
 shots-test:
 	cargo build -p parble-app
 	python3 scripts/shots/mechanisms.py
+	python3 scripts/shots/p1t8.py
 
 # P1-T6: the marble spec alone (GPU Chromium, every type on Low and High) against an existing target/web-dist.
 .PHONY: web-editor-perf
 web-editor-perf: $(E2E_STAMP)
 	cd e2e && PARBLE_PERF=1 ./node_modules/.bin/playwright test tests/editor-perf.spec.mjs
+
+# P1-T8 perf gate (local only, never CI): paced p95 over 600 frames after READY at 1440p High, showcase
+# and stress2000, in GPU Chromium and Safari (safaridriver), under the host-load guard (1-min load
+# <= 15 before and after each sample). Serves target/web-dist on its own port 5313. Writes
+# docs/perf/p1-gate.json. `make perf-gate-smoke` is the non-gating smoke (no load wait) into target/perf.
+.PHONY: perf-gate perf-gate-smoke
+perf-gate: build-web $(E2E_STAMP)
+	node e2e/perf-gate.mjs
+
+perf-gate-smoke: build-web $(E2E_STAMP)
+	PARBLE_PERF_SMOKE=1 node e2e/perf-gate.mjs
 
 .PHONY: web-marbles
 web-marbles: $(E2E_STAMP)
