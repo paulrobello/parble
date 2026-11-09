@@ -156,7 +156,8 @@ shots-p1t7:
 # mid-flip and a one-way gate open, each checked against the part poses drawn on the shot frame.
 # Writes target/shots/mechanisms; docs/shots/p2-t6-*.png are reviewed copies. P1-T8: the showcase
 # and stress2000 at one fixed lockstep shot per tier, compared with docs/shots/p1-t8-*.png and
-# across tiers (scripts/shots/p1t8.py; `--update` rewrites those references).
+# across tiers; P5-T1 adds the marble lineup the same way, against docs/shots/p5-t1-lineup-<tier>.png
+# (scripts/shots/p1t8.py; `--update [scene ...]` rewrites those references).
 .PHONY: shots-test
 shots-test:
 	cargo build -p parble-app
@@ -184,8 +185,8 @@ web-marbles: $(E2E_STAMP)
 	cd e2e && ./node_modules/.bin/playwright test tests/marbles.spec.mjs
 
 # P1-T6 / P5-T1: native close-up shots of every marble type at every tier, two sizes, the lineup
-# scenario per tier and the glow bloom check (needs numpy + Pillow) into target/shots/marbles
-# (P1-T8 folds this, lineup included, into shots-test).
+# scenario per tier and the glow bloom check (needs numpy + Pillow) into target/shots/marbles.
+# shots-test checks the lineup against its per-tier references.
 .PHONY: marble-shots
 marble-shots:
 	bash scripts/marble-shots.sh

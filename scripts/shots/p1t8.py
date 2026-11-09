@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
-"""P1-T8 shots test: the showcase and the 2,000-piece stress scene, one fixed lockstep shot per
-quality tier, each checked and compared. Native build, 1280x720 physical.
+"""P1-T8 shots test: the showcase, the 2,000-piece stress scene and the P5-T1 marble lineup, one
+fixed lockstep shot per quality tier, each checked and compared. Native build, 1280x720 physical.
 
-Usage: python3 scripts/shots/p1t8.py [--bin target/debug/parble] [--work DIR] [--update]
+Usage: python3 scripts/shots/p1t8.py [--bin target/debug/parble] [--work DIR] [--update [SCENE ...]]
 
 Each capture runs in lockstep (`--lockstep-after`), so its `--screenshot-tick` is the same sim state
 and the same camera on every run: the showcase's director following the lead marble on the playroom
 rug, and the stress scene's one set shot of the track and the tower. Every shot must be lit (the
 app's own check), log no ERROR, and report its scenario, tier, the marbles the hopper has released
-by then (one every 480 ticks: 2 in the showcase shot, all 10 in the stress shot) and its kit pieces
-(46 and 2,000). Then two comparisons on a 160x90 box-filtered copy, mean absolute difference over
-RGB in 0..1:
+by then (one every 480 ticks: 2 in the showcase shot, all 10 in the stress shot; the lineup's 9
+resting marbles) and its kit pieces (46, 2,000, and none in the lineup). Then two comparisons on a
+160x90 box-filtered copy, mean absolute difference over RGB in 0..1:
 
-- against its committed reference, docs/shots/p1-t8-<scene>-<tier>.png (640x360), at most
+- against its committed reference, docs/shots/<ref>-<tier>.png (640x360), at most
   REF_MAX_DIFF: the scene, framing and tier look have not moved;
 - against the same scene's High shot, at most TIER_MAX_DIFF: every tier frames the same shot.
 
-`--update` writes the references from this run (new scenes' own goldens; review them first).
+`--update` writes the references from this run, for every scene or only the scenes named after it
+(new scenes' own goldens; review them first).
 Exit status 1 when any check fails. Needs numpy and Pillow.
 """
 
@@ -34,9 +35,12 @@ TIERS = ["low", "medium", "high", "ultra"]
 LOCKSTEP_AFTER_S = 8
 # Showcase: the director following marble 0 down the track on the rug. Stress: the set shot once
 # the hopper has released all 10 marbles. Ticks are multiples of 4 (one lockstep frame).
+# Lineup: every marble type at rest in a row under its fixed shot, depth of field off as in
+# `make marble-shots` (the reviewed full-size High frame is docs/shots/p5-t1-lineup.png).
 SCENES = {
-    "showcase": {"tick": 800, "pieces": 46, "marbles": 2},
-    "stress2000": {"tick": 4400, "pieces": 2000, "marbles": 10},
+    "showcase": {"tick": 800, "pieces": 46, "marbles": 2, "ref": "p1-t8-showcase", "args": []},
+    "stress2000": {"tick": 4400, "pieces": 2000, "marbles": 10, "ref": "p1-t8-stress2000", "args": []},
+    "lineup": {"tick": 400, "pieces": None, "marbles": 9, "ref": "p5-t1-lineup", "args": ["--dof", "0"]},
 }
 REF_SIZE = (640, 360)
 CMP_SIZE = (160, 90)
@@ -44,7 +48,7 @@ REF_MAX_DIFF = 0.03
 TIER_MAX_DIFF = 0.12
 
 
-def capture(binary: Path, out: Path, scene: str, quality: str, tick: int) -> dict:
+def capture(binary: Path, out: Path, scene: str, quality: str, tick: int, extra: list[str]) -> dict:
     out.parent.mkdir(parents=True, exist_ok=True)
     cmd = [
         str(binary),
@@ -55,6 +59,7 @@ def capture(binary: Path, out: Path, scene: str, quality: str, tick: int) -> dic
         "--screenshot-tick", str(tick),
         "--exit-after", "150",
         "--dump-state",
+        *extra,
     ]
     p = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=240)
     if p.returncode != 0:
@@ -78,18 +83,19 @@ def main() -> int:
     ap.add_argument("--bin", default=str(ROOT / "target/debug/parble"))
     ap.add_argument("--work", default=str(ROOT / "target/shots/p1t8"))
     ap.add_argument("--refs", default=str(ROOT / "docs/shots"))
-    ap.add_argument("--update", action="store_true")
+    ap.add_argument("--update", nargs="*", default=None, metavar="SCENE")
     a = ap.parse_args()
     binary, work, refs = Path(a.bin), Path(a.work), Path(a.refs)
     report: dict = {"thresholds": {"refMaxDiff": REF_MAX_DIFF, "tierMaxDiff": TIER_MAX_DIFF}, "scenes": {}}
     ok = True
 
     for scene, spec in SCENES.items():
+        update = a.update is not None and (not a.update or scene in a.update)
         shots: dict[str, np.ndarray] = {}
         rows = report["scenes"][scene] = {}
         for tier in TIERS:
             png = work / f"{scene}-{tier}.png"
-            s = capture(binary, png, scene, tier, spec["tick"])
+            s = capture(binary, png, scene, tier, spec["tick"], spec["args"])
             kit = s.get("kit") or {}
             checks = {
                 "lit": bool(s["screenshot"].get("ok")),
@@ -101,8 +107,8 @@ def main() -> int:
             }
             img = Image.open(png)
             shots[tier] = small(img)
-            ref = refs / f"p1-t8-{scene}-{tier}.png"
-            if a.update:
+            ref = refs / f"{spec['ref']}-{tier}.png"
+            if update:
                 img.convert("RGB").resize(REF_SIZE, Image.LANCZOS).save(ref)
             ref_diff = diff(shots[tier], small(Image.open(ref))) if ref.exists() else None
             checks["reference"] = ref_diff is not None and ref_diff <= REF_MAX_DIFF

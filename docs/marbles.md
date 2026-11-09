@@ -74,7 +74,7 @@ No size is exempt from a piece by the kit contract, so these are open track or k
 
 ## Lineup
 
-`--scenario lineup` rests every type side by side on the floor in front of the tray, with a mini and a shooter swirl at the two ends (`marble::LINEUP`), under one fixed shot (`Cues::lineup`). `make marble-shots` captures it on every tier as `target/shots/marbles/lineup-<tier>.png`. The reviewed High frame is committed as [`docs/shots/p5-t1-lineup.png`](shots/p5-t1-lineup.png); the script never rewrites it. The P1-T8 `shots-test` target does not exist yet, so the lineup is ready to be folded into it from `scripts/marble-shots.sh`.
+`--scenario lineup` rests every type side by side on the floor in front of the tray, with a mini and a shooter swirl at the two ends (`marble::LINEUP`), under one fixed shot (`Cues::lineup`). `make marble-shots` captures it on every tier as `target/shots/marbles/lineup-<tier>.png`. The reviewed High frame is committed as [`docs/shots/p5-t1-lineup.png`](shots/p5-t1-lineup.png); the script never rewrites it. `make shots-test` (`scripts/shots/p1t8.py`) also captures the lineup at one lockstep tick per tier, checks that it is lit with 9 marbles and no logged error, and compares each tier with its 640×360 reference `docs/shots/p5-t1-lineup-<tier>.png` and with the High shot.
 
 ## Render looks
 

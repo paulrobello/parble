@@ -265,7 +265,7 @@ make shots-p1t7                      # native: per-tier shots, TAA ghost check, 
 make marble-shots                    # native: closeup PNG per marble type and tier, two sizes, the lineup per tier and the glow bloom check, to target/shots/marbles (P1-T6, P5-T1)
 make web-e2e                         # release build, then the Playwright suites (smoke, persistence, marbles, kit, flycam, editor) in GPU Chromium on 5311
 make web-editor-perf                 # the P3-T4 2,000-piece edit frame-time trace against an existing target/web-dist (load-guarded)
-make shots-test                      # native lockstep shots: mechanisms (P2-T6), then showcase and stress2000 per tier vs docs/shots/p1-t8-* (P1-T8)
+make shots-test                      # native lockstep shots: mechanisms (P2-T6), then showcase and stress2000 per tier vs docs/shots/p1-t8-* (P1-T8) and the marble lineup vs docs/shots/p5-t1-lineup-* (P5-T1)
 make perf-gate                       # P1-T8 gate: p95 at 1440p High, showcase + stress2000, GPU Chromium + Safari, load-guarded, port 5313 -> docs/perf/p1-gate.json (docs/perf/README.md)
 make perf-gate-smoke                 # the same run without the load wait, non-gating, -> target/perf/p1-gate-smoke.json
 make web-marbles                     # the marbles spec alone against an existing target/web-dist (P1-T6)
