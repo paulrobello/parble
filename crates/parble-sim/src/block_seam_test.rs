@@ -615,13 +615,16 @@ fn redirect_exit(level: u8, control: &Control) -> (f32, f32) {
         place(s, x + 1, 0, 0, 0, false),
         place(s, x + 2, 0, 0, 0, false),
     ];
-    // The tunnel floor (kitblocks.py: landing 15 mm over the exit floor at x = -17 mm, smoothstep
-    // down to the port) at 14 mm past the cell centre, and its slope there. The marble starts
-    // along the floor: launched level it fell onto the descending floor and landed 4 ticks later
-    // (kick 57.44 on the landing tick, measured 2026-11-08), which is the launch, not the seam.
+    // The tunnel floor (kitblocks.py: landing 15 mm over the exit floor at x = -17 mm, quintic
+    // smootherstep down to the port) at 14 mm past the cell centre, and its slope there. The
+    // marble starts along the floor: launched level it fell onto the descending floor and landed
+    // 4 ticks later (kick 57.44 on the landing tick, measured 2026-11-08), which is the launch,
+    // not the seam. Launched on the old cubic floor's height and slope it also landed, inside the
+    // window (kick 22.30 on the quintic floor).
     let t: f32 = (14.0 + 17.0) / 47.0;
-    let rise = 0.015 * (1.0 - (3.0 * t * t - 2.0 * t * t * t));
-    let slope = 15.0 * 6.0 * t * (1.0 - t) / 47.0;
+    let rise = 0.015 * (1.0 - t * t * t * (10.0 + t * (-15.0 + 6.0 * t)));
+    let u = t * (1.0 - t);
+    let slope = 15.0 * 30.0 * u * u / 47.0;
     let x0 = 0.06 * x as f32 + 0.014;
     let tr = run_with(
         &layout,
