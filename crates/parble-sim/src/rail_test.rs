@@ -468,8 +468,26 @@ fn rail_contacts_report_rail_and_block_contacts_wood_with_the_run_unchanged() {
     }
     assert!(on_rail > 20, "{on_rail} roll samples on the rails");
     assert!(on_wood > 20, "{on_wood} roll samples on the blocks");
-    assert!(events.iter().any(|e| matches!(
-        e,
-        SimEvent::Contact(c) if c.other == ContactOther::Static && c.surface == rail
-    )));
+    // A contact event reports the surface where the marble first touches the chunk. The run is one
+    // chunk, so its marble starts on the blocks (wood) and keeps touching: it used to report a
+    // rail contact only after a hop on the rails, which the exact straight-tube contact removed
+    // (`chunk::ChannelStraight`, 2026-11-09). A marble dropped 2 mm onto the rail straight
+    // (cell x 2) first touches the rails.
+    let first_static = |events: &[SimEvent]| {
+        events.iter().find_map(|e| match e {
+            SimEvent::Contact(c) if c.other == ContactOther::Static => Some(c.surface),
+            _ => None,
+        })
+    };
+    assert_eq!(first_static(&events), Some(wood));
+    let mut sim = track_sim(&rail_layout());
+    sim.set_event_recording(true);
+    launch(
+        &mut sim,
+        Vector::new(0.12, REST_Y + 0.002, 0.0),
+        Vector::X,
+        SPEED,
+    );
+    trace(&mut sim, 60);
+    assert_eq!(first_static(&sim.drain_events()), Some(rail));
 }

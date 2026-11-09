@@ -585,6 +585,7 @@ fn rest_in_playroom(starts: &[(Vector, Vector)], legacy_bend_contact: bool) -> (
     }
     sim.rebuild_chunks(kit).unwrap();
     sim.pieces.bend_contact_at_step_start = legacy_bend_contact;
+    sim.pieces.no_straight_contact = legacy_bend_contact;
     for (i, &(at, v)) in starts.iter().enumerate() {
         let (kind, size) = crate::playroom_run::MARBLES[i];
         let spec = kind.spec_sized(size);

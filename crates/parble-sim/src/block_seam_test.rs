@@ -47,6 +47,8 @@ struct Control {
     bend_at_step_start: bool,
     /// Leaves landing floors to the mesh contact (`ChunkColliders::no_landing_contact`).
     no_landing_contact: bool,
+    /// Leaves straight channel triangles to the mesh contact (`ChunkColliders::no_straight_contact`).
+    no_straight_contact: bool,
 }
 
 fn run_with(
@@ -63,6 +65,7 @@ fn run_with(
     sim.pieces.no_junction_contact = control.no_junction_contact;
     sim.pieces.bend_contact_at_step_start = control.bend_at_step_start;
     sim.pieces.no_landing_contact = control.no_landing_contact;
+    sim.pieces.no_straight_contact = control.no_straight_contact;
     for p in layout {
         sim.place_piece(kit, p.clone()).unwrap();
     }
@@ -1173,9 +1176,13 @@ fn tower_drop_stays_on_the_rails() {
 #[test]
 fn tower_drop_mesh_landing_leaves_the_rails() {
     // Negative control: on the faceted landing floor (no landing contact) the 0.325 m/s runs
-    // climb off the rails.
+    // climb off the rails. The straights after the socket stay on the mesh contact too: on the
+    // exact straight tube (`chunk::ChannelStraight`) a marble leaving the faceted landing
+    // sideways settles back into the channel, so the control left every run on the rails
+    // (measured 2026-11-09).
     let control = Control {
         no_landing_contact: true,
+        no_straight_contact: true,
         ..Control::default()
     };
     let off: Vec<(f32, f32)> = tower_sweep()
@@ -1220,4 +1227,51 @@ fn dump_tower_traces() {
         })
         .collect();
     std::fs::write(path, format!("[{}]", runs.join(","))).unwrap();
+}
+
+/// A cat's eye rolled down four `L3` straights (cells x 0..3) at 0.3 m/s with a lateral speed
+/// `lateral` (m/s) across the channel, and the window over the straights clear of both ends.
+fn swinging_straight(
+    lateral: f32,
+    control: &Control,
+) -> (Vec<MarbleState>, impl Fn(&MarbleState) -> bool + use<>) {
+    let layout: Vec<Placement> = (0..4)
+        .map(|x| place("blk_straight_l3", x, 0, 0, 0, false))
+        .collect();
+    let at = Vector::new(-0.02, rest(0, 3), 0.0);
+    let tr = run_with(&layout, at, Vector::new(SPEED, 0.0, lateral), 700, control);
+    (tr, |m: &MarbleState| (0.0..0.18).contains(&m.position[0]))
+}
+
+#[test]
+fn a_swinging_marble_on_straights_meets_no_facet_edges() {
+    // A marble swinging across the straight channel. On the 16 facets its vertical speed jumps
+    // each time the contact crosses a facet edge; on the exact tube (`chunk::ChannelStraight`)
+    // it follows the tube. The swing's own vertical speed is the geometry, peaking at
+    // A^2 w / 2R for amplitude A, w = 34 rad/s and R = 5.93 mm: the small swing (A about 1 mm,
+    // crossing the bottom crease and the first edges) is gated on upward and kick, the large one (A about
+    // 3.5 mm) on kick only. Measured 2026-11-08: 0.035 m/s upward 2.03, kick 0.09 (faceted 2.98 /
+    // 3.29); 0.12 m/s upward 22.68, kick 1.09 (faceted 36.18 / 23.21).
+    let (p_lim, k_lim) = limits(3);
+    for (lateral, gate_upward) in [(0.035, true), (0.12, false)] {
+        let (tr, sel) = swinging_straight(lateral, &Control::default());
+        let (u, k) = (upward(&tr, &sel), kick(&tr, &sel));
+        let faceted = Control {
+            no_straight_contact: true,
+            ..Control::default()
+        };
+        let (ctr, csel) = swinging_straight(lateral, &faceted);
+        let (cu, ck) = (upward(&ctr, &csel), kick(&ctr, &csel));
+        eprintln!(
+            "swing {lateral} m/s: upward {u:.2} (limit {p_lim:.2}), kick {k:.2} (limit \
+             {k_lim:.2}); faceted control upward {cu:.2}, kick {ck:.2}"
+        );
+        assert!(k <= k_lim, "swing {lateral}: kick {k:.2} over {k_lim:.2}");
+        if gate_upward {
+            assert!(u <= p_lim, "swing {lateral}: upward {u:.2} over {p_lim:.2}");
+            assert!(cu > p_lim, "control upward {cu:.2} not over {p_lim:.2}");
+        } else {
+            assert!(ck > k_lim, "control kick {ck:.2} not over {k_lim:.2}");
+        }
+    }
 }

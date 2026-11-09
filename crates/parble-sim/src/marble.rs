@@ -295,7 +295,7 @@ pub fn apply_rolling_resistance(world: &mut PhysicsWorld, marbles: &[RigidBodyHa
 /// The normal impulse the solver applied in the last step on `m`'s solver contacts.
 ///
 /// A manifold point's impulse is written back only while a solver contact refers to it. Where a
-/// contact hook clears a manifold's solver contacts (every copy but the first of an exact bend,
+/// contact hook clears a manifold's solver contacts (every copy but the first of an exact straight, bend,
 /// slope, junction or arc contact, see [`crate::chunk::ChunkColliders`]) or truncates them, the
 /// points keep the impulse of the last step they were solved, so summing every point
 /// counted the exact contact's load again on the manifold it had moved from (measured 2026-11-08: 2.0 mg on some ticks).

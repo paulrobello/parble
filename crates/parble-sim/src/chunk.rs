@@ -198,6 +198,10 @@ pub struct ChunkMesh {
     /// The chunk holds a piece with a trapdoor over a bottom drop port (the one-way hole), so its
     /// collider takes the door seam contact correction ([`crate::door_seam`]).
     pub trapdoor: bool,
+    /// Straight channel blocks of the chunk's placements (see [`ChannelStraight`]).
+    pub straights: Vec<ChannelStraight>,
+    /// Cells of the chunk's forks ([`ChannelJunction::fork`]).
+    pub forks: Vec<CellCoord>,
 }
 
 /// [`ChunkMesh::bend_of`] flag: the triangle lies in its bend's cell.
@@ -381,40 +385,101 @@ impl ChannelBend {
 /// midlines, so where it passes from facet contacts to the exact tube the floor does not move.
 pub(crate) const FACET_TUBE_RADIUS_M: f32 = 0.013_932_586;
 
-/// Sine and cosine of the half-round facets' midline angles from straight down, 5.625° +
-/// 11.25° k for k = 0..8 (one side of the section; the other mirrors it).
-const FACET_MIDLINES: [(f32, f32); 8] = [
-    (0.098_017_14, 0.995_184_7),
-    (0.290_284_7, 0.956_940_3),
-    (0.471_396_74, 0.881_921_3),
-    (0.634_393_3, 0.773_010_4),
-    (0.773_010_4, 0.634_393_3),
-    (0.881_921_3, 0.471_396_74),
-    (0.956_940_3, 0.290_284_7),
-    (0.995_184_7, 0.098_017_14),
-];
+/// A straight channel block (`blk_straight_*`): the channel half-round along one horizontal axis
+/// through its cell.
+///
+/// The sidecar samples the half-round with 16 flat facets 11.25° apart, so a marble swinging
+/// across the channel meets a facet edge whose normal turns by a whole facet in one tick: its
+/// vertical speed jumped by 4–42 mm/s at each crossing (measured 2026-11-08). The contact hook
+/// replaces the contacts on the channel's triangles with one contact against the exact tube.
+///
+/// Its radius is the slope's ([`slope_tube_radius`]), `r + (FACET_TUBE_RADIUS_M - r) / cos
+/// 5.625°` for a ball of radius `r`, so a centred ball sits at the height the two crease facets
+/// hold it at. On a tube of the bend's radius ([`FACET_TUBE_RADIUS_M`]) the same ball sits 28.7 µm
+/// higher (r = 8 mm), and the soft contacts leave that offset in place (it is under the 300 µm
+/// allowed linear error).
+///
+/// The straight owns the ball only while its centre is over the straight's cell and no other
+/// piece's cell lies within a ball diameter along the channel ([`ChunkColliders::straight_owner`]).
+/// Every seam with a slope, bend, junction, rail or mechanism keeps the contact it had, so the
+/// hand-over to and from the exact tube happens between straights, where the two surfaces meet
+/// the ball at the same height and the same normal for a centred ball.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ChannelStraight {
+    /// The straight's cell.
+    pub cell: CellCoord,
+    /// The world axis the channel runs along (0 for x, 2 for z).
+    pub axis: usize,
+    /// World µm of the centreline on the other horizontal axis.
+    pub at_um: i64,
+    /// World µm height of the tube axis (channel floor + channel radius).
+    pub axis_y_um: i64,
+}
 
-/// The contact of a ball (centre `c`, radius `r`, metres) with the faceted channel section about
-/// the axis point `axis` (on the channel axis, in the section through `c`): the normal from the
-/// nearest of the 16 half-round facets toward the ball, and the gap (negative when penetrating).
-/// The section is the collision mesh's own (contract §5.4: 17 vertices at 11.25° steps, one at
-/// the bottom crease). A ball exactly on the axis plane rests on both crease facets: one
-/// vertical contact at their height.
-fn facet_contact(axis: Vector, c: Vector, r: f32) -> Option<(Vector, f32)> {
-    let d = c - axis;
-    let plan = Vector::new(d.x, 0.0, d.z);
-    let u = plan.length();
-    let (mut gap, mut best) = (f32::INFINITY, FACET_MIDLINES[0]);
-    for (sin, cos) in FACET_MIDLINES {
-        let g = FACET_TUBE_RADIUS_M - (u * sin - d.y * cos) - r;
-        if g < gap {
-            (gap, best) = (g, (sin, cos));
+impl ChannelStraight {
+    /// The straight of a `blk_straight_*` placement: two channel ports on opposite side faces at
+    /// one level.
+    fn of(piece: &KitPiece, p: &Placement) -> Option<Self> {
+        let def = &piece.def;
+        let [a, b] = def.ports.as_slice() else {
+            return None;
+        };
+        let level = a.level?;
+        let side = |f: PortFace| !matches!(f, PortFace::Top | PortFace::Bottom);
+        let (na, nb) = (a.face.normal(), b.face.normal());
+        if !p.piece.as_str().starts_with("blk_straight_")
+            || def.footprint.len() != 1
+            || a.class != PortClass::Channel
+            || b.class != PortClass::Channel
+            || b.level != Some(level)
+            || !side(a.face)
+            || !side(b.face)
+            || na.x != -nb.x
+            || na.z != -nb.z
+        {
+            return None;
         }
+        let half = HALF_CELL_UM;
+        let axis_y = level.floor_um() + CHANNEL_RADIUS_UM;
+        let world = |n: CellCoord| {
+            place_point_um(p.orientation(), p.anchor, [n.x * half, axis_y, n.z * half])
+        };
+        let (u, v) = (world(na), world(nb));
+        let (axis, at_um) = if u[0] != v[0] { (0, u[2]) } else { (2, u[0]) };
+        Some(Self {
+            cell: p.anchor,
+            axis,
+            at_um,
+            axis_y_um: u[1],
+        })
     }
-    if u <= 0.0 {
-        return Some((Vector::Y, gap / best.1));
+
+    /// Whether two straights share one tube line.
+    fn same_tube(&self, o: &Self) -> bool {
+        self.axis == o.axis && self.at_um == o.at_um && self.axis_y_um == o.axis_y_um
     }
-    Some((Vector::Y * best.1 - plan * (best.0 / u), gap))
+
+    /// Whether a world point (metres) lies on the tube line's half-round, within 3 µm (the
+    /// sidecar's 1 µm rounding plus the collider's `f32` vertices).
+    fn on_tube(&self, v: Vector) -> bool {
+        let m = |x: i64| x as f64 * 1.0e-6;
+        let d = f64::from(v[2 - self.axis]) - m(self.at_um);
+        let dy = f64::from(v.y) - m(self.axis_y_um);
+        (libm::sqrt(d * d + dy * dy) - m(i64::from(CHANNEL_RADIUS_UM))).abs() <= 3.0e-6
+    }
+
+    /// The contact of a ball (centre `c`, radius `r`, metres) with the exact tube: the normal from
+    /// the tube wall toward the ball and the gap (negative when penetrating).
+    fn contact(&self, c: Vector, r: f32) -> Option<(Vector, f32)> {
+        let m = |x: i64| x as f32 * 1.0e-6;
+        let axis = if self.axis == 0 {
+            Vector::new(c.x, m(self.axis_y_um), m(self.at_um))
+        } else {
+            Vector::new(m(self.at_um), m(self.axis_y_um), c.z)
+        };
+        let off = (axis - c).length();
+        (off > 0.0).then(|| ((axis - c) / off, slope_tube_radius(r) - r - off))
+    }
 }
 
 /// A one-cell channel junction: three or more channel side ports at one level, as on the joiner
@@ -439,9 +504,11 @@ pub struct ChannelJunction {
     pub axis_y_um: i64,
     /// World µm `(min x, min z)` of the junction's cell.
     pub cell_min_um: [i64; 2],
-    /// Whether the contact follows the faceted channel section rather than the round tube (the
-    /// forks).
-    pub faceted: bool,
+    /// Whether the junction is a fork (a moving blade at the crotch): its paths take the
+    /// straight's tube radius ([`slope_tube_radius`]), so the contact hands over to the exact
+    /// straights at its outlets without a step, and the ridge between its arcs is blended
+    /// ([`Self::contact`]).
+    pub fork: bool,
 }
 
 /// Tolerance of [`ChannelJunction::holds`], µm: over the 144 µm sag of a bend's 8 path facets
@@ -513,7 +580,7 @@ impl ChannelJunction {
             straights,
             axis_y_um: world([0, axis_y, 0])[1],
             cell_min_um,
-            faceted: !piece.animated_parts.is_empty(),
+            fork: !piece.animated_parts.is_empty(),
         })
     }
 
@@ -543,33 +610,77 @@ impl ChannelJunction {
 
     /// The contact of a ball (centre `c`, radius `r`, metres) with the exact union of the paths:
     /// that of the path with the largest gap.
+    ///
+    /// On a fork ([`Self::fork`]) the paths are round tubes of the straight's radius, and where
+    /// the two deepest gaps lie within [`FORK_RIDGE_BLEND_M`] of each other the normal blends the
+    /// two paths' normals by their gap difference, equally at a tie ([`blend_ridge`]). The contact
+    /// then depends on the set of paths, not their order: a centred marble feels a vertical
+    /// normal on the ridge where the arcs part, so the blade, not the order the paths were listed
+    /// in, picks its branch.
     fn contact(&self, c: Vector, r: f32) -> Option<(Vector, f32)> {
         let m = |v: i64| v as f32 * 1.0e-6;
         let ay = m(self.axis_y_um);
+        let big_r = if self.fork {
+            slope_tube_radius(r)
+        } else {
+            FACET_TUBE_RADIUS_M
+        };
+        let tube = |axis_point: Vector| {
+            let off = (axis_point - c).length();
+            (off > 0.0).then(|| ((axis_point - c) / off, big_r - r - off))
+        };
         let straight = self.straights.iter().filter_map(|&(axis, at)| {
-            let axis_point = if axis == 0 {
+            tube(if axis == 0 {
                 Vector::new(c.x, ay, m(at))
             } else {
                 Vector::new(m(at), ay, c.z)
-            };
-            if self.faceted {
-                return facet_contact(axis_point, c, r);
-            }
-            let off = (axis_point - c).length();
-            (off > 0.0).then(|| ((axis_point - c) / off, FACET_TUBE_RADIUS_M - r - off))
-        });
-        self.bends
-            .iter()
-            .filter_map(|b| {
-                if self.faceted {
-                    facet_contact(b.axis_point(c)?, c, r)
-                } else {
-                    b.contact(c, r)
-                }
             })
-            .chain(straight)
-            .max_by(|a, b| a.1.total_cmp(&b.1))
+        });
+        let paths = self
+            .bends
+            .iter()
+            .filter_map(|b| tube(b.axis_point(c)?))
+            .chain(straight);
+        if !self.fork {
+            return paths.max_by(|a, b| a.1.total_cmp(&b.1));
+        }
+        let mut best: Option<(Vector, f32)> = None;
+        let mut second: Option<(Vector, f32)> = None;
+        for p in paths {
+            if best.is_none_or(|b| p.1 > b.1) {
+                second = best;
+                best = Some(p);
+            } else if second.is_none_or(|s| p.1 > s.1) {
+                second = Some(p);
+            }
+        }
+        match (best, second) {
+            (Some(a), Some(b)) => Some(blend_ridge(a, b)),
+            (a, _) => a,
+        }
     }
+}
+
+/// Gap difference over which a fork's contact blends its two deepest paths' normals, metres
+/// ([`ChannelJunction::contact`]).
+const FORK_RIDGE_BLEND_M: f32 = 5.0e-5;
+
+/// The contact on the ridge between two paths `a` and `b` (normal, gap), `a.1 >= b.1`: the deeper
+/// path's gap, and a normal that turns from the mean of the two at a tie to `a`'s at a gap
+/// difference of [`FORK_RIDGE_BLEND_M`]. Symmetric in `a` and `b` at a tie, and the sums are
+/// taken in a fixed order, so mirrored marbles take mirrored contacts on every platform.
+fn blend_ridge(a: (Vector, f32), b: (Vector, f32)) -> (Vector, f32) {
+    let d = a.1 - b.1;
+    if d >= FORK_RIDGE_BLEND_M {
+        return a;
+    }
+    let w = 0.5 + 0.5 * d / FORK_RIDGE_BLEND_M;
+    let n = a.0 * w + b.0 * (1.0 - w);
+    let len = n.length();
+    if len <= 0.0 {
+        return a;
+    }
+    (n / len, a.1)
 }
 
 /// A one-cell channel slope: the channel half-round, in vertical cross-sections across the path,
@@ -890,6 +1001,11 @@ const TOWER_DESCENT_UM: i32 = 1_300;
 /// when its contact penetrates: a rolling ball meets a fresh triangle at up to 64 mm/s (see the
 /// slope's hand-over rule), a falling one lands at about 1 m/s.
 const LANDING_ROLLING_M_S: f32 = 0.25;
+
+/// Largest current gap, metres, at which a ball on an exact surface counts as rolling on it
+/// ([`ChunkColliders::rolling`]): over the float noise of a resting ball's gap, under the 42 µm a
+/// ball falling at 10 mm/s closes in one tick, so a slowly dropped ball still bounces.
+const ROLLING_GAP_M: f32 = 1.0e-5;
 
 /// Section radius of the exact slope contact for a ball of radius `r`, metres: the radius at which
 /// a centred ball rests at the same gap as on the two facets beside the bottom crease of a
@@ -1276,6 +1392,18 @@ pub struct ChunkColliders {
     /// Test switch: leave junction triangles to the mesh contact, for the seam gates' control.
     #[cfg(test)]
     pub(crate) no_junction_contact: bool,
+    /// Straight channel blocks of every installed chunk collider by cell (see
+    /// [`ChannelStraight`]), for the straight contact's ownership across chunk seams.
+    straight_cells: BTreeMap<CellCoord, ChannelStraight>,
+    /// Fork cells of every installed chunk collider ([`ChunkMesh::forks`]).
+    fork_cells: BTreeSet<CellCoord>,
+    /// Whether the contact pair being updated has received its exact straight contact, reset
+    /// with [`Self::slope_contact_claimed`].
+    straight_contact_claimed: std::sync::Mutex<bool>,
+    /// Test switch: leave straight channel triangles to the mesh contact, for the straight
+    /// gates' control.
+    #[cfg(test)]
+    pub(crate) no_straight_contact: bool,
     /// Test switch: leave landing floors ([`ChannelSlope::landing`]) to the mesh contact, for the
     /// landing gates' control.
     #[cfg(test)]
@@ -1520,8 +1648,11 @@ impl ChunkColliders {
                 .collect();
             mesh.push_welded(weld, &tris);
             mesh.bends.extend(ChannelBend::of(piece, &placed.placement));
-            mesh.junctions
-                .extend(ChannelJunction::of(piece, &placed.placement));
+            let junction = ChannelJunction::of(piece, &placed.placement);
+            if junction.as_ref().is_some_and(|j| j.fork) {
+                mesh.forks.push(placed.placement.anchor);
+            }
+            mesh.junctions.extend(junction);
             mesh.slopes
                 .extend(ChannelSlope::of(piece, &placed.placement).or_else(|| {
                     #[cfg(test)]
@@ -1537,6 +1668,8 @@ impl ChunkColliders {
                     .ports
                     .iter()
                     .any(|q| q.face == PortFace::Bottom && q.class == PortClass::Drop);
+            mesh.straights
+                .extend(ChannelStraight::of(piece, &placed.placement));
         }
         if from.saturating_add(count) < members.len() {
             return false;
@@ -1807,12 +1940,60 @@ impl ChunkColliders {
     /// A ball falling slowly onto the surface has a positive gap at both and still bounces. One
     /// falling fast meets the contact already penetrating and loses its bounce here, so a landing
     /// floor also checks the approach speed ([`LANDING_ROLLING_M_S`]).
+    ///
+    /// The ball's current gap counts as touching up to [`ROLLING_GAP_M`]: a rolling ball sits at
+    /// a gap of a few µm either side of zero, and a centred marble leaving the gentle slope read
+    /// +4 nm and +6 nm on two hand-over ticks, kept the bounce and kicked 20.48 mm/s at the exit
+    /// (measured 2026-11-09, 0.3 m/s off seven exact straights).
     fn rolling(&self, gap: f32, now: impl FnOnce() -> Option<(Vector, f32)>) -> bool {
         #[cfg(test)]
         if self.end_gap_hand_over {
             return gap <= 0.0;
         }
-        gap <= 0.0 || now().is_some_and(|(_, g)| g <= 0.0)
+        gap <= 0.0 || now().is_some_and(|(_, g)| g <= ROLLING_GAP_M)
+    }
+
+    /// The straight that owns a ball of centre `c` and radius `r` (metres), if any: the straight
+    /// whose cell holds the centre, when each cell along the channel within a ball diameter of
+    /// the centre is empty or a straight on the same tube line. Next to any other piece the
+    /// contact stays as it was, so every seam with a slope, bend, junction, rail or mechanism
+    /// keeps its own hand-over.
+    fn straight_owner(&self, c: Vector, r: f32) -> Option<&ChannelStraight> {
+        #[cfg(test)]
+        if self.no_straight_contact {
+            return None;
+        }
+        if self.straight_cells.is_empty() {
+            return None;
+        }
+        let cell = CELL_UM as f32 * 1.0e-6;
+        let half = 0.5 * cell;
+        let at = CellCoord::new(
+            ((c.x + half) / cell).floor() as i32,
+            (c.y / cell).floor() as i32,
+            ((c.z + half) / cell).floor() as i32,
+        );
+        let s = self.straight_cells.get(&at)?;
+        let (index, step) = if s.axis == 0 {
+            (at.x, CellCoord::new(1, 0, 0))
+        } else {
+            (at.z, CellCoord::new(0, 0, 1))
+        };
+        let lo = index as f32 * cell - half;
+        let along = c[s.axis];
+        let reach = 2.0 * r;
+        let clear = |n: CellCoord| {
+            !self.occupancy.contains_key(&n)
+                || self.straight_cells.get(&n).is_some_and(|o| o.same_tube(s))
+                || (FORK_HAND_OVER && self.fork_cells.contains(&n))
+        };
+        if along - lo < reach && !clear(at + CellCoord::new(-step.x, 0, -step.z)) {
+            return None;
+        }
+        if lo + cell - along < reach && !clear(at + step) {
+            return None;
+        }
+        Some(s)
     }
 
     /// Replace `chunk`'s collider with `mesh` (none when empty) and clear its dirty mark.
@@ -1830,6 +2011,8 @@ impl ChunkColliders {
 
     /// Drop `chunk`'s collider and its contact-hook tags, if it has one.
     fn remove_installed(&mut self, world: &mut PhysicsWorld, chunk: CellCoord) {
+        self.straight_cells.retain(|&c, _| chunk_of(c) != chunk);
+        self.fork_cells.retain(|&c| chunk_of(c) != chunk);
         if let Some(h) = self.handles.remove(&chunk) {
             world.remove_collider(h);
             self.stitched.remove(&h.into_raw_parts());
@@ -1862,6 +2045,7 @@ impl ChunkColliders {
             || mesh.bend_of.iter().any(|&b| b != 0)
             || mesh.junction_of.iter().any(|&j| j != 0)
             || mesh.arc_of.iter().any(|&a| a != 0)
+            || !mesh.straights.is_empty()
         {
             collider.set_active_hooks(
                 ActiveHooks::MODIFY_SOLVER_CONTACTS | ActiveHooks::FILTER_CONTACT_PAIRS,
@@ -1897,6 +2081,9 @@ impl ChunkColliders {
                 .insert(h.into_raw_parts(), (mesh.slopes, mesh.slope_of));
             self.arcs
                 .insert(h.into_raw_parts(), (mesh.arcs, mesh.arc_of));
+            self.straight_cells
+                .extend(mesh.straights.iter().map(|s| (s.cell, *s)));
+            self.fork_cells.extend(mesh.forks.iter().copied());
         }
         self.dirty.remove(&chunk);
     }
@@ -1932,6 +2119,10 @@ impl PhysicsHooks for ChunkColliders {
             .junction_contact_claimed
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = false;
+        *self
+            .straight_contact_claimed
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = false;
         Some(SolverFlags::default())
     }
 
@@ -1958,6 +2149,66 @@ impl PhysicsHooks for ChunkColliders {
         } else {
             rigid.manifold.subshape2
         };
+        if let Some(s) = self.straight_owner(centre, ball.radius) {
+            let on_tube = colliders[handle]
+                .shape()
+                .as_trimesh()
+                .map(|m| m.triangle(tri))
+                .is_some_and(|t| {
+                    let pose = colliders[handle].position();
+                    [t.a, t.b, t.c].iter().all(|&p| s.on_tube(pose * p))
+                });
+            if on_tube {
+                // One contact against the exact tube (see [`ChannelStraight`]), on the first
+                // manifold of the pair whose chunk holds the straight, evaluated at the end of
+                // the step and without a bounce at the triangle hand-overs, as on a bend. The
+                // tube's triangles in a neighbouring chunk lose their contacts: the straight's
+                // own chunk carries the one contact.
+                if rigid.solver_contacts.is_empty() {
+                    return;
+                }
+                if self.handles.get(&chunk_of(s.cell)) != Some(&handle) {
+                    rigid.solver_contacts.clear();
+                    return;
+                }
+                let v = bodies[ball_body].linvel();
+                let now = s.contact(centre, ball.radius);
+                let Some((n, gap)) = s
+                    .contact(centre + v * crate::DT, ball.radius)
+                    .map(|(n, g)| (n, g - v.dot(n) * crate::DT))
+                else {
+                    return;
+                };
+                let mut claimed = self
+                    .straight_contact_claimed
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner());
+                if *claimed {
+                    rigid.solver_contacts.clear();
+                    return;
+                }
+                *claimed = true;
+                set_one_contact(rigid, first, centre, ball.radius, n, gap);
+                // A marble dropped onto a straight (a controlled drop, PRD §5.4) meets it already
+                // penetrating, so as on a landing floor it keeps its bounce while it approaches
+                // faster than LANDING_ROLLING_M_S.
+                let approach = -v.dot(n);
+                if self.rolling(gap, || now) && approach <= LANDING_ROLLING_M_S {
+                    *rigid.restitution = 0.0;
+                }
+                return;
+            }
+            if self
+                .junctions
+                .get(&handle.into_raw_parts())
+                .is_some_and(|(_, tags)| tags.get(tri as usize).is_some_and(|&t| t != 0))
+            {
+                // A fork's channel next to the straight: the straight's contact holds the ball
+                // once its centre has left the fork's cell.
+                rigid.solver_contacts.clear();
+                return;
+            }
+        }
         if let Some((slopes, slope_of)) = self.slopes.get(&handle.into_raw_parts())
             && let Some(tagged) = slope_of.get(tri as usize)
             && !tagged.is_empty()
@@ -2271,6 +2522,9 @@ impl PhysicsHooks for ChunkColliders {
         }
     }
 }
+
+/// Whether a straight next to a fork takes the ball once its centre leaves the fork cell.
+const FORK_HAND_OVER: bool = true;
 
 /// Replace a manifold's solver contacts with one contact of normal `n` (from the mesh toward the
 /// ball) and gap `gap` for the ball of centre `centre` and radius `radius`.
