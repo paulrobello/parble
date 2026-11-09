@@ -419,35 +419,91 @@ fn slope_hand_overs_without_the_fix_bounce() {
     );
 }
 
+/// The gentle slope's floor at the middle of its cell (x = 420 mm), metres: the L3 floor
+/// (45 mm) less half its 15 mm drop, where the quintic is at half height and steepest.
+const SLOPE_MID_FLOOR_M: f32 = 0.045 - 0.0075;
+
+/// Release height for [`slope_drop`], metres: 5 mm over the floor plus the marble radius.
+const SLOPE_DROP_START_M: f32 = SLOPE_MID_FLOOR_M + 0.008 + 0.005;
+
+/// Share of the frictionless normal rebound a dropped marble must keep. Friction spins the marble
+/// up and the speculative contact takes the impact at the speed of the tick before, so it keeps
+/// less than the frictionless value, and a suppressed bounce keeps none.
+const SLOPE_BOUNCE_SHARE: f32 = 0.5;
+
+/// A marble released at [`SLOPE_DROP_START_M`] over the middle of the gentle slope. Returns its
+/// speed along the slope normal at the landing point on the impact tick, mm/s, and that normal's
+/// angle from vertical. `bounce` false zeroes the marble's restitution (combine rule `Min`), the
+/// negative control.
+fn slope_drop(keep_hand_over: bool, bounce: bool) -> (f32, f32) {
+    let (layout, _) = slope_layout();
+    let mut sim = track_sim(&layout);
+    sim.pieces.slope_hand_over_bounces = keep_hand_over;
+    let (body, mut collider) = CATS_EYE.build(Vector::new(0.42, SLOPE_DROP_START_M, 0.0));
+    if !bounce {
+        collider.set_restitution(0.0);
+        collider.set_restitution_combine_rule(CoefficientCombineRule::Min);
+    }
+    let h = sim.world.bodies.insert(body);
+    sim.world
+        .colliders
+        .insert_with_parent(collider, h, &mut sim.world.bodies);
+    sim.marbles.push(h);
+    let tr = trace(&mut sim, 60);
+    // The impact is the tick the fall stops: the first rise in vertical speed.
+    let hit = tr
+        .windows(2)
+        .position(|w| w[1].linvel[1] > w[0].linvel[1])
+        .expect("the marble never landed")
+        + 1;
+    // The quintic floor (kit-contract §7: 15 mm over the 60 mm cell from x = 390 mm) descends
+    // towards +x, so its normal leans to +x by the gradient there.
+    let t = (tr[hit].position[0] - 0.39) / 0.06;
+    let u = t * (1.0 - t);
+    let gradient = 0.015 * 30.0 * u * u / 0.06;
+    let n = Vector::new(gradient, 1.0, 0.0).normalize();
+    // On the impact tick only: rolling on down, the velocity follows the flattening floor and
+    // gains a component along this fixed normal with no bounce at all.
+    let v = tr[hit].linvel;
+    ((v[0] * n.x + v[1] * n.y) * 1_000.0, n.y.acos())
+}
+
 #[test]
 fn a_marble_dropped_on_the_slope_still_bounces() {
     // The hand-over fix drops restitution only on a contact the ball already penetrates: a ball
     // falling onto the slope meets it first as a speculative contact and bounces as it would
     // with the bounce kept.
-    let (layout, _) = slope_layout();
-    let drop = |keep: bool| {
-        let mut sim = track_sim(&layout);
-        sim.pieces.slope_hand_over_bounces = keep;
-        // 5 mm over the rest height at the middle of the slope (x = 420 mm).
-        let (body, collider) = CATS_EYE.build(Vector::new(0.42, 0.0455 + 0.005, 0.0));
-        let h = sim.world.bodies.insert(body);
-        sim.world
-            .colliders
-            .insert_with_parent(collider, h, &mut sim.world.bodies);
-        sim.marbles.push(h);
-        let tr = trace(&mut sim, 60);
-        upward(&tr, |_| true)
-    };
-    // Measured 2026-11-07: 116.47 mm/s both ways (impact at about 313 mm/s).
-    let (fixed, kept) = (drop(false), drop(true));
-    eprintln!("drop on the slope: peak upward {fixed:.2} mm/s, {kept:.2} with the bounce kept");
+    //
+    // The bar is derived, not measured: a share of the frictionless rebound along the slope
+    // normal at the landing point, restitution x impact speed x cos(angle) (the fall is
+    // vertical). The impact speed is sqrt(2 g h), h the fall from the release height to where
+    // the marble meets the floor, its centre r / cos(angle) over it. Measured 2026-11-08 on the
+    // quintic slope (25.11 deg, fall 4.16 mm): rebound 148.00 mm/s with or without the
+    // hand-over bounce kept, 0.81 suppressed, against a frictionless 170.8 and a bar of 85.4.
+    let (fixed, angle) = slope_drop(false, true);
+    let (kept, _) = slope_drop(true, true);
+    let (none, _) = slope_drop(false, false);
+    let fall = SLOPE_DROP_START_M - (SLOPE_MID_FLOOR_M + 0.008 / angle.cos());
+    let expected = CATS_EYE.restitution * (2.0 * 9.81 * fall).sqrt() * angle.cos() * 1_000.0;
+    let bar = SLOPE_BOUNCE_SHARE * expected;
+    eprintln!(
+        "drop on the slope ({:.2} deg, fall {:.2} mm): normal rebound {fixed:.2} mm/s, {kept:.2} \
+         with the bounce kept, {none:.2} with it suppressed; frictionless {expected:.2}, bar \
+         {bar:.2}",
+        angle.to_degrees(),
+        fall * 1_000.0
+    );
     assert!(
-        fixed > 100.0,
-        "dropped marble did not bounce: {fixed:.2} mm/s"
+        fixed > bar,
+        "dropped marble did not bounce: {fixed:.2} mm/s, bar {bar:.2}"
     );
     assert!(
         (fixed - kept).abs() < 0.01,
         "bounce {fixed:.2} mm/s differs from {kept:.2}"
+    );
+    assert!(
+        none <= bar,
+        "control: suppressed bounce {none:.2} mm/s clears the bar {bar:.2}"
     );
 }
 
