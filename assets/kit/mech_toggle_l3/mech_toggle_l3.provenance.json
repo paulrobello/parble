@@ -1,13 +1,13 @@
 {
   "schema": "parble-kit-provenance/1",
   "pieceId": "mech_toggle_l3",
-  "pieceVersion": 3,
+  "pieceVersion": 4,
   "route": "scripted",
   "card": "P2-T3",
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "2acd4572252f06892d41a12eaa626866c06ae1010343f5d8f220259d6119ede1",
+    "sha256": "55e12fdccb33402654f301ed70080957efce66e33758b5179ec83cae9a096ef3",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
@@ -17,7 +17,7 @@
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
+      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
     },
     {
       "path": "blender/kit/kitblocks.py",
@@ -25,7 +25,7 @@
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "dedac9f780aaba48ce740a3a3c53b022b1fc9621b954940ffcfc767c3e8b3a11"
+      "sha256": "bb46f2582c19581ed55f7cfbb16cf1e45ee22351a15dbf3056308e091d6b523c"
     },
     {
       "path": "blender/kit/kitstepper.py",
@@ -54,32 +54,32 @@
     "channels": {
       "mech_toggle_l3_lod0_ao": {
         "colorspace": "Non-Color",
-        "sha256": "092e38120f3e3ef4d7e0654eb98e4d83ff6d5ffd43bd12ad66ee4e560c054410",
+        "sha256": "d96e80534ad3fd7e5efdd14073f8d108aad911a94fcc080862388d71a00aedaa",
         "size": 512
       },
       "mech_toggle_l3_lod0_normal": {
         "colorspace": "Non-Color",
-        "sha256": "13f98606f87bdf4ccc89d589417cb64c5ff534dd388f558bdb2d85863fc32bab",
+        "sha256": "5bdcaf5929cc22734e58223b1c6556f133f24976d2f00a5ead632362062ecb4c",
         "size": 512
       },
       "mech_toggle_l3_lod1_ao": {
         "colorspace": "Non-Color",
-        "sha256": "53eca948e6a751ac835ca5a7001e77a87fdb43cf4f4142ea47772ca903c1edb0",
+        "sha256": "cb82c9ebf6307a2fe779750c73486d97c97860cb6f17b715b59f01152611b691",
         "size": 256
       },
       "mech_toggle_l3_lod1_normal": {
         "colorspace": "Non-Color",
-        "sha256": "1ef23dc12b602bb6262cdafe602e8501899531cb6d12f1ae1d6503a8143b95d5",
+        "sha256": "db86d3dcb62c7958a00ed07ab341e3e0b0a0a073ab598314ea6141a249b2748a",
         "size": 256
       },
       "mech_toggle_l3_lod2_ao": {
         "colorspace": "Non-Color",
-        "sha256": "1572ff4cd179c00c14ff12447ac087840f73eb2b2ad8abd0bdb09c340f35477e",
+        "sha256": "707ffdc9f6316a900d4890d1fe898e8501f638135aad7e9893bb3f16c5252b00",
         "size": 128
       },
       "mech_toggle_l3_lod2_normal": {
         "colorspace": "Non-Color",
-        "sha256": "53ee842eb561d8881b8a349e470b51e4d24dd81209d8ccf2e59fb6ab894667ce",
+        "sha256": "3f1efe91552f112cf21cb612ec1023fa5c7ba36f354d420ba91b43be5b344d15",
         "size": 128
       }
     }
@@ -87,7 +87,7 @@
   "lods": [
     {
       "lod": "mech_toggle_l3_lod0",
-      "tris": 2562
+      "tris": 2420
     },
     {
       "lod": "mech_toggle_l3_lod1",
@@ -95,86 +95,86 @@
     },
     {
       "lod": "mech_toggle_l3_lod2",
-      "tris": 182
+      "tris": 192
     }
   ],
   "collider": {
     "node": "mech_toggle_l3_collider",
-    "tris": 505
+    "tris": 487
   },
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2810.8,
-      "median": 2695.5,
-      "min": 2134.8
+      "max": 2854.2,
+      "median": 2724.9,
+      "min": 2168.2
     },
     "lod1": {
-      "max": 1406.8,
-      "median": 1347.6,
-      "min": 1068
+      "max": 1436,
+      "median": 1386.8,
+      "min": 1091.1
     },
     "lod2": {
-      "max": 701.5,
-      "median": 687.2,
-      "min": 585.8
+      "max": 708.8,
+      "median": 695.7,
+      "min": 603.2
     }
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 116832,
+    "glbBytes": 112680,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/mech_toggle_l3/mech_toggle_l3.glb",
-      "sha256": "cc576d00836d226a4ab2f1b149d3fdb99344967fc394e05cec10dd908216b9a9",
-      "bytes": 116832
+      "sha256": "840cf2fee7f8df373caab93a2b59cd373766c08943a6d0667d70656f670347a0",
+      "bytes": 112680
     },
     {
       "path": "assets/kit/mech_toggle_l3/mech_toggle_l3.kit.json",
-      "sha256": "6cfe3c9abeb4fda0882bf64407a583eb46a887b5e2e684a60652d694404fe4a6",
-      "bytes": 39977
+      "sha256": "a8d929ab01a06e9cb0df8e66efa89aa3d95124969fcde8b2f143d068897b0ad6",
+      "bytes": 39796
     },
     {
       "path": "assets/kit/mech_toggle_l3/mech_toggle_l3_lod0_ao.png",
-      "sha256": "092e38120f3e3ef4d7e0654eb98e4d83ff6d5ffd43bd12ad66ee4e560c054410",
-      "bytes": 43784
+      "sha256": "d96e80534ad3fd7e5efdd14073f8d108aad911a94fcc080862388d71a00aedaa",
+      "bytes": 43805
     },
     {
       "path": "assets/kit/mech_toggle_l3/mech_toggle_l3_lod0_normal.png",
-      "sha256": "13f98606f87bdf4ccc89d589417cb64c5ff534dd388f558bdb2d85863fc32bab",
-      "bytes": 51004
+      "sha256": "5bdcaf5929cc22734e58223b1c6556f133f24976d2f00a5ead632362062ecb4c",
+      "bytes": 65510
     },
     {
       "path": "assets/kit/mech_toggle_l3/mech_toggle_l3_lod1_ao.png",
-      "sha256": "53eca948e6a751ac835ca5a7001e77a87fdb43cf4f4142ea47772ca903c1edb0",
-      "bytes": 16597
+      "sha256": "cb82c9ebf6307a2fe779750c73486d97c97860cb6f17b715b59f01152611b691",
+      "bytes": 16594
     },
     {
       "path": "assets/kit/mech_toggle_l3/mech_toggle_l3_lod1_normal.png",
-      "sha256": "1ef23dc12b602bb6262cdafe602e8501899531cb6d12f1ae1d6503a8143b95d5",
-      "bytes": 22772
+      "sha256": "db86d3dcb62c7958a00ed07ab341e3e0b0a0a073ab598314ea6141a249b2748a",
+      "bytes": 24502
     },
     {
       "path": "assets/kit/mech_toggle_l3/mech_toggle_l3_lod2_ao.png",
-      "sha256": "1572ff4cd179c00c14ff12447ac087840f73eb2b2ad8abd0bdb09c340f35477e",
-      "bytes": 5535
+      "sha256": "707ffdc9f6316a900d4890d1fe898e8501f638135aad7e9893bb3f16c5252b00",
+      "bytes": 4966
     },
     {
       "path": "assets/kit/mech_toggle_l3/mech_toggle_l3_lod2_normal.png",
-      "sha256": "53ee842eb561d8881b8a349e470b51e4d24dd81209d8ccf2e59fb6ab894667ce",
-      "bytes": 9235
+      "sha256": "3f1efe91552f112cf21cb612ec1023fa5c7ba36f354d420ba91b43be5b344d15",
+      "bytes": 10866
     },
     {
       "path": "assets-source/kit/mech_toggle_l3/mech_toggle_l3_high.blend",
-      "sha256": "8956fbcf0786653ddc42f623632989a1daf7a39bcbb2bdbacc54fe15fabec450",
-      "bytes": 379389
+      "sha256": "0fef1cecba6ebed4010243220149d1cc344483958a0108d65a7db19fdcf6312d",
+      "bytes": 362923
     },
     {
       "path": "assets-source/kit/mech_toggle_l3/mech_toggle_l3_low.blend",
-      "sha256": "594c814c49e50a86927ae1c4263cb17efd09ea8a6bf0297add78ee87f095b60d",
-      "bytes": 194788
+      "sha256": "ed515c09831b8703162925b02b8565b28deb9429cd4b23372c3e6aa97397ef99",
+      "bytes": 190929
     }
   ],
   "references": [

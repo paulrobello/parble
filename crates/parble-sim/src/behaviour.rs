@@ -23,9 +23,9 @@
 //! | `mech_stepper_up1_l3`, `mech_stepper_up1_l1` | `lift` | `anim_slats` (slide) | cycles up and down while a marble is on the lift, eases back to rest once it is empty ([`crate::stepper`]) |
 //! | `mech_arch_rope_l1` | `curtain_nx`, `curtain_px` | `anim_rope_0`..`7` (no collider) | a drag zone that halves a marble's speed; each rope row swings away from a marble entering it, and every rope bends round the marbles reaching it ([`RopeModel`], [`crate::rope`]) |
 //!
-//! Both fork parts are a switch blade hinged about +Y with its tip upstream; at its ±25° limits
-//! the tip is 10.1 mm off the channel centre, so the marble meets the blade's face and is steered
-//! to the open branch. The behaviours drive the part to its limits ([`fork_angle`]).
+//! Both fork parts are a switch blade hinged about +Y with its tip upstream, over the end wall of
+//! the fork's flat frog; at its ±32° limits the tip is 12.7 mm off the channel centre, so the
+//! marble meets the blade's face and is steered to the open branch. The behaviours drive the part to its limits ([`fork_angle`]).
 
 use std::collections::BTreeMap;
 

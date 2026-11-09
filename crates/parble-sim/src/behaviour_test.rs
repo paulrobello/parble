@@ -821,16 +821,14 @@ pub(crate) fn slow_and_off_centre_misses() -> Vec<(&'static str, Side, f32, f32)
 /// is a marble at rest in the fork or back in the feed (`None`), or one that left sideways
 /// (`Some(None)`).
 ///
-/// The acceptance test for the shooter fork fix (owner option D1, 2026-11-09), ignored until a
-/// blade passes it. Measured 2026-11-09: the shipped 25° blade pivoted at x -2 fails all 140
-/// shooter runs (mini and standard all pass). The D1 blade (pivot at the wedge tip, x 1.0, 36°,
-/// parked on wip/fork-blade-d1) passes every run at 0.3-0.6 m/s and fails 13 at 0.2 m/s: six glass
-/// shooters jam against the toggle's blade, seven minis stop in the splitter's -z branch. Option D2
-/// (curved blade faces following the open branch's wall, 16 designs) found none that passes this
-/// and keeps the splitter's -z outlet kick at or under 6.5 mm/s. The contact diagnosis of the D1
-/// failures is in `fork_contact_test`.
+/// The acceptance test for the shooter fork fix (owner option D1, 2026-11-09). On the two arcs
+/// alone the 25° blade pivoted at x -2 failed all 140 shooter runs, and the best blade of the
+/// sweep (pivot 2 mm, 24 mm, 33°) failed 7: centred minis at 0.2 m/s in the splitter climbed
+/// 2.3 mm up the ridge between the arcs, stalled and rolled back before the blade reached them.
+/// The flat frog under the split (kitmech `FORK_FROG_X`, `chunk::FORK_FROG_UM`) and the blade
+/// pivoted over its end wall (3 mm, 24 mm, 32°) pass every run (2026-11-09). The contact
+/// diagnosis of the D1 failures is in `fork_contact_test`.
 #[test]
-#[ignore]
 fn shipped_fork_parts_route_every_marble_type_and_size() {
     let bad = every_type_and_size_misses();
     assert!(
@@ -901,8 +899,9 @@ pub(crate) fn every_type_and_size_misses() -> Vec<Miss> {
 }
 
 /// Blade sweep (diagnostic, not a gate): each [`crate::fork_contact_test::Blade`] in
-/// `PARBLE_BLADES` (`pivot_x,len,limit;...`, mm and degrees) scored on the acceptance and routing
-/// tests and the fork seam windows.
+/// `PARBLE_BLADES` (`pivot_x,len,limit[,clearance];...`, mm and degrees) scored on the acceptance
+/// and routing tests and the fork seam windows, on the shipped fork floor. `3,24,32` is the
+/// shipped blade's design.
 #[test]
 #[ignore]
 fn fork_blade_sweep() {

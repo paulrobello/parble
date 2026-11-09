@@ -36,7 +36,11 @@
 //! forks a round junction whose two arcs are blended within 50 um of the crotch ridge
 //! (`chunk::ChannelJunction::fork`), so a centred marble has no side bias. [`Blade`] and
 //! `behaviour::tests::fork_blade_sweep` swap the fork blade's collider for a fan prism built like
-//! kitmech's, to score blade designs without a kit build.
+//! kitmech's, to score blade designs without a kit build (`PARBLE_BLADE` does the same for
+//! [`fork_contact_dump`]).
+//!
+//! Since 2026-11-09 the forks have a flat frog between the arcs (`chunk::FORK_FROG_UM`), and the
+//! shipped blade is the sweep's `3,24,32`.
 
 use crate::behaviour::{SPLITTER, TOGGLE, registry};
 use crate::marble::{MarbleKind, MarbleSize, MarbleSpec};
@@ -313,7 +317,17 @@ fn fork_contact_dump() {
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
+    if let Ok(b) = std::env::var("PARBLE_BLADE") {
+        let v: Vec<f32> = b.split(',').map(|x| x.trim().parse().unwrap()).collect();
+        set_blade(Some(Blade {
+            pivot_x_mm: v[0],
+            len_mm: v[1],
+            limit_deg: v[2],
+            clear_mm: v.get(3).copied().unwrap_or(0.5),
+        }));
+    }
     let t = trace(piece, first, seed, &sp, v, ticks);
+    set_blade(None);
     dump(&t, from, ticks as usize);
     for l in edge_summary(&t, 2.0) {
         eprintln!("EDGE {l}");
@@ -441,8 +455,10 @@ pub(crate) fn blade_override(piece: &parble_kit::KitPiece) -> Option<parble_kit:
 }
 
 /// Height of the exact fork channel floor over the `L3` floor at piece-local plan point `(x, z)`
-/// (mm): the lower of the two arcs' half-rounds (radius 14 mm about quarter circles of radius
-/// 30 mm about `(-30, ±30)`), the inlet straight's for `x < -30`; 14 where neither holds it.
+/// (mm): the lowest of the two arcs' half-rounds (radius 14 mm about quarter circles of radius
+/// 30 mm about `(-30, ±30)`) and the frog's (flat between the arcs' centrelines up to its end line
+/// at x = -[`crate::chunk::FORK_FROG_UM`], a half-round about that line past it), the inlet
+/// straight's for `x < -30`; 14 where none holds it.
 fn fork_floor_mm(x: f32, z: f32) -> f32 {
     let half_round = |rho: f32| {
         if rho.abs() >= 14.0 {
@@ -454,10 +470,18 @@ fn fork_floor_mm(x: f32, z: f32) -> f32 {
     if x < -30.0 {
         return half_round(z);
     }
+    let frog_x = -(crate::chunk::FORK_FROG_UM as f32) * 1.0e-3;
+    let arc = |x: f32| 30.0 - (900.0 - (x + 30.0) * (x + 30.0)).max(0.0).sqrt();
+    let w = arc(frog_x);
+    let frog = if x <= frog_x {
+        if z.abs() <= arc(x) { 0.0 } else { 14.0 }
+    } else {
+        half_round((x - frog_x).hypot((z.abs() - w).max(0.0)))
+    };
     [30.0f32, -30.0]
         .iter()
         .map(|&cz| half_round(((x + 30.0).hypot(z - cz)) - 30.0))
-        .fold(14.0, f32::min)
+        .fold(frog, f32::min)
 }
 
 fn blade_mesh(b: &Blade) -> parble_kit::CollisionGroup {

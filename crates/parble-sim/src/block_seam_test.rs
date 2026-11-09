@@ -840,8 +840,6 @@ struct MechCase {
     at: Vector,
     mechanisms: bool,
     windows: Vec<(&'static str, [f32; 2], [f32; 2])>,
-    /// `(upward, kick)` limits in mm/s that replace the seam thresholds (`limits`) for this run.
-    measured_limits: Option<(f32, f32)>,
 }
 
 /// Each mechanism piece's channel seams with straights on its side ports. The piece sits at cell
@@ -874,7 +872,6 @@ fn mech_cases() -> Vec<MechCase> {
             at: l3,
             mechanisms: false,
             windows: vec![inlet],
-            measured_limits: None,
         },
         MechCase {
             id: "mech_hopper",
@@ -886,7 +883,6 @@ fn mech_cases() -> Vec<MechCase> {
             at: Vector::new(0.012, rest(0, 1), 0.0),
             mechanisms: false,
             windows: vec![("piece to straight", [0.015, Z[0]], [0.045, Z[1]])],
-            measured_limits: None,
         },
         MechCase {
             id: "mech_checkpoint_l1",
@@ -899,7 +895,6 @@ fn mech_cases() -> Vec<MechCase> {
             at: Vector::new(-0.02, rest(0, 1), 0.0),
             mechanisms: false,
             windows: vec![inlet, ("piece to straight", [0.075, Z[0]], [0.105, Z[1]])],
-            measured_limits: None,
         },
     ];
     // With the blade at rest the splitter sends the first marble to -z, the toggle to +z.
@@ -919,7 +914,6 @@ fn mech_cases() -> Vec<MechCase> {
             at: l3,
             mechanisms: false,
             windows: vec![fork_inlet],
-            measured_limits: None,
         });
         cases.push(MechCase {
             id,
@@ -927,19 +921,10 @@ fn mech_cases() -> Vec<MechCase> {
             at: l3,
             mechanisms: true,
             windows: vec![outlet],
-            measured_limits: (id == "mech_toggle_l3").then_some(TOGGLE_OUTLET_LIMITS_MM_S),
         });
     }
     cases
 }
-
-/// The toggle's +z outlet seam's `(upward, kick)` limits, mm/s. The marble leaves the fork
-/// swinging across the channel off the blade, as it leaves a bend: upward 3.28, kick 0.16
-/// (measured 2026-11-09 on the exact straight tube and the round fork junction), over the 2.19
-/// upward threshold with no one-tick jump. It was (7.0, 5.3) on the faceted straight, whose facet
-/// edges the swing crossed. Gating it on kick only, as the splitter's -z outlet is, needs the
-/// owner's call.
-const TOGGLE_OUTLET_LIMITS_MM_S: (f32, f32) = (3.5, 1.0);
 
 fn mech_level(id: &str) -> u8 {
     if id.ends_with("_l3") || id == "mech_finish" {
@@ -990,16 +975,14 @@ fn mech_seams_stay_under_the_seam_thresholds() {
     // at the seam. Logged, not gated (`mech_fork_interior_metrics`): the fork interior past the
     // inlet window, where the blade's tip meets the marble.
     //
-    // The splitter's -z outlet is gated on kick only, as a bend inlet is: the marble leaves the
-    // fork swinging across the channel off the blade, with no one-tick jump. Measured 2026-11-09:
-    // upward 4.77, kick 0.20 (4.45 / 4.96 with the faceted junction and straight, 3.51 / 3.61 on
-    // the mesh). A real step there still fails the kick (`splitter_outlet_step_kicks`).
-    //
-    // The toggle's +z outlet is gated at TOGGLE_OUTLET_LIMITS_MM_S, the same swing.
+    // The fork outlets meet the L3 thresholds since the frog (kitmech FORK_FROG_X) and the blade
+    // over its end wall: splitter -z upward 1.27, kick 0.10, toggle +z 0.99 / 0.17 (measured
+    // 2026-11-09). On the two arcs alone the marble left the fork swinging across the channel off
+    // the blade, splitter -z 4.77 / 0.20 (gated on kick only) and toggle +z 3.28 / 0.16 (gated at
+    // 3.5 / 1.0). A real step before the -z outlet fails the gate
+    // (`splitter_outlet_step_fails_the_seam_gate`).
     for case in mech_cases() {
-        let (p_lim, k_lim) = case
-            .measured_limits
-            .unwrap_or_else(|| limits(mech_level(case.id)));
+        let (p_lim, k_lim) = limits(mech_level(case.id));
         let tr = mech_run(&case, Vec::new());
         for (name, lo, hi) in &case.windows {
             let sel = window(*lo, *hi);
@@ -1013,9 +996,8 @@ fn mech_seams_stay_under_the_seam_thresholds() {
                 "{} {name}: upward {u:.2} mm/s (limit {p_lim:.2}), kick {k:.2} (limit {k_lim:.2})",
                 case.id
             );
-            let swing = case.id == "mech_splitter_l3" && *name == "piece to -z straight";
             assert!(
-                swing || u <= p_lim,
+                u <= p_lim,
                 "{} {name}: upward {u:.2} over {p_lim:.2}",
                 case.id
             );
@@ -1028,12 +1010,12 @@ fn mech_seams_stay_under_the_seam_thresholds() {
     }
 }
 
-/// A step up of `rise_um` in the `L3` straight's floor just past the splitter's -z outlet
-/// (z -30 mm): a flat plate 12 mm wide across the channel bottom at x = 60 mm, from the seam to
-/// 10 mm into the straight, `rise_um` over the floor (45 mm), facing up.
+/// A step up of `rise_um` in the splitter's floor just before its -z outlet (z -30 mm): a flat
+/// plate 12 mm wide across the channel bottom at x = 60 mm, from 10 mm before the seam to it,
+/// `rise_um` over the floor (45 mm), facing up.
 fn splitter_outlet_step(rise_um: i64) -> Vec<[[i64; 3]; 3]> {
     let (x0, x1, y) = (54_000, 66_000, 45_000 + rise_um);
-    let (z0, z1) = (-40_000, -30_000);
+    let (z0, z1) = (-30_000, -20_000);
     vec![
         [[x0, y, z0], [x0, y, z1], [x1, y, z0]],
         [[x1, y, z0], [x0, y, z1], [x1, y, z1]],
@@ -1041,19 +1023,30 @@ fn splitter_outlet_step(rise_um: i64) -> Vec<[[i64; 3]; 3]> {
 }
 
 #[test]
-fn splitter_outlet_step_kicks() {
-    // Negative control for the splitter outlet's kick-only gate: a 0.5 mm step at the seam still
-    // fails it.
+fn splitter_outlet_step_fails_the_seam_gate() {
+    // Negative control for the splitter's -z outlet gate: 0.3 and 0.5 mm steps before the seam
+    // fail it. Measured 2026-11-09 on the frog: upward 5.97 and 11.74 (limit 2.19), kick 1.37 and
+    // 3.15. The same plate from the seam to 10 mm into the straight read under both limits
+    // (upward 1.27 to 1.58): the marble meets it centred at 220 mm/s and Rapier lifts it onto the
+    // plate by position correction, with no velocity jump.
     let case = mech_cases()
         .into_iter()
         .find(|c| c.id == "mech_splitter_l3" && c.mechanisms)
         .unwrap();
-    let (_, k_lim) = limits(mech_level(case.id));
+    let (p_lim, k_lim) = limits(mech_level(case.id));
     let (name, lo, hi) = case.windows[0];
-    let tr = mech_run(&case, splitter_outlet_step(500));
-    let k = kick(&tr, window(lo, hi));
-    eprintln!("mech_splitter_l3 {name} with a 500 um step: kick {k:.2} (limit {k_lim:.2})");
-    assert!(k > k_lim, "control kick {k:.2} not over {k_lim:.2}");
+    for rise_um in [300_i64, 500] {
+        let tr = mech_run(&case, splitter_outlet_step(rise_um));
+        let (u, k) = (upward(&tr, window(lo, hi)), kick(&tr, window(lo, hi)));
+        eprintln!(
+            "mech_splitter_l3 {name} with a {rise_um} um step: upward {u:.2} (limit {p_lim:.2}), \
+             kick {k:.2} (limit {k_lim:.2})"
+        );
+        assert!(
+            u > p_lim || k > k_lim,
+            "{rise_um} um step: control upward {u:.2} and kick {k:.2} under the limits"
+        );
+    }
 }
 
 #[test]
@@ -1062,7 +1055,7 @@ fn mech_seam_port_caps_bump() {
     // (an inlet at x = 30 mm, the hopper's exit at 30 mm, the checkpoint's exit at 90 mm).
     for case in mech_cases() {
         let level = mech_level(case.id);
-        let (p_lim, _) = case.measured_limits.unwrap_or_else(|| limits(level));
+        let (p_lim, _) = limits(level);
         let floor = 15_000 * i64::from(level);
         for (name, lo, hi) in &case.windows {
             let cap = match (case.id, *name) {

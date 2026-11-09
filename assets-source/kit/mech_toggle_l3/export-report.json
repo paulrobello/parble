@@ -1,6 +1,6 @@
 {
   "blender": "5.2.2 LTS",
-  "colliderTris": 505,
+  "colliderTris": 487,
   "generator": {
     "path": "blender/kit/generate.py",
     "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
@@ -8,7 +8,7 @@
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
+      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
     },
     {
       "path": "blender/kit/kitblocks.py",
@@ -16,7 +16,7 @@
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "dedac9f780aaba48ce740a3a3c53b022b1fc9621b954940ffcfc767c3e8b3a11"
+      "sha256": "bb46f2582c19581ed55f7cfbb16cf1e45ee22351a15dbf3056308e091d6b523c"
     },
     {
       "path": "blender/kit/kitstepper.py",
@@ -59,9 +59,9 @@
     }
   },
   "lodTris": {
-    "mech_toggle_l3_lod0": 2562,
+    "mech_toggle_l3_lod0": 2420,
     "mech_toggle_l3_lod1": 472,
-    "mech_toggle_l3_lod2": 182
+    "mech_toggle_l3_lod2": 192
   },
   "mapSize": {
     "lod0": 512,
@@ -84,31 +84,31 @@
   ],
   "partTris": {
     "lod0": {
-      "anim_rocker_lod0": 144
+      "anim_rocker_lod0": 156
     },
     "lod1": {
-      "anim_rocker_lod1": 64
+      "anim_rocker_lod1": 76
     },
     "lod2": {
-      "anim_rocker_lod2": 48
+      "anim_rocker_lod2": 60
     }
   },
   "pieceId": "mech_toggle_l3",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2810.8,
-      "median": 2695.5,
-      "min": 2134.8
+      "max": 2854.2,
+      "median": 2724.9,
+      "min": 2168.2
     },
     "lod1": {
-      "max": 1406.8,
-      "median": 1347.6,
-      "min": 1068.0
+      "max": 1436.0,
+      "median": 1386.8,
+      "min": 1091.1
     },
     "lod2": {
-      "max": 701.5,
-      "median": 687.2,
-      "min": 585.8
+      "max": 708.8,
+      "median": 695.7,
+      "min": 603.2
     }
   }
 }

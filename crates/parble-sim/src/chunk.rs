@@ -511,7 +511,23 @@ pub struct ChannelJunction {
     /// straights at its outlets without a step, and the ridge between its arcs is blended
     /// ([`Self::contact`]).
     pub fork: bool,
+    /// A fork's frog: world µm points, at axis height, of the inlet port and of the middle of
+    /// the frog's end line ([`FORK_FROG_UM`]). The frog is the plan region between the two arcs'
+    /// centrelines from the port to the end line. Over it the floor is flat at the channel floor
+    /// (a ball's centre lies within the tube radius of the frog's plane at axis height), and past
+    /// the end line it rises as a tube about that line ([`Self::frog_axis_point`]).
+    pub frog: Option<[[i64; 3]; 2]>,
 }
+
+/// Where a fork's frog ends, µm from the cell centre toward the inlet port: at the middle
+/// station of the collision arcs (30 mm × (1 − cos 45°) past the inlet port), kitmech
+/// `FORK_FROG_X`. On the two arcs alone the floor along the fork's centreline was a ridge that
+/// rose 2.3 mm before the blade, and a centred mini at 0.2 m/s stalled on it and rolled back
+/// (measured 2026-11-09, `behaviour_test::fork_blade_sweep`).
+pub const FORK_FROG_UM: i64 = 8_787;
+
+/// Radius of a fork's arcs' centrelines, metres.
+const FORK_ARC_M: f32 = 0.03;
 
 /// Tolerance of [`ChannelJunction::holds`], µm: over the 144 µm sag of a bend's 8 path facets
 /// (30 mm × (1 − cos 5.625°)), where the ridge between two paths can sit.
@@ -528,9 +544,10 @@ impl ChannelJunction {
         // pair, so this hook never sees it). With the forks on the faceted section until
         // 2026-11-09, the outlet kicks were the downstream straight's facet crease and the
         // section's 5.6° ridge where the arcs part drifted off-centre marbles to a side
-        // (`fork_contact_test`). On the round tube, with the exact straights, the inlet reads
-        // upward 0.30 / kick 0.26 mm/s and the splitter's -z outlet 4.77 / 0.20 on the shipped
-        // blade (measured 2026-11-09 in `block_seam_test`).
+        // (`fork_contact_test`). On the round tube, with the exact straights, the frog
+        // ([`Self::frog`]) and the shipped blade, the inlet reads upward 0.50 / kick 0.11 mm/s,
+        // the splitter's -z outlet 1.27 / 0.10 and the toggle's +z outlet 0.99 / 0.17 (measured
+        // 2026-11-09 in `block_seam_test`).
         if def.footprint.len() != 1
             || ports.len() < 3
             || ports
@@ -577,12 +594,29 @@ impl ChannelJunction {
                 }
             }
         }
+        let fork = !piece.animated_parts.is_empty();
+        let frog = ports
+            .iter()
+            .find(|q| q.flow == PortFlow::In)
+            .filter(|_| fork)
+            .map(|q| {
+                let n = q.face.normal();
+                let to = |d: i64| {
+                    world([
+                        (i64::from(n.x) * d) as i32,
+                        axis_y,
+                        (i64::from(n.z) * d) as i32,
+                    ])
+                };
+                [to(i64::from(half)), to(FORK_FROG_UM)]
+            });
         Some(Self {
             bends,
             straights,
             axis_y_um: world([0, axis_y, 0])[1],
             cell_min_um,
-            fork: !piece.animated_parts.is_empty(),
+            fork,
+            frog,
         })
     }
 
@@ -590,15 +624,47 @@ impl ChannelJunction {
     /// continuations past the ports), within [`JUNCTION_RIDGE_UM`]: the boolean's ridge vertices
     /// lie where two paths' facets cross, off both exact tubes.
     fn holds(&self, v: [i64; 3]) -> bool {
-        self.bends
-            .iter()
-            .any(|b| b.tube_error_um(v) <= JUNCTION_RIDGE_UM)
+        let p = [v[0] as f32, v[1] as f32, v[2] as f32].map(|c| c * 1.0e-6);
+        let on_frog = self
+            .frog_axis_point(Vector::new(p[0], p[1], p[2]))
+            .is_some_and(|a| {
+                let d = (a - Vector::new(p[0], p[1], p[2])).length() as f64 * 1.0e6;
+                (d - f64::from(CHANNEL_RADIUS_UM)).abs() <= JUNCTION_RIDGE_UM
+            });
+        on_frog
+            || self
+                .bends
+                .iter()
+                .any(|b| b.tube_error_um(v) <= JUNCTION_RIDGE_UM)
             || self.straights.iter().any(|&(axis, at)| {
                 let d = (v[2 - axis] - at) as f64;
                 let dy = (v[1] - self.axis_y_um) as f64;
                 (libm::sqrt(d * d + dy * dy) - f64::from(CHANNEL_RADIUS_UM)).abs()
                     <= JUNCTION_RIDGE_UM
             })
+    }
+
+    /// The point of the frog's floor plane at axis height nearest `c` (metres), where the frog
+    /// owns it: over the frog, the point above or below `c`; past its end line, the nearest point
+    /// of that line. `None` upstream of the inlet port and beside the frog (the arcs own those).
+    fn frog_axis_point(&self, c: Vector) -> Option<Vector> {
+        let [a, b] = self.frog?;
+        let m = |v: [i64; 3]| Vector::new(v[0] as f32, v[1] as f32, v[2] as f32) * 1.0e-6;
+        let (a, b) = (m(a), m(b));
+        let s_end = (b - a).length();
+        let d = (b - a) / s_end;
+        let l = Vector::new(d.z, 0.0, -d.x);
+        let rel = c - a;
+        let (s, t) = (rel.dot(d), rel.dot(l));
+        let arc = |s: f32| FORK_ARC_M - libm::sqrtf((FORK_ARC_M * FORK_ARC_M - s * s).max(0.0));
+        if s < 0.0 {
+            None
+        } else if s <= s_end {
+            (t.abs() <= arc(s)).then(|| Vector::new(c.x, a.y, c.z))
+        } else {
+            let w = arc(s_end);
+            Some(a + d * s_end + l * t.clamp(-w, w))
+        }
     }
 
     /// Whether a ball centre lies over the junction's cell grown by `margin` metres on every side.
@@ -638,11 +704,13 @@ impl ChannelJunction {
                 Vector::new(m(at), ay, c.z)
             })
         });
+        let frog = self.frog_axis_point(c).and_then(tube);
         let paths = self
             .bends
             .iter()
             .filter_map(|b| tube(b.axis_point(c)?))
-            .chain(straight);
+            .chain(straight)
+            .chain(frog);
         if !self.fork {
             return paths.max_by(|a, b| a.1.total_cmp(&b.1));
         }
@@ -2572,6 +2640,36 @@ mod tests {
 
     fn id(s: &str) -> PieceId {
         PieceId::new(s).unwrap()
+    }
+
+    /// Every channel triangle of the forks (below the cell top), placed turned and mirrored, lies
+    /// on the union the junction contact models: the two arcs and the frog. A triangle off it
+    /// would keep its mesh contact beside the exact one.
+    #[test]
+    fn fork_channel_triangles_all_lie_on_the_junction() {
+        let kit = parble_kit::builtin();
+        for piece in ["mech_splitter_l3", "mech_toggle_l3"] {
+            for (yaw, mirror) in [(0, false), (1, true), (2, false), (3, true)] {
+                let p = place(piece, 2, 1, -1, yaw, mirror);
+                let kp = kit.piece(&p.piece).unwrap();
+                let j = ChannelJunction::of(kp, &p).unwrap();
+                assert!(j.frog.is_some(), "{piece}: no frog");
+                let top = i64::from(CELL_UM) * 2 - 100;
+                let off: Vec<_> = placed_triangles(kp, &p)
+                    .into_iter()
+                    .filter(|t| {
+                        t.iter().all(|v| (top - 58_000..top).contains(&v[1]))
+                            && !t.iter().all(|&v| j.holds(v))
+                    })
+                    .collect();
+                assert!(
+                    off.is_empty(),
+                    "{piece} yaw {yaw}: {} off: {:?}",
+                    off.len(),
+                    &off[..off.len().min(4)]
+                );
+            }
+        }
     }
 
     /// The landing floors of the tower socket block and the redirects, placed turned and mirrored:

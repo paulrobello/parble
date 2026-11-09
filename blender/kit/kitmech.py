@@ -35,8 +35,10 @@ PIECE_VERSION = 1
 # joints (ROPE_LOD_BANDS), so the renderer bends it along the sim's segments.
 # 2026-11-09: mech_arch_rope_l1 4, six 4-sided bands at LOD1: three drew a sharp bend's chord
 # through the marble. LOD2 keeps two bands (PART_BUDGET).
+# 2026-11-09: mech_splitter_l3 4, mech_toggle_l3 4, the flat frog under the split (FORK_FROG_X)
+# and the blade pivoted over its end wall (3 mm, 24 mm, 32°).
 PIECE_VERSIONS = {"mech_gate_oneway_l1": 3, "mech_hole_oneway_l1": 4, "mech_finish": 2, "mech_hopper": 3,
-                  "mech_splitter_l3": 3, "mech_toggle_l3": 3, "mech_checkpoint_l1": 2, "mech_arch_rope_l1": 4,
+                  "mech_splitter_l3": 4, "mech_toggle_l3": 4, "mech_checkpoint_l1": 2, "mech_arch_rope_l1": 4,
                   "mech_stepper_up1_l1": 2, "mech_stepper_up1_l3": 2}
 BUILD = ("mech_finish", "mech_hopper", "mech_splitter_l3", "mech_toggle_l3", "mech_checkpoint_l1",
          "mech_gate_oneway_l1", "mech_hole_oneway_l1", "mech_arch_rope_l1") + tuple(S.STEPPERS)
@@ -212,6 +214,11 @@ def ops(piece_id, q, collision):
         s2 = B.arc((-30.0, 30.0), 30.0, 270.0, 360.0, arc_n, f0, extra=e2)
         cut(lambda bm: B.sweep(bm, B.extend(s1, True, True), oprof))
         cut(lambda bm: B.sweep(bm, B.extend(s2, True, True), oprof))
+        # the frog (FORK_FROG_X) and its end wall; s2 (+z) and s1 (-z) both run from the inlet
+        prism, w = _frog_prism(s2, s1, f0, top + K.CUT_ABOVE)
+        cut(prism)
+        end = [(FORK_FROG_X, -w, 1.0, 0.0, f0), (FORK_FROG_X, w, 1.0, 0.0, f0)]
+        cut(lambda bm: B.sweep(bm, end, oprof))
     elif shape == "checkpoint":
         sts = B.straight_x(-30.0, 30.0, lambda x: f0, 1, extra_x=ins)
         tprof = B.tunnel_profile(collision, q)
@@ -235,6 +242,34 @@ def ops(piece_id, q, collision):
         cut(lambda bm: B.sweep(bm, B.extend(sts, True, True), oprof))
         cut(lambda bm: B.lathe(bm, [(HOLE_R, f0 + TRAP_CAP), (HOLE_R, -K.EXT)], circ))
     return out
+
+
+def _chord_at(sts, x):
+    """(x, z) where the polyline of arc stations `sts` (running from the inlet) crosses plan x."""
+    for a, b in zip(sts, sts[1:]):
+        if (a[0] - x) * (b[0] - x) <= 0 and a[0] != b[0]:
+            t = (x - a[0]) / (b[0] - a[0])
+            return (x, a[1] + t * (b[1] - a[1]))
+    raise ValueError(f"no arc station span over x {x}")
+
+
+def _frog_prism(s_pos, s_neg, f0, top):
+    """The frog's floor: a vertical prism from f0 to `top` over the plan region between the two
+    arcs' centreline chords (stations from the inlet, +z arc and -z arc) up to FORK_FROG_X."""
+    xs = FORK_FROG_X
+    pos = [(x, z) for x, z, *_ in s_pos if x < xs - 1e-9] + [_chord_at(s_pos, xs)]
+    neg = [(x, z) for x, z, *_ in s_neg if x < xs - 1e-9] + [_chord_at(s_neg, xs)]
+    poly = pos + neg[::-1][:-1]   # both start at the inlet point (-30, 0)
+
+    def build(bm):
+        lo = [bm.verts.new((x, f0, z)) for x, z in poly]
+        hi = [bm.verts.new((x, top, z)) for x, z in poly]
+        n = len(poly)
+        for k in range(n):
+            bm.faces.new((lo[k], lo[(k + 1) % n], hi[(k + 1) % n], hi[k]))
+        bm.faces.new(lo[::-1])
+        bm.faces.new(hi)
+    return build, pos[-1][1]
 
 
 def _boolean_mesh(piece_id, q, name, collection, collision):
@@ -431,18 +466,28 @@ def _flap(px, f0, segs):
     return [plate, pin]
 
 
-# Fork switch blade (splitter and toggle): a vertical wall hinged about +Y at the fork, its free
-# end BLADE_LEN upstream. At ±FORK_LIMIT the tip is 10.1 mm off the channel centre, past a standard
-# marble's 8 mm radius, so the marble meets the blade's face and is steered to the open branch. The
-# shallow 25° face keeps a slow or off-centre marble rolling instead of bouncing it back upstream.
-# The underside (BLADE_UNDER: x at 0 mdeg, mm above the floor) follows the two troughs' floor and
-# the ridge between them, clearing it everywhere in the sweep by at least 0.5 mm.
-FORK_PIVOT_X = -2.0
+# Fork frog (splitter and toggle): the floor between the two arcs' centrelines is flat at the
+# channel floor from the inlet to FORK_FROG_X, the collision arcs' middle station, where a
+# half-round end wall across the frog (R14 about the line between the two arcs' centrelines at
+# that station) rises into the crotch. On the two arcs alone the floor along the centreline was a
+# ridge that rose 2.3 mm before the blade, and a centred mini at 0.2 m/s stalled on it and rolled
+# back (2026-11-09); over the frog a marble meets the blade at the inlet's floor height and rolls
+# off it sideways with no climb (crates/parble-sim chunk.rs `ChannelJunction`).
+FORK_FROG_X = -30.0 + 30.0 * math.cos(math.radians(45.0))
+
+# Fork switch blade (splitter and toggle): a vertical wall hinged about +Y over the frog's end
+# wall, its free end BLADE_LEN upstream. At ±FORK_LIMIT the tip is 12.7 mm off the channel centre,
+# so a shooter meets the blade's face, not its tip, and every marble is steered to the open branch
+# (pivot, length and limit from the 2026-11-09 blade sweep on the frog,
+# `behaviour_test::fork_blade_sweep`). The underside (BLADE_UNDER: x at 0 mdeg, mm above the
+# floor) clears the frog, its end wall and the arcs everywhere in the sweep by at least 0.5 mm, at
+# the sweep harness's knots (`fork_contact_test::Blade`).
+FORK_PIVOT_X = 3.0
 BLADE_LEN = 24.0
 BLADE_TOP = 14.0
-BLADE_UNDER = [(-2.0, 6.0), (-10.0, 1.9), (-18.0, 1.0), (-26.0, 4.0)]
-HUB_BASE = 8.2   # the ridge between the troughs reaches 7.7 mm within the hub radius
-FORK_LIMIT = 25000
+BLADE_UNDER = [(3.0, 7.8), (1.0, 5.4), (-2.0, 3.1), (-6.0, 1.3), (-11.0, 0.5), (-16.0, 1.1), (-21.0, 3.7)]
+HUB_BASE = 13.0   # the frog's end wall reaches 12.5 mm within the hub's sweep
+FORK_LIMIT = 32000
 
 
 def _switch_blade(shape, f0, segs):
