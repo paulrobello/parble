@@ -350,7 +350,7 @@ impl ChannelBend {
         if off <= 0.0 {
             return None;
         }
-        Some(((axis - c) / off, FACET_TUBE_RADIUS_M - r - off))
+        Some(((axis - c) / off, channel_tube_radius(r) - r - off))
     }
 
     /// The point of the bend's axis (or its straight continuation past a port) nearest the ball
@@ -381,11 +381,24 @@ impl ChannelBend {
     }
 }
 
-/// Tube radius of the exact bend contact, metres: the distance from the channel axis to the
-/// midline of a collision facet, 14 mm × cos(5.625°) for the contract's 16 half-round segments
-/// (§5.4). A marble on a straight rests on the two facets beside the bottom crease at their
-/// midlines, so where it passes from facet contacts to the exact tube the floor does not move.
+/// Distance from the channel axis to the midline of a collision facet, metres: 14 mm ×
+/// cos(5.625°) for the contract's 16 half-round segments (§5.4). The rail arcs' exact tube
+/// ([`crate::rail_arc::ChannelArc`]) takes it as its radius.
 pub(crate) const FACET_TUBE_RADIUS_M: f32 = 0.013_932_586;
+
+/// How much deeper the solver sinks a ball held by one contact than one held by the two facets
+/// beside a straight's bottom crease, metres.
+///
+/// Rapier's contacts with a fixed body are soft springs (`static_contact_softness`, 60 Hz), so a
+/// ball at rest on one contact sinks its static deflection `g / ω²` = 69.0 µm whatever its mass.
+/// On the crease each facet carries half the weight along a normal tilted α = 5.625°, so the ball
+/// sinks `g / (2 ω² cos² α)` = 34.8 µm. An exact contact replaces the two facet contacts with
+/// one, so with the rigid rest radius alone a centred ball sat 34.2 µm lower on it than on the
+/// facets it hands over to (measured 2026-11-09: 68.9 against 34.7 µm under the rigid rest at
+/// every marble size, `rest_height_test`), a step a slow marble rolling onto the facets had to
+/// climb. Pinned to Rapier's default softness and [`crate::marble::G`] by
+/// `tests::the_crease_sink_compensation_follows_the_static_contact_softness`.
+pub(crate) const CREASE_SINK_COMPENSATION_M: f32 = 3.417_8e-5;
 
 /// A straight channel block (`blk_straight_*`): the channel half-round along one horizontal axis
 /// through its cell.
@@ -395,11 +408,8 @@ pub(crate) const FACET_TUBE_RADIUS_M: f32 = 0.013_932_586;
 /// vertical speed jumped by 4–42 mm/s at each crossing (measured 2026-11-08). The contact hook
 /// replaces the contacts on the channel's triangles with one contact against the exact tube.
 ///
-/// Its radius is the slope's ([`slope_tube_radius`]), `r + (FACET_TUBE_RADIUS_M - r) / cos
-/// 5.625°` for a ball of radius `r`, so a centred ball sits at the height the two crease facets
-/// hold it at. On a tube of the bend's radius ([`FACET_TUBE_RADIUS_M`]) the same ball sits 28.7 µm
-/// higher (r = 8 mm), and the soft contacts leave that offset in place (it is under the 300 µm
-/// allowed linear error).
+/// Its radius is every exact channel contact's ([`channel_tube_radius`]), so a centred ball at
+/// rest sits at the height the two crease facets hold it at.
 ///
 /// The straight owns the ball only while its centre is over the straight's cell and no other
 /// piece's cell lies within a ball diameter along the channel ([`ChunkColliders::straight_owner`]).
@@ -480,15 +490,14 @@ impl ChannelStraight {
             Vector::new(m(self.at_um), m(self.axis_y_um), c.z)
         };
         let off = (axis - c).length();
-        (off > 0.0).then(|| ((axis - c) / off, slope_tube_radius(r) - r - off))
+        (off > 0.0).then(|| ((axis - c) / off, channel_tube_radius(r) - r - off))
     }
 }
 
 /// A one-cell channel junction: three or more channel side ports at one level, as on the joiner
 /// (in at −x and −z, out at +x) and the forks (in at −x, out at ±z). Its channel is the union of
 /// one path per in-to-out port pair: a straight tube between opposite faces, a [`ChannelBend`]
-/// between adjacent ones. The joiner takes the bend's round tube, the forks the straight's (see
-/// [`ChannelJunction::of`]).
+/// between adjacent ones, all of the exact channel radius ([`channel_tube_radius`]).
 ///
 /// The sidecar samples each path with flat facets and the boolean union meets them in a faceted
 /// ridge, so a marble crossing the joiner peaked at 45 mm/s upward from its −x inlet and 88 mm/s
@@ -506,10 +515,9 @@ pub struct ChannelJunction {
     pub axis_y_um: i64,
     /// World µm `(min x, min z)` of the junction's cell.
     pub cell_min_um: [i64; 2],
-    /// Whether the junction is a fork (a moving blade at the crotch): its paths take the
-    /// straight's tube radius ([`slope_tube_radius`]), so the contact hands over to the exact
-    /// straights at its outlets without a step, and the ridge between its arcs is blended
-    /// ([`Self::contact`]).
+    /// Whether the junction is a fork (a moving blade at the crotch): the ridge between its arcs
+    /// is blended ([`Self::contact`]). Every junction's paths take the exact channel radius
+    /// ([`channel_tube_radius`]).
     pub fork: bool,
     /// A fork's frog: world µm points, at axis height, of the inlet port and of the middle of
     /// the frog's end line ([`FORK_FROG_UM`]). The frog is the plan region between the two arcs'
@@ -679,7 +687,7 @@ impl ChannelJunction {
     /// The contact of a ball (centre `c`, radius `r`, metres) with the exact union of the paths:
     /// that of the path with the largest gap.
     ///
-    /// On a fork ([`Self::fork`]) the paths are round tubes of the straight's radius, and where
+    /// On a fork ([`Self::fork`]) the paths are round tubes, and where
     /// the two deepest gaps lie within [`FORK_RIDGE_BLEND_M`] of each other the normal blends the
     /// two paths' normals by their gap difference, equally at a tie ([`blend_ridge`]). The contact
     /// then depends on the set of paths, not their order: a centred marble feels a vertical
@@ -688,11 +696,7 @@ impl ChannelJunction {
     fn contact(&self, c: Vector, r: f32) -> Option<(Vector, f32)> {
         let m = |v: i64| v as f32 * 1.0e-6;
         let ay = m(self.axis_y_um);
-        let big_r = if self.fork {
-            slope_tube_radius(r)
-        } else {
-            FACET_TUBE_RADIUS_M
-        };
+        let big_r = channel_tube_radius(r);
         let tube = |axis_point: Vector| {
             let off = (axis_point - c).length();
             (off > 0.0).then(|| ((axis_point - c) / off, big_r - r - off))
@@ -1006,7 +1010,7 @@ impl ChannelSlope {
     /// is found along the path by a fixed four Gauss–Newton steps from the centre's own section
     /// (the axis curve's radius is at least 40 mm on the gentle slope and 20 mm on the steep one,
     /// the contact under 3 mm along the path from the centre). The circle radius is
-    /// [`slope_tube_radius`].
+    /// [`channel_tube_radius`].
     fn contact(&self, c: Vector, r: f32) -> Option<(Vector, f32)> {
         let m = |v: i64| v as f32 * 1.0e-6;
         let (sc, w) = self.plan(c.x, c.z);
@@ -1018,7 +1022,7 @@ impl ChannelSlope {
             let (f, df) = self.profile(-drop, len, t);
             (ay + f, df)
         };
-        let big_r = slope_tube_radius(r);
+        let big_r = channel_tube_radius(r);
         let mut s = sc;
         for _ in 0..4 {
             let (a, da) = axis(s);
@@ -1077,13 +1081,18 @@ const LANDING_ROLLING_M_S: f32 = 0.25;
 /// ball falling at 10 mm/s closes in one tick, so a slowly dropped ball still bounces.
 const ROLLING_GAP_M: f32 = 1.0e-5;
 
-/// Section radius of the exact slope contact for a ball of radius `r`, metres: the radius at which
-/// a centred ball rests at the same gap as on the two facets beside the bottom crease of a
-/// straight (facet midline [`FACET_TUBE_RADIUS_M`], facets tilted α = 5.625°, cos α =
-/// midline / 14 mm), so the contact hands over to and from the mating straights without a step.
-fn slope_tube_radius(r: f32) -> f32 {
+/// Section radius of every exact channel contact (straight, bend, slope, landing floor,
+/// junction) for a ball of radius `r`, metres: the radius at which a centred ball comes to rest
+/// at the height the two facets beside a straight's bottom crease hold it at, so the contacts hand
+/// over to one another and to the facets without a step.
+///
+/// On the rigid facets (midline [`FACET_TUBE_RADIUS_M`], tilted α = 5.625°, cos α = midline /
+/// 14 mm) the ball's centre lies `(FACET_TUBE_RADIUS_M - r) / cos α` below the axis. The exact
+/// contact is one soft contact where the crease is two, so its radius is
+/// [`CREASE_SINK_COMPENSATION_M`] smaller to leave the resting ball at the same height.
+fn channel_tube_radius(r: f32) -> f32 {
     let channel = CHANNEL_RADIUS_UM as f32 * 1.0e-6;
-    r + (FACET_TUBE_RADIUS_M - r) * channel / FACET_TUBE_RADIUS_M
+    r + (FACET_TUBE_RADIUS_M - r) * channel / FACET_TUBE_RADIUS_M - CREASE_SINK_COMPENSATION_M
 }
 
 impl ChunkMesh {
@@ -2642,6 +2651,27 @@ mod tests {
         PieceId::new(s).unwrap()
     }
 
+    /// [`CREASE_SINK_COMPENSATION_M`] is the static deflection of one soft contact with a fixed
+    /// body less that of the two crease facets, from the softness the sim runs with.
+    #[test]
+    fn the_crease_sink_compensation_follows_the_static_contact_softness() {
+        let sim = crate::Sim::empty();
+        let soft = sim.world.integration_parameters.static_contact_softness;
+        assert_eq!(
+            soft,
+            IntegrationParameters::default().static_contact_softness
+        );
+        let w = f64::from(soft.angular_frequency());
+        let cos = f64::from(FACET_TUBE_RADIUS_M) / f64::from(CHANNEL_RADIUS_UM) * 1.0e6;
+        let one = f64::from(crate::marble::G) / (w * w);
+        let crease = one / (2.0 * cos * cos);
+        let want = one - crease;
+        assert!(
+            (f64::from(CREASE_SINK_COMPENSATION_M) - want).abs() < 1.0e-9,
+            "{CREASE_SINK_COMPENSATION_M} against {want}"
+        );
+    }
+
     /// Every channel triangle of the forks (below the cell top), placed turned and mirrored, lies
     /// on the union the junction contact models: the two arcs and the frog. A triangle off it
     /// would keep its mesh contact beside the exact one.
@@ -2706,7 +2736,7 @@ mod tests {
             );
             let m = |v: i64| v as f32 * 1.0e-6;
             let r = 0.008;
-            let big_r = slope_tube_radius(r);
+            let big_r = channel_tube_radius(r);
             let surface = |s: f32, a: f32| {
                 let t = (s / m(len)).clamp(0.0, 1.0);
                 let ay = m(l.axis_y_um) - l.profile(m(l.drop_um), m(len), t).0;

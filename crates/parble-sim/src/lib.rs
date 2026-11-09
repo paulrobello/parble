@@ -44,6 +44,8 @@ mod kit_pieces_test;
 #[cfg(test)]
 mod rail_test;
 #[cfg(test)]
+mod rest_height_test;
+#[cfg(test)]
 mod rolling_load_test;
 #[cfg(test)]
 mod rolling_sink_test;
