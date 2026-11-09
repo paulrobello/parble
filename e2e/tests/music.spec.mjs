@@ -123,7 +123,10 @@ test("soak: one loop plays for MUSIC_SOAK_S seconds with no gap, restart or erro
     await page.waitForTimeout(250);
     const { m, level } = await page.evaluate(() => ({ m: window.__parbleAudio.stats().music, level: window.__parbleAudio.musicLevel() }));
     samples++;
-    if (level < SILENT_RMS) silent++;
+    if (level < SILENT_RMS) {
+      silent++;
+      console.log(`soak ${((Date.now() - t0) / 1000).toFixed(1)} s: silent RMS ${level} at position ${m.position.toFixed(3)}`);
+    }
     minLevel = Math.min(minLevel, level);
     expect(m.source).toBe(first.source);
     expect(m.loop).toBe(true);

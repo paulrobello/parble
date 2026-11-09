@@ -39,7 +39,7 @@ export interface AudioDiagStats extends Partial<AudioStats> {
   injected: boolean;
   music: MusicDiagStats;
   mixer: MixerSettings;
-  /** The AudioContext's rate (null before the first gesture); decoded music is resampled to it. */
+  /** The AudioContext's rate, absent before the first gesture; decoded music is resampled to it. */
   sampleRate?: number;
 }
 
@@ -151,6 +151,10 @@ export function startAudio(win: Window): AudioHandle {
     if (player || !ctx || !engine || !musicCatalog) return;
     const c = ctx;
     const cat = musicCatalog;
+    // musicLevel's tap, connected now so its first read already holds audio (a fresh analyser reads zeros).
+    analyser = c.createAnalyser();
+    analyser.fftSize = 2048;
+    engine.bus("music").connect(analyser);
     player = new MusicPlayer(c, engine.bus("music"), cat, async (cue) => {
       const entry = cat.cues[cue];
       if (!entry) throw new Error(`no music cue ${cue}`);
@@ -276,12 +280,7 @@ export function startAudio(win: Window): AudioHandle {
       if (state) player?.setState(state);
     },
     musicLevel: () => {
-      if (!ctx || !engine) return 0;
-      if (!analyser) {
-        analyser = ctx.createAnalyser();
-        analyser.fftSize = 2048;
-        engine.bus("music").connect(analyser);
-      }
+      if (!analyser) return 0;
       const buf = new Float32Array(analyser.fftSize);
       analyser.getFloatTimeDomainData(buf);
       let sum = 0;
