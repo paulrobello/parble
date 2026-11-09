@@ -69,3 +69,6 @@ opt-level = 3
 # Rapier 0.36.1 with the rolling-ball contact fix (third_party/rapier3d-0.36.1/README.parble.md).
 [patch.crates-io]
 rapier3d = { path = "third_party/rapier3d-0.36.1" }
+# parry3d 0.31.1 (the version rapier3d 0.36.1 resolves) with a per-triangle CCD filter
+# (third_party/parry3d-0.31.1/README.parble.md).
+parry3d = { path = "third_party/parry3d-0.31.1" }
