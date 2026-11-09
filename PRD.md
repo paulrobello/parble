@@ -303,6 +303,7 @@ Acceptance:
 Scope:
 - **Vertical spans:** helix 1–4 turns at two radii, vertical drop tube, zig-zag switchback wall.
 - **Terrain:** wave/bump channels, S-bends, funnel bowl spinner, half-pipe.
+- **Screw lift** (owner request 2026-11-08): an Archimedes screw elevator. The marble enters at the bottom and is held against a fixed guide or tube while a rotating helical screw turns, so it climbs the spiral and leaves at a higher port. Multi-cell vertical footprint; the screw turns only while a marble is on it.
 - **Large funnel catcher** (owner request 2026-11-08): a multi-cell funnel (for example 2×2 and 3×3 footprints) that catches controlled free falls and launcher shots over a wide area and spirals the marble down to a centre exit port. Marbles can also roll in from the track: the funnel has side entry ports at track level whose inlets feed the marble tangentially onto the bowl rim. Funnel adapter pieces join funnels to the rest of the kit: channel-to-rim inlets, rail-to-rim inlets, and centre-exit adapters that turn the drop out of the bottom into a channel or rail port.
 - **Musical:** xylophone/chime bars, bell, wood-block knockers, each tuned to a scale.
 - **Mechanisms:** further lift/elevator types (the stepper elevator ships in P2), seesaw/catapult, turnstile, trapdoor, size sieve, counterweight switch.
