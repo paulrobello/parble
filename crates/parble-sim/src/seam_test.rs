@@ -192,12 +192,34 @@ const CURVE_KICK_MARGIN_MM_S: f32 = 5.0;
 /// the mean of its two neighbours. A bump is an impulse and shows in full. The marble's smooth
 /// swing up the outer wall of a curve (its vertical speed peaks at 30–66 mm/s on an exact tube,
 /// see [`curve_and_slope_joins`]) has a period near 30 ticks and leaks under 2 mm/s.
+///
+/// The same departure is also taken on the plan speed the position actually moved at, and the
+/// larger counts. Rapier resolves a penetration partly by moving the body, not by changing its
+/// velocity: a 0.3 mm floor step held the marble back 1 mm along the path in one tick with its
+/// velocity unchanged (vertical velocity kick 2.62, plan-speed kick 247.06, measured 2026-11-08
+/// in `straight_to_mirrored_curve90_l2_seam_step_kicks`). The vertical position is not used: with
+/// substeps it moves at the tick's mean velocity, which lags the end-of-tick velocity whenever a
+/// contact acts late in the tick (6.55 in the gentle slope's concave half, against 2.45).
 pub(crate) fn kick(tr: &[MarbleState], sel: impl Fn(&MarbleState) -> bool) -> f32 {
-    tr.windows(3)
+    let vel = tr
+        .windows(3)
         .filter(|w| sel(&w[1]))
         .map(|w| (w[1].linvel[1] - 0.5 * (w[0].linvel[1] + w[2].linvel[1])).abs())
-        .fold(0.0, f32::max)
-        * 1_000.0
+        .fold(0.0, f32::max);
+    let moved = tr
+        .windows(4)
+        .filter(|w| sel(&w[2]))
+        .map(|w| {
+            // Plan speed: a curve turns the plan velocity, not its size.
+            let v = |a: &MarbleState, b: &MarbleState| {
+                let d = [0, 2].map(|k| (b.position[k] - a.position[k]) / crate::DT);
+                d[0].hypot(d[1])
+            };
+            let (va, vb, vc) = (v(&w[0], &w[1]), v(&w[1], &w[2]), v(&w[2], &w[3]));
+            (vb - 0.5 * (va + vc)).abs()
+        })
+        .fold(0.0, f32::max);
+    vel.max(moved) * 1_000.0
 }
 
 /// Straights east, a curve turning to +z, straights north, a mirrored curve turning back east,

@@ -418,7 +418,7 @@ fn straight_to_mirrored_curve90_l2_seam_with_a_clean_entry() {
     // there. Rolled in centred at the chain's arrival speed or faster the seam itself is clean:
     // measured 2026-11-08, kick 5.32 at 0.4 m/s and 5.10 at 0.5 m/s (swing upward 49.61 at
     // 0.5, the curve's geometry), and 1.13 and 2.45 with the vendored Rapier contact fix
-    // (PHYSICS_VERSION 3). A 1 mm step there kicks 59.30
+    // (PHYSICS_VERSION 3). A 0.3 mm step there kicks 247.06
     // (`straight_to_mirrored_curve90_l2_seam_step_kicks`).
     let (_, k_lim) = limits(2);
     let (_, lo, hi) = CURVE_L2_WINDOWS[3];
@@ -436,11 +436,11 @@ fn straight_to_mirrored_curve90_l2_seam_with_a_clean_entry() {
     }
 }
 
-/// A 1 mm step up in the straight's floor before the mirrored curve's seam (z 90 mm): a flat plate
-/// 12 mm wide across the channel bottom at `x` = 180 mm, from 10 mm before the seam to it, at
-/// floor + 1 mm (`L2` floor 30 mm), facing up.
-fn seam_step() -> Vec<[[i64; 3]; 3]> {
-    let (x0, x1, y) = (174_000, 186_000, 31_000);
+/// A step up of `rise_um` in the straight's floor before the mirrored curve's seam (z 90 mm): a
+/// flat plate 12 mm wide across the channel bottom at `x` = 180 mm, from 10 mm before the seam to
+/// it, `rise_um` over the `L2` floor (30 mm), facing up.
+fn seam_step(rise_um: i64) -> Vec<[[i64; 3]; 3]> {
+    let (x0, x1, y) = (174_000, 186_000, 30_000 + rise_um);
     let (z0, z1) = (80_000, 90_000);
     vec![
         [[x0, y, z0], [x0, y, z1], [x1, y, z0]],
@@ -450,10 +450,12 @@ fn seam_step() -> Vec<[[i64; 3]; 3]> {
 
 #[test]
 fn straight_to_mirrored_curve90_l2_seam_step_kicks() {
-    // Negative control: a known artificial 1 mm step at the straight to mirrored curve seam
-    // shows the gate still fails on a real bump (kick 59.30, measured 2026-11-08). The same plate
-    // at 0.3 mm and 0.5 mm kicked only 2.62 and 3.88, under the limit (not yet
-    // diagnosed). This test used to run the start-of-step bend
+    // Negative controls: known artificial 0.3, 0.5 and 1 mm steps at the straight to mirrored
+    // curve seam show the gate still fails on a real bump. Measured 2026-11-08, kick 247.06,
+    // 315.96 and 141.22 (limit 5.19). On vertical velocity alone they kicked 2.62, 3.88 and
+    // 59.30: Rapier pushed the marble back along the path instead (see `kick`).
+    //
+    // This test used to run the start-of-step bend
     // contact (before 2026-11-07) here instead, which kicked 29.34; with the contact separation
     // tracked on the ball centre (vendored Rapier, PHYSICS_VERSION 3) it kicks 2.82, under the
     // limit, so that kick was the anchor-rotation artifact of the old solver, not the
@@ -472,16 +474,23 @@ fn straight_to_mirrored_curve90_l2_seam_step_kicks() {
          {k_lim:.2}, logged)",
         kick(&legacy, window(lo, hi))
     );
-    let tr = mirrored_curve_l2_clean_entry(
-        0.5,
-        &Control {
-            extra_triangles: seam_step(),
-            ..Control::default()
-        },
-    );
-    let k = kick(&tr, window(lo, hi));
-    eprintln!("straight to mirrored curve90_l2 with a 1 mm step: kick {k:.2} (limit {k_lim:.2})");
-    assert!(k > k_lim, "control kick {k:.2} not over {k_lim:.2}");
+    for rise_um in [300_i64, 500, 1_000] {
+        let tr = mirrored_curve_l2_clean_entry(
+            0.5,
+            &Control {
+                extra_triangles: seam_step(rise_um),
+                ..Control::default()
+            },
+        );
+        let k = kick(&tr, window(lo, hi));
+        eprintln!(
+            "straight to mirrored curve90_l2 with a {rise_um} um step: kick {k:.2} (limit {k_lim:.2})"
+        );
+        assert!(
+            k > k_lim,
+            "{rise_um} um step: control kick {k:.2} not over {k_lim:.2}"
+        );
+    }
 }
 
 /// The redirect's exit seam with the marble already rolling on the tunnel floor past its landing,
