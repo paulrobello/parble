@@ -587,6 +587,7 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
 <img alt="" src="${versioned(win, `${THUMB_DIR}${p}.png`)}" width="80" height="80" decoding="async"></button><span class="nm">${esc(pieceName(p))}</span></div>`,
         )
         .join("");
+      tiles.append(tilePin.el);
       tilePin.refresh();
     }
     for (const t of tabs.querySelectorAll<HTMLElement>("[data-f]")) {
@@ -613,9 +614,9 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     const info = s.selectionInfo;
     if (s.pieces === 0 && !deletedNote) {
       selSec.innerHTML = `<h2><span class="sc">Start here</span></h2>
-<ol class="steps"><li${s.hoppers ? ' class="done"' : ""}>Place a <b>Hopper</b>: Mechanisms, first tile. It holds the marbles.</li>
-<li>Lay a downhill run of blocks and rails from the hopper's spout.</li>
-<li${s.finishes ? ' class="done"' : ""}>End it in <b>Finish cups</b>, then press <b>Run</b>.</li></ol>
+<ol class="steps"><li${s.hoppers ? ' class="done"' : ""}><span>Place a <b>Hopper</b>: Mechanisms, first tile. It holds the marbles.</span></li>
+<li><span>Lay a downhill run of blocks and rails from the hopper's spout.</span></li>
+<li${s.finishes ? ' class="done"' : ""}><span>End it in <b>Finish cups</b>, then press <b>Run</b>.</span></li></ol>
 <p class="note">Click a tile, then a cell in the scene. R turns the piece before you place it.</p>`;
       return;
     }
@@ -725,7 +726,7 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
       b.setAttribute("aria-checked", String(Number(b.dataset.s) === intervalS));
     }
     runBtn.classList.toggle("stop", r.active);
-    runBtn.innerHTML = r.active ? `${icon("stop")}Stop <kbd>Esc</kbd>` : `${icon("play")}Run <kbd>Space</kbd>`;
+    runBtn.innerHTML = r.active ? `${icon("stop")}Stop` : `${icon("play")}Run`;
     runBtn.disabled = !r.active && noHopper;
     runBtn.title = r.active
       ? "Stop the run (Esc)"
