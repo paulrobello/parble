@@ -230,16 +230,16 @@
   ],
   "rights": {
     "generatedOn": "Paul Robello's Higgsfield plus plan",
-    "terms": "Output use governed by the Higgsfield terms of service for the plan; commercial terms not verified in this task.",
+    "terms": "Higgsfield Terms of Use section 4.4 (https://higgsfield.ai/terms-of-use-agreement, checked 2026-11-08): Higgsfield claims no ownership of inputs or outputs and does not restrict commercial use of outputs.",
     "references": "References are the approved P0-T9 look-dev frames (themselves Higgsfield outputs on the same plan), used only as style, wood-tone and lighting direction.",
     "trademarks": "Prompts name no toy brands; no text, logos or watermarks observed in any kept frame on visual review.",
-    "status": "pending"
+    "status": "cleared"
   },
   "gates": {
     "technical": "pass at file level (node assets-source/keyart/check-provenance.mjs, full decode, byte-identical derive.py rebuild, 2026-11-07); consumer and live-use checks pending P5-T3",
-    "creative": "pending Paul",
-    "rights": "pending",
-    "owner": "pending Paul"
+    "creative": "approved by Paul 2026-11-08; primary wide hero chosen over the alternate",
+    "rights": "cleared 2026-11-08 (Higgsfield Terms of Use section 4.4)",
+    "owner": "approved by Paul 2026-11-08"
   },
   "derivatives": [
     {
