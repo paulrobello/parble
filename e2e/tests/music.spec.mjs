@@ -119,6 +119,9 @@ test("soak: one loop plays for MUSIC_SOAK_S seconds with no gap, restart or erro
   let minLevel = Number.POSITIVE_INFINITY;
   let prevWraps = 0;
   let last = first;
+  let source = first.source;
+  let crossfades = first.crossfades;
+  const cues = new Set([first.cue]);
   while (Date.now() - t0 < SOAK_S * 1000) {
     await page.waitForTimeout(250);
     const { m, level } = await page.evaluate(() => ({ m: window.__parbleAudio.stats().music, level: window.__parbleAudio.musicLevel() }));
@@ -128,7 +131,16 @@ test("soak: one loop plays for MUSIC_SOAK_S seconds with no gap, restart or erro
       console.log(`soak ${((Date.now() - t0) / 1000).toFixed(1)} s: silent RMS ${level} at position ${m.position.toFixed(3)}`);
     }
     minLevel = Math.min(minLevel, level);
-    expect(m.source).toBe(first.source);
+    // A playlist state (build alternates calm and playful) moves to its next cue by a crossfade;
+    // any other source change is a restart.
+    if (m.source !== source) {
+      expect(m.crossfades).toBeGreaterThan(crossfades);
+      console.log(`soak ${((Date.now() - t0) / 1000).toFixed(0)} s: playlist crossfade to ${m.cue}`);
+      source = m.source;
+      crossfades = m.crossfades;
+      cues.add(m.cue);
+      prevWraps = m.wraps;
+    }
     expect(m.loop).toBe(true);
     expect(m.wraps).toBeGreaterThanOrEqual(prevWraps);
     if (m.wraps !== prevWraps) console.log(`soak ${((Date.now() - t0) / 1000).toFixed(0)} s: wrap ${m.wraps} at position ${m.position.toFixed(3)}`);
@@ -139,12 +151,12 @@ test("soak: one loop plays for MUSIC_SOAK_S seconds with no gap, restart or erro
   const elapsed = (Date.now() - t0) / 1000;
   console.log(
     `soak done: ${elapsed.toFixed(0)} s on ${first.cue} (loop ${len.toFixed(2)} s), ${last.wraps} wraps, ` +
-      `${samples} samples, ${silent} silent, min RMS ${minLevel.toExponential(2)}, starts ${s.music.starts}, ` +
+      `cues ${[...cues].join("+")}, ${samples} samples, ${silent} silent, min RMS ${minLevel.toExponential(2)}, starts ${s.music.starts}, ` +
       `errors ${s.errors}, loadErrors ${s.music.loadErrors}, console errors ${errors.length}`,
   );
-  expect(last.wraps).toBeGreaterThanOrEqual(Math.floor((elapsed - (first.loopEnd - first.position)) / len));
+  if (cues.size === 1) expect(last.wraps).toBeGreaterThanOrEqual(Math.floor((elapsed - (first.loopEnd - first.position)) / len));
   expect(silent).toBe(0);
-  expect(s.music.starts).toBe(1);
+  expect(s.music.starts).toBe(1 + s.music.crossfades - first.crossfades);
   expect(s.music.loadErrors).toBe(0);
   expect(s.errors).toBe(0);
   expect(errors).toEqual([]);
