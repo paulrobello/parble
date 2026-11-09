@@ -81,6 +81,8 @@ pub const FOLLOW_MAX_YAW_ACCEL: f32 = 2.5;
 /// Farthest the follow shot pulls back while the marble is out of sight in a hidden path, to hold
 /// the marble's way in and its exit together (metres).
 pub const FOLLOW_HIDDEN_MAX_M: f32 = 1.4;
+/// A view whose forward has a y below minus this counts as top-down.
+pub const FOLLOW_TOP_DOWN_Y: f32 = 0.8;
 /// Steepest the follow view looks down when it rises to see past solid track (radians).
 pub const FOLLOW_MAX_ELEVATION: f32 = 1.3;
 /// The clear-view moves the follow shot tries, cheapest first: (extra elevation, extra bearing),
@@ -582,6 +584,9 @@ struct Shot {
     clear: (f32, f32),
     lift: f32,
     lift_rate: f32,
+    /// Framing: the eased bearing swing of the clear-view move.
+    swing: f32,
+    swing_rate: f32,
     plain_clear_s: f32,
     lead_k: f32,
     last: Option<Pose>,
@@ -657,6 +662,8 @@ impl Shot {
             clear: (0.0, 0.0),
             lift: 0.0,
             lift_rate: 0.0,
+            swing: 0.0,
+            swing_rate: 0.0,
             plain_clear_s: 0.0,
             lead_k: 1.0,
             last: None,
@@ -708,8 +715,10 @@ impl Shot {
                 let want = heading.map(|h| h + self.clear.1);
                 if first {
                     // Start from the bearing the camera already has, so a shot change never
-                    // swings it round: the yaw limiter turns it towards the heading from there.
+                    // swings it round: the yaw limiter turns it towards the heading from there. A
+                    // near top-down view has no bearing worth keeping, so it starts on the heading.
                     self.azimuth = from
+                        .filter(|p| p.forward.y > -FOLLOW_TOP_DOWN_Y)
                         .map(|p| azimuth_of(p.eye, w.centre))
                         .or(heading)
                         .unwrap_or(-std::f32::consts::FRAC_PI_2);
@@ -853,26 +862,43 @@ impl Shot {
                     self.dist += (next - self.dist).clamp(-cap, cap);
                 }
                 // The marble stays in sight past solid track: the view rises when it would not.
+                // A shot with a set bearing keeps it and only rises; one that took its bearing
+                // from the camera may also swing round.
                 let (az, look, dist) = (self.azimuth, self.look, self.dist);
-                let eye_at = |lift: f32| {
-                    look - forward_of(az, (elevation + lift).min(FOLLOW_MAX_ELEVATION)) * dist
+                let eye_at = |lift: f32, swing: f32| {
+                    look - forward_of(az + swing, (elevation + lift).min(FOLLOW_MAX_ELEVATION))
+                        * dist
                 };
                 let hidden = f.hidden.iter().any(|h| h.contains(m.p));
-                let eye_now = eye_at(self.lift);
+                let eye_now = eye_at(self.lift, self.swing);
+                let moves: &[(f32, f32)] = if azimuth.is_some() {
+                    &FRAME_LIFTS
+                } else {
+                    &CLEAR_VIEWS
+                };
                 self.avoid(
                     hidden || f.solids.is_empty(),
                     first,
                     dt,
-                    &|(lift, _)| {
-                        let e = eye_at(lift);
+                    &|(lift, swing)| {
+                        let e = eye_at(lift, swing);
                         [m.p, m.p + m.v * 0.25, m.p + m.v * 0.5]
                             .iter()
                             .all(|p| line_of_sight(e, *p, f.solids))
                     },
                     !line_of_sight(eye_now, m.p, f.solids),
-                    &FRAME_LIFTS,
+                    moves,
                 );
-                let fwd = forward_of(az, (elevation + self.lift).min(FOLLOW_MAX_ELEVATION));
+                if first {
+                    self.swing = self.clear.1;
+                    self.swing_rate = 0.0;
+                } else {
+                    approach(&mut self.swing, &mut self.swing_rate, self.clear.1, dt);
+                }
+                let fwd = forward_of(
+                    az + self.swing,
+                    (elevation + self.lift).min(FOLLOW_MAX_ELEVATION),
+                );
                 let eye = self.look - fwd * self.dist;
                 let focus_m = match (focus, target) {
                     (Focus::Distance { m }, _) => m,
@@ -1076,6 +1102,12 @@ pub struct Director {
     inside: Vec<bool>,
     since: Vec<f32>,
     pub diag: DirectorDiag,
+    /// The rise applied to the mixed pose when a blend between two clear shots still looks
+    /// through solid track: the move in play, its eased state, and the plain view's clear time.
+    post: (f32, f32),
+    post_lift: f32,
+    post_rate: f32,
+    post_clear_s: f32,
 }
 
 impl Director {
@@ -1218,6 +1250,7 @@ impl Director {
         }
         let start = self.layer.as_ref().and_then(Layer::last_pose);
         let pose = self.layer.as_mut()?.eval(f, start.as_ref());
+        let pose = pose.map(|p| self.keep_in_sight(f, p));
 
         let d = &mut self.diag;
         d.shot = Some(rule);
@@ -1250,6 +1283,77 @@ impl Director {
             .zip(pose)
             .map(|(m, p)| line_of_sight(p.eye, m.p, f.solids));
         pose
+    }
+}
+
+impl Director {
+    /// The mixed pose, risen about the marble's depth when it would look through solid track
+    /// (a blend mixes two clear views into one that need not be). The rise eases with the follow
+    /// yaw's limits and is released once the plain pose has been clear for [`CLEAR_RELEASE_S`].
+    fn keep_in_sight(&mut self, f: &Frame, p: Pose) -> Pose {
+        let m = self.followed.and_then(|i| f.marbles.get(i)).copied();
+        let dt = f.dt.max(0.0);
+        // Only a blend needs it: a settled shot keeps itself clear, and stacking the two rises
+        // would double the pitch rate.
+        let blending = matches!(self.layer, Some(Layer::Blend { .. }));
+        let Some(m) = m.filter(|m| {
+            blending && !f.solids.is_empty() && !f.hidden.iter().any(|h| h.contains(m.p))
+        }) else {
+            self.post = (0.0, 0.0);
+            approach(&mut self.post_lift, &mut self.post_rate, 0.0, dt);
+            return self.lifted(p, None);
+        };
+        let depth = (m.p - p.eye).dot(p.forward).max(0.05);
+        let pivot = p.eye + p.forward * depth;
+        let probes = [m.p, m.p + m.v * 0.25];
+        let clear = |lift: f32| {
+            let e = Self::rise(p, pivot, lift).eye;
+            probes.iter().all(|q| line_of_sight(e, *q, f.solids))
+        };
+        self.post_clear_s = if clear(0.0) {
+            self.post_clear_s + dt
+        } else {
+            0.0
+        };
+        if self.post_clear_s >= CLEAR_RELEASE_S {
+            self.post = (0.0, 0.0);
+        }
+        let blocked_now = !clear(self.post_lift);
+        if blocked_now || !clear(self.post.0) {
+            let from = FRAME_LIFTS
+                .iter()
+                .position(|c| *c == self.post)
+                .map_or(0, |i| if blocked_now { i + 1 } else { 0 });
+            self.post = FRAME_LIFTS[from.min(FRAME_LIFTS.len() - 1)..]
+                .iter()
+                .copied()
+                .find(|c| clear(c.0))
+                .unwrap_or(FRAME_LIFTS[FRAME_LIFTS.len() - 1]);
+        }
+        approach(&mut self.post_lift, &mut self.post_rate, self.post.0, dt);
+        self.lifted(p, Some(pivot))
+    }
+
+    fn lifted(&self, p: Pose, pivot: Option<Vec3>) -> Pose {
+        if self.post_lift.abs() < 1e-4 {
+            return p;
+        }
+        Self::rise(p, pivot.unwrap_or_else(|| p.look()), self.post_lift)
+    }
+
+    /// `p` swung up by `lift` about `pivot`, still looking at it.
+    fn rise(p: Pose, pivot: Vec3, lift: f32) -> Pose {
+        let r = pivot.distance(p.eye).max(0.01);
+        let az = azimuth_of(p.eye, pivot);
+        let el = (-p.forward.y).clamp(-1.0, 1.0).asin();
+        let fwd = forward_of(az, (el + lift).min(FOLLOW_MAX_ELEVATION));
+        let eye = pivot - fwd * r;
+        Pose {
+            eye,
+            forward: fwd,
+            fov: p.fov,
+            focus: p.focus,
+        }
     }
 }
 

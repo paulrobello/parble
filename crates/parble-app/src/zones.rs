@@ -437,8 +437,7 @@ mod tests {
 
     /// The whole all-pieces run, read from the sim: outside hidden paths the camera sees the
     /// followed marble past the track's solids in more frames than without avoidance, and in at
-    /// least 94% of them. The misses are the redirects' piece-hint framing shots, which keep their
-    /// bearing and can only rise, while the marble leaves the redirect column on the far side.
+    /// least 95% of them.
     #[test]
     fn the_allpieces_run_keeps_the_marble_in_sight() {
         let t = scenario_track(Scenario::AllPieces).unwrap();
@@ -492,6 +491,6 @@ mod tests {
             "allpieces: clear line of sight in {share:.3} of frames ({plain:.3} without avoidance)"
         );
         assert!(share > plain, "avoidance helps: {share} vs {plain}");
-        assert!(share >= 0.94, "clear in {share} of frames");
+        assert!(share >= 0.95, "clear in {share} of frames");
     }
 }
