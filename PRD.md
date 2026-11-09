@@ -102,7 +102,7 @@ parble-sim-wasm ──► parble-procgen, parble-sim   (wasm-bindgen worker buil
 - **Ports:** a port is (cell face, floor height level). Side faces carry horizontal ports at floor height levels in 15 mm steps. Top and bottom faces carry vertical drop ports. Exact levels, tolerances and the slope gradients they imply are fixed by the P0 kit-contract task.
 - **Orientation:** yaw only, 4 orientations, plus a mirror flag for chiral pieces. Pieces never tip on their sides.
 - **Slope profiles:** the steep slope's floor uses a C2-continuous profile (decided 2026-11-08) so its entry and exit seams stay under the seam bump limits. The gentle slope keeps its smoothstep.
-- **Footprints:** block pieces fill 1 cell. Rail pieces span several cells (for example S-rail 1×3, helix 2×2×N) and land their ends on grid ports.
+- **Footprints:** most block pieces fill 1 cell, and some span several cells (for example the 2×1×2 stepper lift and large funnels, owner ruling 2026-11-08). Rail pieces span several cells (for example S-rail 1×3, helix 2×2×N) and land their ends on grid ports.
 
 ### 5.4 Simulation rules
 
@@ -303,6 +303,7 @@ Acceptance:
 Scope:
 - **Vertical spans:** helix 1–4 turns at two radii, vertical drop tube, zig-zag switchback wall.
 - **Terrain:** wave/bump channels, S-bends, funnel bowl spinner, half-pipe.
+- **Large funnel catcher** (owner request 2026-11-08): a multi-cell funnel (for example 2×2 and 3×3 footprints) that catches controlled free falls and launcher shots over a wide area and spirals the marble down to a centre exit port.
 - **Musical:** xylophone/chime bars, bell, wood-block knockers, each tuned to a scale.
 - **Mechanisms:** further lift/elevator types (the stepper elevator ships in P2), seesaw/catapult, turnstile, trapdoor, size sieve, counterweight switch.
 - **Decor:** placeable lanterns. Light-strip inlays (`ref-09`) are optional and only allowed on mechanical pieces (lift, seesaw, turnstile and similar). Track channels and plain track pieces never carry them.
