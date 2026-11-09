@@ -40,6 +40,14 @@
 //!   tower socket: 10 of 10). Into an empty cell below, the v1 door kept no falling marble on a
 //!   redirect or a cup two layers down (0 of 10 and 0 of 5); that case was not re-measured with
 //!   v2. The track still uses the hole from its other side, where marbles roll over the shut door.
+//! - One-way hole from the over side (v4 door, cat's eye on a level `L1` test layout, measured
+//!   2026-11-09): the door's hinge knuckle and its free edge stand into the path (contact normals
+//!   tilted 0.24–0.47 and 0.15–0.21 against the travel), so a marble entering at 0.09 m/s leaves at
+//!   0.036 m/s (rolling resistance alone would leave 0.082), and below about 0.085 m/s it stops on
+//!   the door. From about 0.3 m/s the knuckle throws it up (0.2 m/s up at 0.35 m/s), and at
+//!   0.65 m/s off the channel. The usable window is about 0.09–0.26 m/s. The layer-2 `L1` run
+//!   delivers real marbles to it at 0.06–0.12 m/s, because the tower landing resets their speed to
+//!   0.14–0.20 m/s.
 //! - A drop → pillar → tower fall (120 mm) gave tower exit speeds of 0.25–0.96 m/s and marbles
 //!   leaving the rails past the rail joint, so the drop feeds the tower directly and the pillar is
 //!   a support. The sideways speed comes from the tower, not the joint (re-measured 2026-11-08,
@@ -470,13 +478,20 @@ mod tests {
     ///
     /// - Shooter (every type): stopped by the splitter's rest-pose kinematic part at the entry of
     ///   `mech_splitter_l3` [4, 5, −6], so the queue backs up into the hopper.
-    /// - Standard cat's eye family: the first marble meets the layer-0 `mech_toggle_l3` at about
-    ///   0.58 m/s with 0.25 m/s sideways off the redirect, bounces back off its flipper and stops
-    ///   on [16, 0, −7]; rolling resistance slows the later ones to about 0.1 m/s on the layer-2
-    ///   `L1` run, and they stop at the one-way gate and hole.
-    /// - Standard glazed: the first marble leaves the track after `rail_s_1x3_l2`.
-    /// - Mini: the marbles stop at the one-way gate and hole (and one on the layer-4 toggle's
-    ///   branch, [11, 4, −6]), or some reach the cups and the rest stop on the layer-1 run.
+    /// - Standard cat's eye family: the landing out of the layer-1 redirect kicks the first marble
+    ///   sideways (0.25–0.29 m/s), so it meets the layer-0 `mech_toggle_l3` at 0.52 m/s 5.6 mm off
+    ///   the centreline on the blade-tip side, stops against the tip and rolls back onto
+    ///   [16, 0, −7]. The later ones reach the one-way hole at 0.06–0.12 m/s (the hole's over-side
+    ///   window, module docs), leave it at 0.02–0.06 m/s and park on [18, 1, −7] or on the door's
+    ///   free edge; the rest stop against them, back through the gate and the checkpoint.
+    /// - Standard glazed: the first marble reaches `rail_s_1x3_l2` still bouncing from the
+    ///   transfer-2 landing (0.67 m/s, 0.14 m/s sideways, 0.10 m/s down) and leaves the rails.
+    /// - Mini: the same queue from the hole and [18, 1, −7] (one cat's eye mini also stops on the
+    ///   layer-4 toggle's branch, [11, 4, −6], after meeting the toggle at 0.34 m/s off its
+    ///   redirect's landing), or some reach the cups and the rest stop on the layer-1 run.
+    ///
+    /// With the glass restitution at 0.60 instead of the table's 0.66 (measured 2026-11-09, not
+    /// shipped) the standard toggle bounce and the glazed fall clear and the hole queue stays.
     fn every_size_of(kind: MarbleKind, want: [Result<(), Failure>; 3]) {
         let sizes = [MarbleSize::Mini, MarbleSize::Standard, MarbleSize::Shooter];
         for (size, want) in sizes.into_iter().zip(want) {
