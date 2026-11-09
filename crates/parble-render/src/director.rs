@@ -120,6 +120,10 @@ pub const FRAME_LIFTS: [(f32, f32); 5] =
     [(0.0, 0.0), (0.2, 0.0), (0.4, 0.0), (0.6, 0.0), (0.8, 0.0)];
 /// The follow shot returns to its plain view once that has been clear this long (seconds).
 pub const CLEAR_RELEASE_S: f32 = 0.5;
+/// Acceleration limit of the rise a blend takes when its mixed view looks through solid track
+/// (rad/s²). A blend lasts about a second, so the rise must reach its pace sooner than the follow
+/// yaw's; its rate keeps the follow limit.
+pub const BLEND_RISE_ACCEL: f32 = 6.0;
 /// Below this chord the heading holds (the marble is nearly still).
 const FOLLOW_MIN_CHORD_M: f32 = 0.02;
 /// Farthest the follow shot pulls back to fit its window (metres), and how loose the fit is.
@@ -508,9 +512,14 @@ pub fn line_of_sight(eye: Vec3, target: Vec3, solids: &[Solid]) -> bool {
 
 /// Moves `x` towards `target` with the follow yaw's response, rate and acceleration limits.
 fn approach(x: &mut f32, rate: &mut f32, target: f32, dt: f32) {
+    approach_with(x, rate, target, dt, FOLLOW_MAX_YAW_ACCEL);
+}
+
+/// [`approach`] with its own acceleration limit (rad/s²).
+fn approach_with(x: &mut f32, rate: &mut f32, target: f32, dt: f32, accel: f32) {
     let want =
         ((target - *x) / FOLLOW_YAW_RESPONSE_S).clamp(-FOLLOW_MAX_YAW_RATE, FOLLOW_MAX_YAW_RATE);
-    let dv = FOLLOW_MAX_YAW_ACCEL * dt;
+    let dv = accel * dt;
     *rate += (want - *rate).clamp(-dv, dv);
     *x += *rate * dt;
 }
@@ -645,10 +654,12 @@ struct Shot {
     dist_vel: Vec3,
     /// Orbit angle.
     angle: f32,
-    /// Follow: the shot's own clock, the marble's recent path (time, position) and the yaw rate.
+    /// Follow: the shot's own clock, the marble's recent path (time, position), the yaw rate, and
+    /// the last heading, held while the marble is nearly still.
     clock: f32,
     hist: Vec<(f32, Vec3)>,
     yaw_rate: f32,
+    heading: Option<f32>,
     /// Follow: the clear-view move in play (extra elevation and bearing), the elevation's
     /// rate-limited state, and how long the plain view has been clear.
     clear: (f32, f32),
@@ -698,11 +709,18 @@ impl Shot {
                 0
             };
             if from > 0 || !clear(self.clear) {
-                self.clear = moves[from.min(moves.len() - 1)..]
+                // A swing under way keeps its side: reversing it while the camera is still on its
+                // way leaves the eased swing where it was, behind the same piece.
+                let side = if from > 0 { self.clear.1 } else { 0.0 };
+                let mut on_side = moves[from.min(moves.len() - 1)..]
                     .iter()
                     .copied()
-                    .find(|c| clear(*c))
+                    .filter(|c| c.1 * side >= 0.0);
+                let last = on_side
+                    .clone()
+                    .next_back()
                     .unwrap_or(moves[moves.len() - 1]);
+                self.clear = on_side.find(|c| clear(*c)).unwrap_or(last);
             }
         }
         if first {
@@ -729,6 +747,7 @@ impl Shot {
             clock: 0.0,
             hist: Vec::new(),
             yaw_rate: 0.0,
+            heading: None,
             clear: (0.0, 0.0),
             lift: 0.0,
             lift_rate: 0.0,
@@ -780,9 +799,6 @@ impl Shot {
                 let chord = Vec3::new(w.chord.x, 0.0, w.chord.z);
                 let heading =
                     (chord.length() > FOLLOW_MIN_CHORD_M).then(|| azimuth_of(Vec3::ZERO, chord));
-                // The bearing swing of the clear-view move in play joins the heading, through the
-                // same yaw limiter.
-                let want = heading.map(|h| h + self.clear.1);
                 if first {
                     // Start from the bearing the camera already has, so a shot change never
                     // swings it round: the yaw limiter turns it towards the heading from there. A
@@ -793,7 +809,13 @@ impl Shot {
                         .or(heading)
                         .unwrap_or(-std::f32::consts::FRAC_PI_2);
                     self.yaw_rate = 0.0;
-                } else if let Some(want) = want {
+                    self.heading = heading.or(Some(self.azimuth));
+                } else if let Some(h) = heading.or(self.heading) {
+                    // The bearing swing of the clear-view move in play joins the heading, through
+                    // the same yaw limiter. A nearly still marble keeps its last heading, so a
+                    // swing still turns the camera round it.
+                    self.heading = Some(h);
+                    let want = h + self.clear.1;
                     // Rate- and acceleration-limited yaw: a slow, eased swing whatever the turn.
                     let err = wrap_angle(want - self.azimuth);
                     let rate = (err / FOLLOW_YAW_RESPONSE_S)
@@ -835,14 +857,19 @@ impl Shot {
                     None => vec![m.p, m.p + w.lead * 0.5, m.p + w.lead, m.p + w.lead * 2.0],
                 };
                 let (az, eye_now) = (self.azimuth, self.eye);
-                let aim = heading.unwrap_or(az);
+                let aim = self.heading.unwrap_or(az);
                 let sees = |eye: Vec3| probes.iter().all(|p| line_of_sight(eye, *p, f.solids));
+                // Once the camera's own view is blocked, the bearing it has now is no constraint:
+                // a move need only be clear where it is going, so a swing can still take it out.
+                let blocked_now = !sees(eye_now);
                 self.avoid(
                     f.solids.is_empty(),
                     first,
                     dt,
-                    &|(lift, swing)| sees(view(aim + swing, lift).1) && sees(view(az, lift).1),
-                    !sees(eye_now),
+                    &|(lift, swing)| {
+                        sees(view(aim + swing, lift).1) && (blocked_now || sees(view(az, lift).1))
+                    },
+                    blocked_now,
                     &CLEAR_VIEWS,
                 );
                 let (_, eye_t) = view(self.azimuth, self.lift);
@@ -1423,7 +1450,8 @@ impl Director {
 impl Director {
     /// The mixed pose, risen about the marble's depth when it would look through solid track
     /// (a blend mixes two clear views into one that need not be). The rise eases with the follow
-    /// yaw's limits and is released once the plain pose has been clear for [`CLEAR_RELEASE_S`].
+    /// yaw's response and rate limit but the quicker [`BLEND_RISE_ACCEL`], and is released once the
+    /// plain pose has been clear for [`CLEAR_RELEASE_S`].
     fn keep_in_sight(&mut self, f: &Frame, p: Pose) -> Pose {
         let m = self.followed.and_then(|i| f.marbles.get(i)).copied();
         let dt = f.dt.max(0.0);
@@ -1462,9 +1490,16 @@ impl Director {
                 .iter()
                 .copied()
                 .find(|c| clear(c.0))
-                .unwrap_or(FRAME_LIFTS[FRAME_LIFTS.len() - 1]);
+                // No lift clears (the marble is under a piece): rising further buys nothing.
+                .unwrap_or(self.post);
         }
-        approach(&mut self.post_lift, &mut self.post_rate, self.post.0, dt);
+        approach_with(
+            &mut self.post_lift,
+            &mut self.post_rate,
+            self.post.0,
+            dt,
+            BLEND_RISE_ACCEL,
+        );
         self.lifted(p, Some(pivot))
     }
 
