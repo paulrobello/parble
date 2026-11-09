@@ -8,10 +8,8 @@
   "prompts": "docs/audio/suno-prompts.md",
   "generatedBy": "Paul (owner action)",
   "intakeDate": "2026-11-07",
-  "rights": "Suno paid-plan output; commercial use per Suno terms for paid subscribers. Song IDs/links missing, so the take cannot be traced to its Suno account record yet.",
-  "flags": [
-    "songId and songUrl are null for every take: ask Paul for the Suno song IDs/links"
-  ],
+  "rights": "Suno paid-plan output; commercial use per Suno terms for paid subscribers. Each take is traced to its Suno song by songId/songUrl (share links from Paul 2026-11-09; the share page title names the cue).",
+  "flags": [],
   "transformations": "none; originals are byte-for-byte as placed by Paul",
   "files": [
     {
@@ -26,8 +24,8 @@
       "bits_per_sample": 16,
       "model": "v6",
       "plan": "paid",
-      "songId": null,
-      "songUrl": null,
+      "songId": "0fbba44e-458a-4600-928d-f80e3a91b735",
+      "songUrl": "https://suno.com/s/AX8MtSLYe1r0wnBe",
       "ownerSelected": true
     },
     {
@@ -42,8 +40,8 @@
       "bits_per_sample": 16,
       "model": "v6",
       "plan": "paid",
-      "songId": null,
-      "songUrl": null,
+      "songId": "cc543908-e547-4901-abb3-033cd612648f",
+      "songUrl": "https://suno.com/s/1NadrWzBzJv2pSMa",
       "ownerSelected": true
     },
     {
@@ -58,8 +56,8 @@
       "bits_per_sample": 16,
       "model": "v6",
       "plan": "paid",
-      "songId": null,
-      "songUrl": null,
+      "songId": "3e54d441-0669-428b-8a65-9f94bab21e66",
+      "songUrl": "https://suno.com/s/74QqNPisyXvVPQjZ",
       "ownerSelected": true
     },
     {
@@ -74,8 +72,8 @@
       "bits_per_sample": 16,
       "model": "v6",
       "plan": "paid",
-      "songId": null,
-      "songUrl": null,
+      "songId": "ee0a929d-93ae-4aa7-89c7-a94e7905d60e",
+      "songUrl": "https://suno.com/s/SXEvsin0RtUQssqE",
       "ownerSelected": true
     },
     {
@@ -90,8 +88,8 @@
       "bits_per_sample": 16,
       "model": "v6",
       "plan": "paid",
-      "songId": null,
-      "songUrl": null,
+      "songId": "3bdb72d7-f8ff-4968-94e8-28d065fe52c7",
+      "songUrl": "https://suno.com/s/keBHbZdKAEV4BOsL",
       "ownerSelected": true
     }
   ],
