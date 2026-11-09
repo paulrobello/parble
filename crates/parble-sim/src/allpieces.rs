@@ -57,6 +57,7 @@ use parble_core::{
     CellCoord, HopperConfig, MarbleSize, Mirror, PieceId, Placement, ReleaseMode, Track, Yaw4,
 };
 
+use crate::marble::MarbleKind;
 use crate::track_run::{TrackRun, TrackRunError};
 use crate::{Sim, behaviour, hash};
 
@@ -188,11 +189,16 @@ pub fn placements() -> Vec<Placement> {
 /// The track: [`LAYOUT`], [`SEED`], and [`MARBLES`] standard marbles released from the hopper
 /// every [`INTERVAL_TICKS`].
 pub fn track() -> Track {
+    track_sized(MarbleSize::Standard)
+}
+
+/// [`track`] with [`MARBLES`] marbles of `size` in the hopper queue (P5-T1).
+pub fn track_sized(size: MarbleSize) -> Track {
     let mut t = Track::new(SEED);
     t.placements = placements();
     t.hopper = HopperConfig {
         placement: Some(0),
-        queue: vec![MarbleSize::Standard; MARBLES],
+        queue: vec![size; MARBLES],
         release: ReleaseMode::Interval {
             ticks: INTERVAL_TICKS,
         },
@@ -203,6 +209,11 @@ pub fn track() -> Track {
 /// A fresh run of [`track`] at tick 0.
 pub fn run() -> Result<TrackRun, TrackRunError> {
     TrackRun::new(&track())
+}
+
+/// A fresh run of [`track_sized`] at tick 0 with every marble spawned as `kind` (P5-T1).
+pub fn run_marble(kind: MarbleKind, size: MarbleSize) -> Result<TrackRun, TrackRunError> {
+    TrackRun::with_marble(&track_sized(size), kind)
 }
 
 /// Marbles counted by each finish cup, in [`LAYOUT`] order.
@@ -327,10 +338,28 @@ mod tests {
         ]
     }
 
-    #[test]
-    fn all_ten_marbles_reach_a_finish_cup_through_every_piece() {
+    /// Why a run missed the track's success condition ([`check_run`]).
+    #[derive(Debug, PartialEq)]
+    enum Failure {
+        /// `marble` fell off the track; `last` is the last placement its centre entered.
+        FellOff { marble: usize, last: Option<usize> },
+        /// The run ended with marbles outside the cups: the cup counts, and per marble no cup
+        /// counted, the marble and the placement holding its centre.
+        Short {
+            cups: Vec<usize>,
+            stuck: Vec<(usize, Option<usize>)>,
+        },
+        /// Every marble finished, but another part of the condition failed.
+        Other(String),
+    }
+
+    /// Runs `run` for [`RUN_TICKS`] and checks the track's success condition: no marble falls off,
+    /// the hopper releases all [`MARBLES`], every one ends in a finish cup with both cups used,
+    /// every placement but the support is entered, the single-line pieces carry every marble,
+    /// each fork sends marbles both ways and the mechanisms count every pass. On success returns
+    /// the tick all marbles were in a cup and the cup counts.
+    fn check_run(mut run: TrackRun) -> Result<(u32, Vec<usize>), Failure> {
         let owners = cell_owners();
-        let mut run = run().unwrap();
         // entered[i][m]: marble m's centre was inside placement i.
         let mut entered = vec![vec![false; MARBLES]; LAYOUT.len()];
         let mut done_at = None;
@@ -340,42 +369,66 @@ mod tests {
                 if let Some(&i) = owners.get(&cell_of(s.position)) {
                     entered[i][m] = true;
                 }
-                assert!(
-                    s.position[1] > -0.06,
-                    "marble {m} fell off the track at tick {t}: {:?}",
-                    s.position
-                );
+                if s.position[1] <= -0.06 {
+                    eprintln!(
+                        "marble {m} fell off the track at tick {t}: {:?}",
+                        s.position
+                    );
+                    let last = (0..LAYOUT.len()).rev().find(|&i| entered[i][m]);
+                    return Err(Failure::FellOff { marble: m, last });
+                }
             }
             if done_at.is_none() && finish_counts(&run).iter().sum::<usize>() == MARBLES {
                 done_at = Some(t);
             }
         }
-        assert_eq!(run.marbles().len(), MARBLES, "the hopper released them all");
+        let other = |e: String| Err(Failure::Other(e));
+        if run.marbles().len() != MARBLES {
+            return other(format!("the hopper released {}", run.marbles().len()));
+        }
         let counts = finish_counts(&run);
-        assert_eq!(counts.iter().sum::<usize>(), MARBLES, "cups {counts:?}");
-        assert!(counts.iter().all(|&c| c > 0), "cups {counts:?}");
-        eprintln!(
-            "all {MARBLES} marbles in a cup by tick {}, cups {counts:?}",
-            done_at.unwrap()
-        );
+        if counts.iter().sum::<usize>() != MARBLES || !counts.iter().all(|&c| c > 0) {
+            let counted: BTreeSet<usize> = run
+                .mechanisms()
+                .iter()
+                .filter(|m| m.piece.as_str() == behaviour::FINISH)
+                .flat_map(|m| behaviour::Finish::arrivals(&m.state))
+                .map(|(m, _)| m)
+                .collect();
+            let stuck = run
+                .marbles()
+                .iter()
+                .enumerate()
+                .filter(|(m, _)| !counted.contains(m))
+                .map(|(m, s)| (m, owners.get(&cell_of(s.position)).copied()))
+                .collect();
+            return Err(Failure::Short {
+                cups: counts,
+                stuck,
+            });
+        }
         for (i, (id, cell, _)) in LAYOUT.iter().enumerate() {
             let n = entered[i].iter().filter(|&&e| e).count();
             if i == SUPPORT {
-                assert_eq!(n, 0, "a marble entered the support pillar");
-            } else {
-                assert!(n > 0, "no marble entered placement {i} ({id} at {cell:?})");
+                if n != 0 {
+                    return other("a marble entered the support pillar".into());
+                }
+            } else if n == 0 {
+                return other(format!(
+                    "no marble entered placement {i} ({id} at {cell:?})"
+                ));
             }
         }
         // The single-line pieces carry every marble, and each fork sent marbles both ways.
         for i in [0, 3, 5, 14, 16, 24, 29, 33, 34, 37, 38, 39, 41, 43] {
-            assert!(
-                entered[i].iter().all(|&e| e),
-                "placement {i} ({}) missed a marble",
-                LAYOUT[i].0
-            );
+            if !entered[i].iter().all(|&e| e) {
+                return other(format!("placement {i} ({}) missed a marble", LAYOUT[i].0));
+            }
         }
         for i in [6, 8, 17, 19, 44, 45] {
-            assert!(entered[i].iter().any(|&e| e), "branch {i} unused");
+            if !entered[i].iter().any(|&e| e) {
+                return other(format!("branch {i} unused"));
+            }
         }
         let mechanisms = run.mechanisms();
         let state = |i: usize| {
@@ -388,12 +441,179 @@ mod tests {
                 .clone()
         };
         let n = MARBLES as i64;
-        assert_eq!(state(0)["released"], n);
-        assert_eq!(state(5)["passes"], n);
-        assert_eq!(state(16)["passes"], n);
-        assert_eq!(state(37)["passes"], n);
-        assert_eq!(state(38)["passes"], n);
-        assert_eq!(state(39)["overs"], n);
+        for (i, key) in [
+            (0, "released"),
+            (5, "passes"),
+            (16, "passes"),
+            (37, "passes"),
+            (38, "passes"),
+            (39, "overs"),
+        ] {
+            if state(i)[key] != n {
+                return other(format!("placement {i} {key} = {}, want {n}", state(i)[key]));
+            }
+        }
+        Ok((done_at.expect("every marble is in a cup"), counts))
+    }
+
+    #[test]
+    fn all_ten_marbles_reach_a_finish_cup_through_every_piece() {
+        let (done_at, counts) = check_run(run().unwrap()).unwrap_or_else(|e| panic!("{e:?}"));
+        eprintln!("all {MARBLES} marbles in a cup by tick {done_at}, cups {counts:?}");
+    }
+
+    /// P5-T1: every marble type at every size on the track, each with its physics table entry
+    /// (the track's own test and golden run the P0 legacy marble). Each outcome is pinned: only
+    /// steel at the standard size meets the success condition. Swirl, onionskin, opal and glow
+    /// share the cat's eye spec, so they share its outcome at each size. The failures, per
+    /// measurement on 2026-11-08:
+    ///
+    /// - Shooter (every type): stopped by the splitter's rest-pose kinematic part at the entry of
+    ///   `mech_splitter_l3` [4, 5, −6], so the queue backs up into the hopper.
+    /// - Standard cat's eye family: the first marble meets the layer-0 `mech_toggle_l3` at about
+    ///   0.58 m/s with 0.25 m/s sideways off the redirect, bounces back off its flipper and stops
+    ///   on [16, 0, −7]; rolling resistance slows the later ones to about 0.1 m/s on the layer-2
+    ///   `L1` run, and they stop at the one-way gate and hole.
+    /// - Standard glazed: the first marble leaves the track after `rail_s_1x3_l2`.
+    /// - Mini: the marbles stop at the one-way gate and hole (and one on the layer-4 toggle's
+    ///   branch, [11, 4, −6]), or some reach the cups and the rest stop on the layer-1 run.
+    fn every_size_of(kind: MarbleKind, want: [Result<(), Failure>; 3]) {
+        let sizes = [MarbleSize::Mini, MarbleSize::Standard, MarbleSize::Shooter];
+        for (size, want) in sizes.into_iter().zip(want) {
+            let got = check_run(run_marble(kind, size).unwrap()).map(|_| ());
+            assert_eq!(got, want, "{} {size:?}", kind.name());
+        }
+    }
+
+    /// [`every_size_of`] for the cat's eye spec, which swirl, onionskin, opal and glow share.
+    fn cats_eye_spec(kind: MarbleKind) {
+        assert_eq!(kind.spec(), MarbleKind::CatsEye.spec());
+        every_size_of(
+            kind,
+            [
+                Err(Failure::Short {
+                    cups: vec![0, 0],
+                    stuck: vec![
+                        (0, Some(39)),
+                        (1, Some(39)),
+                        (2, Some(39)),
+                        (3, Some(39)),
+                        (4, Some(39)),
+                        (5, Some(39)),
+                        (6, Some(38)),
+                        (7, Some(38)),
+                        (8, Some(38)),
+                        (9, Some(20)),
+                    ],
+                }),
+                Err(Failure::Short {
+                    cups: vec![0, 0],
+                    stuck: vec![
+                        (0, Some(42)),
+                        (1, Some(40)),
+                        (2, Some(40)),
+                        (3, Some(39)),
+                        (4, Some(39)),
+                        (5, Some(39)),
+                        (6, Some(38)),
+                        (7, Some(38)),
+                        (8, Some(38)),
+                        (9, Some(38)),
+                    ],
+                }),
+                Err(shooter_at_splitter()),
+            ],
+        );
+    }
+
+    fn shooter_at_splitter() -> Failure {
+        Failure::Short {
+            cups: vec![0, 0],
+            stuck: vec![
+                (0, Some(4)),
+                (1, Some(4)),
+                (2, Some(4)),
+                (3, Some(3)),
+                (4, Some(3)),
+                (5, Some(3)),
+                (6, Some(3)),
+                (7, Some(2)),
+                (8, Some(2)),
+                (9, None),
+            ],
+        }
+    }
+
+    #[test]
+    fn cats_eye_runs_the_track_at_every_size() {
+        cats_eye_spec(MarbleKind::CatsEye);
+    }
+
+    #[test]
+    fn swirl_runs_the_track_at_every_size() {
+        cats_eye_spec(MarbleKind::Swirl);
+    }
+
+    #[test]
+    fn onionskin_runs_the_track_at_every_size() {
+        cats_eye_spec(MarbleKind::Onionskin);
+    }
+
+    #[test]
+    fn opal_runs_the_track_at_every_size() {
+        cats_eye_spec(MarbleKind::Opal);
+    }
+
+    #[test]
+    fn glow_runs_the_track_at_every_size() {
+        cats_eye_spec(MarbleKind::Glow);
+    }
+
+    #[test]
+    fn glazed_runs_the_track_at_every_size() {
+        every_size_of(
+            MarbleKind::Glazed,
+            [
+                Err(Failure::Short {
+                    cups: vec![4, 3],
+                    stuck: vec![(7, Some(40)), (8, Some(40)), (9, Some(39))],
+                }),
+                Err(Failure::FellOff {
+                    marble: 0,
+                    last: Some(29),
+                }),
+                Err(Failure::Short {
+                    cups: vec![0, 0],
+                    stuck: vec![
+                        (0, Some(4)),
+                        (1, Some(4)),
+                        (2, Some(4)),
+                        (3, Some(3)),
+                        (4, Some(3)),
+                        (5, Some(3)),
+                        (6, Some(3)),
+                        (7, Some(3)),
+                        (8, Some(2)),
+                        (9, Some(2)),
+                    ],
+                }),
+            ],
+        );
+    }
+
+    #[test]
+    fn steel_runs_the_track_at_every_size() {
+        every_size_of(
+            MarbleKind::Steel,
+            [
+                Err(Failure::Short {
+                    cups: vec![4, 4],
+                    stuck: vec![(8, Some(41)), (9, Some(40))],
+                }),
+                Ok(()),
+                Err(shooter_at_splitter()),
+            ],
+        );
     }
 
     #[test]

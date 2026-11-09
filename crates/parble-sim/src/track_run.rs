@@ -23,6 +23,7 @@
 use crate::behaviour::{self, release_ticks};
 use crate::chunk::{ChunkError, place_point_um};
 use crate::hash::{POSITION_QUANTA_PER_M, VELOCITY_QUANTA_PER_M_PER_S, quantize};
+use crate::marble::MarbleKind;
 use crate::mechanism::{MechanismError, MechanismRegistry};
 use crate::{Sim, scene};
 use parble_core::contract::{
@@ -177,6 +178,15 @@ pub fn marble_radius_m(size: MarbleSize) -> f32 {
     scene::um_to_m(marble_radius_um(size))
 }
 
+/// The sim's [`crate::marble::MarbleSize`] for a track's queued size.
+fn sim_size(size: MarbleSize) -> crate::marble::MarbleSize {
+    match size {
+        MarbleSize::Mini => crate::marble::MarbleSize::Mini,
+        MarbleSize::Standard => crate::marble::MarbleSize::Standard,
+        MarbleSize::Shooter => crate::marble::MarbleSize::Shooter,
+    }
+}
+
 /// Release ticks for the hopper queue, in queue order ([`release_ticks`]).
 pub fn release_schedule(track: &Track) -> Vec<(u64, MarbleSize)> {
     let queue = &track.hopper.queue;
@@ -200,6 +210,9 @@ pub struct TrackRun {
     hopper: Option<Placement>,
     /// Plan cell columns `(x, z)` under every placement's footprint.
     footprint: std::collections::BTreeSet<(i32, i32)>,
+    /// The marble type every release spawns as ([`TrackRun::with_marble`]); `None` spawns the
+    /// legacy glass marble the track goldens were recorded with.
+    kind: Option<MarbleKind>,
 }
 
 impl TrackRun {
@@ -213,6 +226,7 @@ impl TrackRun {
             motion: Vec::new(),
             hopper: None,
             footprint: Default::default(),
+            kind: None,
         }
     }
 
@@ -220,6 +234,17 @@ impl TrackRun {
     /// kit behaviours ([`behaviour::registry`]), at tick 0 with its tick-0 releases in and sampled.
     pub fn new(track: &Track) -> Result<Self, TrackRunError> {
         Self::with_kit(track, parble_kit::builtin())
+    }
+
+    /// [`TrackRun::new`] with every queued marble spawned as `kind` at its queued size (P5-T1), with
+    /// the type's physics table entry ([`MarbleKind::spec_sized`]).
+    pub fn with_marble(track: &Track, kind: MarbleKind) -> Result<Self, TrackRunError> {
+        Self::build(
+            track,
+            parble_kit::builtin(),
+            &behaviour::registry(),
+            Some(kind),
+        )
     }
 
     /// [`TrackRun::new`] against any kit catalogue.
@@ -234,6 +259,15 @@ impl TrackRun {
         track: &Track,
         kit: &KitCatalog,
         registry: &MechanismRegistry,
+    ) -> Result<Self, TrackRunError> {
+        Self::build(track, kit, registry, None)
+    }
+
+    fn build(
+        track: &Track,
+        kit: &KitCatalog,
+        registry: &MechanismRegistry,
+        kind: Option<MarbleKind>,
     ) -> Result<Self, TrackRunError> {
         let mut sim = Sim::empty();
         let mut mechanisms = Vec::new();
@@ -312,6 +346,7 @@ impl TrackRun {
             motion: Vec::new(),
             hopper,
             footprint,
+            kind,
         };
         run.release_due();
         run.sim.sample();
@@ -445,11 +480,21 @@ impl TrackRun {
                 (Vector::new(x, surface_y + 1.25 * r, 0.0), Vector::ZERO)
             }
         };
-        let mut body = RigidBodyBuilder::dynamic()
-            .translation(at)
-            .ccd_enabled(true)
-            .can_sleep(false)
-            .build();
+        let (mut body, collider) = match self.kind {
+            Some(kind) => kind.spec_sized(sim_size(size)).build(at),
+            None => (
+                RigidBodyBuilder::dynamic()
+                    .translation(at)
+                    .ccd_enabled(true)
+                    .can_sleep(false)
+                    .build(),
+                ColliderBuilder::ball(r)
+                    .density(scene::GLASS_DENSITY)
+                    .friction(scene::GLASS_FRICTION)
+                    .restitution(scene::GLASS_RESTITUTION)
+                    .build(),
+            ),
+        };
         if self.hopper.is_some() {
             body.set_linvel(vel, true);
             body.set_angvel(
@@ -457,11 +502,6 @@ impl TrackRun {
                 true,
             );
         }
-        let collider = ColliderBuilder::ball(r)
-            .density(scene::GLASS_DENSITY)
-            .friction(scene::GLASS_FRICTION)
-            .restitution(scene::GLASS_RESTITUTION)
-            .build();
         let w = &mut self.sim.world;
         let handle = w.bodies.insert(body);
         w.colliders
