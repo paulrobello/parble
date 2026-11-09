@@ -3,7 +3,7 @@
     Blender -b --factory-startup --python-exit-code 1 -P blender/kit/render_review.py -- <runtime_dir> <out.png>
 
 Imports each runtime GLB, shows LOD0 with its baked normal and AO maps bound to the placeholder
-wood, marks every port socket with a small cyan bead, and renders one EEVEE still (no stamps).
+wood (animated parts with the same maps under PART_STAIN), marks every port socket with a small cyan bead, and renders one EEVEE still (no stamps).
 Evidence only: Blender's view transform is not the engine's tonemapper.
 """
 import json
@@ -26,11 +26,13 @@ SPACING = float(os.environ.get("PARBLE_REVIEW_SPACING", "0.085"))
 # previous one instead of in its own slot (a rail joint seated in a socket block). Without ids:
 # the four P1-T2 pieces in one row, as before. PARBLE_REVIEW_SPACING / _ROW / _COLS size the grid
 # and PARBLE_REVIEW_DIST scales the camera distance, for multi-cell pieces. PARBLE_REVIEW_BACK
-# (default 0.70) is how far the camera stands back in -y, per unit of distance.
+# (default 0.70) is how far the camera stands back in -y, and PARBLE_REVIEW_SIDE (default 0.12)
+# how far in -x, per unit of distance.
 IDS = argv[2:] or list(K.BUILD)
 SLOTS = [e for e in IDS if not e.endswith(":next")]
 COLS = int(os.environ.get("PARBLE_REVIEW_COLS", "7")) if argv[2:] else len(IDS)
 ROW = float(os.environ.get("PARBLE_REVIEW_ROW", "0.12"))
+PART_STAIN = (0.55, 0.40, 0.28, 1.0)  # crates/parble-render/src/kit/mod.rs PART_STAIN (linear)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scn = bpy.context.scene
@@ -76,6 +78,15 @@ for entry in IDS:
     mix.inputs["A"].default_value = p.inputs["Base Color"].default_value
     nt.links.new(aimg.outputs["Color"], mix.inputs["B"])
     nt.links.new(mix.outputs["Result"], p.inputs["Base Color"])
+    # The engine draws animated parts with the piece's own AO/normal maps at their UV0, the wood
+    # tinted by PART_STAIN (crates/parble-render/src/kit/mod.rs).
+    parts = [o for o in new if o.type == "MESH" and o.name.startswith("anim_") and o.name.endswith("_lod0")]
+    if parts:
+        pm = m.copy()
+        a = pm.node_tree.nodes[mix.name].inputs["A"]
+        a.default_value = [c * s for c, s in zip(a.default_value, PART_STAIN)]
+        for o in parts:
+            o.data.materials[0] = pm
     bpy.context.view_layer.update()
     for o in new:
         if o.name.startswith("port_"):
@@ -117,7 +128,8 @@ scn.collection.objects.link(cam)
 if argv[2:]:
     k = float(os.environ.get("PARBLE_REVIEW_DIST", "1.0"))   # camera distance scale
     back = float(os.environ.get("PARBLE_REVIEW_BACK", "0.70"))  # lower looks down into channels
-    aim(cam, (cx - 0.12 * k, cy - back * k, 0.55 * k))
+    side = float(os.environ.get("PARBLE_REVIEW_SIDE", "0.12"))  # higher looks along x channels
+    aim(cam, (cx - side * k, cy - back * k, 0.55 * k))
 else:
     aim(cam, (cx - 0.16, -0.40, 0.40))
 scn.camera = cam
