@@ -210,13 +210,16 @@ fn port_cap(x_um: i64, floor_um: i64, out: i64) -> Vec<[[i64; 3]; 3]> {
 #[test]
 fn steep_slope_entry_stays_under_the_seam_thresholds() {
     // Measured 2026-11-08 at 0.3 m/s on the quintic smootherstep floor: entry upward 0.00, kick
-    // 9.87; interior kick 5.98 (5.92 on the cubic smoothstep). With the
-    // port face caps the boolean generator used to leave (`steep_entry_cap_bumps`) the entry
-    // threw the marble 126.05 mm/s up (kick 89.74).
+    // 1.34; interior kick 2.35. With the port face caps the boolean generator used to leave
+    // (`steep_entry_cap_bumps`) the entry threw the marble 126.05 mm/s up (kick 89.74).
+    //
+    // The interior ends at x = 128 mm, where the floor's curvature starts its rise toward the
+    // concave peak; the run-out past it is checked by `steep_slope_runout_rises_smoothly`. Over
+    // 105..135 mm the interior kick was 8.94, all of it from the run-out's first ticks.
     let tr = steep_run(&Control::default());
     let (p_lim, k_lim) = limits(3);
     let entry = window([0.075, Z[0]], [0.105, Z[1]]);
-    let inside = window([0.105, Z[0]], [0.135, Z[1]]);
+    let inside = window([0.105, Z[0]], [STEEP_RUNOUT_M[0], Z[1]]);
     assert!(
         tr.iter().any(|m| m.position[0] > 0.2),
         "marble must leave the slope"
@@ -232,6 +235,113 @@ fn steep_slope_entry_stays_under_the_seam_thresholds() {
         k_in <= k_lim,
         "steep interior: kick {k_in:.2} over {k_lim:.2}"
     );
+}
+
+/// The steep slope's run-out, x metres: from the start of the floor's curvature rise to the exit
+/// seam.
+const STEEP_RUNOUT_M: [f32; 2] = [0.128, 0.150];
+
+/// Hard ceiling on the run-out kick, mm/s. The run-out's own kick is about 27: the second
+/// difference of a vertical speed that climbs from −412 to 0 mm/s over nine ticks.
+const STEEP_RUNOUT_KICK_CEILING_MM_S: f32 = 60.0;
+
+/// Floor height of the steep slope's channel bottom at world `x_um` (µm): the `L3` floor before
+/// the slope cell (x 90..150 mm), the quintic smootherstep across it (`ChannelSlope::profile`),
+/// the `L1` floor after it.
+fn steep_floor_um(x_um: i64) -> i64 {
+    let t = ((x_um - 90_000) as f64 / 60_000.0).clamp(0.0, 1.0);
+    45_000 - (30_000.0 * (t * t * t * (10.0 + t * (-15.0 + 6.0 * t)))).round() as i64
+}
+
+/// A 12 mm ribbon 4 mm either side of the channel bottom, `rise_um` over the steep slope's floor
+/// from x = 132 mm, following the floor in 1 mm steps.
+fn steep_runout_step(rise_um: i64) -> Vec<[[i64; 3]; 3]> {
+    let mut tris = Vec::new();
+    for i in 0..12 {
+        let (xa, xb) = (132_000 + 1_000 * i, 133_000 + 1_000 * i);
+        let (ya, yb) = (steep_floor_um(xa) + rise_um, steep_floor_um(xb) + rise_um);
+        let (a, b, c, d) = (
+            [xa, ya, -4_000],
+            [xa, ya, 4_000],
+            [xb, yb, 4_000],
+            [xb, yb, -4_000],
+        );
+        tris.push([a, b, c]);
+        tris.push([a, c, d]);
+    }
+    tris
+}
+
+/// The run-out checks on `tr`: the vertical speed falls to one minimum and then rises to 0 with
+/// no reversal, never goes above `p_lim` mm/s, and the kick stays under
+/// [`STEEP_RUNOUT_KICK_CEILING_MM_S`]. `Err` names the first failure.
+fn steep_runout_check(tr: &[MarbleState], p_lim: f32) -> Result<f32, String> {
+    let sel = window([STEEP_RUNOUT_M[0], Z[0]], [STEEP_RUNOUT_M[1], Z[1]]);
+    let vy: Vec<f32> = tr
+        .iter()
+        .skip_while(|m| !sel(m))
+        .take_while(|m| sel(m))
+        .map(|m| m.linvel[1] * 1_000.0)
+        .collect();
+    if vy.len() < 3 {
+        return Err(format!("only {} run-out ticks", vy.len()));
+    }
+    let lowest = (0..vy.len())
+        .min_by(|&a, &b| vy[a].total_cmp(&vy[b]))
+        .unwrap();
+    if let Some(i) = (1..=lowest).find(|&i| vy[i] > vy[i - 1]) {
+        return Err(format!("vy rises then falls again at tick {i}: {vy:.2?}"));
+    }
+    if let Some(i) = (lowest + 1..vy.len()).find(|&i| vy[i] < vy[i - 1]) {
+        return Err(format!("vy reverses at tick {i}: {vy:.2?}"));
+    }
+    let top = vy.iter().copied().fold(f32::MIN, f32::max);
+    if top > p_lim {
+        return Err(format!("vy overshoots to {top:.2} over {p_lim:.2}"));
+    }
+    let k = kick(tr, &sel);
+    if k > STEEP_RUNOUT_KICK_CEILING_MM_S {
+        return Err(format!(
+            "kick {k:.2} over {STEEP_RUNOUT_KICK_CEILING_MM_S:.2}"
+        ));
+    }
+    Ok(k)
+}
+
+#[test]
+fn steep_slope_runout_rises_smoothly() {
+    // Measured 2026-11-08 at 0.3 m/s: over x = 128..150 mm the vertical speed goes −411, −412,
+    // −408, −395, −364, −304, −206, −95, −20 mm/s and then 0 on the L1 straight, smooth tick to
+    // tick, so its kick of 27.16 is the floor's own curvature rise sampled at 240 Hz, not a seam.
+    // The seam kick limit cannot gate it. A hook-free single-collider mesh of the same quintic
+    // (16-segment section, rings 0.5 mm apart) reads 166.63 there because the marble crosses a
+    // ring of vertices every tick, and an exact-contact reference is this run itself.
+    let tr = steep_run(&Control::default());
+    let (p_lim, _) = limits(3);
+    let k = steep_runout_check(&tr, p_lim).unwrap_or_else(|e| panic!("steep run-out: {e}"));
+    eprintln!("steep run-out: smooth, kick {k:.2} (ceiling {STEEP_RUNOUT_KICK_CEILING_MM_S:.2})");
+}
+
+#[test]
+fn steep_runout_steps_fail_the_runout_check() {
+    // Negative controls: a 0.5 and a 1 mm step on the run-out floor from x = 132 mm. A 0.3 mm step
+    // there reads kick 27.59 against 27.16 without it and is below what any metric here resolves
+    // (measured 2026-11-08); it is logged only.
+    let (p_lim, _) = limits(3);
+    for rise in [300, 500, 1_000] {
+        let tr = steep_run(&Control {
+            extra_triangles: steep_runout_step(rise),
+            ..Control::default()
+        });
+        let got = steep_runout_check(&tr, p_lim);
+        eprintln!("steep run-out with a {rise} um step: {got:?}");
+        if rise >= 500 {
+            assert!(
+                got.is_err(),
+                "{rise} um step passed the run-out check: {got:?}"
+            );
+        }
+    }
 }
 
 #[test]
@@ -255,10 +365,10 @@ fn steep_slope_exit_upward_stays_under_the_seam_threshold() {
     // mm/s upward with restitution dropped only on a penetrating end-of-step gap. The quintic
     // smootherstep (C2, contract §7) has zero curvature at the seam and the end-gap rule no longer
     // throws the marble up there, but its concave peak (about 48 /m at t = 0.79, 20 m/s² at
-    // 0.6 m/s) sits inside the window: the vertical speed alternates on successive ticks through
-    // x = 136..150 mm with every contact on the exact slope surface, so the remaining kick comes
-    // from the solver's response to that load, not from the seam. Measured 2026-11-08: exit
-    // upward 0.00, kick 40.63.
+    // 0.6 m/s) sits inside the window: the vertical speed climbs smoothly from −364 to 0 mm/s
+    // over x = 136..150 mm with every contact on the exact slope surface, so the remaining kick
+    // is the second difference of that profile at 240 Hz, not the seam (see
+    // `steep_slope_runout_rises_smoothly`). Measured 2026-11-08: exit upward 0.00, kick 27.16.
     let tr = steep_run(&Control::default());
     let (p_lim, k_lim) = limits(3);
     let exit = window([0.135, Z[0]], [0.165, Z[1]]);
