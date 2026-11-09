@@ -2,8 +2,8 @@
 //! each fixed-step advance) and never touches the Rapier world.
 //!
 //! P0 scene: the P0-T3 ramp tray built from [`parble_sim::scene::tray_mesh`], one marble (its look
-//! lives in [`marble`]), a directional light and a floor. The tray triangles face into the tray, so
-//! the tray material is double-sided with culling off.
+//! lives in [`marble`]), a warm key light with a pale blue fill ([`palette`]) and a floor. The tray
+//! triangles face into the tray, so the tray material is double-sided with culling off.
 
 use bevy::{
     asset::RenderAssetUsages,
@@ -19,14 +19,19 @@ pub mod director;
 pub mod inlay;
 pub mod kit;
 pub mod marble;
+pub mod palette;
 pub mod playroom;
 pub mod post;
 pub mod sensors;
 pub mod zone_overlay;
 pub use playroom::{Environment, PlayroomView, ShadowLights};
 
-/// Backdrop behind the scene (a dim warm room tone).
-pub const BACKDROP: Color = Color::srgb(0.11, 0.10, 0.09);
+/// Backdrop behind the scene: a deep night blue, as behind the references' lit wood.
+pub const BACKDROP: Color = Color::srgb(0.07, 0.11, 0.26);
+
+/// Plain scenes' warm key (the only shadow caster) and its pale blue fill, lux.
+pub const KEY_LUX: f32 = 13_500.0;
+pub const FILL_LUX: f32 = 4_500.0;
 
 /// Marble snapshots around the current render time: `prev` and `curr` are the sim states at the
 /// last two fixed steps, `alpha` in `[0, 1)` is how far the frame lies past `curr`'s predecessor.
@@ -149,8 +154,9 @@ fn spawn_scene(
     }
 
     let floor = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.30, 0.24, 0.20),
+        base_color: Color::srgb(0.04, 0.10, 0.22),
         perceptual_roughness: 0.9,
+        reflectance: 0.15,
         ..default()
     });
     let len = scene::tray_length_m();
@@ -186,7 +192,8 @@ fn spawn_scene(
     // a 0.02 m depth bias is wider than the marble's radius).
     commands.spawn((
         DirectionalLight {
-            illuminance: 12_000.0,
+            color: palette::WARM_KEY,
+            illuminance: KEY_LUX,
             shadow_maps_enabled: *quality != Quality::Low,
             shadow_depth_bias: 0.0004,
             shadow_normal_bias: 0.6,
@@ -203,11 +210,24 @@ fn spawn_scene(
         }
         .build(),
     ));
+    // Pale blue fill, low and opposite the key's azimuth: cools the faces and edges the key misses.
+    // No shadows, so it costs nothing against the tier's shadow budget.
+    commands.spawn((
+        DirectionalLight {
+            color: palette::PALE_BLUE,
+            illuminance: FILL_LUX,
+            shadow_maps_enabled: false,
+            ..default()
+        },
+        Transform::from_xyz(len * 0.5 + 1.0, 0.18, 0.6)
+            .looking_at(Vec3::new(len * 0.5, 0.0, 0.0), Vec3::Y),
+    ));
     if matches!(*quality, Quality::High | Quality::Ultra) {
         commands.insert_resource(DirectionalLightShadowMap { size: 4096 });
     }
     commands.insert_resource(GlobalAmbientLight {
-        brightness: 400.0,
+        color: palette::PALE_BLUE,
+        brightness: 500.0,
         ..default()
     });
 }

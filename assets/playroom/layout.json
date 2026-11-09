@@ -11,7 +11,7 @@
     { "center": [0.52, 0.085, -0.82], "radius": 0.085, "lumens": 14000.0, "shadows": false }
   ],
   "lamp": { "base": [-1.15, 0.0, -1.75], "height": 0.62, "shadeRadius": 0.16, "lumens": 15000.0, "shadows": true },
-  "moon": { "from": [1.5, 2.2, 1.2], "lux": 25.0, "shadows": true },
+  "moon": { "from": [1.5, 2.2, 1.2], "lux": 1200.0, "shadows": true },
   "blocks": [
     { "piece": "arch", "at": [0.36, 0.0, -0.68], "yawDeg": 0 },
     { "piece": "pillar", "at": [0.74, 0.0, -0.66], "yawDeg": 0 },

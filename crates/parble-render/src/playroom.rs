@@ -29,12 +29,16 @@ use bevy::{
 };
 use serde::Deserialize;
 
-use crate::{Quality, camera::MainCamera};
+use crate::{
+    Quality,
+    camera::MainCamera,
+    palette::{NIGHT_BLUE, PALE_BLUE, WARM_AMBER as WARM},
+};
 
 /// Which environment surrounds the P0 tray. Chosen by the app from the scenario.
 #[derive(Resource, Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Environment {
-    /// The P0 scene: a plain floor, one sun, a warm backdrop colour.
+    /// The P0 scene: a plain floor, a warm key sun with a pale blue fill, a night-blue backdrop.
     #[default]
     Plain,
     /// The night playroom (`--scenario playroom`).
@@ -290,11 +294,14 @@ const ENV_DIFFUSE_SIZE: u32 = 16;
 /// Scales the probe's relative radiance to cd/m².
 const ENV_INTENSITY: f32 = 15.0;
 /// Backdrop plate luminance scale, cd/m² at texel value 1.
-const BACKDROP_NITS: f32 = 1.0;
+const BACKDROP_NITS: f32 = 5.0;
 
 /// Night sky behind everything (the room shell normally hides it).
 pub const NIGHT: Color = Color::srgb(0.012, 0.018, 0.045);
-const WARM: Color = Color::srgb(1.0, 0.78, 0.52);
+/// Pale blue window rim from behind the set (the backdrop side), lux. No shadows.
+pub const RIM_LUX: f32 = 1_500.0;
+/// Where the rim comes from: high over the backdrop, left of the window.
+const RIM_FROM: Vec3 = Vec3::new(-0.8, 1.6, -2.0);
 
 pub struct PlayroomPlugin;
 
@@ -325,13 +332,13 @@ pub fn spawn_playroom_lights(mut commands: Commands, quality: Res<Quality>) {
     let shadows = *quality != Quality::Low;
     commands.insert_resource(ClearColor(NIGHT));
     commands.insert_resource(GlobalAmbientLight {
-        color: Color::srgb(0.35, 0.45, 1.0),
+        color: NIGHT_BLUE,
         brightness: 2.0,
         ..default()
     });
     commands.spawn((
         DirectionalLight {
-            color: Color::srgb(0.62, 0.72, 1.0),
+            color: PALE_BLUE,
             illuminance: lay.moon.lux,
             shadow_maps_enabled: shadows && lay.moon.shadows,
             shadow_depth_bias: 0.0004,
@@ -348,6 +355,15 @@ pub fn spawn_playroom_lights(mut commands: Commands, quality: Res<Quality>) {
         }
         .build(),
         ShadowPriority(1),
+    ));
+    commands.spawn((
+        DirectionalLight {
+            color: PALE_BLUE,
+            illuminance: RIM_LUX,
+            shadow_maps_enabled: false,
+            ..default()
+        },
+        Transform::from_translation(RIM_FROM).looking_at(Vec3::new(0.36, 0.0, -0.3), Vec3::Y),
     ));
     for (i, lan) in lay.lanterns.iter().enumerate() {
         commands.spawn((
@@ -739,6 +755,21 @@ mod tests {
         w.run_system_once(spawn_playroom_lights).unwrap();
         w.run_system_once(enforce_shadow_cap).unwrap();
         assert_eq!(count(&mut w), 3);
+    }
+
+    #[test]
+    fn playroom_mixes_warm_lights_with_a_pale_blue_moon_and_rim() {
+        let mut w = world(Quality::High);
+        w.run_system_once(spawn_playroom_lights).unwrap();
+        let dirs: Vec<DirectionalLight> =
+            w.query::<&DirectionalLight>().iter(&w).cloned().collect();
+        assert_eq!(dirs.len(), 2, "moon and rim");
+        assert!(dirs.iter().all(|l| l.color == PALE_BLUE));
+        // The rim is free: no shadow map, so the moon keeps the directional shadow slot.
+        assert_eq!(dirs.iter().filter(|l| l.shadow_maps_enabled).count(), 1);
+        let points: Vec<PointLight> = w.query::<&PointLight>().iter(&w).cloned().collect();
+        assert_eq!(points.len(), 3, "two lanterns and the lamp");
+        assert!(points.iter().all(|l| l.color == WARM));
     }
 
     #[test]

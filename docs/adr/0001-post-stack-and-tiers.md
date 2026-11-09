@@ -22,6 +22,17 @@ Code: `crates/parble-render/src/post.rs` (`Quality::post`). Tier selection: `--q
 - Tonemapping: **ACES fitted** on every tier. In the look-dev comparison at the follow shot (TonyMcMapface, AgX, ACES fitted), ACES matched ref-01 best, with deep shadows, strong contrast and warm wood. TonyMcMapface was flatter, and AgX washed the wood out. ACES pushes bright blues towards magenta, so re-check it against P1-T6's glass marbles. `--tonemap tony|agx|aces|filmic|sbdt|reinhard` switches the tonemapper for that review.
 - `--taa 0`, `--dof 0` and `--aperture <f>` are look-dev and test overrides. `--taa 0` drops a TAA tier to no AA, never to MSAA, so SSAO keeps running.
 
+## Light colour (2026-11-08)
+
+PRD §5.5: every scene mixes a warm key with a pale blue fill or rim, as the references do (blue in the background, on shadowed faces and on edges turned from the key; lit wood stays amber). The colours live in `crates/parble-render/src/palette.rs`: `WARM_AMBER` (lanterns, lamp, glow presets), `WARM_KEY` (broad key light), `PALE_BLUE` (moon, fill, rim) and `NIGHT_BLUE` (ambient), plus a `Glow` preset enum for emissive inlays. The blue is desaturated, because ACES fitted pushes saturated blue towards purple.
+
+| Scene | Warm | Pale blue | Shadow casters (High) |
+|---|---|---|---|
+| Plain (ramp, closeup, lineup, mechanisms, allpieces, kit2000, editor) | key sun, `WARM_KEY`, 13,500 lux | fill sun low and opposite the key, 4,500 lux, no shadows; ambient `PALE_BLUE` 500; night-blue backdrop; a navy floor with low reflectance (0.15), so the key's specular does not grey it | 1 (the key) |
+| Playroom | lanterns and lamp, `WARM_AMBER` | moon 1,200 lux (`layout.json`, front fill); rim sun from behind the set, 1,500 lux, no shadows; backdrop plate at 5 nits | 3 (moon, big lantern, lamp) |
+
+The fill and rim lights never cast shadows, so the per-tier caps (0 / 1 / 3 / 3) are unchanged. Measured as blue/red on the native High shots (2026-11-08, on 4d56b42): in the mechanisms set shot the lit wood stays warm (front face 0.60 to 0.59, top 0.71 to 0.56) while the faces the key misses cool from 0.54 to 0.84 and the floor goes from warm brown (0.72) to navy (5.3). In the playroom the near rug goes from 0.07 to 1.27 and the lantern-lit arch stays warm (0.34 to 0.46). In the lineup the clear glass marble turns cool (0.94 to 1.31) from the navy surroundings, darker rather than washed out, and the opal is unchanged (1.34 to 1.30). The warm key tints the glow and cat's-eye marbles, so `e2e/tests/marbles.spec.mjs` checks them by measured margins rather than by green over red. Cat's eye: the share of centre pixels whose green beats red and blue is 0.19 (High) and 0.25 (Low), above a floor of 0.05; with its green vanes swapped for red it is 0.000. Glow: the same share above 0.3 and a centre luma above 175; lit it reaches 191 (High) and 215 (Low), with its emission off 124 and 154, and no other marble type passes 156. A glazed control in the suite fails both checks. Before and after shots: `docs/shots/lighting-*.png`.
+
 ## Camera
 
 Code: `crates/parble-render/src/camera.rs`. It is driven from the app layer: the app writes `DirectorClock` (tick, run, frame dt) after each sim step. The camera reads `MarbleFrame` and never writes to the sim. The determinism golden `0c9206fc016d9b17` is unchanged.
