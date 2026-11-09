@@ -349,13 +349,18 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
   let pointer: { x: number; y: number; on: boolean } = { x: 0, y: 0, on: false };
   let press: { x: number; y: number; marquee: boolean } | null = null;
   let marqueeEnd: { x: number; y: number } | null = null;
-  /** A drag-to-lay stroke from a drawer tile is open. */
-  let laying = false;
+  /** A drag-to-lay from a drawer tile: armed while the pointer is still over the chrome (so nothing
+   * is laid under the drawer), open once it reaches the scene. */
+  let laying: false | "armed" | "open" = false;
   let mlabelUntil = 0;
   const canvas = (): HTMLElement | null => doc.getElementById("parble");
   win.addEventListener("pointermove", (e) => {
     fade.move(e.clientX, e.clientY, win.innerWidth, win.innerHeight, now());
     pointer = { x: e.clientX, y: e.clientY, on: e.target === canvas() };
+    if (laying === "armed" && pointer.on) {
+      laying = "open";
+      act({ op: "stroke", phase: "start" });
+    }
     if (press?.marquee && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 4) {
       const x = Math.min(press.x, e.clientX);
       const y = Math.min(press.y, e.clientY);
@@ -374,10 +379,8 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     if (press?.marquee && marq.classList.contains("show")) marqueeEnd = { x: e.clientX, y: e.clientY };
     press = null;
     marq.classList.remove("show");
-    if (laying) {
-      laying = false;
-      act({ op: "stroke", phase: "end" });
-    }
+    if (laying === "open") act({ op: "stroke", phase: "end" });
+    laying = false;
   });
   // Drag-to-lay from the drawer: pressing a tile picks its piece and opens a stroke; while the
   // button is held, the engine lays one piece per cell the pointer enters on the scene, and the
@@ -387,8 +390,7 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     const b = (e.target as HTMLElement).closest<HTMLElement>("[data-piece]");
     if (!b?.dataset.piece || e.button !== 0) return;
     pick(b.dataset.piece);
-    laying = true;
-    act({ op: "stroke", phase: "start" });
+    laying = "armed";
   });
   tiles.addEventListener("dragstart", (e) => e.preventDefault());
 
@@ -1038,8 +1040,8 @@ ${groupActs}
     // The engine hears its own keys while the canvas has focus; answering them too would double them.
     if (ENGINE_KEYS.has(e.code) && cv && (doc.activeElement === cv || e.target === cv)) return false;
     if (e.code === "Escape" && laying) {
+      if (laying === "open") act({ op: "stroke", phase: "cancel" });
       laying = false;
-      act({ op: "stroke", phase: "cancel" });
       return true;
     }
     if (e.code === "Escape" && menu.classList.contains("open")) {

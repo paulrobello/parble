@@ -202,6 +202,7 @@ body.parble-editor #parble-hud,body.parble-editor #parble-controls{display:none}
   #pe .rc span{display:none}
   #pe .rc{min-width:34px}
   #pe .hint{display:none}
+  #pe .build kbd,#pe .run kbd{display:none}
   #pe .track{max-width:110px}
 }
 @media (prefers-reduced-motion:reduce){

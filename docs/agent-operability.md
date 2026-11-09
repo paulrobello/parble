@@ -224,7 +224,7 @@ Mouse and keys (click the canvas first):
 | Input | Effect |
 |---|---|
 | Left click | Place: the brush at the ghost. Select: select the piece (Shift toggles), or clear on the ground. Delete: remove the piece. |
-| Left drag (place tool) | Lay a run: one brush piece per cell the cursor enters on the first cell's level, 4-connected, skipping taken or invalid cells. Release folds the run into one undo step (`last.op` `lay`). |
+| Left drag (place tool) | Lay a run: one brush piece per cell the cursor enters on the first cell's level, 4-connected, skipping taken or invalid cells. Release folds the run into one undo step (`lastEdit.op` `lay`). |
 | Left drag (select tool) | From a selected piece: move the group by the cell offset on its level's plane. Elsewhere: box select the pieces whose centres fall in the rectangle (Shift adds). |
 | Right drag, middle or Shift + right drag, wheel | Orbit, pan along the ground, zoom. |
 | `1` `2` `3` | Place, select, delete tool. |

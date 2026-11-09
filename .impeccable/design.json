@@ -258,7 +258,7 @@
       {
         "name": "compact",
         "value": "1279px",
-        "purpose": "max-width: run captions drop to icon plus key cap, hint column hides, track name 110px."
+        "purpose": "max-width: run captions drop to icon plus key cap, build-tool and Stop key caps hide, hint column hides, track name 110px; the strip fits from 1180px."
       }
     ]
   },

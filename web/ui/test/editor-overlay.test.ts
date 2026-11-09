@@ -390,36 +390,49 @@ describe("editor overlay", () => {
     expect($('#pe-sheet [data-k="ask"]').classList.contains("open")).toBe(false);
   });
 
-  it("drag-to-lay: pressing a tile picks it and opens a stroke, releasing ends it, Esc cancels", () => {
+  it("drag-to-lay: a tile press arms a stroke that opens on the scene, release ends it, Esc cancels", () => {
     ui.update(diag({ tool: "place" }));
     sent = [];
     const tile = $('[data-piece="blk_straight_l3"]');
+    const canvas = $("#parble");
     tile.dispatchEvent(new PointerEvent("pointerdown", { button: 0, bubbles: true }));
     expect(sent).toEqual([
       { op: "brush", piece: "blk_straight_l3", yaw: 0, mirror: false },
       { op: "tool", tool: "place" },
-      { op: "stroke", phase: "start" },
     ]);
     expect($<HTMLImageElement>(".tile img").getAttribute("draggable")).toBe("false");
-    // While it lays, the tooltip counts the pieces.
-    const canvas = $("#parble");
+    // Moving over the drawer lays nothing; the stroke opens when the pointer reaches the scene.
+    tile.dispatchEvent(new PointerEvent("pointermove", { clientX: 300, clientY: 700, bubbles: true }));
+    expect(sent.length).toBe(2);
     canvas.dispatchEvent(new PointerEvent("pointermove", { clientX: 300, clientY: 300, bubbles: true }));
+    expect(sent.at(-1)).toEqual({ op: "stroke", phase: "start" });
+    canvas.dispatchEvent(new PointerEvent("pointermove", { clientX: 310, clientY: 300, bubbles: true }));
+    expect(sent.filter((a) => a.op === "stroke").length).toBe(1);
+    // While it lays, the tooltip counts the pieces.
     ui.update(diag({ tool: "place", stroke: { placed: 4, level: 0, outlines: [] } }));
     expect($("#pe-tip").textContent).toBe("Laying a run · 4 pieces · release to finish");
     window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
     expect(sent.at(-1)).toEqual({ op: "stroke", phase: "end" });
     // A second release ends nothing more.
-    const n = sent.length;
+    let n = sent.length;
     window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
     expect(sent.length).toBe(n);
+    // Released before reaching the scene: no stroke at all.
     tile.dispatchEvent(new PointerEvent("pointerdown", { button: 0, bubbles: true }));
+    window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+    expect(sent.some((a, i) => i >= n && a.op === "stroke")).toBe(false);
+    // Esc mid-stroke cancels it, and the release after sends nothing.
+    tile.dispatchEvent(new PointerEvent("pointerdown", { button: 0, bubbles: true }));
+    canvas.dispatchEvent(new PointerEvent("pointermove", { clientX: 300, clientY: 300, bubbles: true }));
     expect(press("Escape")).toBe(true);
     expect(sent.at(-1)).toEqual({ op: "stroke", phase: "cancel" });
     window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
     expect(sent.at(-1)).toEqual({ op: "stroke", phase: "cancel" });
-    // A right press opens no stroke.
+    // A right press arms nothing.
+    n = sent.length;
     tile.dispatchEvent(new PointerEvent("pointerdown", { button: 2, bubbles: true }));
-    expect(sent.at(-1)).toEqual({ op: "stroke", phase: "cancel" });
+    canvas.dispatchEvent(new PointerEvent("pointermove", { clientX: 300, clientY: 300, bubbles: true }));
+    expect(sent.length).toBe(n);
   });
 
   it("the dashed ghost outlines the brush footprint, red when invalid, with the run's boxes", () => {

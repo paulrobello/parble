@@ -207,7 +207,7 @@ The strip is a single row of grouped controls separated by 1px inlay rules 28px 
 
 Spacing steps through 4, 6, 10, 14 and 18px. 18px is the inset inside a panel section, and 12px is the gap between a panel and the viewport edge.
 
-Below 1280px wide, run-control captions drop to icon plus key cap, the hint column hides, and the track name is truncated at 110px.
+Below 1280px wide, run-control captions drop to icon plus key cap, the build tools and Stop drop their key caps (the button titles keep them), the hint column hides, and the track name is truncated at 110px. The strip fits from 1180px wide.
 
 ## Elevation & Depth
 

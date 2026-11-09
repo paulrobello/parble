@@ -208,25 +208,36 @@ test("drag-to-lay: press a drawer tile, drag over the board, release, and undo t
   const px = [];
   for (const c of cells) px.push((await cellPx(page, c)).floor);
   for (const p of px) expect(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.id, p)).toBe("parble");
+  await tile.scrollIntoViewIfNeeded();
   const tb = await tile.boundingBox();
+  expect(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest("[data-piece]")?.dataset.piece, [tb.x + tb.width / 2, tb.y + tb.height / 2])).toBe("blk_straight_l3");
   await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height / 2);
   await page.mouse.down();
-  await page.waitForFunction(() => window.__parble.editor.stroke !== null && window.__parble.editor.brush.piece === "blk_straight_l3");
+  await page.waitForFunction(() => window.__parble.editor.brush.piece === "blk_straight_l3");
+  // Nothing is laid on the way out of the drawer: the stroke opens on the scene.
+  expect((await state(page)).stroke).toBeNull();
   await page.mouse.move(...px[0], { steps: 8 });
   await page.waitForFunction(() => window.__parble.editor.stroke?.placed >= 1);
   for (const p of px.slice(1)) {
     await page.mouse.move(...p, { steps: 4 });
     await frames(page, 2);
   }
-  await page.waitForFunction((n) => window.__parble.editor.stroke?.placed === n, cells.length);
-  await expect(page.locator("#pe-tip")).toContainText(`Laying a run · ${cells.length} pieces`);
+  // Every cell the cursor walks through gets a piece (the screen path between two cell centres can
+  // cross a neighbouring row), so the run covers the five cells and possibly a few more.
+  await page.waitForFunction((n) => window.__parble.editor.stroke?.placed >= n, cells.length);
+  const laid = (await state(page)).stroke.placed;
+  await expect(page.locator("#pe-tip")).toContainText(`Laying a run · ${laid} pieces`);
+  await expect(page.locator("#pe-ghost .run")).toHaveAttribute("d", /M/);
   await page.mouse.up();
   await page.waitForFunction(() => window.__parble.editor.stroke === null);
   let s = await state(page);
-  expect(s.pieces).toBe(cells.length);
-  expect(s.last.op).toBe("lay");
-  expect(s.pieceCounts.blk_straight_l3).toBe(cells.length);
-  await expect(page.locator('[data-ct="blk_straight_l3"]')).toHaveText(`×${cells.length}`);
+  expect(s.pieces).toBe(laid);
+  await page.waitForFunction(() => window.__parble.editor.lastEdit?.op === "lay");
+  expect(s.pieceCounts.blk_straight_l3).toBe(laid);
+  await expect(page.locator('[data-ct="blk_straight_l3"]')).toHaveText(`×${laid}`);
+  await edit(page, { op: "boxSelect", a: cells[0], b: cells.at(-1) });
+  expect((await state(page)).selection).toBe(cells.length);
+  await edit(page, { op: "clearSelection" });
   // One undo step for the whole run.
   await page.keyboard.press("ControlOrMeta+KeyZ");
   await page.waitForFunction(() => window.__parble.editor.pieces === 0);
