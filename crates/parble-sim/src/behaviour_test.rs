@@ -811,21 +811,24 @@ fn shipped_fork_parts_route_slow_and_off_centre_marbles() {
 /// and leaves by its commanded branch, from the slowest entry speed the routing test uses to the
 /// fastest the L3 feed bend holds, centred in the feed channel (a shooter has 1.5 mm either side).
 /// Each run lasts 6 s, so a marble the blade slows to a crawl still has time to leave; a failure
-/// is a marble at rest in the fork or back in the feed.
+/// is a marble at rest in the fork or back in the feed (`None`), or one that left sideways
+/// (`Some(None)`).
 ///
 /// The acceptance test for the shooter fork fix (owner option D1, 2026-11-09), ignored until a
 /// blade passes it. Measured 2026-11-09: the shipped 25° blade pivoted at x -2 fails all 140
 /// shooter runs (mini and standard all pass). The D1 blade (pivot at the wedge tip, x 1.0, 36°,
 /// parked on wip/fork-blade-d1) passes every run at 0.3-0.6 m/s and fails 13 at 0.2 m/s: six glass
-/// shooters jam against the toggle's blade, seven minis stop in the splitter's -z branch.
+/// shooters jam against the toggle's blade, seven minis stop in the splitter's -z branch. Option D2
+/// (curved blade faces following the open branch's wall, 16 designs) found none that passes this
+/// and keeps the splitter's -z outlet kick at or under 6.5 mm/s.
 #[test]
 #[ignore]
 fn shipped_fork_parts_route_every_marble_type_and_size() {
     let mut bad = Vec::new();
     for piece in [TOGGLE, SPLITTER] {
-        for (first, seed) in [(0, 3), (1, 11)] {
+        for (first_side, seed) in [(0, 3), (1, 11)] {
             let want = if piece == TOGGLE {
-                first
+                first_side
             } else {
                 expected_splits(seed, 1)[0].unwrap()
             };
@@ -834,14 +837,23 @@ fn shipped_fork_parts_route_every_marble_type_and_size() {
                     let spec = kind.spec_sized(size);
                     for v in [0.2, 0.3, 0.4, 0.5, 0.6] {
                         let mut t = place(piece, 1, 0, 0, 0);
-                        t.config.insert("first".into(), first);
+                        t.config.insert("first".into(), first_side);
                         let mut sim = rig(&[place("blk_straight_l3", 0, 0, 0, 0), t], seed);
                         let (mut tr, mut ev) = (Vec::new(), Vec::new());
                         let at = Vector::new(-0.02, 0.045 + spec.radius_m, 0.0);
                         launch_spec(&mut sim, &spec, at, Vector::X * v);
                         run(&mut sim, 1440, &mut tr, &mut ev);
-                        let got = fork_side(&tr, 0);
-                        if got != Some(want) {
+                        // Like `fork_side`, but a sideways exit is a recorded failure, not a panic.
+                        let got =
+                            first(&tr, 0, |s| libm::fabsf(s.position[2]) > CELL / 2.0).map(|i| {
+                                let p = tr[i][0].position;
+                                if (CELL / 2.0..1.5 * CELL).contains(&p[0]) {
+                                    Some(if p[2] > 0.0 { 0 } else { 1 })
+                                } else {
+                                    None
+                                }
+                            });
+                        if got != Some(Some(want)) {
                             let last = tr.last().unwrap()[0];
                             let end = last.position.map(|c| (c * 1e4).round() / 10.0);
                             let l = last.linvel;
