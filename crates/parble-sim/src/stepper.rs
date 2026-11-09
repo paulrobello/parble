@@ -23,8 +23,11 @@ use parble_core::MechConfig;
 
 use crate::mechanism::{Keyframes, MechContext, Mechanism};
 
-/// The shipped stepper: in at L3, out at L3 one cell layer up, two cells along.
+/// The L3 stepper: in at L3, out at L3 one cell layer up, two cells along.
 pub const STEPPER: &str = "mech_stepper_up1_l3";
+/// The hopper's way up: in at L1, out at L3 one cell layer up, two cells along, its slots reaching
+/// one layer below the anchor (footprint 2 × 3 × 1, y −1…1).
+pub const STEPPER_L1: &str = "mech_stepper_up1_l1";
 
 /// Rest to full stroke, and back, ticks (0.25 s at 240 Hz).
 pub const UP_TICKS: u32 = 60;

@@ -4,7 +4,9 @@ kitmech owns the Blender side (boolean body, collision, sidecar, part objects) a
 module for the stepper's spec, cutters and moving part. Nothing here imports bpy at module level.
 
 The lift runs along +x from a side port at entry level L<level> in the anchor cell's layer to a side
-port at the same level `rise` cell layers higher, `length` cells along. Between two short channel
+port at exit level L<exit> `rise` cell layers higher, `length` cells along. A lift that starts low in
+its cell (an L1 entry) needs deeper slots than its anchor layer holds, so it can stand `below` cell
+layers into the layer under its anchor. Between two short channel
 stubs sits a row of 2n - 1 vertical slats of width w: odd slats (1, 3, ...) are the moving part
 `anim_slats` (one rigid slide along +Y), even slats are fixed and part of the static body. Every slat
 top falls by SLANT toward +x, so a marble on it rolls to its +x edge against the next slat.
@@ -18,15 +20,19 @@ slat per up-down cycle. Solving those two conditions for every moving slat with 
                                           edge after it, H = exit stub high edge - entry stub low edge
     stroke = G + SLANT + 2 * STEP
 
-Heights are parameters: STEPPERS maps each piece id to (level, rise, length, moving slats), and
+Heights are parameters: STEPPERS maps each piece id to (entry level, exit level, rise, length,
+moving slats, layers below the anchor), and
 `layout` derives every height from those, asserting the slats still fit the footprint.
 """
 import math
 
 import kitgeom as K
 
-# id -> (entry level, rise in cell layers, length in cells along +x, moving slats)
-STEPPERS = {"mech_stepper_up1_l3": (3, 1, 2, 4)}
+# id -> (entry level, exit level, rise in cell layers, length in cells along +x, moving slats,
+#        cell layers of the footprint below the anchor)
+# `mech_stepper_up1_l1` is the hopper's way up: its L1 entry takes the hopper's L1 exit and its L3
+# exit feeds the L3 pieces and the finish cup, one layer up. Its slots need the layer below.
+STEPPERS = {"mech_stepper_up1_l3": (3, 3, 1, 2, 4, 0), "mech_stepper_up1_l1": (1, 3, 1, 2, 4, 1)}
 
 SLANT = 2.5        # mm a slat top falls across its width, toward +x
 STEP = 1.0         # mm step down at each hand-off (onto a lowered slat, onto a fixed one at the top)
@@ -52,26 +58,27 @@ def handles(piece_id):
 
 
 def cells(piece_id):
-    _, rise, length, _ = STEPPERS[piece_id]
-    return (rise + 1) * length
+    _, _, rise, length, _, below = STEPPERS[piece_id]
+    return (rise + 1 + below) * length
 
 
 def footprint(piece_id):
-    _, rise, length, _ = STEPPERS[piece_id]
-    return sorted([x, y, 0] for x in range(length) for y in range(rise + 1))
+    _, _, rise, length, _, below = STEPPERS[piece_id]
+    return sorted([x, y, 0] for x in range(length) for y in range(-below, rise + 1))
 
 
 def bounds_mm(piece_id):
-    _, rise, length, _ = STEPPERS[piece_id]
-    return (-K.CELL / 2, 0.0, -K.CELL / 2), (K.CELL * length - K.CELL / 2, K.CELL * (rise + 1), K.CELL / 2)
+    _, _, rise, length, _, below = STEPPERS[piece_id]
+    return ((-K.CELL / 2, -K.CELL * below if below else 0.0, -K.CELL / 2),
+            (K.CELL * length - K.CELL / 2, K.CELL * (rise + 1), K.CELL / 2))
 
 
 def layout(piece_id):
     """Every derived dimension, contract mm. `cols` lists the slat columns in order along +x as
     dicts: x0, x1, moving, top0 (high edge at x0, rest pose) and for moving slats the slot bottom."""
-    level, rise, length, n = STEPPERS[piece_id]
+    level, exit_level, rise, length, n, below = STEPPERS[piece_id]
     entry_floor = K.LEVEL_STEP * level
-    exit_floor = entry_floor + K.CELL * rise
+    exit_floor = K.LEVEL_STEP * exit_level + K.CELL * rise
     x_in, x_out = -K.CELL / 2, K.CELL * length - K.CELL / 2
     xa, xb = x_in + STUB_IN, x_out - STUB_OUT
     count = 2 * n - 1
@@ -101,7 +108,7 @@ def layout(piece_id):
     assert abs(last["top0"] - SLANT + stroke - (high_out + STEP)) < 1e-9, piece_id
     for c in cols:
         if c["moving"]:
-            assert c["slot"] >= 2.0, f"{piece_id}: slot bottom {c['slot']} mm under the piece"
+            assert c["slot"] >= 2.0 - K.CELL * below, f"{piece_id}: slot bottom {c['slot']} mm under the piece"
         # the highest marble bottom on the column, plus the wall, capped at the piece top
         peak = c["top0"] + (stroke if c["moving"] else 0.0)
         c["roof"] = min(K.CELL * (rise + 1), max(K.CELL, peak + WALL))
@@ -109,7 +116,7 @@ def layout(piece_id):
     for a, b in zip(cols, cols[1:]):
         b["roof"] = max(b["roof"], a["roof"])
     cols[-1]["roof"] = K.CELL * (rise + 1)
-    return {"level": level, "rise": rise, "length": length, "n": n, "w": w, "xa": xa, "xb": xb,
+    return {"level": level, "exit_level": exit_level, "below": below, "rise": rise, "length": length, "n": n, "w": w, "xa": xa, "xb": xb,
             "x_in": x_in, "x_out": x_out, "entry_floor": entry_floor, "exit_floor": exit_floor,
             "low_in": low_in, "high_out": high_out, "g": g, "stroke": stroke, "cols": cols}
 
@@ -130,7 +137,8 @@ def _side(i, cell, face, level, flow):
 def spec(piece_id):
     lay = layout(piece_id)
     level, rise, length = lay["level"], lay["rise"], lay["length"]
-    ports = [_side(0, (0, 0, 0), "-x", level, "in"), _side(1, (length - 1, rise, 0), "+x", level, "out")]
+    ports = [_side(0, (0, 0, 0), "-x", level, "in"),
+             _side(1, (length - 1, rise, 0), "+x", lay["exit_level"], "out")]
     # `lift`: the slat row, from just before the first slat to the last, entry floor to the top.
     # A marble touching it keeps the slats cycling.
     x0, x1 = lay["xa"] - 2.0, lay["xb"]

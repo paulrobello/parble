@@ -25,7 +25,8 @@ SPACING = float(os.environ.get("PARBLE_REVIEW_SPACING", "0.085"))
 # copy (contract §8 mirror, x -> -x), and "<id>:next" places the piece one cell (+x) past the
 # previous one instead of in its own slot (a rail joint seated in a socket block). Without ids:
 # the four P1-T2 pieces in one row, as before. PARBLE_REVIEW_SPACING / _ROW / _COLS size the grid
-# and PARBLE_REVIEW_DIST scales the camera distance, for multi-cell pieces.
+# and PARBLE_REVIEW_DIST scales the camera distance, for multi-cell pieces. PARBLE_REVIEW_BACK
+# (default 0.70) is how far the camera stands back in -y, per unit of distance.
 IDS = argv[2:] or list(K.BUILD)
 SLOTS = [e for e in IDS if not e.endswith(":next")]
 COLS = int(os.environ.get("PARBLE_REVIEW_COLS", "7")) if argv[2:] else len(IDS)
@@ -115,7 +116,8 @@ cam.data.lens = 50
 scn.collection.objects.link(cam)
 if argv[2:]:
     k = float(os.environ.get("PARBLE_REVIEW_DIST", "1.0"))   # camera distance scale
-    aim(cam, (cx - 0.12 * k, cy - 0.70 * k, 0.55 * k))
+    back = float(os.environ.get("PARBLE_REVIEW_BACK", "0.70"))  # lower looks down into channels
+    aim(cam, (cx - 0.12 * k, cy - back * k, 0.55 * k))
 else:
     aim(cam, (cx - 0.16, -0.40, 0.40))
 scn.camera = cam

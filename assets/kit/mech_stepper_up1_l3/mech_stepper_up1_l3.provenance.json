@@ -7,7 +7,7 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "7c2251a18e1a4fb4279da9a2ce54c0b676213eaa9f42e44ae9c4809dcaed3d03",
+    "sha256": "718713bb8405ec5f73578e1defa9d01878fd1ac37fb1e09f4bb234dce34d360f",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
@@ -21,7 +21,7 @@
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "660a716bb5b6aacfc73d0247ef39e4a8c30387d314fa250e99e76aaa39d0d366"
+      "sha256": "b8b818b8ee18e1f14d61bf788758f580d8b5675f2a26b3794ada66416664eecb"
     },
     {
       "path": "blender/kit/kitmech.py",
@@ -29,7 +29,7 @@
     },
     {
       "path": "blender/kit/kitstepper.py",
-      "sha256": "b4f294e5df887af92a9113ffea91b7ee82ed59f9c190f1497bb3ddd696ae4ef9"
+      "sha256": "4baef33742d2ea347dad3dae258fbbbe663c0123905487cf25c7ac485a2dacfd"
     }
   ],
   "authoringAgent": {
@@ -168,12 +168,12 @@
     },
     {
       "path": "assets-source/kit/mech_stepper_up1_l3/mech_stepper_up1_l3_high.blend",
-      "sha256": "6f262b2222241cd35c11a86d30cfc230d1ebabd1ec4eb66cb33154d6d8623cf5",
-      "bytes": 233034
+      "sha256": "d0f6672eff8b6c2051c90206540232ce6d34bf7e1971e90b8dbaea08cf226b68",
+      "bytes": 232977
     },
     {
       "path": "assets-source/kit/mech_stepper_up1_l3/mech_stepper_up1_l3_low.blend",
-      "sha256": "bd57747824375b3ddc592016bedee1fc94b75c2e0a5fdebb2c7ef1327ae74d31",
+      "sha256": "9f813d32fc64c8645bb4c8d954c227eec25d7e6da285b92c662934aa4c11abf1",
       "bytes": 180766
     }
   ],
@@ -208,7 +208,7 @@
       "who": "Paul",
       "gate": "piece look",
       "status": "pending",
-      "notes": "P2-T3 mechanism piece; review sheet blender/kit/review/p2t3-mechanisms.png"
+      "notes": "P2 stepper elevator; review sheet blender/kit/review/p2-stepper-elevator.png"
     }
   ]
 }

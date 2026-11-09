@@ -1,0 +1,214 @@
+{
+  "schema": "parble-kit-provenance/1",
+  "pieceId": "mech_stepper_up1_l1",
+  "pieceVersion": 1,
+  "route": "scripted",
+  "card": "P2-T3",
+  "contract": {
+    "path": "docs/kit-contract.md",
+    "version": 1,
+    "sha256": "7a88cb1b8d29c6806f2760f3052209c9ccc234c39148c9242ae131bccdd87694",
+    "approved": "Paul, 2026-11-07 (contract status line)"
+  },
+  "generator": {
+    "path": "blender/kit/generate.py",
+    "sha256": "dcf7195a751790e68529e5ffcb2aedbaa27db37b748bb051a145fc6a1468df13"
+  },
+  "generatorDeps": [
+    {
+      "path": "blender/kit/kitgeom.py",
+      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+    },
+    {
+      "path": "blender/kit/kitblocks.py",
+      "sha256": "b8b818b8ee18e1f14d61bf788758f580d8b5675f2a26b3794ada66416664eecb"
+    },
+    {
+      "path": "blender/kit/kitmech.py",
+      "sha256": "5ad3aeec85a906415f4375022d8beed1884cfa3bccf29b702452466274eda6b7"
+    },
+    {
+      "path": "blender/kit/kitstepper.py",
+      "sha256": "4baef33742d2ea347dad3dae258fbbbe663c0123905487cf25c7ac485a2dacfd"
+    }
+  ],
+  "authoringAgent": {
+    "harness": "claude-code",
+    "model": "claude-opus-5-5"
+  },
+  "blender": "5.2.2 LTS",
+  "toolVersions": {
+    "gltfTransform": "4.3.0",
+    "meshoptimizer": "0.25.0",
+    "gltfValidator": "2.0.0-dev.3.10",
+    "node": "v24.18.0"
+  },
+  "material": "placeholder (wood_placeholder, no maps, no emission); final tileable wood comes from P1-T1",
+  "bake": {
+    "device": "GPU",
+    "samples": 16,
+    "cageExtrusionM": 0.0005,
+    "maxRayDistanceM": 0.002,
+    "marginPx": 8,
+    "aoDistanceM": 0.02,
+    "channels": {
+      "mech_stepper_up1_l1_lod0_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "6d1a6a9d3f04e6331b9b905a085a6747e63df4a36d538e38201403280982b47e",
+        "size": 2048
+      },
+      "mech_stepper_up1_l1_lod0_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "7406a01bff6297e89fbe52f0669feabffc81b4cf08e819eb2301384b9babf5d8",
+        "size": 2048
+      },
+      "mech_stepper_up1_l1_lod1_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "dcaf9f5ac71eb245ae9bb1bb4d610193f0918e263d2d375eab05cefc4894edb4",
+        "size": 1024
+      },
+      "mech_stepper_up1_l1_lod1_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "b566e32dfeeff4879eb95bb57a953adf48b234b64d5adea48b6d3f64760a2908",
+        "size": 1024
+      },
+      "mech_stepper_up1_l1_lod2_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "0a0332e4da8819f3769cfab1f4812b59a95eb41e15d4226c33f3758295417082",
+        "size": 512
+      },
+      "mech_stepper_up1_l1_lod2_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "c2fb621021659c0eb9016cdbf337637cfec8def5342b3319f97aae0d0cf19f03",
+        "size": 512
+      }
+    }
+  },
+  "lods": [
+    {
+      "lod": "mech_stepper_up1_l1_lod0",
+      "tris": 1635
+    },
+    {
+      "lod": "mech_stepper_up1_l1_lod1",
+      "tris": 719
+    },
+    {
+      "lod": "mech_stepper_up1_l1_lod2",
+      "tris": 457
+    }
+  ],
+  "collider": {
+    "node": "mech_stepper_up1_l1_collider",
+    "tris": 634
+  },
+  "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
+  "texelDensityPxPerM": {
+    "lod0": {
+      "max": 5493.1,
+      "median": 5407.4,
+      "min": 4252.4
+    },
+    "lod1": {
+      "max": 2787.6,
+      "median": 2755.1,
+      "min": 2118.1
+    },
+    "lod2": {
+      "max": 1388.9,
+      "median": 1378.7,
+      "min": 1213.2
+    }
+  },
+  "compression": {
+    "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
+    "glbBytes": 101052,
+    "ktx2": "not produced in P1-T2 (maps ship as PNG)"
+  },
+  "derivedFiles": [
+    {
+      "path": "assets/kit/mech_stepper_up1_l1/mech_stepper_up1_l1.glb",
+      "sha256": "ee46b704581c0b59e9cda263c4a4ff8d9c754168a2ea4717e10390d05a488c24",
+      "bytes": 101052
+    },
+    {
+      "path": "assets/kit/mech_stepper_up1_l1/mech_stepper_up1_l1.kit.json",
+      "sha256": "cda6fbe178626016ff70a4b1eb363ac95b2d00080c81984600b8d7e74bce9d73",
+      "bytes": 45390
+    },
+    {
+      "path": "assets/kit/mech_stepper_up1_l1/mech_stepper_up1_l1_lod0_ao.png",
+      "sha256": "359f801e291d99997532eab08192e3a02e01cf7cefac8b80a9f47938ec932e88",
+      "bytes": 883085
+    },
+    {
+      "path": "assets/kit/mech_stepper_up1_l1/mech_stepper_up1_l1_lod0_normal.png",
+      "sha256": "7406a01bff6297e89fbe52f0669feabffc81b4cf08e819eb2301384b9babf5d8",
+      "bytes": 269599
+    },
+    {
+      "path": "assets/kit/mech_stepper_up1_l1/mech_stepper_up1_l1_lod1_ao.png",
+      "sha256": "dcaf9f5ac71eb245ae9bb1bb4d610193f0918e263d2d375eab05cefc4894edb4",
+      "bytes": 317675
+    },
+    {
+      "path": "assets/kit/mech_stepper_up1_l1/mech_stepper_up1_l1_lod1_normal.png",
+      "sha256": "b566e32dfeeff4879eb95bb57a953adf48b234b64d5adea48b6d3f64760a2908",
+      "bytes": 85216
+    },
+    {
+      "path": "assets/kit/mech_stepper_up1_l1/mech_stepper_up1_l1_lod2_ao.png",
+      "sha256": "0a0332e4da8819f3769cfab1f4812b59a95eb41e15d4226c33f3758295417082",
+      "bytes": 99429
+    },
+    {
+      "path": "assets/kit/mech_stepper_up1_l1/mech_stepper_up1_l1_lod2_normal.png",
+      "sha256": "c2fb621021659c0eb9016cdbf337637cfec8def5342b3319f97aae0d0cf19f03",
+      "bytes": 38794
+    },
+    {
+      "path": "assets-source/kit/mech_stepper_up1_l1/mech_stepper_up1_l1_high.blend",
+      "sha256": "818a237243626acd0a2a82b71e37244cb06d319eb09fd4cd285ba84672841567",
+      "bytes": 230162
+    },
+    {
+      "path": "assets-source/kit/mech_stepper_up1_l1/mech_stepper_up1_l1_low.blend",
+      "sha256": "2c7398630107ed51cfcc5a232ee240e4e6a341bfaa19a7cfe332053d97383d8b",
+      "bytes": 178348
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/reference/ref-02.webp",
+      "sha256": "4c4ed7650fef0b588fbbc58c293f948a3120733b62329af051e4c6d2c0ff3d27",
+      "role": "look reference (owner-supplied)"
+    },
+    {
+      "path": "docs/reference/ref-01.webp",
+      "sha256": "bce26129ad47abea4cb7d1b9915801c52fc79ef80f2d34daa189030f00498115",
+      "role": "look reference (owner-supplied)"
+    },
+    {
+      "path": "docs/reference/ref-06-rail-into-block-tower.png",
+      "sha256": "8d0bf3fb25233bceae74705473dd867a8a24358500ef1fa58219791bcb7360c0",
+      "role": "look reference (owner-supplied)"
+    }
+  ],
+  "license": "MIT (repository licence); geometry is generated by the repository's own generator",
+  "validation": {
+    "pass": true,
+    "checks": [
+      "kit-check contract 14.1-14.10",
+      "gltf-validator reimport (meshopt GLB)",
+      "blender reimport (meshopt GLB)"
+    ]
+  },
+  "approvals": [
+    {
+      "who": "Paul",
+      "gate": "piece look",
+      "status": "pending",
+      "notes": "P2 stepper elevator; review sheet blender/kit/review/p2-stepper-elevator.png"
+    }
+  ]
+}

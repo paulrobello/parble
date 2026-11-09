@@ -45,6 +45,13 @@ pub fn run_rope_arch() -> String {
     parble_sim::golden::rope_arch_pass()
 }
 
+/// Run the stepper lift track (hopper to finish, up both steppers) and return its hash, the same
+/// format as `crates/parble-sim/tests/golden/lift_track.hash` (without the newline).
+#[wasm_bindgen]
+pub fn run_lift_track() -> String {
+    parble_sim::lift_run::lift_track_hash_hex()
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -67,5 +74,9 @@ mod tests {
             parble_sim::allpieces::allpieces_hash_hex()
         );
         assert_eq!(super::run_rope_arch(), parble_sim::golden::rope_arch_pass());
+        assert_eq!(
+            super::run_lift_track(),
+            parble_sim::lift_run::lift_track_hash_hex()
+        );
     }
 }

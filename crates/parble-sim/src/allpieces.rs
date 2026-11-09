@@ -15,9 +15,10 @@
 //!
 //! # Free-fall transfers
 //!
-//! No chain of mated ports leads from the hopper to a finish with the shipped kit: the hopper
-//! leaves at `L1`, the finish takes `L3`, and no shipped piece raises a marble's port level (the
-//! `L1`→`L3`-of-the-layer-below slope of contract §7 is not generated). The track therefore drops
+//! When the track was laid out no chain of mated ports led from the hopper to a finish: the hopper
+//! leaves at `L1`, the finish takes `L3`, and no piece then raised a marble's port level (the
+//! `L1`→`L3`-of-the-layer-below slope of contract §7 is not generated). The later
+//! `mech_stepper_up1_l1` does (`crate::lift_run`), but this track keeps its golden. The track therefore drops
 //! the marble from an open `L1` port 30 mm onto the open `L3` channel of the layer below three
 //! times ([`TRANSFERS`]). The validator reports those ports as open and everything after the first
 //! transfer as unreachable; the test pins that list.

@@ -50,6 +50,7 @@ macro_rules! builtin_piece_ids {
             mech_hole_oneway_l1,
             mech_hopper,
             mech_splitter_l3,
+            mech_stepper_up1_l1,
             mech_stepper_up1_l3,
             mech_toggle_l3,
             rail_curve90_r90_l2,
@@ -74,7 +75,7 @@ macro_rules! sidecars {
 }
 
 /// Sidecars shipped in `assets/kit/`, in id order.
-const BUILTIN_SIDECARS: [&str; 31] = builtin_piece_ids!(sidecars);
+const BUILTIN_SIDECARS: [&str; 32] = builtin_piece_ids!(sidecars);
 
 /// [`BUILTIN_SIDECARS`] index of `blk_straight_l3`, the tests' reference sidecar.
 #[cfg(test)]
@@ -584,6 +585,7 @@ mod tests {
                 "mech_hole_oneway_l1",
                 "mech_hopper",
                 "mech_splitter_l3",
+                "mech_stepper_up1_l1",
                 "mech_stepper_up1_l3",
                 "mech_toggle_l3",
                 "rail_curve90_r90_l2",
@@ -710,9 +712,46 @@ mod tests {
         );
         assert_eq!(o.cell, CellCoord::new(1, 1, 0));
         assert_eq!(p.def.footprint.len(), 4);
-        for q in builtin().iter().filter(|q| q.def.id != p.def.id) {
+        for q in builtin()
+            .iter()
+            .filter(|q| !q.def.id.as_str().starts_with("mech_stepper_"))
+        {
             assert!(q.animated_parts.iter().all(|a| a.joint == Joint::Hinge));
         }
+    }
+
+    #[test]
+    fn the_l1_stepper_takes_an_l1_port_up_to_l3_one_layer_higher() {
+        // The hopper's way up: in at L1 of the anchor layer, out at L3 one layer up, its slots
+        // reaching one layer below the anchor.
+        let p = builtin().piece(&id("mech_stepper_up1_l1")).unwrap();
+        assert_eq!(p.animated_parts.len(), 1);
+        let a = &p.animated_parts[0];
+        assert_eq!((a.name.as_str(), a.joint), ("anim_slats", Joint::Slide));
+        assert_eq!(a.limits_mdeg, [0, 29_875]);
+        let (i, o) = (&p.def.ports[0], &p.def.ports[1]);
+        assert_eq!(
+            (i.face, i.level, i.flow, i.cell),
+            (
+                PortFace::NegX,
+                Some(PortLevel::L1),
+                PortFlow::In,
+                CellCoord::new(0, 0, 0)
+            )
+        );
+        assert_eq!(
+            (o.face, o.level, o.flow, o.cell),
+            (
+                PortFace::PosX,
+                Some(PortLevel::L3),
+                PortFlow::Out,
+                CellCoord::new(1, 1, 0)
+            )
+        );
+        let mut ys: Vec<i32> = p.def.footprint.iter().map(|c| c.y).collect();
+        ys.sort_unstable();
+        ys.dedup();
+        assert_eq!((p.def.footprint.len(), ys), (6, vec![-1, 0, 1]));
     }
 
     #[test]

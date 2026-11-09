@@ -515,6 +515,8 @@ async function provenance(runtime, source, ids, checks) {
       validation: { pass: true, checks },
       approvals: [P1_APPROVED.has(id)
         ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the four-piece look 2026-11-07 (blender/kit/review/pieces.png; also seen textured in the kit2000 and playroom scenes)" }
+        : id.startsWith("mech_stepper_")
+          ? { who: "Paul", gate: "piece look", status: "pending", notes: "P2 stepper elevator; review sheet blender/kit/review/p2-stepper-elevator.png" }
         : id.startsWith("mech_")
           ? { who: "Paul", gate: "piece look", status: "pending", notes: "P2-T3 mechanism piece; review sheet blender/kit/review/p2t3-mechanisms.png" }
           : id.startsWith("rail_")

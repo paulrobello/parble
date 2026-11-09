@@ -589,6 +589,6 @@ mod tests {
             }
             checked += 1;
         }
-        assert_eq!(checked, 7, "mechanisms with parts");
+        assert_eq!(checked, 8, "mechanisms with parts");
     }
 }

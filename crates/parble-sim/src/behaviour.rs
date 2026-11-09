@@ -20,7 +20,7 @@
 //! | `mech_checkpoint_l1` | `gate` | — | split tick and a camera cue per pass |
 //! | `mech_gate_oneway_l1` | `approach`, `exit` | `anim_flap` (physical) | marbles from `approach` push the hinged flap open; the flap's closed stop holds the others back |
 //! | `mech_hole_oneway_l1` | `trap`, `over` | `anim_trapdoor` | opens under marbles that reach `trap` first; marbles from `over` roll across the shut door |
-//! | `mech_stepper_up1_l3` | `lift` | `anim_slats` (slide) | cycles up and down while a marble is on the lift, eases back to rest once it is empty ([`crate::stepper`]) |
+//! | `mech_stepper_up1_l3`, `mech_stepper_up1_l1` | `lift` | `anim_slats` (slide) | cycles up and down while a marble is on the lift, eases back to rest once it is empty ([`crate::stepper`]) |
 //! | `mech_arch_rope_l1` | `curtain_nx`, `curtain_px` | `anim_rope_0`..`7` (no collider) | a drag zone that halves a marble's speed; each rope row swings away from a marble entering it ([`RopeModel`]) |
 //!
 //! Both fork parts are a switch blade hinged about +Y with its tip upstream; at its ±25° limits
@@ -44,10 +44,9 @@ pub fn registry() -> MechanismRegistry {
     r.register(id(CHECKPOINT), Checkpoint::factory);
     r.register(id(GATE), OneWayGate::factory);
     r.register(id(HOLE), OneWayHole::factory);
-    r.register(
-        id(crate::stepper::STEPPER),
-        crate::stepper::Stepper::factory,
-    );
+    for s in [crate::stepper::STEPPER, crate::stepper::STEPPER_L1] {
+        r.register(id(s), crate::stepper::Stepper::factory);
+    }
     r.register(id(ROPE_ARCH), RopeArch::factory);
     r
 }

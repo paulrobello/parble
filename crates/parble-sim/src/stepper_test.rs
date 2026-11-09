@@ -1,65 +1,14 @@
 //! Scripted runs of the stepper elevator: real marbles from an L3 straight up one cell layer.
 
 use super::*;
-use crate::behaviour::registry;
-use crate::marble::{CATS_EYE, MarbleKind, MarbleSpec};
+use crate::lift_run::{INTERVAL_TICKS, MARBLES, launch, layout, rig, ten_marbles_tick};
+use crate::marble::{CATS_EYE, MarbleKind};
 use crate::mechanism::{MechEventKind, SimEvent};
 use crate::{MarbleState, Sim};
-use parble_core::{CellCoord, IssueKind, Mirror, PieceId, Placement, Track, Yaw4, validate_track};
+use parble_core::{IssueKind, PieceId, Track, validate_track};
 use rapier3d::prelude::*;
 
 const CELL: f32 = 0.06;
-
-fn place(piece: &str, x: i32, y: i32, z: i32) -> Placement {
-    Placement::new(
-        PieceId::new(piece).unwrap(),
-        CellCoord::new(x, y, z),
-        Yaw4::new(0),
-        Mirror::Off,
-    )
-}
-
-/// An L3 straight into the stepper at the origin, and an L3 straight on its exit one layer up.
-fn layout() -> Vec<Placement> {
-    vec![
-        place("blk_straight_l3", -1, 0, 0),
-        place(STEPPER, 0, 0, 0),
-        place("blk_straight_l3", 2, 1, 0),
-    ]
-}
-
-fn rig() -> Sim {
-    let kit = parble_kit::builtin();
-    let reg = registry();
-    let mut sim = Sim::empty();
-    let layout = layout();
-    for p in &layout {
-        sim.place_piece(kit, p.clone()).unwrap();
-    }
-    sim.rebuild_chunks(kit).unwrap();
-    for p in &layout {
-        if let Some(f) = reg.get(&p.piece) {
-            sim.add_mechanism(kit.piece(&p.piece).unwrap(), p, 0, f(&p.config))
-                .unwrap();
-        }
-    }
-    sim.set_event_recording(true);
-    sim
-}
-
-/// A marble rolling along +X on the entry straight at `speed`, `dz` off the centreline.
-fn launch(sim: &mut Sim, spec: MarbleSpec, speed: f32, dz: f32) -> RigidBodyHandle {
-    let at = Vector::new(-CELL - 0.015, 0.045 + spec.radius_m, dz);
-    let (mut body, collider) = spec.build(at);
-    body.set_linvel(Vector::X * speed, true);
-    body.set_angvel(Vector::new(0.0, 0.0, -speed / spec.radius_m), true);
-    let h = sim.world.bodies.insert(body);
-    sim.world
-        .colliders
-        .insert_with_parent(collider, h, &mut sim.world.bodies);
-    sim.marbles.push(h);
-    h
-}
 
 fn slats(sim: &Sim) -> i32 {
     sim.mechanisms()[0].part_angles[0]
@@ -166,14 +115,9 @@ fn ten_marbles_in_a_row_all_reach_the_high_port() {
     // One marble every 1.5 s: later marbles arrive while earlier ones are still climbing, so the
     // lift carries several at once, one per moving slat.
     let mut sim = rig();
-    let n = 10;
-    let mut out = vec![None; n];
-    for t in 0..(n as u32 * 360 + 2_400) {
-        if t % 360 == 0 && (t / 360) < n as u32 {
-            let kind = MarbleKind::ALL[(t / 360) as usize % MarbleKind::ALL.len()];
-            launch(&mut sim, kind.spec(), 0.3, 0.0);
-        }
-        sim.tick(1);
+    let mut out = vec![None; MARBLES];
+    for t in 0..(MARBLES as u32 * INTERVAL_TICKS + 2_400) {
+        ten_marbles_tick(&mut sim, t);
         for (i, m) in sim.marbles().iter().enumerate() {
             if out[i].is_none()
                 && m.position[0] > EXIT_X + 0.25 * CELL

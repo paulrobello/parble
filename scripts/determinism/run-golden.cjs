@@ -1,24 +1,26 @@
 // Usage: node run-golden.cjs <wasm-bindgen nodejs module> <golden hash file> [<variants golden file>
-//   [<mechanism golden file> [<playroom hash file> [<allpieces hash file> [<rope arch file>]]]]]
+//   [<mechanism golden file> [<playroom hash file> [<allpieces hash file> [<rope arch file>
+//   [<lift hash file>]]]]]]
 // Runs run_golden() from the wasm build and compares it with the committed native golden. With a
 // variants file (P5-T1), also runs run_variants() (every marble type × size on the ramp) and
 // compares it line by line. With a mechanism file (P2-T1), also runs run_mechanism_demo(). With a
 // playroom file, also runs run_playroom() (the playroom kit run on chunk colliders). With an
 // allpieces file (P2-T7), also runs run_allpieces() (the all-pieces track, 10 marbles, 30 s). With
 // a rope arch file (P2 item 18), also runs run_rope_arch() (the rope-curtain pass, both ways).
+// a lift file, also runs run_lift_track() (hopper to finish up both stepper elevators).
 "use strict";
 
 const fs = require("node:fs");
 const path = require("node:path");
 
-const [modulePath, goldenPath, variantsPath, mechanismPath, playroomPath, allpiecesPath, ropePath] =
+const [modulePath, goldenPath, variantsPath, mechanismPath, playroomPath, allpiecesPath, ropePath, liftPath] =
   process.argv.slice(2);
 if (!modulePath || !goldenPath) {
-  console.error("usage: node run-golden.cjs <module.js> <golden.hash> [<variants.hash> [<mechanism.hash> [<playroom.hash> [<allpieces.hash> [<rope.hash>]]]]]");
+  console.error("usage: node run-golden.cjs <module.js> <golden.hash> [<variants.hash> [<mechanism.hash> [<playroom.hash> [<allpieces.hash> [<rope.hash> [<lift.hash>]]]]]]");
   process.exit(2);
 }
 
-const { run_golden, run_variants, run_mechanism_demo, run_playroom, run_allpieces, run_rope_arch } = require(
+const { run_golden, run_variants, run_mechanism_demo, run_playroom, run_allpieces, run_rope_arch, run_lift_track } = require(
   path.resolve(modulePath),
 );
 const expected = fs.readFileSync(goldenPath, "utf8").trim();
@@ -88,4 +90,16 @@ if (ropePath) {
     process.exit(1);
   }
   console.log(`determinism-wasm: rope arch pass matches native (${ropePath})`);
+}
+
+if (liftPath) {
+  const want = fs.readFileSync(liftPath, "utf8").trim();
+  const got = run_lift_track();
+  console.log(`lift track (native) ${want}`);
+  console.log(`lift track (wasm)   ${got}`);
+  if (got !== want) {
+    console.error(`FAIL: wasm lift track hash ${got} != native ${want} (${liftPath})`);
+    process.exit(1);
+  }
+  console.log("determinism-wasm: stepper lift track run matches native");
 }
