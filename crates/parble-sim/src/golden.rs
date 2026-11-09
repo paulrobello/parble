@@ -46,6 +46,72 @@ pub fn mechanism_demo() -> String {
     )
 }
 
+/// Ticks of each [`rope_arch_pass`] run (3.75 s): the marble clears the far straight well before.
+pub const ROPE_PASS_TICKS: u32 = 900;
+
+/// Launch speed of [`rope_arch_pass`], m/s.
+pub const ROPE_PASS_M_S: f32 = 0.6;
+
+/// P2 item 18: a cat's eye through `mech_arch_rope_l1` between two L1 straights (the rig of the
+/// `rope_arch_halves_the_speed_of_a_marble_passing_through` test) at [`ROPE_PASS_M_S`], once
+/// along +X and once along −X, for [`ROPE_PASS_TICKS`] each. The lines of
+/// `tests/golden/rope_arch_pass.hash`: per direction the trajectory hash, the mechanism state hash
+/// (the rope angles, so the cosmetic swing too), and the event count with its
+/// [`crate::mechanism::events_hash`].
+pub fn rope_arch_pass() -> String {
+    use crate::marble::CATS_EYE;
+    use parble_core::{CellCoord, Mirror, PieceId, Placement, Yaw4};
+    use rapier3d::prelude::Vector;
+
+    let kit = parble_kit::builtin();
+    let reg = crate::behaviour::registry();
+    let place = |id: &str, x: i32| {
+        Placement::new(
+            PieceId::new(id).expect("kit id"),
+            CellCoord::new(x, 0, 0),
+            Yaw4::new(0),
+            Mirror::Off,
+        )
+    };
+    let layout = [
+        place("blk_straight_l1", 0),
+        place(crate::behaviour::ROPE_ARCH, 1),
+        place("blk_straight_l1", 2),
+    ];
+    let h = crate::hash::format_hash;
+    let mut out = String::new();
+    for (name, dir, x0) in [("px", 1.0_f32, -0.02_f32), ("nx", -1.0, 0.14)] {
+        let mut sim = Sim::empty();
+        for p in &layout {
+            sim.place_piece(kit, p.clone())
+                .expect("the rig does not overlap");
+        }
+        sim.rebuild_chunks(kit).expect("the rig builds its chunks");
+        for p in &layout {
+            sim.add_registered(&reg, kit, p, 1)
+                .expect("the rope arch builds");
+        }
+        sim.set_event_recording(true);
+        let rest = 0.015 + CATS_EYE.radius_m;
+        sim.add_marble(CATS_EYE, Vector::new(x0, rest, 0.0));
+        let v = Vector::X * ROPE_PASS_M_S * dir;
+        let body = &mut sim.world.bodies[*sim.marbles.last().expect("just added")];
+        body.set_linvel(v, true);
+        body.set_angvel(Vector::Y.cross(v) / CATS_EYE.radius_m, true);
+        sim.sample();
+        sim.tick(ROPE_PASS_TICKS);
+        let events = sim.drain_events();
+        out.push_str(&format!(
+            "{name} trajectory {}\n{name} mechanism {}\n{name} events {} {}\n",
+            h(sim.trajectory_hash()),
+            h(sim.mechanism_hash()),
+            events.len(),
+            h(crate::mechanism::events_hash(&events))
+        ));
+    }
+    out
+}
+
 /// 10 s at 240 Hz.
 pub const RAMP_10S_TICKS: u32 = 2_400;
 

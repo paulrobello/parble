@@ -1,23 +1,24 @@
 // Usage: node run-golden.cjs <wasm-bindgen nodejs module> <golden hash file> [<variants golden file>
-//   [<mechanism golden file> [<playroom hash file> [<allpieces hash file>]]]]
+//   [<mechanism golden file> [<playroom hash file> [<allpieces hash file> [<rope arch file>]]]]]
 // Runs run_golden() from the wasm build and compares it with the committed native golden. With a
 // variants file (P5-T1), also runs run_variants() (every marble type × size on the ramp) and
 // compares it line by line. With a mechanism file (P2-T1), also runs run_mechanism_demo(). With a
 // playroom file, also runs run_playroom() (the playroom kit run on chunk colliders). With an
-// allpieces file (P2-T7), also runs run_allpieces() (the all-pieces track, 10 marbles, 30 s).
+// allpieces file (P2-T7), also runs run_allpieces() (the all-pieces track, 10 marbles, 30 s). With
+// a rope arch file (P2 item 18), also runs run_rope_arch() (the rope-curtain pass, both ways).
 "use strict";
 
 const fs = require("node:fs");
 const path = require("node:path");
 
-const [modulePath, goldenPath, variantsPath, mechanismPath, playroomPath, allpiecesPath] =
+const [modulePath, goldenPath, variantsPath, mechanismPath, playroomPath, allpiecesPath, ropePath] =
   process.argv.slice(2);
 if (!modulePath || !goldenPath) {
-  console.error("usage: node run-golden.cjs <module.js> <golden.hash> [<variants.hash> [<mechanism.hash> [<playroom.hash> [<allpieces.hash>]]]]");
+  console.error("usage: node run-golden.cjs <module.js> <golden.hash> [<variants.hash> [<mechanism.hash> [<playroom.hash> [<allpieces.hash> [<rope.hash>]]]]]");
   process.exit(2);
 }
 
-const { run_golden, run_variants, run_mechanism_demo, run_playroom, run_allpieces } = require(
+const { run_golden, run_variants, run_mechanism_demo, run_playroom, run_allpieces, run_rope_arch } = require(
   path.resolve(modulePath),
 );
 const expected = fs.readFileSync(goldenPath, "utf8").trim();
@@ -77,4 +78,14 @@ if (allpiecesPath) {
     process.exit(1);
   }
   console.log("determinism-wasm: all-pieces track run matches native");
+}
+
+if (ropePath) {
+  const want = fs.readFileSync(ropePath, "utf8").trim();
+  const got = run_rope_arch().trim();
+  if (want !== got) {
+    console.error(`FAIL: rope arch pass\n native:\n${want}\n wasm:\n${got}`);
+    process.exit(1);
+  }
+  console.log(`determinism-wasm: rope arch pass matches native (${ropePath})`);
 }

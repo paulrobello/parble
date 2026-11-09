@@ -11,7 +11,9 @@
 
 use std::path::PathBuf;
 
-use parble_sim::golden::{RAMP_10S_TICKS, mechanism_demo, ramp_10s_hash_hex, ramp_10s_variants};
+use parble_sim::golden::{
+    RAMP_10S_TICKS, mechanism_demo, ramp_10s_hash_hex, ramp_10s_variants, rope_arch_pass,
+};
 
 const UPDATE_ENV: &str = "PARBLE_UPDATE_GOLDEN";
 
@@ -59,6 +61,26 @@ fn mechanism_demo_matches_golden() {
         )
     });
     assert_eq!(actual, expected, "mechanism fixture run changed");
+}
+
+/// P2 item 18: the rope-curtain arch pass in both directions (drag and cosmetic swing). Additive
+/// like the mechanism golden; the wasm parity check compares the same file.
+#[test]
+fn rope_arch_pass_matches_golden() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/golden/rope_arch_pass.hash");
+    let actual = rope_arch_pass();
+    if std::env::var(UPDATE_ENV).as_deref() == Ok("1") {
+        std::fs::write(&path, &actual).expect("write rope arch golden");
+        eprintln!("wrote {}", path.display());
+        return;
+    }
+    let expected = std::fs::read_to_string(&path).unwrap_or_else(|e| {
+        panic!(
+            "missing {} ({e}); generate it with {UPDATE_ENV}=1",
+            path.display()
+        )
+    });
+    assert_eq!(actual, expected, "rope arch pass changed");
 }
 
 #[test]

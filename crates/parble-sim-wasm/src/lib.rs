@@ -38,6 +38,13 @@ pub fn run_allpieces() -> String {
     parble_sim::allpieces::allpieces_hash_hex()
 }
 
+/// Run the rope-curtain arch pass (P2 item 18) both ways and return the lines of
+/// `crates/parble-sim/tests/golden/rope_arch_pass.hash`.
+#[wasm_bindgen]
+pub fn run_rope_arch() -> String {
+    parble_sim::golden::rope_arch_pass()
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -59,5 +66,6 @@ mod tests {
             super::run_allpieces(),
             parble_sim::allpieces::allpieces_hash_hex()
         );
+        assert_eq!(super::run_rope_arch(), parble_sim::golden::rope_arch_pass());
     }
 }

@@ -17,6 +17,8 @@ mechanism=crates/parble-sim/tests/golden/mechanism_demo_10s.hash
 playroom=crates/parble-sim/tests/golden/playroom_4s.hash
 # P2-T7: the all-pieces track (every PRD P2 kit item, 10 marbles from the hopper).
 allpieces=crates/parble-sim/tests/golden/allpieces_30s.hash
+# P2 item 18: the rope-curtain arch pass, both directions (drag and cosmetic swing).
+rope=crates/parble-sim/tests/golden/rope_arch_pass.hash
 out=target/determinism-wasm
 tools=target/tools
 
@@ -36,4 +38,4 @@ cargo build --locked --release -p parble-sim-wasm --target "$target"
 rm -rf "$out"
 "$bindgen" --target nodejs --out-dir "$out" "target/$target/release/parble_sim_wasm.wasm"
 
-node scripts/determinism/run-golden.cjs "$out/parble_sim_wasm.js" "$golden" "$variants" "$mechanism" "$playroom" "$allpieces"
+node scripts/determinism/run-golden.cjs "$out/parble_sim_wasm.js" "$golden" "$variants" "$mechanism" "$playroom" "$allpieces" "$rope"
