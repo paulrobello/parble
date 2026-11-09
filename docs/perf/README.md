@@ -70,3 +70,18 @@ PARBLE_PERF_HEADED=1 PARBLE_PERF_BROWSERS=chromium PARBLE_PERF_OUT=docs/perf/p1-
 ```
 
 Useful overrides for a partial run: `PARBLE_PERF_BROWSERS=safari`, `PARBLE_PERF_SCENES=stress2000`, `PARBLE_PERF_HEADED=1`.
+
+## Results
+
+2026-11-08 on gpu-host-b (Apple M4, 10-core GPU; the adapter read `apple metal-3`, the renderer ANGLE Metal on the Apple M4), at 2560 × 1440 on the High tier, under the load guard:
+
+| Run | Scene | p95 | p50 | Dropped | Load before → after | pass | passStrict |
+|---|---|---|---|---|---|---|---|
+| Headless Chromium (gating, `p1-gate.json`) | showcase | 16.8 ms | 16.7 ms | 1/600 | 2.64 → 2.55 | true | false |
+| Headless Chromium (gating) | stress2000 | 16.8 ms | 16.7 ms | 1/600 | 2.55 → 2.58 | true | false |
+| Headed Chromium (baseline, `p1-gate-chromium-headed.json`) | showcase | 18.6 ms | 16.7 ms | 1/600 | 2.46 → 3.77 | false | false |
+| Headed Chromium (baseline) | stress2000 | 18.3 ms | 16.7 ms | 1/600 | 3.77 → 3.92 | false | false |
+
+The headless pass is within the 0.3 ms allowance: the p95 frame made its vsync, and only one frame in 600 missed one. The headed run also missed only one refresh per scene, but its rAF deltas jitter between 16.7 and about 18.6 ms around the display's vsync, so its p95 is over the allowance. That is the headed baseline, kept apart from the gate, not a frame miss. Safari has not been measured yet: gpu-host-b needs "Allow Remote Automation" turned on at the console.
+
+Headed Chromium on a Retina screen ignores the page's `deviceScaleFactor: 1` and draws a 5120 × 2880 canvas, so a headed run passes `--force-device-scale-factor=1`. The first headed run, before that flag, was rejected by the canvas check.

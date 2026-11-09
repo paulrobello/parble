@@ -125,7 +125,7 @@ async function chromiumSample(scene) {
   const browser = await chromium.launch({
     channel: "chromium",
     headless: !HEADED,
-    args: [...gpu.GPU_ARGS, "--mute-audio"],
+    args: [...gpu.GPU_ARGS, "--mute-audio", ...(HEADED ? ["--force-device-scale-factor=1"] : [])],
   });
   try {
     const page = await browser.newPage({ viewport: { width: WIDTH, height: HEIGHT }, deviceScaleFactor: 1 });

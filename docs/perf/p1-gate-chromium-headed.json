@@ -1,0 +1,123 @@
+{
+  "gate": "P1-T8 perf gate",
+  "gating": true,
+  "budgetMs": 16.7,
+  "jitterMs": {
+    "chromium": 0.3,
+    "safari": 0.3
+  },
+  "jitterRule": "pass when the p95 rAF delta <= 16.7 ms + the browser's rAF timestamp quantum (jitterMs): the p95 frame made its 60 Hz vsync",
+  "loadMax": 15,
+  "resolution": [
+    2560,
+    1440
+  ],
+  "quality": "high",
+  "frames": 600,
+  "settleFrames": 60,
+  "host": {
+    "platform": "darwin",
+    "release": "27.2.0",
+    "cpu": "Apple M4",
+    "cores": 10
+  },
+  "when": "2026-11-09T06:07:02.015Z",
+  "samples": [
+    {
+      "browser": "chromium",
+      "scene": "showcase",
+      "attempt": 1,
+      "taken": true,
+      "loadBefore": 2.46,
+      "loadAfter": 3.77,
+      "mode": "headed",
+      "adapter": "apple metal-3 ",
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+      "canvas": [
+        2560,
+        1440
+      ],
+      "dpr": 1,
+      "inner": [
+        2560,
+        1440
+      ],
+      "readyMs": 759,
+      "state": {
+        "scenario": "showcase",
+        "quality": "high",
+        "tick": 2704,
+        "fps": 60.34292,
+        "marbles": 6,
+        "kitPieces": 46,
+        "kitChunks": 4,
+        "errors": []
+      },
+      "errors": [],
+      "frameTimes": {
+        "frames": 600,
+        "meanMs": 16.694666666666684,
+        "p50Ms": 16.699999999999818,
+        "p95Ms": 18.599999999999454,
+        "p99Ms": 18.699999999999818,
+        "maxMs": 33.30000000000018,
+        "dropped": 1
+      },
+      "passP95Ms": 17,
+      "pass": false,
+      "passStrict": false,
+      "discarded": []
+    },
+    {
+      "browser": "chromium",
+      "scene": "stress2000",
+      "attempt": 1,
+      "taken": true,
+      "loadBefore": 3.77,
+      "loadAfter": 3.92,
+      "mode": "headed",
+      "adapter": "apple metal-3 ",
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+      "canvas": [
+        2560,
+        1440
+      ],
+      "dpr": 1,
+      "inner": [
+        2560,
+        1440
+      ],
+      "readyMs": 736,
+      "state": {
+        "scenario": "stress2000",
+        "quality": "high",
+        "tick": 2707,
+        "fps": 60.149204,
+        "marbles": 6,
+        "kitPieces": 2000,
+        "kitChunks": 40,
+        "errors": []
+      },
+      "errors": [],
+      "frameTimes": {
+        "frames": 600,
+        "meanMs": 16.69383333333335,
+        "p50Ms": 16.699999999999818,
+        "p95Ms": 18.299999999999272,
+        "p99Ms": 18.699999999999818,
+        "maxMs": 32,
+        "dropped": 1
+      },
+      "passP95Ms": 17,
+      "pass": false,
+      "passStrict": false,
+      "discarded": []
+    }
+  ],
+  "problems": [],
+  "allTaken": true,
+  "pass": false,
+  "passStrict": false
+}
