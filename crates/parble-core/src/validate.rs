@@ -13,6 +13,28 @@
 //! ([`PortClass::mates_with`]). A `Bottom` drop port therefore mates with the `Top` drop port
 //! of the cell below. A link whose two ends are both `In` or both `Out` is a flow conflict.
 //!
+//! # Controlled drops (PRD §5.4, owner ruling 2026-11-08)
+//!
+//! A marble may leave a side port into an empty cell and fall a short way when its landing is
+//! controlled. The validator models the exit as a ballistic fall: the marble crosses the source
+//! port's plane along the face normal at a speed in
+//! [[`CONTROLLED_DROP_MIN_EXIT_SPEED_UM_S`], [`CONTROLLED_DROP_MAX_EXIT_SPEED_UM_S`]] and falls
+//! the floor difference `Δ`, so it travels `v·√(2Δ/g)` past the plane before it lands. A
+//! [`ControlledDrop`] links the source to a landing port when:
+//!
+//! - the source port is a side port that allows outflow and faces an empty cell;
+//! - the landing port is a `Channel` side port that allows inflow, on the face opposite the
+//!   source face, in the first occupied cell of the column below that empty cell (a channel
+//!   entry under the exit: centreline offset 0, inside
+//!   [`CONTROLLED_DROP_LATERAL_TOLERANCE_UM`]);
+//! - its floor is lower than the source's by `0 < Δ ≤` [`CONTROLLED_DROP_MAX_FALL_UM`];
+//! - the whole predicted landing range lies over the landing cell, `0 … CELL_UM` past the plane.
+//!
+//! A controlled drop is a link, not an issue: the source port is not open, the landing port is
+//! not open and not one-sided (a closed channel end behind a landing is fine), and marbles flow
+//! from source to landing only. Any other free fall stays an [`IssueKind::OpenPort`].
+//! [`controlled_drops`] lists the drops of a track.
+//!
 //! # Hopper and finish (contract §10)
 //!
 //! A piece is a hopper when its ID is in the `mech` family with shape segment `hopper`
@@ -33,6 +55,7 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::catalog::PieceCatalog;
+use crate::contract::{CELL_UM, CHANNEL_WIDTH_UM, LEVEL_STEP_UM, MARBLE_STANDARD_DIAMETER_UM};
 use crate::grid::{CellCoord, PortFace};
 use crate::piece::{PieceDef, PieceId};
 use crate::port::{Port, PortClass, PortFlow, PortLevel};
@@ -156,22 +179,71 @@ fn floor_um(p: &Port) -> Option<i32> {
     p.level.map(|l| l.absolute_floor_um(p.cell.y))
 }
 
-/// Validate `track` against `catalog`. The result is sorted and free of duplicates.
-pub fn validate_track(track: &Track, catalog: &impl PieceCatalog) -> Vec<Issue> {
-    let mut issues: BTreeSet<Issue> = BTreeSet::new();
-    let on = |i: usize, cells: Vec<CellCoord>, kind: IssueKind| Issue {
-        placement: Some(i),
-        anchor: Some(track.placements[i].anchor),
-        cells,
-        kind,
-    };
+/// Highest controlled drop, floor to floor: two port levels (30 mm). It is the fall of all three
+/// free-fall transfers of the all-pieces track (`L1` onto `L3` of the layer below), which deliver
+/// 10 of 10 marbles (`parble_sim::allpieces`). Longer falls were not measured as controlled: a
+/// 120 mm drop → pillar → tower fall threw marbles off the rails.
+pub const CONTROLLED_DROP_MAX_FALL_UM: i32 = 2 * LEVEL_STEP_UM;
 
-    let resolved: Vec<Option<Resolved<'_>>> = track
+/// Slowest exit speed the landing check assumes, µm/s: a marble may trickle off a port edge, so
+/// the prediction starts at rest, landing at the port plane.
+pub const CONTROLLED_DROP_MIN_EXIT_SPEED_UM_S: i64 = 0;
+
+/// Fastest exit speed the landing check assumes, µm/s. Measured 2026-11-08 at the three transfer
+/// planes of the all-pieces track (10 marbles each): hopper exit 0.243 m/s, one-way hole roll-over
+/// 0.062–0.146 m/s, steep slope to `L1` 0.636–0.669 m/s. 0.75 m/s is the fastest plus about 12 %;
+/// over the highest fall it still lands 58.7 mm past the plane, inside one cell. The measured first
+/// landings matched the ballistic prediction (52–56 mm at 0.64–0.67 m/s).
+pub const CONTROLLED_DROP_MAX_EXIT_SPEED_UM_S: i64 = 750_000;
+
+/// Largest sideways offset between the predicted path (the source port's centreline) and the
+/// landing port's centreline: the standard marble's play in the 28 mm channel, (28 − 16) / 2 =
+/// 6 mm (contract §5.1, §6). Ports sit on cell centrelines (§3), so only the landing column under
+/// the exit is within it; the next column is a whole cell away.
+pub const CONTROLLED_DROP_LATERAL_TOLERANCE_UM: i32 =
+    (CHANNEL_WIDTH_UM - MARBLE_STANDARD_DIAMETER_UM) / 2;
+
+/// Gravity the prediction uses, µm/s² (the sim's 9.81 m/s²).
+pub const GRAVITY_UM_S2: i64 = 9_810_000;
+
+const _: () = assert!(CONTROLLED_DROP_LATERAL_TOLERANCE_UM < CELL_UM);
+const _: () = assert!(CONTROLLED_DROP_MAX_FALL_UM < CELL_UM);
+const _: () = assert!(
+    0 <= CONTROLLED_DROP_MIN_EXIT_SPEED_UM_S
+        && CONTROLLED_DROP_MIN_EXIT_SPEED_UM_S <= CONTROLLED_DROP_MAX_EXIT_SPEED_UM_S
+);
+
+/// A controlled free fall from an open side port onto a channel entry below (module docs).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ControlledDrop {
+    /// Placement and port index the marble leaves by.
+    pub from: usize,
+    pub from_port: usize,
+    /// Placement and port index it lands in.
+    pub to: usize,
+    pub to_port: usize,
+    /// Floor-to-floor fall, µm.
+    pub fall_um: i32,
+}
+
+/// Whether a ballistic exit at every speed in the assumed range, falling `fall_um`, lands
+/// `0 … CELL_UM` past the port plane. Distance `d = v·√(2Δ/g)`, compared squared in integers; the
+/// slowest exit lands at `d ≥ 0` because the minimum speed is not negative.
+fn lands_in_catch(fall_um: i32) -> bool {
+    let fall = i128::from(fall_um);
+    let g = i128::from(GRAVITY_UM_S2);
+    let reach_sq = |v: i64| i128::from(v) * i128::from(v) * 2 * fall;
+    let cell_sq = i128::from(CELL_UM) * i128::from(CELL_UM);
+    reach_sq(CONTROLLED_DROP_MAX_EXIT_SPEED_UM_S) <= cell_sq * g
+}
+
+/// Resolve every placement against the catalog; `None` for an unknown piece.
+fn resolve<'a>(track: &Track, catalog: &'a impl PieceCatalog) -> Vec<Option<Resolved<'a>>> {
+    track
         .placements
         .iter()
-        .enumerate()
-        .map(|(i, p)| match catalog.get(&p.piece) {
-            Some(def) => {
+        .map(|p| {
+            catalog.get(&p.piece).map(|def| {
                 let o = p.orientation();
                 let ports = def
                     .ports
@@ -182,32 +254,116 @@ pub fn validate_track(track: &Track, catalog: &impl PieceCatalog) -> Vec<Issue> 
                         w
                     })
                     .collect();
-                Some(Resolved {
+                Resolved {
                     def,
                     cells: p.world_cells(def),
                     ports,
-                })
-            }
-            None => {
-                issues.insert(on(
-                    i,
-                    vec![p.anchor],
-                    IssueKind::UnknownPiece {
-                        piece: p.piece.clone(),
-                    },
-                ));
-                None
-            }
+                }
+            })
         })
-        .collect();
+        .collect()
+}
 
-    // Cell occupancy and overlaps.
+/// Placements occupying each world cell, in index order.
+fn occupancy(resolved: &[Option<Resolved<'_>>]) -> BTreeMap<CellCoord, Vec<usize>> {
     let mut occupancy: BTreeMap<CellCoord, Vec<usize>> = BTreeMap::new();
     for (i, r) in resolved.iter().enumerate() {
         for &cell in r.iter().flat_map(|r| &r.cells) {
             occupancy.entry(cell).or_default().push(i);
         }
     }
+    occupancy
+}
+
+fn find_drops(
+    resolved: &[Option<Resolved<'_>>],
+    occupancy: &BTreeMap<CellCoord, Vec<usize>>,
+) -> Vec<ControlledDrop> {
+    let mut drops = Vec::new();
+    for (i, r) in resolved.iter().enumerate() {
+        let Some(r) = r else { continue };
+        for (pi, port) in r.ports.iter().enumerate() {
+            let Some(src_floor) = floor_um(port) else {
+                continue;
+            };
+            let exit = port.cell + port.face.normal();
+            if !allows_out(port.flow) || occupancy.contains_key(&exit) {
+                continue;
+            }
+            // The marble falls down the empty column under `exit` onto the first occupied cell.
+            let mut below = exit;
+            let landing_cell = loop {
+                below = below + PortFace::Bottom.normal();
+                if CELL_UM * (below.y + 1) <= src_floor - CONTROLLED_DROP_MAX_FALL_UM {
+                    break None;
+                }
+                if occupancy.contains_key(&below) {
+                    break Some(below);
+                }
+            };
+            let Some(cell) = landing_cell else { continue };
+            for &q in &occupancy[&cell] {
+                let Some(rq) = &resolved[q] else { continue };
+                for (qi, m) in rq.ports.iter().enumerate() {
+                    let Some(floor) = floor_um(m) else { continue };
+                    let fall_um = src_floor - floor;
+                    if m.cell == cell
+                        && m.face == port.face.opposite()
+                        && m.class == PortClass::Channel
+                        && allows_in(m.flow)
+                        && 0 < fall_um
+                        && fall_um <= CONTROLLED_DROP_MAX_FALL_UM
+                        && lands_in_catch(fall_um)
+                    {
+                        drops.push(ControlledDrop {
+                            from: i,
+                            from_port: pi,
+                            to: q,
+                            to_port: qi,
+                            fall_um,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    drops
+}
+
+/// The controlled drops of `track` (module docs), sorted. Placements not in `catalog` take part
+/// in none.
+pub fn controlled_drops(track: &Track, catalog: &impl PieceCatalog) -> Vec<ControlledDrop> {
+    let resolved = resolve(track, catalog);
+    let mut drops = find_drops(&resolved, &occupancy(&resolved));
+    drops.sort_unstable();
+    drops
+}
+
+/// Validate `track` against `catalog`. The result is sorted and free of duplicates.
+pub fn validate_track(track: &Track, catalog: &impl PieceCatalog) -> Vec<Issue> {
+    let mut issues: BTreeSet<Issue> = BTreeSet::new();
+    let on = |i: usize, cells: Vec<CellCoord>, kind: IssueKind| Issue {
+        placement: Some(i),
+        anchor: Some(track.placements[i].anchor),
+        cells,
+        kind,
+    };
+
+    let resolved = resolve(track, catalog);
+    for (i, p) in track.placements.iter().enumerate() {
+        if resolved[i].is_none() {
+            issues.insert(on(
+                i,
+                vec![p.anchor],
+                IssueKind::UnknownPiece {
+                    piece: p.piece.clone(),
+                },
+            ));
+        }
+    }
+
+    // Cell occupancy and overlaps.
+    let occupancy = occupancy(&resolved);
     let mut shared: BTreeMap<(usize, usize), Vec<CellCoord>> = BTreeMap::new();
     for (&cell, occ) in &occupancy {
         for (k, &a) in occ.iter().enumerate() {
@@ -235,8 +391,16 @@ pub fn validate_track(track: &Track, catalog: &impl PieceCatalog) -> Vec<Issue> 
         }
     }
 
-    // Links and the directed flow graph between placements.
+    // Links and the directed flow graph between placements. Controlled drops carry flow from
+    // source to landing only, and neither of their ports is open or one-sided.
     let mut edges: BTreeMap<usize, BTreeSet<usize>> = BTreeMap::new();
+    let drops = find_drops(&resolved, &occupancy);
+    let mut drop_ports: BTreeSet<(usize, usize)> = BTreeSet::new();
+    for d in &drops {
+        edges.entry(d.from).or_default().insert(d.to);
+        drop_ports.insert((d.from, d.from_port));
+        drop_ports.insert((d.to, d.to_port));
+    }
     for (i, r) in resolved.iter().enumerate() {
         let Some(r) = r else { continue };
         for (pi, port) in r.ports.iter().enumerate() {
@@ -246,7 +410,7 @@ pub fn validate_track(track: &Track, catalog: &impl PieceCatalog) -> Vec<Issue> 
                 .map(|occ| occ.iter().copied().filter(|&q| q != i).collect())
                 .unwrap_or_default();
             if neighbours.is_empty() {
-                if !r.cells.contains(&facing) {
+                if !r.cells.contains(&facing) && !drop_ports.contains(&(i, pi)) {
                     issues.insert(on(
                         i,
                         vec![port.cell],
@@ -275,7 +439,11 @@ pub fn validate_track(track: &Track, catalog: &impl PieceCatalog) -> Vec<Issue> 
                     .or(candidates.first())
                     .copied();
                 let Some((qi, m)) = mate else {
-                    // One-sided: only this port exists on the shared face.
+                    // One-sided: only this port exists on the shared face. A landing port's
+                    // closed end is fine: the marble arrives from above.
+                    if drop_ports.contains(&(i, pi)) {
+                        continue;
+                    }
                     issues.insert(on(
                         i,
                         face_cells.clone(),

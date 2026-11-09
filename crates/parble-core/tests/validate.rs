@@ -1,6 +1,7 @@
 use parble_core::{
-    CellCoord, Issue, IssueKind, LinkFault, MapCatalog, Mirror, PieceDef, PieceId, Placement, Port,
-    PortClass, PortFace, PortFlow, PortLevel, Track, Yaw4, validate_track,
+    CONTROLLED_DROP_MAX_FALL_UM, CellCoord, ControlledDrop, Issue, IssueKind, LinkFault,
+    MapCatalog, Mirror, PieceDef, PieceId, Placement, Port, PortClass, PortFace, PortFlow,
+    PortLevel, Track, Yaw4, controlled_drops, validate_track,
 };
 
 fn c(x: i32, y: i32, z: i32) -> CellCoord {
@@ -29,7 +30,14 @@ fn catalog() -> MapCatalog {
     use PortLevel::*;
     let defs = vec![
         def("mech_hopper", false, vec![O], vec![ch(O, PosX, L3, Out)]),
+        def("mech_hopper_l1", false, vec![O], vec![ch(O, PosX, L1, Out)]),
         def("mech_finish", false, vec![O], vec![Port::drop(O, Top, In)]),
+        def(
+            "blk_straight_l1",
+            false,
+            vec![O],
+            vec![ch(O, NegX, L1, Both), ch(O, PosX, L1, Both)],
+        ),
         def(
             "blk_straight_l3",
             false,
@@ -480,4 +488,144 @@ fn output_is_deterministic_and_sorted() {
         a.windows(2).all(|w| w[0] < w[1]),
         "sorted and unique: {a:?}"
     );
+}
+
+/// An `L1` hopper exit 30 mm above the `L3` channel entry `landing` of the layer below, then on
+/// to a finish.
+fn drop_placements(landing: Placement) -> Vec<Placement> {
+    vec![
+        place("mech_hopper_l1", c(0, 1, 0), 0),
+        landing,
+        place("blk_slope_gentle_l3", c(2, 0, 0), 0),
+        place("blk_drop_l2", c(3, 0, 0), 0),
+        place("mech_finish", c(3, -1, 0), 0),
+    ]
+}
+
+const HOPPER_EXIT_OPEN: IssueKind = IssueKind::OpenPort {
+    port: 0,
+    face: PortFace::PosX,
+    flow: PortFlow::Out,
+};
+
+#[test]
+fn controlled_drop_within_limits_links() {
+    let cat = catalog();
+    let t = track(drop_placements(place("blk_straight_l3", c(1, 0, 0), 0)));
+    assert_eq!(
+        controlled_drops(&t, &cat),
+        vec![ControlledDrop {
+            from: 0,
+            from_port: 0,
+            to: 1,
+            to_port: 0,
+            fall_um: CONTROLLED_DROP_MAX_FALL_UM,
+        }]
+    );
+    // Neither end of the drop is open, and the finish is reached through it.
+    assert_eq!(validate_track(&t, &cat), vec![]);
+}
+
+#[test]
+fn controlled_drop_carries_flow_down_only() {
+    let cat = catalog();
+    // The L1 straight's +X exit drops onto the L3 straight below, which the hopper feeds from
+    // the other side (yaw 2 turns the hopper's exit to −X). No marble climbs the drop, so the
+    // L1 straight is unreachable, and its other port is open.
+    let t = track(vec![
+        place("blk_straight_l1", c(0, 1, 0), 0),
+        place("blk_straight_l3", c(1, 0, 0), 0),
+        place("mech_hopper", c(2, 0, 0), 2),
+    ]);
+    assert_eq!(controlled_drops(&t, &cat).len(), 1);
+    let issues = validate_track(&t, &cat);
+    let at_source: Vec<&IssueKind> = issues
+        .iter()
+        .filter(|i| i.placement == Some(0))
+        .map(|i| &i.kind)
+        .collect();
+    assert_eq!(
+        at_source,
+        vec![
+            &IssueKind::OpenPort {
+                port: 0,
+                face: PortFace::NegX,
+                flow: PortFlow::Both,
+            },
+            &IssueKind::Unreachable,
+        ]
+    );
+    assert!(!issues.iter().any(|i| i.placement == Some(1)), "{issues:?}");
+}
+
+#[test]
+fn drop_too_high_stays_open() {
+    let cat = catalog();
+    // An L2 entry below the L1 exit is a 45 mm fall.
+    let t = track(drop_placements(place("blk_straight_l2", c(1, 0, 0), 0)));
+    assert!(controlled_drops(&t, &cat).is_empty());
+    let issues = validate_track(&t, &cat);
+    assert!(issues.contains(&Issue {
+        placement: Some(0),
+        anchor: Some(c(0, 1, 0)),
+        cells: vec![c(0, 1, 0)],
+        kind: HOPPER_EXIT_OPEN,
+    }));
+    assert!(issues.contains(&Issue {
+        placement: Some(1),
+        anchor: Some(c(1, 0, 0)),
+        cells: vec![c(1, 0, 0)],
+        kind: IssueKind::OpenPort {
+            port: 0,
+            face: PortFace::NegX,
+            flow: PortFlow::Both,
+        },
+    }));
+    assert!(kinds(&issues).contains(&&IssueKind::FinishUnreachable));
+}
+
+#[test]
+fn drop_too_far_sideways_stays_open() {
+    let cat = catalog();
+    // The landing straight is one cell off the exit's centreline (60 mm, over the 6 mm
+    // tolerance).
+    let t = track(vec![
+        place("mech_hopper_l1", c(0, 1, 0), 0),
+        place("blk_straight_l3", c(1, 0, 1), 0),
+    ]);
+    assert!(controlled_drops(&t, &cat).is_empty());
+    assert!(kinds(&validate_track(&t, &cat)).contains(&&HOPPER_EXIT_OPEN));
+}
+
+#[test]
+fn drop_landing_beyond_the_predicted_range_stays_open() {
+    let cat = catalog();
+    // One cell further out than the exit column: the fastest exit lands less than 60 mm past
+    // the port plane, short of that entry.
+    let t = track(vec![
+        place("mech_hopper_l1", c(0, 1, 0), 0),
+        place("blk_straight_l3", c(2, 0, 0), 0),
+    ]);
+    assert!(controlled_drops(&t, &cat).is_empty());
+    assert!(kinds(&validate_track(&t, &cat)).contains(&&HOPPER_EXIT_OPEN));
+}
+
+#[test]
+fn drop_onto_a_piece_without_an_entry_stays_open() {
+    let cat = catalog();
+    // Yaw 1 turns the straight's ports to ±Z: the marble would land across the channel.
+    let t = track(vec![
+        place("mech_hopper_l1", c(0, 1, 0), 0),
+        place("blk_straight_l3", c(1, 0, 0), 1),
+    ]);
+    assert!(controlled_drops(&t, &cat).is_empty());
+    assert!(kinds(&validate_track(&t, &cat)).contains(&&HOPPER_EXIT_OPEN));
+}
+
+#[test]
+fn drop_with_no_landing_piece_stays_open() {
+    let cat = catalog();
+    let t = track(vec![place("mech_hopper_l1", c(0, 1, 0), 0)]);
+    assert!(controlled_drops(&t, &cat).is_empty());
+    assert!(kinds(&validate_track(&t, &cat)).contains(&&HOPPER_EXIT_OPEN));
 }

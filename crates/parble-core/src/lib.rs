@@ -28,4 +28,8 @@ pub use track::{
     HopperConfig, MarbleSize, MechConfig, PHYSICS_VERSION, Placement, ReleaseMode, SCHEMA_VERSION,
     Track,
 };
-pub use validate::{Issue, IssueKind, LinkFault, is_finish, is_hopper, link_fault, validate_track};
+pub use validate::{
+    CONTROLLED_DROP_LATERAL_TOLERANCE_UM, CONTROLLED_DROP_MAX_EXIT_SPEED_UM_S,
+    CONTROLLED_DROP_MAX_FALL_UM, CONTROLLED_DROP_MIN_EXIT_SPEED_UM_S, ControlledDrop, Issue,
+    IssueKind, LinkFault, controlled_drops, is_finish, is_hopper, link_fault, validate_track,
+};

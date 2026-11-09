@@ -20,8 +20,11 @@
 //! `L1`→`L3`-of-the-layer-below slope of contract §7 is not generated). The later
 //! `mech_stepper_up1_l1` does (`crate::lift_run`), but this track keeps its golden. The track therefore drops
 //! the marble from an open `L1` port 30 mm onto the open `L3` channel of the layer below three
-//! times ([`TRANSFERS`]). The validator reports those ports as open and everything after the first
-//! transfer as unreachable; the test pins that list.
+//! times ([`TRANSFERS`]). Each is a controlled drop (owner ruling 2026-11-08, PRD §5.4): the
+//! validator links it ([`parble_core::controlled_drops`]) and reports none of its ports. What it
+//! still reports is not a transfer: the support pillar (no port of it links, so it is also
+//! unreachable) and the one-way hole's trap-side drop port, which opens onto an empty column. The
+//! test pins that list.
 //!
 //! # Measured limits that shaped the layout
 //!
@@ -230,7 +233,7 @@ mod tests {
     use std::collections::{BTreeMap, BTreeSet};
 
     use super::*;
-    use parble_core::{IssueKind, validate_track};
+    use parble_core::{IssueKind, LinkFault, PortFace, PortFlow, controlled_drops, validate_track};
 
     #[test]
     fn every_prd_item_is_in_the_layout_and_every_layout_id_is_an_item() {
@@ -251,40 +254,56 @@ mod tests {
         assert_eq!(LAYOUT[SUPPORT].0, "blk_pillar");
     }
 
-    /// The validator's view: no overlaps, no unknown ids, and open ports or broken links only at
-    /// the transfers and at the support pillar. Everything after the hopper is unreachable to
-    /// it, because a free fall is not a port link.
+    /// The validator's view: every transfer is a controlled drop, so the port chain runs from
+    /// the hopper to both cups. The only issues left are the support pillar's (its ports link
+    /// nothing and no marble reaches it) and the one-way hole's trap-side drop port.
     #[test]
-    fn only_the_transfers_and_the_support_break_the_port_chain() {
-        let issues = validate_track(&track(), parble_kit::builtin());
-        let mut port_issues = Vec::new();
-        for i in &issues {
-            match &i.kind {
-                IssueKind::Unreachable | IssueKind::FinishUnreachable => {}
-                IssueKind::OpenPort { .. } | IssueKind::BrokenLink { .. } => {
-                    port_issues.push(i.placement.expect("a port issue has a placement"));
-                }
-                other => panic!("unexpected issue {other:?} at {:?}", i.placement),
-            }
-        }
-        let mut allowed: Vec<usize> = TRANSFERS.iter().flat_map(|&(a, b)| [a, b]).collect();
-        allowed.push(SUPPORT);
-        allowed.sort_unstable();
-        port_issues.sort_unstable();
-        port_issues.dedup();
-        assert_eq!(port_issues, allowed, "{issues:#?}");
-        let unreachable: BTreeSet<usize> = issues
+    fn the_transfers_link_and_only_the_support_and_the_trap_side_stay_open() {
+        let kit = parble_kit::builtin();
+        let drops: Vec<(usize, usize)> = controlled_drops(&track(), kit)
             .iter()
-            .filter(|i| {
-                matches!(
-                    i.kind,
-                    IssueKind::Unreachable | IssueKind::FinishUnreachable
-                )
-            })
-            .filter_map(|i| i.placement)
+            .map(|d| (d.from, d.to))
             .collect();
-        let expected: BTreeSet<usize> = (1..LAYOUT.len()).collect();
-        assert_eq!(unreachable, expected);
+        assert_eq!(drops, TRANSFERS);
+        let issues = validate_track(&track(), kit);
+        let found: Vec<(usize, &IssueKind)> = issues
+            .iter()
+            .map(|i| (i.placement.expect("no track-level issue"), &i.kind))
+            .collect();
+        let hole = 39;
+        assert_eq!(LAYOUT[hole].0, "mech_hole_oneway_l1");
+        assert_eq!(
+            found,
+            vec![
+                (
+                    SUPPORT,
+                    &IssueKind::OpenPort {
+                        port: 1,
+                        face: PortFace::Bottom,
+                        flow: PortFlow::Out,
+                    }
+                ),
+                (SUPPORT, &IssueKind::Unreachable),
+                (
+                    SUPPORT,
+                    &IssueKind::BrokenLink {
+                        port: 0,
+                        other: 0,
+                        other_port: None,
+                        fault: LinkFault::NoMatingPort,
+                    }
+                ),
+                (
+                    hole,
+                    &IssueKind::OpenPort {
+                        port: 2,
+                        face: PortFace::Bottom,
+                        flow: PortFlow::Out,
+                    }
+                ),
+            ],
+            "{issues:#?}"
+        );
     }
 
     /// [`LAYOUT`] index of the placement holding each world cell.
