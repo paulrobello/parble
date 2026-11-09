@@ -1,7 +1,8 @@
 use parble_core::{
-    CONTROLLED_DROP_MAX_FALL_UM, CellCoord, ControlledDrop, Issue, IssueKind, LinkFault,
-    MapCatalog, Mirror, PieceDef, PieceId, Placement, Port, PortClass, PortFace, PortFlow,
-    PortLevel, Track, Yaw4, controlled_drops, validate_track,
+    CONTROLLED_DROP_MAX_FALL_UM, CellCoord, ControlledDrop, FUNNEL_CATCH_RADIUS_UM,
+    FUNNEL_MAX_FALL_UM, Issue, IssueKind, LinkFault, MapCatalog, Mirror, PieceDef, PieceId,
+    Placement, Port, PortClass, PortFace, PortFlow, PortLevel, Track, Yaw4, controlled_drops,
+    is_funnel, validate_track,
 };
 
 fn c(x: i32, y: i32, z: i32) -> CellCoord {
@@ -518,7 +519,7 @@ fn controlled_drop_within_limits_links() {
             from: 0,
             from_port: 0,
             to: 1,
-            to_port: 0,
+            to_port: Some(0),
             fall_um: CONTROLLED_DROP_MAX_FALL_UM,
         }]
     );
@@ -628,4 +629,91 @@ fn drop_with_no_landing_piece_stays_open() {
     let t = track(vec![place("mech_hopper_l1", c(0, 1, 0), 0)]);
     assert!(controlled_drops(&t, &cat).is_empty());
     assert!(kinds(&validate_track(&t, &cat)).contains(&&HOPPER_EXIT_OPEN));
+}
+
+/// The test catalog plus a 3×3×2 funnel catcher shaped as `blk_funnel_3x3_l2` (two `L2` rim
+/// inlets, a centre drop exit), under its own name and under a non-funnel name.
+fn funnel_catalog() -> MapCatalog {
+    use PortFace::*;
+    use PortFlow::*;
+    use PortLevel::*;
+    let mut cat = catalog();
+    let footprint: Vec<CellCoord> = (0..3)
+        .flat_map(|x| (-1..1).flat_map(move |y| (-2..1).map(move |z| c(x, y, z))))
+        .collect();
+    let ports = vec![
+        ch(O, NegX, L2, In),
+        ch(c(2, 0, -2), PosX, L2, In),
+        Port::drop(c(1, -1, -1), Bottom, Out),
+    ];
+    for id in ["blk_funnel_3x3_l2", "blk_basin_3x3_l2"] {
+        let d = def(id, true, footprint.clone(), ports.clone());
+        d.validate().unwrap();
+        cat.insert(d);
+    }
+    cat
+}
+
+#[test]
+fn drop_into_a_funnel_bowl_within_the_catch_radius_links() {
+    let cat = funnel_catalog();
+    // The hopper's L3 exit one layer over the funnel's -x edge cell: a 75 mm fall to the rim
+    // floor, landing 30 … 62.7 mm from the axis (catch radius 66 mm).
+    let t = track(vec![
+        place("mech_hopper", c(1, 2, -1), 0),
+        place("blk_funnel_3x3_l2", c(1, 1, 0), 0),
+    ]);
+    assert_eq!(
+        controlled_drops(&t, &cat),
+        vec![ControlledDrop {
+            from: 0,
+            from_port: 0,
+            to: 1,
+            to_port: None,
+            fall_um: FUNNEL_MAX_FALL_UM,
+        }]
+    );
+    let issues = validate_track(&t, &cat);
+    assert!(!kinds(&issues).contains(&&HOPPER_EXIT_OPEN));
+    // The bowl landing has no landing port: the funnel's inlets and exit stay open.
+    let funnel_open = issues
+        .iter()
+        .filter(|i| i.placement == Some(1) && matches!(i.kind, IssueKind::OpenPort { .. }))
+        .count();
+    assert_eq!(funnel_open, 3);
+    assert!(is_funnel(&PieceId::new("blk_funnel_3x3_l2").unwrap()));
+}
+
+#[test]
+fn drop_off_the_funnel_catch_radius_or_onto_a_non_funnel_stays_open() {
+    let cat = funnel_catalog();
+    for t in [
+        // One column over in z: the port plane is 67.1 mm from the axis.
+        track(vec![
+            place("mech_hopper", c(1, 2, 0), 0),
+            place("blk_funnel_3x3_l2", c(1, 1, 0), 0),
+        ]),
+        // Two layers up: a 135 mm fall.
+        track(vec![
+            place("mech_hopper", c(1, 3, -1), 0),
+            place("blk_funnel_3x3_l2", c(1, 1, 0), 0),
+        ]),
+        // The same piece without the funnel shape segment.
+        track(vec![
+            place("mech_hopper", c(1, 2, -1), 0),
+            place("blk_basin_3x3_l2", c(1, 1, 0), 0),
+        ]),
+    ] {
+        assert!(controlled_drops(&t, &cat).is_empty());
+        let open = IssueKind::OpenPort {
+            port: 0,
+            face: PortFace::PosX,
+            flow: PortFlow::Out,
+        };
+        assert!(kinds(&validate_track(&t, &cat)).contains(&&open));
+    }
+    assert_eq!(
+        FUNNEL_CATCH_RADIUS_UM, 66_000,
+        "the 74 mm opening less the marble radius"
+    );
 }

@@ -30,6 +30,14 @@
 //! - its floor is lower than the source's by `0 < Δ ≤` [`CONTROLLED_DROP_MAX_FALL_UM`];
 //! - the whole predicted landing range lies over the landing cell, `0 … CELL_UM` past the plane.
 //!
+//! A drop into a funnel catcher's bowl (shape segment `funnel`, [`is_funnel`]) is controlled too:
+//! when the first occupied cell under the exit belongs to a funnel, the source floor is higher
+//! than the funnel's rim floor (its highest side port) by `0 < Δ ≤` [`FUNNEL_MAX_FALL_UM`], and
+//! the whole predicted landing range, the segment from the port plane to `v·√(2Δ/g)` past it
+//! along the source's centreline, lies within [`FUNNEL_CATCH_RADIUS_UM`] of the bowl's axis in
+//! plan (the centre of the funnel's `Bottom` drop port cell). Such a drop has no landing port
+//! (`to_port` is `None`).
+//!
 //! A controlled drop is a link, not an issue: the source port is not open, the landing port is
 //! not open and not one-sided (a closed channel end behind a landing is fine), and marbles flow
 //! from source to landing only. Any other free fall stays an [`IssueKind::OpenPort`].
@@ -55,7 +63,10 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::catalog::PieceCatalog;
-use crate::contract::{CELL_UM, CHANNEL_WIDTH_UM, LEVEL_STEP_UM, MARBLE_STANDARD_DIAMETER_UM};
+use crate::contract::{
+    CELL_UM, CHANNEL_RADIUS_UM, CHANNEL_WIDTH_UM, HALF_CELL_UM, LEVEL_STEP_UM,
+    MARBLE_STANDARD_DIAMETER_UM,
+};
 use crate::grid::{CellCoord, PortFace};
 use crate::piece::{PieceDef, PieceId};
 use crate::port::{Port, PortClass, PortFlow, PortLevel};
@@ -144,6 +155,11 @@ pub fn is_finish(id: &PieceId) -> bool {
     id.family() == "mech" && shape(id) == Some("finish")
 }
 
+/// Whether `id` names a funnel catcher: shape segment `funnel` (`blk_funnel_3x3_l2`).
+pub fn is_funnel(id: &PieceId) -> bool {
+    shape(id) == Some("funnel")
+}
+
 fn shape(id: &PieceId) -> Option<&str> {
     id.as_str().split('_').nth(1)
 }
@@ -203,11 +219,29 @@ pub const CONTROLLED_DROP_MAX_EXIT_SPEED_UM_S: i64 = 750_000;
 pub const CONTROLLED_DROP_LATERAL_TOLERANCE_UM: i32 =
     (CHANNEL_WIDTH_UM - MARBLE_STANDARD_DIAMETER_UM) / 2;
 
+/// Plan radius of a funnel catcher's rim floor about its axis (blender/kit/kitfunnel.py
+/// `RIM_R`): the bowl falls from there to the centre bore, and the rim gutter's half-round runs
+/// outside it.
+pub const FUNNEL_RIM_RADIUS_UM: i32 = 60_000;
+
+/// Largest plan distance from a funnel's axis at which a falling marble's centre is caught: the
+/// bowl opening (rim plus the gutter's channel radius, 74 mm) less the standard marble's radius.
+pub const FUNNEL_CATCH_RADIUS_UM: i32 =
+    FUNNEL_RIM_RADIUS_UM + CHANNEL_RADIUS_UM - MARBLE_STANDARD_DIAMETER_UM / 2;
+
+/// Highest controlled fall into a funnel's bowl, source floor to rim floor: five port levels
+/// (75 mm), an `L3` exit one layer over an `L2` rim. Measured in `parble_sim` (funnel_test): a
+/// marble leaving such an exit over the bowl at 0.02, 0.3 and 0.75 m/s is caught every time and
+/// leaves by the centre bore.
+pub const FUNNEL_MAX_FALL_UM: i32 = 5 * LEVEL_STEP_UM;
+
 /// Gravity the prediction uses, µm/s² (the sim's 9.81 m/s²).
 pub const GRAVITY_UM_S2: i64 = 9_810_000;
 
 const _: () = assert!(CONTROLLED_DROP_LATERAL_TOLERANCE_UM < CELL_UM);
 const _: () = assert!(CONTROLLED_DROP_MAX_FALL_UM < CELL_UM);
+const _: () = assert!(CONTROLLED_DROP_MAX_FALL_UM <= FUNNEL_MAX_FALL_UM);
+const _: () = assert!(FUNNEL_MAX_FALL_UM < 2 * CELL_UM);
 const _: () = assert!(
     0 <= CONTROLLED_DROP_MIN_EXIT_SPEED_UM_S
         && CONTROLLED_DROP_MIN_EXIT_SPEED_UM_S <= CONTROLLED_DROP_MAX_EXIT_SPEED_UM_S
@@ -219,9 +253,9 @@ pub struct ControlledDrop {
     /// Placement and port index the marble leaves by.
     pub from: usize,
     pub from_port: usize,
-    /// Placement and port index it lands in.
+    /// Placement it lands in, and the landing port; `None` for a funnel's bowl.
     pub to: usize,
-    pub to_port: usize,
+    pub to_port: Option<usize>,
     /// Floor-to-floor fall, µm.
     pub fall_um: i32,
 }
@@ -235,6 +269,49 @@ fn lands_in_catch(fall_um: i32) -> bool {
     let reach_sq = |v: i64| i128::from(v) * i128::from(v) * 2 * fall;
     let cell_sq = i128::from(CELL_UM) * i128::from(CELL_UM);
     reach_sq(CONTROLLED_DROP_MAX_EXIT_SPEED_UM_S) <= cell_sq * g
+}
+
+/// Squared plan distance, µm².
+fn dist_sq(a: [i64; 2], b: [i64; 2]) -> i128 {
+    let (dx, dz) = (i128::from(a[0] - b[0]), i128::from(a[1] - b[1]));
+    dx * dx + dz * dz
+}
+
+/// Plan centre of a cell, µm.
+fn plan_centre(c: CellCoord) -> [i64; 2] {
+    [
+        i64::from(c.x) * i64::from(CELL_UM),
+        i64::from(c.z) * i64::from(CELL_UM),
+    ]
+}
+
+/// Whether a ballistic exit from the side `port`, falling `fall_um` into the bowl of the funnel
+/// `f`, lands within [`FUNNEL_CATCH_RADIUS_UM`] of its axis at every assumed speed: both ends of
+/// the landing range (a straight segment along the exit normal) inside the catch disc.
+fn lands_in_bowl(port: &Port, f: &Resolved<'_>, fall_um: i32) -> bool {
+    let Some(bottom) = f
+        .ports
+        .iter()
+        .find(|p| p.level.is_none() && p.face == PortFace::Bottom)
+    else {
+        return false;
+    };
+    let axis = plan_centre(bottom.cell);
+    let n = port.face.normal();
+    let (nx, nz) = (i64::from(n.x), i64::from(n.z));
+    let centre = plan_centre(port.cell);
+    let half = i64::from(HALF_CELL_UM);
+    let plane = [centre[0] + nx * half, centre[1] + nz * half];
+    // d = v·√(2Δ/g), rounded up so the far end is never under-estimated.
+    let v = i128::from(CONTROLLED_DROP_MAX_EXIT_SPEED_UM_S);
+    let d_sq = v * v * 2 * i128::from(fall_um) / i128::from(GRAVITY_UM_S2) + 1;
+    let mut d: i64 = 0;
+    while i128::from(d) * i128::from(d) < d_sq {
+        d += 1;
+    }
+    let far = [plane[0] + nx * d, plane[1] + nz * d];
+    let r_sq = i128::from(FUNNEL_CATCH_RADIUS_UM) * i128::from(FUNNEL_CATCH_RADIUS_UM);
+    dist_sq(plane, axis) <= r_sq && dist_sq(far, axis) <= r_sq
 }
 
 /// Resolve every placement against the catalog; `None` for an unknown piece.
@@ -294,7 +371,7 @@ fn find_drops(
             let mut below = exit;
             let landing_cell = loop {
                 below = below + PortFace::Bottom.normal();
-                if CELL_UM * (below.y + 1) <= src_floor - CONTROLLED_DROP_MAX_FALL_UM {
+                if CELL_UM * (below.y + 1) <= src_floor - FUNNEL_MAX_FALL_UM {
                     break None;
                 }
                 if occupancy.contains_key(&below) {
@@ -304,6 +381,23 @@ fn find_drops(
             let Some(cell) = landing_cell else { continue };
             for &q in &occupancy[&cell] {
                 let Some(rq) = &resolved[q] else { continue };
+                if is_funnel(&rq.def.id) {
+                    let rim = rq.ports.iter().filter_map(floor_um).max();
+                    let fall_um = rim.map_or(0, |rim| src_floor - rim);
+                    if 0 < fall_um
+                        && fall_um <= FUNNEL_MAX_FALL_UM
+                        && lands_in_bowl(port, rq, fall_um)
+                    {
+                        drops.push(ControlledDrop {
+                            from: i,
+                            from_port: pi,
+                            to: q,
+                            to_port: None,
+                            fall_um,
+                        });
+                    }
+                    continue;
+                }
                 for (qi, m) in rq.ports.iter().enumerate() {
                     let Some(floor) = floor_um(m) else { continue };
                     let fall_um = src_floor - floor;
@@ -319,7 +413,7 @@ fn find_drops(
                             from: i,
                             from_port: pi,
                             to: q,
-                            to_port: qi,
+                            to_port: Some(qi),
                             fall_um,
                         });
                     }
@@ -399,7 +493,9 @@ pub fn validate_track(track: &Track, catalog: &impl PieceCatalog) -> Vec<Issue> 
     for d in &drops {
         edges.entry(d.from).or_default().insert(d.to);
         drop_ports.insert((d.from, d.from_port));
-        drop_ports.insert((d.to, d.to_port));
+        if let Some(to_port) = d.to_port {
+            drop_ports.insert((d.to, to_port));
+        }
     }
     for (i, r) in resolved.iter().enumerate() {
         let Some(r) = r else { continue };
