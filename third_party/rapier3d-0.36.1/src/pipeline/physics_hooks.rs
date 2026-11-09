@@ -319,6 +319,16 @@ pub trait PhysicsHooks: crate::utils::MaybeSync {
     /// manifold; two soft surfaces' contacts arrive as candidates ([`ModifiableContacts::Soft`])
     /// whose direction and distance may be edited, or disabled; self contacts never reach the hook.
     fn modify_solver_contacts(&self, _context: &mut ContactModificationContext) {}
+
+    /// parble patch (`README.parble.md`): leaves one triangle of a triangle-mesh target out of
+    /// the CCD sweep of `context.collider1` (the fast collider) against `context.collider2`.
+    ///
+    /// Called only for pairs whose colliders enable `ActiveHooks::FILTER_CONTACT_PAIRS` and
+    /// that `filter_contact_pair` keeps. Returning `true` skips triangle `triangle` of
+    /// `collider2`'s top-level `TriMesh`. The default skips nothing.
+    fn ccd_skip_triangle(&self, _context: &PairFilterContext, _triangle: u32) -> bool {
+        false
+    }
 }
 
 #[cfg(feature = "alloc")]

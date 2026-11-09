@@ -267,6 +267,97 @@ fn ccd_respects_filter_contact_pair_hook() {
     );
 }
 
+// parble patch (`README.parble.md`): `PhysicsHooks::ccd_skip_triangle` leaves single triangles
+// of a trimesh target out of the CCD sweep.
+#[test]
+#[cfg(feature = "dim3")]
+fn ccd_skip_triangle_hook_skips_only_the_named_triangles() {
+    use crate::pipeline::{ActiveHooks, PairFilterContext, PhysicsHooks};
+    use crate::prelude::SolverFlags;
+
+    // A fast ball at x = -6 heading +x at 360 m/s (6 m in the 1/60 s step, under the 400 m/s
+    // default speed cap), toward a wall at x = -3 (triangles 0 and 1) and a second wall at x = -1
+    // (triangles 2 and 3). Returns the ball's x after one step.
+    fn run(skip: fn(u32) -> bool) -> f32 {
+        struct Skip(fn(u32) -> bool);
+        impl PhysicsHooks for Skip {
+            fn filter_contact_pair(&self, _: &PairFilterContext) -> Option<SolverFlags> {
+                Some(SolverFlags::default())
+            }
+            fn ccd_skip_triangle(&self, _: &PairFilterContext, triangle: u32) -> bool {
+                (self.0)(triangle)
+            }
+        }
+        let mut pipeline = PhysicsPipeline::new();
+        let integration_parameters = IntegrationParameters::default();
+        let mut broad_phase = BroadPhaseBvh::new();
+        let mut narrow_phase = NarrowPhase::new();
+        let mut bodies = RigidBodySet::new();
+        let mut colliders = ColliderSet::new();
+        let mut ccd = CCDSolver::new();
+        let mut impulse_joints = ImpulseJointSet::new();
+        let mut multibody_joints = MultibodyJointSet::new();
+        let mut soft_bodies = SoftBodySet::new();
+        let mut islands = IslandManager::new();
+
+        let ball = bodies.insert(
+            RigidBodyBuilder::dynamic()
+                .translation(Vector::new(-6.0, 0.0, 0.0))
+                .linvel(Vector::new(360.0, 0.0, 0.0))
+                .ccd_enabled(true)
+                .build(),
+        );
+        colliders.insert_with_parent(
+            ColliderBuilder::ball(0.5)
+                .active_hooks(ActiveHooks::FILTER_CONTACT_PAIRS)
+                .build(),
+            ball,
+            &mut bodies,
+        );
+        let wall = |x: f32| {
+            [
+                Vector::new(x, -5.0, -5.0),
+                Vector::new(x, 5.0, -5.0),
+                Vector::new(x, 5.0, 5.0),
+                Vector::new(x, -5.0, 5.0),
+            ]
+        };
+        let mut vertices = wall(-3.0).to_vec();
+        vertices.extend(wall(-1.0));
+        let indices = alloc::vec![[0, 1, 2], [0, 2, 3], [4, 5, 6], [4, 6, 7]];
+        let fixed = bodies.insert(RigidBodyBuilder::fixed().build());
+        colliders.insert_with_parent(
+            ColliderBuilder::trimesh(vertices, indices).unwrap().build(),
+            fixed,
+            &mut bodies,
+        );
+
+        pipeline.step(
+            Vector::ZERO,
+            &integration_parameters,
+            &mut islands,
+            &mut broad_phase,
+            &mut narrow_phase,
+            &mut bodies,
+            &mut colliders,
+            &mut impulse_joints,
+            &mut multibody_joints,
+            &mut soft_bodies,
+            &mut ccd,
+            &Skip(skip),
+            &(),
+        );
+        bodies[ball].translation().x
+    }
+
+    let none = run(|_| false);
+    assert!((-3.6..-3.0).contains(&none), "stopped at the first wall: x={none}");
+    let first = run(|t| t < 2);
+    assert!((-1.6..-1.0).contains(&first), "stopped at the second wall: x={first}");
+    let all = run(|_| true);
+    assert!(all > -0.1, "swept through both walls: x={all}");
+}
+
 #[test]
 fn collider_removal_before_step() {
     let mut pipeline = PhysicsPipeline::new();

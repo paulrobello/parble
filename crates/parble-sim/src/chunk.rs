@@ -1492,6 +1492,13 @@ pub struct ChunkColliders {
     /// Whether the contact pair being updated has received its exact rail arc contact, reset with
     /// [`Self::slope_contact_claimed`].
     arc_contact_claimed: std::sync::Mutex<bool>,
+    /// `(ball, chunk, surface)`: the exact surfaces that took a ball's contact this step, so the
+    /// CCD sweep leaves out the facet triangles they replace ([`ExactHold`]). Cleared by
+    /// [`Self::begin_step`].
+    exact_held: std::sync::Mutex<Vec<(ColliderHandle, ColliderHandle, ExactHold)>>,
+    /// Test switch: sweep every facet triangle in the CCD pass, for the steep slope's control.
+    #[cfg(test)]
+    pub(crate) no_ccd_triangle_filter: bool,
     /// Whether the contact pair being updated has received its exact slope contact. Reset by
     /// [`PhysicsHooks::filter_contact_pair`], which the narrow phase calls before it builds and
     /// modifies the pair's manifolds, one pair at a time.
@@ -2178,6 +2185,100 @@ impl ChunkColliders {
     pub(crate) fn is_chunk(&self, h: ColliderHandle) -> bool {
         self.stitched.contains_key(&h.into_raw_parts())
     }
+
+    /// Forgets the exact surfaces of the previous step ([`Self::exact_held`]). Called before
+    /// each physics step: the narrow phase records this step's, and the CCD pass after the solve
+    /// reads them.
+    pub(crate) fn begin_step(&self) {
+        self.exact_held
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+    }
+
+    fn hold(&self, ball: ColliderHandle, chunk: ColliderHandle, surface: ExactHold) {
+        self.exact_held
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push((ball, chunk, surface));
+    }
+
+    /// Whether triangle `tri` of chunk collider `target` is a facet of the exact surface
+    /// `surface`, which ball contacts on `chunk` went to this step.
+    fn replaced_by(
+        &self,
+        surface: ExactHold,
+        chunk: ColliderHandle,
+        target: ColliderHandle,
+        colliders: &ColliderSet,
+        tri: u32,
+    ) -> bool {
+        let key = target.into_raw_parts();
+        let i = tri as usize;
+        match surface {
+            // The tube's triangles are found by their geometry, in whichever chunk they lie:
+            // the straight's own chunk carries its one contact and the neighbours' lose theirs.
+            ExactHold::Straight(cell) => self.straight_cells.get(&cell).is_some_and(|s| {
+                let Some(co) = colliders.get(target) else {
+                    return false;
+                };
+                co.shape()
+                    .as_trimesh()
+                    .filter(|m| i < m.num_triangles())
+                    .is_some_and(|m| {
+                        let t = m.triangle(tri);
+                        let pose = co.position();
+                        [t.a, t.b, t.c].iter().all(|&p| s.on_tube(pose * p))
+                    })
+            }),
+            ExactHold::Slope(k) => {
+                chunk == target
+                    && self
+                        .slopes
+                        .get(&key)
+                        .is_some_and(|(_, tags)| tags.get(i).is_some_and(|t| t.contains(&k)))
+            }
+            ExactHold::Bend(b) => {
+                chunk == target
+                    && self.bends.get(&key).is_some_and(|(_, tags)| {
+                        tags.get(i)
+                            .is_some_and(|&t| t != 0 && (t & !IN_BEND_CELL) == b + 1)
+                    })
+            }
+            ExactHold::Junction(j) => {
+                chunk == target
+                    && self
+                        .junctions
+                        .get(&key)
+                        .is_some_and(|(_, tags)| tags.get(i) == Some(&(j + 1)))
+            }
+            ExactHold::Arc(a) => {
+                chunk == target
+                    && self
+                        .arcs
+                        .get(&key)
+                        .is_some_and(|(_, tags)| tags.get(i) == Some(&(a + 1)))
+            }
+        }
+    }
+}
+
+/// An exact channel surface that took a ball's contact in place of the facet triangles under
+/// it, by index into its chunk collider's tag lists (a straight by its cell).
+///
+/// The CCD sweep runs against the faceted mesh after the solve. The exact surface holds a ball
+/// a few tens of µm from where the facets would, so on a fast run down a slope the sweep met a
+/// facet the ball was already resting on through the exact contact and clamped the step's
+/// motion (measured 2026-11-09: a 0.79 mm advance in place of 1.56 mm at tick 109 of the steep
+/// slope, kick 189). The sweep leaves out exactly the triangles the exact surface replaces, so
+/// every other triangle (a step, a wall, a cap) still stops a fast ball.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ExactHold {
+    Straight(CellCoord),
+    Slope(u32),
+    Bend(u32),
+    Junction(u32),
+    Arc(u32),
 }
 
 impl PhysicsHooks for ChunkColliders {
@@ -2203,6 +2304,19 @@ impl PhysicsHooks for ChunkColliders {
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = false;
         Some(SolverFlags::default())
+    }
+
+    fn ccd_skip_triangle(&self, ctx: &PairFilterContext, tri: u32) -> bool {
+        #[cfg(test)]
+        if self.no_ccd_triangle_filter {
+            return false;
+        }
+        let held = self.exact_held.lock().unwrap_or_else(|e| e.into_inner());
+        held.iter()
+            .filter(|(ball, ..)| *ball == ctx.collider1)
+            .any(|&(_, chunk, surface)| {
+                self.replaced_by(surface, chunk, ctx.collider2, ctx.colliders, tri)
+            })
     }
 
     fn modify_solver_contacts(&self, ctx: &mut ContactModificationContext) {
@@ -2267,6 +2381,7 @@ impl PhysicsHooks for ChunkColliders {
                     return;
                 }
                 *claimed = true;
+                self.hold(other, handle, ExactHold::Straight(s.cell));
                 set_one_contact(rigid, first, centre, ball.radius, n, gap);
                 // A marble dropped onto a straight (a controlled drop, PRD §5.4) meets it already
                 // penetrating, so as on a landing floor it keeps its bounce while it approaches
@@ -2333,6 +2448,7 @@ impl PhysicsHooks for ChunkColliders {
                 rigid.solver_contacts.clear();
             } else {
                 *claimed = true;
+                self.hold(other, handle, ExactHold::Slope(k as u32));
                 set_one_contact(rigid, first, centre, ball.radius, n, gap);
                 // No bounce while the ball rolls on the surface. Rapier applies restitution to a
                 // contact whose manifold point holds no warm-start impulse, and the claim moves to
@@ -2374,22 +2490,23 @@ impl PhysicsHooks for ChunkColliders {
                 let on = true;
                 on
             }
-            && let Some((n, gap, now)) = {
+            && let Some((n, gap, now, ji)) = {
                 // The junction whose cell holds the ball owns the contact, else the tagged one
                 // within a ball diameter of its cell, evaluated at the end of the step as on a
                 // bend.
                 let v = bodies[ball_body].linvel();
                 junctions
                     .iter()
-                    .find(|j| j.reaches(centre, 0.0))
+                    .position(|j| j.reaches(centre, 0.0))
                     .or_else(|| {
-                        let j = &junctions[tag as usize - 1];
-                        j.reaches(centre, 2.0 * ball.radius).then_some(j)
+                        let i = tag as usize - 1;
+                        junctions[i].reaches(centre, 2.0 * ball.radius).then_some(i)
                     })
-                    .and_then(|j| {
+                    .and_then(|i| {
+                        let j = &junctions[i];
                         let now = j.contact(centre, ball.radius);
                         j.contact(centre + v * crate::DT, ball.radius)
-                            .map(|(n, g)| (n, g - v.dot(n) * crate::DT, now))
+                            .map(|(n, g)| (n, g - v.dot(n) * crate::DT, now, i))
                     })
             }
         {
@@ -2408,6 +2525,7 @@ impl PhysicsHooks for ChunkColliders {
                 return;
             }
             *claimed = true;
+            self.hold(other, handle, ExactHold::Junction(ji as u32));
             set_one_contact(rigid, first, centre, ball.radius, n, gap);
             if self.rolling(gap, || now) {
                 *rigid.restitution = 0.0;
@@ -2438,7 +2556,7 @@ impl PhysicsHooks for ChunkColliders {
         }
         if let Some((bends, bend_of)) = self.bends.get(&handle.into_raw_parts())
             && let Some(&tag @ 1..) = bend_of.get(tri as usize)
-            && let Some((n, gap, now)) = {
+            && let Some((n, gap, now, bi)) = {
                 // A straight triangle can lie on the continuation of several bends: the bend
                 // whose cell holds the ball owns the contact. Off every bend cell a straight
                 // triangle's tube holds only along its own span, so a ball rolling past the next
@@ -2462,18 +2580,20 @@ impl PhysicsHooks for ChunkColliders {
                 // marble rocking across the channel (see [`ChannelBend`]).
                 let v = bodies[ball_body].linvel();
                 let ahead = if legacy { 0.0 } else { crate::DT };
-                let eval = |b: &ChannelBend| {
+                let eval = |i: usize| {
+                    let b = &bends[i];
                     let now = b.contact(centre, ball.radius);
                     b.contact(centre + v * ahead, ball.radius)
-                        .map(|(n, g)| (n, g - v.dot(n) * ahead, now))
+                        .map(|(n, g)| (n, g - v.dot(n) * ahead, now, i))
                 };
                 match bends
                     .iter()
-                    .find(|b| b.contains(um(centre.x), um(centre.z)))
+                    .position(|b| b.contains(um(centre.x), um(centre.z)))
                 {
-                    Some(b) => eval(b),
+                    Some(i) => eval(i),
                     None => {
-                        let b = &bends[(tag & !IN_BEND_CELL) as usize - 1];
+                        let i = (tag & !IN_BEND_CELL) as usize - 1;
+                        let b = &bends[i];
                         let along = b.continuation_axis(centre);
                         let spans = |i: usize| {
                             tag & IN_BEND_CELL != 0
@@ -2487,7 +2607,7 @@ impl PhysicsHooks for ChunkColliders {
                             .filter(|&i| {
                                 spans(i) && (legacy || b.reaches(centre, 2.0 * ball.radius))
                             })
-                            .and_then(|_| eval(b))
+                            .and_then(|_| eval(i))
                     }
                 }
             }
@@ -2511,6 +2631,7 @@ impl PhysicsHooks for ChunkColliders {
                     return;
                 }
                 *claimed = true;
+                self.hold(other, handle, ExactHold::Bend(bi as u32));
             }
             set_one_contact(rigid, first, centre, ball.radius, n, gap);
             if !legacy && self.rolling(gap, || now) {
@@ -2520,19 +2641,22 @@ impl PhysicsHooks for ChunkColliders {
         }
         if let Some((arcs, arc_of)) = self.arcs.get(&handle.into_raw_parts())
             && let Some(&tag @ 1..) = arc_of.get(tri as usize)
-            && let Some((n, gap)) = {
+            && let Some((n, gap, ai)) = {
                 // One contact against the exact rail tube (see [`ChannelArc`]): the rail whose
                 // footprint holds the ball owns it, else the tagged rail within a ball diameter,
                 // evaluated at the end of the step, on the first manifold, without the bounce.
                 let v = bodies[ball_body].linvel();
                 arcs.iter()
-                    .find(|a| a.reaches(centre, 0.0))
+                    .position(|a| a.reaches(centre, 0.0))
                     .or_else(|| {
-                        let a = &arcs[tag as usize - 1];
-                        a.reaches(centre, 2.0 * ball.radius).then_some(a)
+                        let i = tag as usize - 1;
+                        arcs[i].reaches(centre, 2.0 * ball.radius).then_some(i)
                     })
-                    .and_then(|a| a.contact(centre + v * crate::DT, ball.radius))
-                    .map(|(n, g)| (n, g - v.dot(n) * crate::DT))
+                    .and_then(|i| {
+                        arcs[i]
+                            .contact(centre + v * crate::DT, ball.radius)
+                            .map(|(n, g)| (n, g - v.dot(n) * crate::DT, i))
+                    })
             }
         {
             if rigid.solver_contacts.is_empty() {
@@ -2547,6 +2671,7 @@ impl PhysicsHooks for ChunkColliders {
                 return;
             }
             *claimed = true;
+            self.hold(other, handle, ExactHold::Arc(ai as u32));
             set_one_contact(rigid, first, centre, ball.radius, n, gap);
             if gap <= 0.0 {
                 *rigid.restitution = 0.0;

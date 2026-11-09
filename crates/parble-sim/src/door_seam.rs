@@ -176,4 +176,8 @@ impl PhysicsHooks for StepHooks<'_> {
             self.pieces.modify_solver_contacts(ctx);
         }
     }
+
+    fn ccd_skip_triangle(&self, ctx: &PairFilterContext, tri: u32) -> bool {
+        self.pieces.ccd_skip_triangle(ctx, tri)
+    }
 }

@@ -49,6 +49,8 @@ struct Control {
     no_landing_contact: bool,
     /// Leaves straight channel triangles to the mesh contact (`ChunkColliders::no_straight_contact`).
     no_straight_contact: bool,
+    /// Sweeps every facet triangle in the CCD pass (`ChunkColliders::no_ccd_triangle_filter`).
+    no_ccd_triangle_filter: bool,
 }
 
 fn run_with(
@@ -66,6 +68,7 @@ fn run_with(
     sim.pieces.bend_contact_at_step_start = control.bend_at_step_start;
     sim.pieces.no_landing_contact = control.no_landing_contact;
     sim.pieces.no_straight_contact = control.no_straight_contact;
+    sim.pieces.no_ccd_triangle_filter = control.no_ccd_triangle_filter;
     for p in layout {
         sim.place_piece(kit, p.clone()).unwrap();
     }
@@ -238,6 +241,22 @@ fn steep_slope_entry_stays_under_the_seam_thresholds() {
         k_in <= k_lim,
         "steep interior: kick {k_in:.2} over {k_lim:.2}"
     );
+}
+
+#[test]
+fn steep_interior_without_the_ccd_triangle_filter_kicks() {
+    // Negative control for the CCD triangle filter (`chunk::ExactHold`): with every facet swept,
+    // the CCD pass clamps the marble against the slope facets the exact contact rests it on, and
+    // the interior kick goes far over the limit (measured 2026-11-09: 189.45 against 2.60 with
+    // the filter, limit 5.19).
+    let tr = steep_run(&Control {
+        no_ccd_triangle_filter: true,
+        ..Control::default()
+    });
+    let (_, k_lim) = limits(3);
+    let k_in = kick(&tr, window([0.105, Z[0]], [STEEP_RUNOUT_M[0], Z[1]]));
+    eprintln!("steep interior without the CCD triangle filter: kick {k_in:.2} (limit {k_lim:.2})");
+    assert!(k_in > k_lim, "control kick {k_in:.2} not over {k_lim:.2}");
 }
 
 /// The steep slope's run-out, x metres: from the start of the floor's curvature rise to the exit

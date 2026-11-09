@@ -326,6 +326,7 @@ fn cast_collider_pair(
     dt: Real,
     linear_slop: Real,
     is_pseudo: bool,
+    skip_triangle: Option<&dyn Fn(u32) -> bool>,
 ) -> Option<Real> {
     let target_pose = target_collider_pose(co2, rb2);
 
@@ -378,6 +379,7 @@ fn cast_collider_pair(
             max_fraction,
             linear_slop,
             is_pseudo,
+            skip_triangle,
         ) {
             best = Some(fraction);
             max_fraction = fraction;
@@ -396,6 +398,7 @@ fn cast_sub_shape(
     max_fraction: Real,
     linear_slop: Real,
     is_pseudo: bool,
+    skip_triangle: Option<&dyn Fn(u32) -> bool>,
 ) -> Option<Real> {
     let output = match target {
         TargetKind::Proxy(target_proxy) => {
@@ -423,6 +426,7 @@ fn cast_sub_shape(
                 sweep: &sub.sweep,
                 local_centroid: sub.local_centroid,
                 min_extent: sub.min_extent,
+                skip_triangle,
             };
             sweep_time_of_impact_composite(
                 shape2,
@@ -606,6 +610,20 @@ pub(super) fn sweep_fast_body(
             ) {
                 return;
             }
+            // parble patch: per-triangle CCD filter (`PhysicsHooks::ccd_skip_triangle`).
+            let filter_context = PairFilterContext {
+                bodies,
+                colliders,
+                rigid_body1: Some(handle),
+                rigid_body2: bh2,
+                collider1: *ch1,
+                collider2: ch2,
+            };
+            let skip_triangle = |triangle: u32| hooks.ccd_skip_triangle(&filter_context, triangle);
+            let hooked = (co1.flags.active_hooks | co2.flags.active_hooks)
+                .contains(ActiveHooks::FILTER_CONTACT_PAIRS);
+            let skip_triangle: Option<&dyn Fn(u32) -> bool> =
+                hooked.then_some(&skip_triangle as &dyn Fn(u32) -> bool);
             if let Some(hit_fraction) = cast_collider_pair(
                 dispatcher,
                 &fast,
@@ -615,6 +633,7 @@ pub(super) fn sweep_fast_body(
                 dt,
                 linear_slop,
                 is_pseudo,
+                skip_triangle,
             ) {
                 if is_pseudo {
                     pseudo_hits.push(PseudoHit {

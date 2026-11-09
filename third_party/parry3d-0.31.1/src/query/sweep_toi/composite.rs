@@ -30,6 +30,9 @@ pub struct SweepCompositeFastShape<'a, 'b> {
     /// Smallest extent (inner radius) of the moving shape, used for fallback spheres and
     /// one-sided early-outs.
     pub min_extent: Real,
+    /// parble patch (`README.parble.md`): triangles of a top-level triangle-mesh target to
+    /// leave out of the sweep, by triangle index. `None` sweeps every triangle.
+    pub skip_triangle: Option<&'a dyn Fn(u32) -> bool>,
 }
 
 struct CompositeToiContext<'a, 'b> {
@@ -211,7 +214,11 @@ pub fn sweep_time_of_impact_composite(
         TypedShape::TriMesh(mesh) => {
             let one_sided_mesh = mesh.flags().contains(TriMeshFlags::ORIENTED);
             context.one_sided = one_sided || one_sided_mesh;
+            let skip = context.fast.skip_triangle;
             for tri_id in mesh.bvh().intersect_aabb(&local_aabb) {
+                if skip.is_some_and(|skip| skip(tri_id)) {
+                    continue;
+                }
                 let triangle = mesh.triangle(tri_id);
                 if context.one_sided_early_out(&triangle) {
                     continue;
@@ -270,7 +277,10 @@ pub fn sweep_time_of_impact_composite(
                 } else if let Some(hit) = sweep_time_of_impact_composite(
                     child_shape.as_ref(),
                     &child_world_pose,
-                    context.fast,
+                    SweepCompositeFastShape {
+                        skip_triangle: None,
+                        ..context.fast
+                    },
                     context.one_sided,
                     target_is_sensor,
                     context.max_fraction,
@@ -293,4 +303,62 @@ pub fn sweep_time_of_impact_composite(
         point: Vector::ZERO,
         normal: Vector::ZERO,
     }))
+}
+
+#[cfg(all(test, feature = "dim3"))]
+mod parble_tests {
+    use super::*;
+    use crate::math::Rotation;
+    use crate::shape::TriMesh;
+
+    fn at(y: Real) -> Pose {
+        Pose::from_parts(Vector::new(0.0, y, 0.0), Rotation::IDENTITY)
+    }
+
+    /// A ball of radius 0.1 falls from y = 1 to y = -2 through two horizontal triangles, index 0
+    /// at y = 0 and index 1 at y = -1.
+    fn fall(skip_triangle: Option<&dyn Fn(u32) -> bool>) -> SweepToiOutput {
+        let tri = |y: Real| {
+            [
+                Vector::new(-1.0, y, -1.0),
+                Vector::new(-1.0, y, 1.0),
+                Vector::new(1.0, y, 0.0),
+            ]
+        };
+        let [a, b, c] = tri(0.0);
+        let [d, e, f] = tri(-1.0);
+        let mesh = TriMesh::new(vec![a, b, c, d, e, f], vec![[0, 1, 2], [3, 4, 5]]).unwrap();
+        let proxy = ToiProxy::point(Vector::ZERO, 0.1);
+        let sweep = Sweep::from_poses(&at(1.0), &at(-2.0), Vector::ZERO);
+        let fast = SweepCompositeFastShape {
+            proxy: &proxy,
+            sweep: &sweep,
+            local_centroid: Vector::ZERO,
+            min_extent: 0.1,
+            skip_triangle,
+        };
+        sweep_time_of_impact_composite(&mesh, &Pose::IDENTITY, fast, false, false, 1.0, 0.001)
+            .unwrap()
+    }
+
+    #[test]
+    fn skipped_triangles_are_not_swept() {
+        let all = fall(None);
+        assert_eq!(all.status, SweepToiStatus::Hit);
+        assert!((all.fraction - 0.9 / 3.0).abs() < 0.01, "{}", all.fraction);
+
+        let first = |t: u32| t == 0;
+        let lower = fall(Some(&first));
+        assert_eq!(lower.status, SweepToiStatus::Hit);
+        assert!(
+            (lower.fraction - 1.9 / 3.0).abs() < 0.01,
+            "{}",
+            lower.fraction
+        );
+
+        let every = |_: u32| true;
+        let none = fall(Some(&every));
+        assert_eq!(none.status, SweepToiStatus::Separated);
+        assert_eq!(none.fraction, 1.0);
+    }
 }

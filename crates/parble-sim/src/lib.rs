@@ -225,6 +225,7 @@ impl Sim {
                     mechanisms: &self.mechanisms,
                     tick: self.tick,
                 };
+                self.pieces.begin_step();
                 self.world.step_with_events(&hooks, &());
             } else {
                 self.world.step();

@@ -37,3 +37,24 @@ contacts (`generic_contact_constraint.rs`) behave exactly as before.
 Run the Rapier test from a copy outside the parble tree (Cargo otherwise finds the parble
 workspace): `cp -R third_party/rapier3d-0.36.1 /tmp/r && cd /tmp/r && cargo test --lib
 --features enhanced-determinism rolling_ball`.
+
+## Per-triangle CCD filter
+
+parble's exact channel contacts (`crates/parble-sim/src/chunk.rs`) replace the contacts of the
+facet triangles under them, but the CCD pass after the solve swept the faceted mesh and clamped a
+fast marble's motion against a facet it was resting on through the exact contact (0.79 mm advanced
+in place of 1.56 mm on the steep slope, measured 2026-11-09). The hook lets the sweep leave out
+exactly those triangles:
+
+- `pipeline/physics_hooks.rs`: `PhysicsHooks::ccd_skip_triangle(&PairFilterContext, u32) ->
+  bool`, default `false`. `collider1` is the fast collider, `collider2` the target.
+- `dynamics/ccd/sweeps.rs`: for a pair `filter_contact_pair` keeps whose colliders enable
+  `ActiveHooks::FILTER_CONTACT_PAIRS`, `sweep_fast_body` passes the hook through
+  `cast_collider_pair` and `cast_sub_shape` to parry's `SweepCompositeFastShape::skip_triangle`
+  (vendored parry3d 0.31.1, `third_party/parry3d-0.31.1/README.parble.md`). Other pairs sweep
+  every triangle, as before.
+- Test: `pipeline/physics_pipeline/test.rs::ccd_skip_triangle_hook_skips_only_the_named_triangles`.
+
+The standalone copy needs the vendored parry too: append
+`[patch.crates-io] parry3d = { path = "<copy of third_party/parry3d-0.31.1>" }` to its
+`Cargo.toml` before `cargo test --lib --features enhanced-determinism ccd_`.
