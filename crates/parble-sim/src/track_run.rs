@@ -14,7 +14,8 @@
 //!
 //! In [`ReleaseMode::Sequential`] (the default) the next marble spawns only once no released
 //! marble is still moving ([`MarbleMotion`]): each one is counted at a finish, lost below
-//! [`LOST_Y_UM`], or slower than [`SETTLE_SPEED_UM_S`] for [`SETTLE_HOLD_TICKS`] ticks in a row.
+//! [`LOST_Y_UM`], off the track on the tray floor, or slower than [`SETTLE_SPEED_UM_S`] for
+//! [`SETTLE_HOLD_TICKS`] ticks in a row.
 //!
 //! Releases happen between steps, on whole ticks, so a run is a pure function of the track and the
 //! tick count.
@@ -131,6 +132,10 @@ pub const SETTLE_HOLD_TICKS: u32 = 120;
 /// Sequential release: a marble whose centre is below this height, µm (1 m under the tray floor),
 /// has fallen off the world and is lost.
 pub const LOST_Y_UM: i64 = -1_000_000;
+/// Sequential release: a marble whose centre is within this distance of its resting height on the
+/// tray floor (one radius), µm, and over no placement's footprint, has left the track onto the
+/// tray floor.
+pub const OFF_TRACK_CLEARANCE_UM: i64 = 1_000;
 
 /// Whether a released marble still holds back a sequential release, and if not, why.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -140,6 +145,11 @@ pub enum MarbleMotion {
     Moving { still: u32 },
     /// Below [`SETTLE_SPEED_UM_S`] for [`SETTLE_HOLD_TICKS`] ticks. Moves again if knocked.
     AtRest,
+    /// On the tray floor ([`OFF_TRACK_CLEARANCE_UM`]) over no placement's footprint: it has left
+    /// the track, rolling or not. A marble on the open floor need not stop for the run to go on
+    /// (a frictionless-in-rolling tray marble rolls on for tens of seconds). Moves again if it
+    /// climbs back onto a piece.
+    OffTrack,
     /// Counted by a finish cup. Final.
     Finished,
     /// Fell below [`LOST_Y_UM`]. Final.
@@ -152,14 +162,19 @@ impl MarbleMotion {
     }
 }
 
-/// Radius in metres of a marble size (contract §6).
-pub fn marble_radius_m(size: MarbleSize) -> f32 {
+/// Radius in µm of a marble size (contract §6).
+fn marble_radius_um(size: MarbleSize) -> i32 {
     let d = match size {
         MarbleSize::Mini => MARBLE_MINI_DIAMETER_UM,
         MarbleSize::Standard => MARBLE_STANDARD_DIAMETER_UM,
         MarbleSize::Shooter => MARBLE_SHOOTER_DIAMETER_UM,
     };
-    scene::um_to_m(d / 2)
+    d / 2
+}
+
+/// Radius in metres of a marble size (contract §6).
+pub fn marble_radius_m(size: MarbleSize) -> f32 {
+    scene::um_to_m(marble_radius_um(size))
 }
 
 /// Release ticks for the hopper queue, in queue order ([`release_ticks`]).
@@ -183,6 +198,8 @@ pub struct TrackRun {
     motion: Vec<MarbleMotion>,
     /// The hopper placement marbles spawn in, if the track has one.
     hopper: Option<Placement>,
+    /// Plan cell columns `(x, z)` under every placement's footprint.
+    footprint: std::collections::BTreeSet<(i32, i32)>,
 }
 
 impl TrackRun {
@@ -195,6 +212,7 @@ impl TrackRun {
             sequential: Vec::new(),
             motion: Vec::new(),
             hopper: None,
+            footprint: Default::default(),
         }
     }
 
@@ -222,6 +240,7 @@ impl TrackRun {
         sim.world.colliders.insert(scene::tray_collider());
         let mut placed = 0usize;
         let mut hopper = None;
+        let mut footprint = std::collections::BTreeSet::new();
         for (i, p) in track.placements.iter().enumerate() {
             match kit_binding(kit, &p.piece) {
                 None => {
@@ -233,6 +252,9 @@ impl TrackRun {
                 Some(KitBinding::NoCollider { .. }) => {}
                 Some(KitBinding::Kit(piece)) => {
                     let kp = Placement { piece, ..p.clone() };
+                    if let Some(k) = kit.piece(&kp.piece) {
+                        footprint.extend(kp.world_cells(&k.def).iter().map(|c| (c.x, c.z)));
+                    }
                     let is_hopper = track.hopper.placement == u32::try_from(i).ok()
                         && kp.piece.as_str() == behaviour::HOPPER;
                     if is_hopper {
@@ -289,6 +311,7 @@ impl TrackRun {
             },
             motion: Vec::new(),
             hopper,
+            footprint,
         };
         run.release_due();
         run.sim.sample();
@@ -335,7 +358,22 @@ impl TrackRun {
             }
         }
         let marbles = self.sim.marbles();
-        for ((m, s), f) in self.motion.iter_mut().zip(&marbles).zip(finished) {
+        let cell = f64::from(parble_core::contract::CELL_UM) * 1.0e-6;
+        let off_track = |s: &crate::MarbleState, size: MarbleSize| {
+            let rest = i64::from(marble_radius_um(size));
+            let column = |v: f32| libm::floor(f64::from(v) / cell + 0.5) as i32;
+            (quantize(s.position[1], POSITION_QUANTA_PER_M) - rest).abs() <= OFF_TRACK_CLEARANCE_UM
+                && !self
+                    .footprint
+                    .contains(&(column(s.position[0]), column(s.position[2])))
+        };
+        for (((m, s), f), &size) in self
+            .motion
+            .iter_mut()
+            .zip(&marbles)
+            .zip(finished)
+            .zip(&self.sequential)
+        {
             if matches!(m, MarbleMotion::Finished | MarbleMotion::Lost) {
                 continue;
             }
@@ -348,6 +386,8 @@ impl TrackRun {
                 MarbleMotion::Finished
             } else if quantize(s.position[1], POSITION_QUANTA_PER_M) < LOST_Y_UM {
                 MarbleMotion::Lost
+            } else if off_track(s, size) {
+                MarbleMotion::OffTrack
             } else if speed2 >= SETTLE_SPEED_UM_S * SETTLE_SPEED_UM_S {
                 MarbleMotion::Moving { still: 0 }
             } else {
@@ -648,18 +688,29 @@ mod tests {
     }
 
     #[test]
-    fn sequential_release_waits_for_a_marble_at_rest() {
-        // No hopper placement: the marbles spawn on the tray ramp, and the first must come to
-        // rest on the tray before the second spawns.
+    fn sequential_release_waits_for_a_marble_to_leave_the_ramp() {
+        // No hopper placement: the marbles spawn on the tray ramp, and the second spawns only
+        // once the first has rolled down it onto the tray floor. The tray marble has no rolling
+        // resistance, so it would roll on along the floor for tens of seconds before it stopped.
         let t = track(vec![MarbleSize::Standard; 2], ReleaseMode::Sequential);
         let (run, at) = spawns(&t, 2, 20_000);
         assert_eq!(at.len(), 2, "the second marble never spawned");
-        assert_eq!(run.motion()[0], MarbleMotion::AtRest);
-        assert!(
-            at[1] > 9_600,
-            "spawned at {} while the first still rolled",
-            at[1]
+        println!(
+            "sequential spawns {at:?}, first marble {:?}",
+            run.motion()[0]
         );
+        assert_eq!(run.motion()[0], MarbleMotion::OffTrack);
+        let first = run.marbles()[0];
+        assert!(
+            first.position[0] >= scene::ramp_run_m() - marble_radius_m(MarbleSize::Standard),
+            "spawned at tick {} with the first still on the ramp at {:?}",
+            at[1],
+            first.position
+        );
+        let mut probe = TrackRun::new(&t).unwrap();
+        probe.tick(u32::try_from(at[1]).unwrap() - 1);
+        assert_eq!(probe.marbles().len(), 1, "the second spawned early");
+        assert!(probe.motion()[0].is_moving());
     }
 
     #[test]

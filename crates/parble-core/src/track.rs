@@ -71,8 +71,8 @@ pub enum MarbleSize {
 ///
 /// `Sequential` is the default (PRD §6 P2 item 1: one marble in motion at a time). It releases the
 /// first marble at tick 0 and each later one only once no marble it released is still moving: every
-/// released marble is counted at a finish, lost, or at rest. The run applies the rule and its
-/// thresholds (`parble_sim::track_run`). `One`, `All` and `Interval` release on fixed ticks.
+/// released marble is counted at a finish, lost, off the track on the tray floor, or at rest. The
+/// run applies the rule and its thresholds (`parble_sim::track_run`). `One`, `All` and `Interval` release on fixed ticks.
 ///
 /// Deserialized through [`RawRelease`]: serde's internally tagged unit variants ignore extra
 /// fields, and a `.parble` file must refuse `{"mode": "one", "ticks": 5}`.
