@@ -21,15 +21,15 @@
     "cpu": "Apple M4",
     "cores": 10
   },
-  "when": "2026-11-09T06:01:52.662Z",
+  "when": "2026-11-09T23:02:26.856Z",
   "samples": [
     {
       "browser": "chromium",
       "scene": "showcase",
       "attempt": 1,
       "taken": true,
-      "loadBefore": 2.64,
-      "loadAfter": 2.55,
+      "loadBefore": 1.69,
+      "loadAfter": 2.33,
       "mode": "headless",
       "adapter": "apple metal-3 ",
       "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
@@ -43,12 +43,12 @@
         2560,
         1440
       ],
-      "readyMs": 771,
+      "readyMs": 748,
       "state": {
         "scenario": "showcase",
         "quality": "high",
-        "tick": 2698,
-        "fps": 60.878983,
+        "tick": 2704,
+        "fps": 60.156364,
         "marbles": 6,
         "kitPieces": 46,
         "kitChunks": 4,
@@ -57,11 +57,11 @@
       "errors": [],
       "frameTimes": {
         "frames": 600,
-        "meanMs": 17.499333333333333,
-        "p50Ms": 16.69999999999891,
+        "meanMs": 16.693833333333316,
+        "p50Ms": 16.699999999999818,
         "p95Ms": 16.799999999999272,
-        "p99Ms": 16.80000000000109,
-        "maxMs": 516.7000000000007,
+        "p99Ms": 16.800000000000182,
+        "maxMs": 33.40000000000009,
         "dropped": 1
       },
       "passP95Ms": 17,
@@ -74,8 +74,8 @@
       "scene": "stress2000",
       "attempt": 1,
       "taken": true,
-      "loadBefore": 2.55,
-      "loadAfter": 2.58,
+      "loadBefore": 2.33,
+      "loadAfter": 2.32,
       "mode": "headless",
       "adapter": "apple metal-3 ",
       "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
@@ -89,12 +89,12 @@
         2560,
         1440
       ],
-      "readyMs": 1006,
+      "readyMs": 736,
       "state": {
         "scenario": "stress2000",
         "quality": "high",
-        "tick": 2702,
-        "fps": 63.545036,
+        "tick": 2708,
+        "fps": 60.239407,
         "marbles": 6,
         "kitPieces": 2000,
         "kitChunks": 40,
@@ -103,11 +103,63 @@
       "errors": [],
       "frameTimes": {
         "frames": 600,
-        "meanMs": 16.69383333333333,
+        "meanMs": 16.69366666666666,
         "p50Ms": 16.699999999999818,
         "p95Ms": 16.799999999999272,
-        "p99Ms": 16.800000000000182,
-        "maxMs": 33.40000000000009,
+        "p99Ms": 16.80000000000109,
+        "maxMs": 33.30000000000018,
+        "dropped": 1
+      },
+      "passP95Ms": 17,
+      "pass": true,
+      "passStrict": false,
+      "discarded": []
+    },
+    {
+      "browser": "safari",
+      "scene": "showcase",
+      "taken": false,
+      "error": "fetch failed"
+    },
+    {
+      "browser": "safari",
+      "scene": "stress2000",
+      "attempt": 1,
+      "taken": true,
+      "loadBefore": 1.72,
+      "loadAfter": 2.03,
+      "mode": "headed (Safari)",
+      "adapter": "apple apple apple",
+      "renderer": null,
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Safari/605.1.15",
+      "canvas": [
+        2560,
+        1440
+      ],
+      "dpr": 2,
+      "inner": [
+        1280,
+        720
+      ],
+      "readyMs": 18076,
+      "state": {
+        "scenario": "stress2000",
+        "errors": [],
+        "kitChunks": 40,
+        "tick": 2741,
+        "fps": 59.960007,
+        "marbles": 6,
+        "kitPieces": 2000,
+        "quality": "high"
+      },
+      "errors": [],
+      "frameTimes": {
+        "frames": 600,
+        "meanMs": 18.473333333333333,
+        "p50Ms": 17,
+        "p95Ms": 17,
+        "p99Ms": 18,
+        "maxMs": 1103,
         "dropped": 1
       },
       "passP95Ms": 17,
@@ -116,8 +168,10 @@
       "discarded": []
     }
   ],
-  "problems": [],
-  "allTaken": true,
-  "pass": true,
+  "problems": [
+    "safari showcase: fetch failed"
+  ],
+  "allTaken": false,
+  "pass": false,
   "passStrict": false
 }

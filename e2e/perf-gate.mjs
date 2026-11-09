@@ -275,7 +275,7 @@ async function main() {
     console.log("perf-gate SMOKE (non-gating):", problems.length ? "problems above" : "ran clean");
     process.exit(problems.length ? 1 : 0);
   }
-  console.log("perf-gate:", result.pass ? "PASS" : allTaken ? "FAIL" : "NOT TAKEN (load guard)");
+  console.log("perf-gate:", result.pass ? "PASS" : allTaken ? "FAIL" : problems.length ? "NOT TAKEN (problems above)" : "NOT TAKEN (load guard)");
   process.exit(result.pass ? 0 : 1);
 }
 

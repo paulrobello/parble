@@ -41,26 +41,31 @@ Ship the tree with the release build already in it (no Rust or Trunk needed on g
 make build-web
 tar czf /tmp/parble-perf.tgz --exclude .git --exclude node_modules --exclude 'target/debug' \
   --exclude 'target/release' --exclude 'target/wasm32-unknown-unknown' --exclude 'target/tools' \
-  --exclude 'target/shots' .
+  --exclude 'target/shots' --exclude .claude .
 rsync -az -e "ssh -i <ssh-key>" /tmp/parble-perf.tgz <user>@gpu-host-b.local:/tmp/
 # If "No route to host": add -o ProxyJump=<user>@gpu-host-a.local (infrastructure guide).
 ```
 
-On gpu-host-b, in a par-mux pane so the run survives an ssh drop:
+On gpu-host-b, launch the run in the console (GUI) session with `open`. A `safaridriver` started from an ssh shell cannot reach Safari: every session request times out with "Request creation of a new automation session" (measured 2026-11-09). gpu-host-b has no par-mux, and `open` also keeps the run alive through an ssh drop. Quit Safari first if it was running before remote automation was enabled. A Safari process that predates the setting times out the same way.
 
 ```bash
 ssh -i <ssh-key> <user>@gpu-host-b.local
 rm -rf ~/Repos/parble-perf && mkdir -p ~/Repos/parble-perf && tar xzf /tmp/parble-perf.tgz -C ~/Repos/parble-perf
-par-mux --cmd "new-window -n parble-perf -- bash -lc 'cd ~/Repos/parble-perf && export PATH=/opt/homebrew/bin:\$PATH && npm ci --prefix e2e --no-audit --no-fund && (cd e2e && ./node_modules/.bin/playwright install chromium) && node e2e/perf-gate.mjs > /tmp/parble-perf.log 2>&1; echo EXIT=\$? >> /tmp/parble-perf.log'"
-# (start the daemon first with `par-mux default --no-attach` if --cmd reports none)
-tail -f /tmp/parble-perf.log   # or par-mux capture-pane
+cat > /tmp/parble-perf.command <<'CMD'
+#!/bin/bash
+cd ~/Repos/parble-perf && export PATH=/opt/homebrew/bin:$PATH
+{ npm ci --prefix e2e --no-audit --no-fund && (cd e2e && ./node_modules/.bin/playwright install chromium) && node e2e/perf-gate.mjs; } > /tmp/parble-perf.log 2>&1
+echo EXIT=$? >> /tmp/parble-perf.log
+CMD
+chmod +x /tmp/parble-perf.command && open -g /tmp/parble-perf.command
+tail -f /tmp/parble-perf.log
 ```
 
 `node e2e/perf-gate.mjs` is what `make perf-gate` runs after `build-web`; calling it directly uses the shipped `target/web-dist`. Copy the result back and clean up:
 
 ```bash
 scp -i <ssh-key> <user>@gpu-host-b.local:Repos/parble-perf/docs/perf/p1-gate.json docs/perf/p1-gate.json
-ssh -i <ssh-key> <user>@gpu-host-b.local 'rm -rf ~/Repos/parble-perf /tmp/parble-perf.tgz /tmp/parble-perf.log'
+ssh -i <ssh-key> <user>@gpu-host-b.local 'rm -rf ~/Repos/parble-perf /tmp/parble-perf.tgz /tmp/parble-perf.log /tmp/parble-perf.command'
 ```
 
 Headless Chromium paces rAF from its own 60 Hz frame source, which may not show GPU back-pressure. Headed Chromium follows the display: on a 120 Hz ProMotion screen it paces at 8.3 ms (a 2026-11-08 non-gating smoke on gpu-host-a's M4 Max read p95 10.1 ms showcase and 9.9 ms stress2000 headed, against 16.7 / 16.8 ms headless), and the jitter allowance above assumes 60 Hz. Run a second, headed Chromium pass and keep it as a separate baseline (house rule: headed and headless timings are never mixed), written to its own file:
@@ -82,6 +87,17 @@ Useful overrides for a partial run: `PARBLE_PERF_BROWSERS=safari`, `PARBLE_PERF_
 | Headed Chromium (baseline, `p1-gate-chromium-headed.json`) | showcase | 18.6 ms | 16.7 ms | 1/600 | 2.46 → 3.77 | false | false |
 | Headed Chromium (baseline) | stress2000 | 18.3 ms | 16.7 ms | 1/600 | 3.77 → 3.92 | false | false |
 
-The headless pass is within the 0.3 ms allowance: the p95 frame made its vsync, and only one frame in 600 missed one. The headed run also missed only one refresh per scene, but its rAF deltas jitter between 16.7 and about 18.6 ms around the display's vsync, so its p95 is over the allowance. That is the headed baseline, kept apart from the gate, not a frame miss. Safari has not been measured yet: gpu-host-b needs "Allow Remote Automation" turned on at the console.
+The headless pass is within the 0.3 ms allowance: the p95 frame made its vsync, and only one frame in 600 missed one. The headed run also missed only one refresh per scene, but its rAF deltas jitter between 16.7 and about 18.6 ms around the display's vsync, so its p95 is over the allowance. That is the headed baseline, kept apart from the gate, not a frame miss.
+
+2026-11-09 on gpu-host-b (same host, Safari 27.2), build c86a1ef, under the load guard:
+
+| Run | Scene | p95 | p50 | Max | Dropped | Load before → after | pass | passStrict |
+|---|---|---|---|---|---|---|---|---|
+| Headless Chromium (gating, `p1-gate.json`) | showcase | 16.8 ms | 16.7 ms | 33.4 ms | 1/600 | 1.69 → 2.33 | true | false |
+| Headless Chromium (gating) | stress2000 | 16.8 ms | 16.7 ms | 33.3 ms | 1/600 | 2.33 → 2.32 | true | false |
+| Safari (gating, `p1-gate.json`) | stress2000 | 17.0 ms | 17.0 ms | 1103 ms | 1/600 | 1.72 → 2.03 | true | false |
+| Safari (gating, `p1-gate-safari-showcase.json`) | showcase | 17.0 ms | 17.0 ms | 1115 ms | 1/600 | 1.74 → 1.87 | true | false |
+
+All four samples pass within the allowance. In the full run the Safari showcase sample failed with a WebDriver `fetch failed` after the stress2000 sample, so `p1-gate.json` records `pass: false` for that one problem. A Safari-only showcase rerun in the same booked window passed and is in its own file. Each Safari sample has one dropped frame of about 1.1 s. It is a single stall in 600 frames, not a pacing miss, and its cause is not yet known.
 
 Headed Chromium on a Retina screen ignores the page's `deviceScaleFactor: 1` and draws a 5120 × 2880 canvas, so a headed run passes `--force-device-scale-factor=1`. The first headed run, before that flag, was rejected by the canvas check.

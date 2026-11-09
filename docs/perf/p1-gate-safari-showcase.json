@@ -1,0 +1,77 @@
+{
+  "gate": "P1-T8 perf gate",
+  "gating": true,
+  "budgetMs": 16.7,
+  "jitterMs": {
+    "chromium": 0.3,
+    "safari": 0.3
+  },
+  "jitterRule": "pass when the p95 rAF delta <= 16.7 ms + the browser's rAF timestamp quantum (jitterMs): the p95 frame made its 60 Hz vsync",
+  "loadMax": 15,
+  "resolution": [
+    2560,
+    1440
+  ],
+  "quality": "high",
+  "frames": 600,
+  "settleFrames": 60,
+  "host": {
+    "platform": "darwin",
+    "release": "27.2.0",
+    "cpu": "Apple M4",
+    "cores": 10
+  },
+  "when": "2026-11-09T23:03:14.641Z",
+  "samples": [
+    {
+      "browser": "safari",
+      "scene": "showcase",
+      "attempt": 1,
+      "taken": true,
+      "loadBefore": 1.74,
+      "loadAfter": 1.87,
+      "mode": "headed (Safari)",
+      "adapter": "apple apple apple",
+      "renderer": null,
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Safari/605.1.15",
+      "canvas": [
+        2560,
+        1440
+      ],
+      "dpr": 2,
+      "inner": [
+        1280,
+        720
+      ],
+      "readyMs": 11048,
+      "state": {
+        "scenario": "showcase",
+        "errors": [],
+        "kitChunks": 4,
+        "tick": 2741,
+        "fps": 60.07255,
+        "marbles": 6,
+        "kitPieces": 46,
+        "quality": "high"
+      },
+      "errors": [],
+      "frameTimes": {
+        "frames": 600,
+        "meanMs": 18.471666666666668,
+        "p50Ms": 17,
+        "p95Ms": 17,
+        "p99Ms": 18,
+        "maxMs": 1115,
+        "dropped": 1
+      },
+      "passP95Ms": 17,
+      "pass": true,
+      "passStrict": false,
+      "discarded": []
+    }
+  ],
+  "problems": [],
+  "allTaken": true,
+  "pass": true,
+  "passStrict": false
+}
