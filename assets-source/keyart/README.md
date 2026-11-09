@@ -2,7 +2,7 @@
 
 Title-screen hero, loading art and social card for parble, generated with Higgsfield `nano_banana_pro` on 2026-11-07. The images contain no text: the "parble" wordmark, menu and progress UI are overlaid by the game. Sources in this directory are stored exactly as the provider delivered them. Runtime derivatives live in [`assets/keyart/`](../../assets/keyart/) and are rebuilt by `python3 -I assets-source/keyart/derive.py`. Full records (prompts, job ids, reference hashes, crops, encoder settings, file hashes) are in [`provenance.json`](provenance.json), with the raw job receipts in [`receipts/`](receipts/) and the prompts in [`prompts/`](prompts/).
 
-**Status: awaiting Paul's approval.** Pick the wide hero (primary or alternate) and approve or reject each surface.
+**Status: approved by Paul on 2026-11-08.** He approved the hero art and chose the primary wide hero (`hero-wide-21x9.png`) over the alternate. The alternate is kept as an unused source. The rights gate is still pending.
 
 ## Sources
 
@@ -56,7 +56,7 @@ Layout notes for P5-T3:
 | Gate | Status |
 |---|---|
 | Technical (file level: provenance reconciliation, full decode, deterministic rebuild; see Validation) | pass for the files; consumer checks pending P5-T3 |
-| Creative | pending Paul |
+| Creative | approved by Paul 2026-11-08 (primary wide hero) |
 | Rights | pending. Generated on Paul's Higgsfield plus plan; commercial terms not verified. |
-| Owner | pending Paul |
+| Owner | approved by Paul 2026-11-08 |
 | Live use (title and loading screens in Chrome and Safari, desktop and mobile) | not done; it belongs to P5-T3, which builds those screens |
