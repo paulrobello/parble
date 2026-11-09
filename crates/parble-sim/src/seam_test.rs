@@ -397,16 +397,25 @@ fn slope_hand_overs_without_the_fix_bounce() {
     // Negative control: the exact slope contact with the marble's restitution kept on it. The
     // contact moves to a fresh manifold, which Rapier treats as a new contact, each time the ball
     // crosses a triangle edge; in the concave lower half the ball approaches it along the normal
-    // and bounces, so the interior exceeds the kick limit.
+    // and bounces.
+    //
+    // With the vendored Rapier contact fix and Coulomb rolling resistance (PHYSICS_VERSION 4) the
+    // bounce no longer clears the kick limit: interior kick 4.29 against 2.33 with the fix
+    // (limit 5.19, measured 2026-11-08; 12.78 before). The control now checks that the bounce
+    // still shows: the interior kicks at least 1 mm/s more than with the fix.
     let (layout, _) = slope_layout();
     let start = Vector::new(-0.02, REST_Y, 0.0);
     let control = roll_track_with(&layout, start, Vector::X, RUN_TICKS, true);
-    let k_in = kick(&control, in_slope);
+    let fixed = roll_track(&layout, start, Vector::X, RUN_TICKS);
+    let (k_in, k_fixed) = (kick(&control, in_slope), kick(&fixed, in_slope));
     let (_, k_limit) = slope_limits();
-    eprintln!("slope interior with the hand-over bounce: kick {k_in:.2} mm/s (limit {k_limit:.2})");
+    eprintln!(
+        "slope interior with the hand-over bounce: kick {k_in:.2} mm/s, {k_fixed:.2} with the fix \
+         (limit {k_limit:.2})"
+    );
     assert!(
-        k_in > k_limit,
-        "control interior kick {k_in:.2} not over {k_limit:.2}"
+        k_in > k_fixed + 1.0,
+        "control interior kick {k_in:.2} not 1 mm/s over the fixed {k_fixed:.2}"
     );
 }
 
