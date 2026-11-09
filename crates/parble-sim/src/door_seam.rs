@@ -63,9 +63,7 @@ impl DoorSeam {
             return None;
         }
         let axis = [(lo[0] + hi[0]) / 2.0, (lo[1] + hi[1]) / 2.0];
-        let radius = vertices
-            .map(|v| (v.x - axis[0]).hypot(v.z - axis[1]))
-            .fold(0.0, f32::max);
+        let radius = libm::sqrtf(vertices.map(|v| plan_sq(v, axis)).fold(0.0, f32::max));
         Some(Self {
             instance,
             part,
@@ -77,10 +75,16 @@ impl DoorSeam {
 
     /// Whether a ball of centre `c` and radius `r` is on the over side and within reach.
     fn holds(&self, c: Vector, r: f32) -> bool {
-        c.y > self.hinge_y
-            && (c.x - self.axis[0]).hypot(c.z - self.axis[1])
-                <= self.radius + r + DOOR_SEAM_MARGIN_M
+        let reach = self.radius + r + DOOR_SEAM_MARGIN_M;
+        c.y > self.hinge_y && plan_sq(c, self.axis) <= reach * reach
     }
+}
+
+/// Squared plan distance of `v` from `axis`, m² (mul and add only, so native = wasm; `hypot` is
+/// the platform's `hypotf` natively).
+fn plan_sq(v: Vector, axis: [f32; 2]) -> f32 {
+    let (dx, dz) = (v.x - axis[0], v.z - axis[1]);
+    dx * dx + dz * dz
 }
 
 /// Whether `p` projects into triangle `(a, b, c)` along its normal, within
