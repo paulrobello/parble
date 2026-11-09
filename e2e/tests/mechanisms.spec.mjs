@@ -39,16 +39,20 @@ test("mechanism parts interpolate between physics ticks and sweep smoothly", asy
   // the checkpoint body.
   expect(k.drawBound).toBe(3 * (1 + 2 + 1 + 2 + 1 + 2) + 3 * (1 + 9) + 3 * (1 + 1));
 
-  // Every animation frame for 11 s: the run restarts every 10 s, so one whole run is in the sample.
+  // Every animation frame for 11 s from the start of a run: the run restarts every 10 s, so one whole
+  // run is in the sample. The gate flap swings within the first 0.4 s of a run, so a window opened at
+  // an arbitrary moment can cut the swing and pick a peak that is not the flap's widest.
   const samples = await page.evaluate(
     () =>
       new Promise((resolve) => {
         const out = [];
-        const t0 = performance.now();
+        const firstRun = window.__parble.run;
+        let t0 = null;
         const step = () => {
           const s = window.__parble;
-          out.push({ tick: s.tick, run: s.run, frame: s.frame, parts: s.kit.parts });
-          if (performance.now() - t0 < 11_000) requestAnimationFrame(step);
+          if (t0 === null && s.run !== firstRun) t0 = performance.now();
+          if (t0 !== null) out.push({ tick: s.tick, run: s.run, frame: s.frame, parts: s.kit.parts });
+          if (t0 === null || performance.now() - t0 < 11_000) requestAnimationFrame(step);
           else resolve(out);
         };
         requestAnimationFrame(step);
