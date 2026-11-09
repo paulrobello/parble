@@ -258,3 +258,236 @@ fn the_stepper_restores_what_it_saved() {
         assert_eq!(v.state.get(k), Some(val), "{k}");
     }
 }
+
+// --- hand-over checks: one step per lift cycle, no stall on a top, no roll-back ---
+
+/// `blender/kit/kitstepper.py` `STEP`: at the top of the stroke a moving slat's low edge sits this
+/// far above the next fixed slat's high edge, so it is level with it `STEP` before the top.
+const STEP_UM: i32 = 1_000;
+
+/// A straight at the stepper's entry level into `piece` at the origin, an L3 straight on its exit
+/// one layer up. `part` replaces the piece's kit definition for its moving part (the flat control).
+fn hand_over_rig(piece: &str, entry: &str, part: Option<&parble_kit::KitPiece>) -> Sim {
+    let kit = parble_kit::builtin();
+    let id = |s: &str| PieceId::new(s).unwrap();
+    let at = |s: &str, x, y| {
+        parble_core::Placement::new(
+            id(s),
+            parble_core::CellCoord::new(x, y, 0),
+            parble_core::Yaw4::new(0),
+            parble_core::Mirror::Off,
+        )
+    };
+    let layout = [
+        at(entry, -1, 0),
+        at(piece, 0, 0),
+        at("blk_straight_l3", 2, 1),
+    ];
+    let mut sim = Sim::empty();
+    for p in &layout {
+        sim.place_piece(kit, p.clone()).unwrap();
+    }
+    sim.rebuild_chunks(kit).unwrap();
+    let def = part.unwrap_or_else(|| kit.piece(&id(piece)).unwrap());
+    sim.add_mechanism(def, &layout[1], 0, Stepper::factory(&MechConfig::new()))
+        .unwrap();
+    sim
+}
+
+/// A marble rolling along +X at `speed` on the entry straight, whose floor is `floor` m.
+fn launch_at(sim: &mut Sim, floor: f32, speed: f32) {
+    let spec = CATS_EYE;
+    let (mut body, collider) = spec.build(Vector::new(-CELL - 0.015, floor + spec.radius_m, 0.0));
+    body.set_linvel(Vector::X * speed, true);
+    body.set_angvel(Vector::new(0.0, 0.0, -speed / spec.radius_m), true);
+    let h = sim.world.bodies.insert(body);
+    sim.world
+        .colliders
+        .insert_with_parent(collider, h, &mut sim.world.bodies);
+    sim.marbles.push(h);
+}
+
+/// The moving slats' x extents (m), in order along +x, from the part collision (one 8-vertex prism
+/// per slat, `kitstepper.parts`).
+fn moving_columns(piece: &parble_kit::KitPiece) -> Vec<(f32, f32)> {
+    let v = &piece.animated_parts[0].collision[0].vertices_um;
+    v.chunks(8)
+        .map(|p| (p[0][0] as f32 * 1e-6, p[1][0] as f32 * 1e-6))
+        .collect()
+}
+
+/// What one run of a marble up a stepper did.
+#[derive(Debug)]
+struct HandOver {
+    /// Per lift cycle: ticks from the moving slat coming level with the step after it to the
+    /// marble's centre crossing the moving slat's exit edge (`None`: it never crossed that cycle).
+    stall: Vec<Option<u32>>,
+    /// Per lift cycle: the moving slat the marble was on when its slat came level.
+    on_slat: Vec<Option<usize>>,
+    /// Largest backward excursion of the marble's x below its running maximum, m, from the first
+    /// level moment to the exit.
+    roll_back: f32,
+    /// Tick the marble reached the exit straight.
+    out: Option<u32>,
+}
+
+fn hand_over(
+    piece: &str,
+    entry: &str,
+    floor: f32,
+    part: Option<&parble_kit::KitPiece>,
+) -> HandOver {
+    let kit = parble_kit::builtin();
+    let def = part.unwrap_or_else(|| kit.piece(&PieceId::new(piece).unwrap()).unwrap());
+    let cols = moving_columns(def);
+    let stroke = def.animated_parts[0].limits_mdeg[1];
+    let level = stroke - STEP_UM;
+    let mut sim = hand_over_rig(piece, entry, part);
+    launch_at(&mut sim, floor, 0.3);
+    let (mut stall, mut on_slat) = (Vec::new(), Vec::new());
+    let mut pending: Option<(u32, usize)> = None;
+    let mut prev = 0;
+    let mut max_x: Option<f32> = None;
+    let mut roll_back = 0.0f32;
+    let mut out = None;
+    for t in 0..6_000u32 {
+        sim.tick(1);
+        let part_at = slats(&sim);
+        let x = sim.marbles()[0].position[0];
+        let slat = cols
+            .iter()
+            .position(|&(a, b)| x >= a - 0.0005 && x <= b + 0.0005);
+        if prev < level && part_at >= level {
+            if pending.take().is_some() {
+                stall.push(None);
+            }
+            on_slat.push(slat);
+            if let Some(j) = slat {
+                pending = Some((t, j));
+                max_x.get_or_insert(x);
+            } else {
+                stall.push(None);
+            }
+        }
+        if let Some((t0, j)) = pending
+            && x > cols[j].1 + 0.0005
+        {
+            stall.push(Some(t - t0));
+            pending = None;
+        }
+        if let Some(m) = max_x.as_mut() {
+            roll_back = roll_back.max(*m - x);
+            *m = m.max(x);
+        }
+        prev = part_at;
+        if x > EXIT_X + 0.25 * CELL {
+            out = Some(t);
+            break;
+        }
+    }
+    if pending.is_some() {
+        stall.push(None);
+    }
+    HandOver {
+        stall,
+        on_slat,
+        roll_back,
+        out,
+    }
+}
+
+/// Most ticks a marble may sit on a moving slat after it comes level with the step after it. From
+/// rest against the riser ahead its centre has ~7.5 mm to roll to the exit edge: ~26 ticks at
+/// 11.06° with Coulomb rolling resistance; the slat stays level for ~62 ticks.
+const MAX_STALL_TICKS: u32 = 30;
+/// Most the marble may move back toward the entry, m, once on the first slat: the bounce off each
+/// riser it rolls against, well short of the 12.8 mm slat it came from.
+const ROLL_BACK_M: f32 = 0.0025;
+/// Moving slats in each stepper (`kitstepper.STEPPERS`).
+const MOVING_SLATS: usize = 4;
+
+/// The stepper pieces with their entry straight and its floor, m.
+const STEPPERS: [(&str, &str, f32); 2] = [
+    (STEPPER, "blk_straight_l3", 0.045),
+    (crate::stepper::STEPPER_L1, "blk_straight_l1", 0.015),
+];
+
+/// `Err` naming the first hand-over check `h` fails.
+fn check(h: &HandOver) -> Result<(), String> {
+    let stalled = h
+        .stall
+        .iter()
+        .position(|s| s.is_none_or(|t| t > MAX_STALL_TICKS));
+    if let Some(c) = stalled {
+        return Err(format!("stalled on cycle {c}: {h:?}"));
+    }
+    let up: Vec<_> = (0..MOVING_SLATS).map(Some).collect();
+    if h.on_slat != up || h.out.is_none() {
+        return Err(format!("not one slat per cycle to the exit: {h:?}"));
+    }
+    if h.roll_back > ROLL_BACK_M {
+        return Err(format!("rolled back {} m: {h:?}", h.roll_back));
+    }
+    Ok(())
+}
+
+#[test]
+fn the_slanted_tops_hand_the_marble_on_one_step_per_lift() {
+    for (piece, entry, floor) in STEPPERS {
+        let h = hand_over(piece, entry, floor, None);
+        eprintln!("{piece}: {h:?}");
+        check(&h).unwrap_or_else(|e| panic!("{piece}: {e}"));
+    }
+}
+
+#[test]
+fn flat_slat_tops_stall_the_marble() {
+    // Control: the same pieces with every moving slat's top levelled at its exit edge (0°), so the
+    // hand-over height is unchanged and only the slant is gone.
+    for (piece, entry, floor) in STEPPERS {
+        let mut flat = parble_kit::builtin()
+            .piece(&PieceId::new(piece).unwrap())
+            .unwrap()
+            .clone();
+        for g in &mut flat.animated_parts[0].collision {
+            for prism in g.vertices_um.chunks_mut(8) {
+                prism[3][1] = prism[2][1];
+                prism[7][1] = prism[6][1];
+            }
+        }
+        let h = hand_over(piece, entry, floor, Some(&flat));
+        assert!(
+            h.stall
+                .first()
+                .is_some_and(|s| s.is_none_or(|t| t > MAX_STALL_TICKS)),
+            "{piece}: a flat top did not stall the marble: {h:?}"
+        );
+        assert!(check(&h).is_err() && h.out.is_none(), "{piece}: {h:?}");
+    }
+}
+
+#[test]
+fn the_sidecar_slant_is_the_slats_collider_slant() {
+    for (piece, _, _) in STEPPERS {
+        let p = parble_kit::builtin()
+            .piece(&PieceId::new(piece).unwrap())
+            .unwrap();
+        let part = &p.animated_parts[0];
+        let slant = part
+            .slant_mdeg
+            .expect("the stepper sidecar records slant_mdeg");
+        for prism in part.collision[0].vertices_um.chunks(8) {
+            // (x1, low top) and (x0, high top): the top falls toward +x.
+            let (lo, hi) = (prism[2], prism[3]);
+            assert!(lo[0] > hi[0] && lo[1] < hi[1], "{piece}: {prism:?}");
+            let mdeg = f64::from(hi[1] - lo[1])
+                .atan2(f64::from(lo[0] - hi[0]))
+                .to_degrees()
+                * 1000.0;
+            assert!(
+                (mdeg - f64::from(slant)).abs() < 20.0,
+                "{piece}: {mdeg} vs {slant}"
+            );
+        }
+    }
+}

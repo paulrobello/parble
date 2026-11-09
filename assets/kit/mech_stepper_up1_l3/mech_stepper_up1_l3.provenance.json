@@ -7,7 +7,7 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "718713bb8405ec5f73578e1defa9d01878fd1ac37fb1e09f4bb234dce34d360f",
+    "sha256": "c4ef87aef74311cbb39edff66323fbe95454d8e1bdbb282b17afde1f1edfac67",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
@@ -25,11 +25,11 @@
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "5ad3aeec85a906415f4375022d8beed1884cfa3bccf29b702452466274eda6b7"
+      "sha256": "71a4736f681c4baba434b0eb483df53ad055afa1176c8f8364ffb21a96486f7b"
     },
     {
       "path": "blender/kit/kitstepper.py",
-      "sha256": "4baef33742d2ea347dad3dae258fbbbe663c0123905487cf25c7ac485a2dacfd"
+      "sha256": "f88d9ac0af5fe954566a5ca9856529dc2f721164e877e3775901f2cd2a96cc5a"
     }
   ],
   "authoringAgent": {
@@ -133,8 +133,8 @@
     },
     {
       "path": "assets/kit/mech_stepper_up1_l3/mech_stepper_up1_l3.kit.json",
-      "sha256": "f87dfd173fa47fec5bf330ce0d9896a8e7efcb305bb2a637f4a828019e7213ff",
-      "bytes": 46028
+      "sha256": "3b0aa3ed60e6433a9cdf5f06ff486eb811686a51b93455d8905e405c827d82f2",
+      "bytes": 46055
     },
     {
       "path": "assets/kit/mech_stepper_up1_l3/mech_stepper_up1_l3_lod0_ao.png",
@@ -168,13 +168,13 @@
     },
     {
       "path": "assets-source/kit/mech_stepper_up1_l3/mech_stepper_up1_l3_high.blend",
-      "sha256": "d0f6672eff8b6c2051c90206540232ce6d34bf7e1971e90b8dbaea08cf226b68",
-      "bytes": 232977
+      "sha256": "6f65e8785084264848a8777ffd290d546a39e3c8bf889d0f489595142cd409f9",
+      "bytes": 233003
     },
     {
       "path": "assets-source/kit/mech_stepper_up1_l3/mech_stepper_up1_l3_low.blend",
-      "sha256": "9f813d32fc64c8645bb4c8d954c227eec25d7e6da285b92c662934aa4c11abf1",
-      "bytes": 180766
+      "sha256": "68943a56a4f6508225622958551026e1eb1ab58ef8d15a1319a6f2c830aa7540",
+      "bytes": 180731
     }
   ],
   "references": [

@@ -7,7 +7,7 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "7a88cb1b8d29c6806f2760f3052209c9ccc234c39148c9242ae131bccdd87694",
+    "sha256": "c4ef87aef74311cbb39edff66323fbe95454d8e1bdbb282b17afde1f1edfac67",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
@@ -25,11 +25,11 @@
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "5ad3aeec85a906415f4375022d8beed1884cfa3bccf29b702452466274eda6b7"
+      "sha256": "71a4736f681c4baba434b0eb483df53ad055afa1176c8f8364ffb21a96486f7b"
     },
     {
       "path": "blender/kit/kitstepper.py",
-      "sha256": "4baef33742d2ea347dad3dae258fbbbe663c0123905487cf25c7ac485a2dacfd"
+      "sha256": "f88d9ac0af5fe954566a5ca9856529dc2f721164e877e3775901f2cd2a96cc5a"
     }
   ],
   "authoringAgent": {
@@ -133,13 +133,13 @@
     },
     {
       "path": "assets/kit/mech_stepper_up1_l1/mech_stepper_up1_l1.kit.json",
-      "sha256": "cda6fbe178626016ff70a4b1eb363ac95b2d00080c81984600b8d7e74bce9d73",
-      "bytes": 45390
+      "sha256": "125040caa01698a5cce1b7f0c711b167dc556047dbab358ca7affac57caaf2e4",
+      "bytes": 45417
     },
     {
       "path": "assets/kit/mech_stepper_up1_l1/mech_stepper_up1_l1_lod0_ao.png",
-      "sha256": "359f801e291d99997532eab08192e3a02e01cf7cefac8b80a9f47938ec932e88",
-      "bytes": 883085
+      "sha256": "6d1a6a9d3f04e6331b9b905a085a6747e63df4a36d538e38201403280982b47e",
+      "bytes": 1069522
     },
     {
       "path": "assets/kit/mech_stepper_up1_l1/mech_stepper_up1_l1_lod0_normal.png",
@@ -168,13 +168,13 @@
     },
     {
       "path": "assets-source/kit/mech_stepper_up1_l1/mech_stepper_up1_l1_high.blend",
-      "sha256": "818a237243626acd0a2a82b71e37244cb06d319eb09fd4cd285ba84672841567",
-      "bytes": 230162
+      "sha256": "5b9b3100ce4815be17de3f24dc931ef859a8ba1e343ef7c555daa2921429a105",
+      "bytes": 230175
     },
     {
       "path": "assets-source/kit/mech_stepper_up1_l1/mech_stepper_up1_l1_low.blend",
-      "sha256": "2c7398630107ed51cfcc5a232ee240e4e6a341bfaa19a7cfe332053d97383d8b",
-      "bytes": 178348
+      "sha256": "aa050520e3a329aebfa7c2bb40ed97e28eff37216d6037fbb98ba482ccd93895",
+      "bytes": 178278
     }
   ],
   "references": [

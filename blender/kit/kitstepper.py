@@ -34,7 +34,16 @@ import kitgeom as K
 # exit feeds the L3 pieces and the finish cup, one layer up. Its slots need the layer below.
 STEPPERS = {"mech_stepper_up1_l3": (3, 3, 1, 2, 4, 0), "mech_stepper_up1_l1": (1, 3, 1, 2, 4, 1)}
 
-SLANT = 2.5        # mm a slat top falls across its width, toward +x
+SLANT = 2.5        # mm a slat top falls across its width, toward +x (SLANT_DEG over the 12.79 mm slat)
+# The forward slant of every slat top (owner note: the marble moves forward as soon as the lift pushes
+# it up). A marble at rest against the riser ahead needs its centre to travel ~7.5 mm (radius less
+# CLEAR) past the low edge while the slat is level with the step after it: ~62 ticks (TOP_HOLD_TICKS
+# 48 plus the eased stroke's last and first mm), 0.26 s. From rest that needs (5/7) g sin(a) - 0.014
+# m/s^2 (Coulomb rolling resistance) >= 2 * 7.5 mm / t^2; with t at half the window (2x margin) a >=
+# 7.5 deg. 11.06 deg crosses in ~0.11 s from rest (9-18 ticks measured in the sim) and is kept.
+# The exit edge never falls below the next step: `layout` solves the stroke so a raised low edge
+# sits STEP above it for any slant. Retune against ref-12 (docs/reference) when it arrives.
+SLANT_DEG = 11.06
 STEP = 1.0         # mm step down at each hand-off (onto a lowered slat, onto a fixed one at the top)
 STUB_IN = 20.0     # mm entry channel stub, port face to the slat row: long enough that a marble meeting
                    # a raised first slat is already down in the stub's dip, so it cannot bounce back out
@@ -83,6 +92,7 @@ def layout(piece_id):
     xa, xb = x_in + STUB_IN, x_out - STUB_OUT
     count = 2 * n - 1
     w = (xb - xa) / count
+    assert abs(math.degrees(math.atan2(SLANT, w)) - SLANT_DEG) < 0.005, f"{piece_id}: SLANT is not SLANT_DEG"
     low_in = entry_floor - STUB_FALL     # entry stub floor at the row
     high_out = exit_floor + EXIT_FALL    # exit stub floor at the row
     g = (high_out - low_in + (n - 1) * SLANT) / n
@@ -233,5 +243,5 @@ def parts(piece_id):
         poly = [(x0, c["bottom"]), (x1, c["bottom"]), (x1, top(x1)), (x0, top(x0))]
         solids.append(_prism_xy(poly, -zc, zc))
     part = {"axis": [0, 1, 0], "joint": "slide", "limits_um": [0, stroke_um(piece_id)], "name": PART,
-            "pivot_um": [0, 0, 0], "rest_um": 0}
+            "pivot_um": [0, 0, 0], "rest_um": 0, "slant_mdeg": K.round_half_away(SLANT_DEG * 1000.0)}
     return [(part, solids)]

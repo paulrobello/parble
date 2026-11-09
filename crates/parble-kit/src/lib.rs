@@ -184,6 +184,9 @@ pub struct AnimatedPart {
     pub limits_mdeg: [i32; 2],
     /// The part's collision in the piece-local frame at position 0.
     pub collision: Vec<CollisionGroup>,
+    /// Forward slant of the part's top faces, millidegrees (the stepper's slats, sidecar
+    /// `slant_mdeg`); `None` for a part without one.
+    pub slant_mdeg: Option<i32>,
 }
 
 /// Why a sidecar was refused.
@@ -291,6 +294,8 @@ struct RawPart {
     rest_um: Option<i32>,
     #[serde(default)]
     limits_um: Option<[i32; 2]>,
+    #[serde(default)]
+    slant_mdeg: Option<i32>,
     collision: Vec<RawCollision>,
 }
 
@@ -470,6 +475,7 @@ fn animated_parts(raw: Vec<RawPart>) -> Result<Vec<AnimatedPart>, KitError> {
             rest_mdeg: rest,
             limits_mdeg: limits,
             collision: collision_groups(p.collision)?,
+            slant_mdeg: p.slant_mdeg,
         });
     }
     Ok(out)

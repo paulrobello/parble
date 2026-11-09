@@ -16,11 +16,11 @@
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "5ad3aeec85a906415f4375022d8beed1884cfa3bccf29b702452466274eda6b7"
+      "sha256": "71a4736f681c4baba434b0eb483df53ad055afa1176c8f8364ffb21a96486f7b"
     },
     {
       "path": "blender/kit/kitstepper.py",
-      "sha256": "4baef33742d2ea347dad3dae258fbbbe663c0123905487cf25c7ac485a2dacfd"
+      "sha256": "f88d9ac0af5fe954566a5ca9856529dc2f721164e877e3775901f2cd2a96cc5a"
     }
   ],
   "lodParams": {

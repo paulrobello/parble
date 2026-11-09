@@ -266,7 +266,8 @@
         0,
         0
       ],
-      "rest_um": 0
+      "rest_um": 0,
+      "slant_mdeg": 11060
     }
   ],
   "chiral": false,
