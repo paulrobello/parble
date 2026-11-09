@@ -220,6 +220,13 @@ fn advance_sim(
             parts.curr = part_angles(&clock.sim);
         }
         let ticks = cap_to_run(ticks, clock.sim.tick_count(), run_ticks);
+        let hash_at = clock.hash_ticks();
+        let ticks = match hash_at {
+            Some(h) if clock.sim.tick_count() < u64::from(h) => {
+                cap_to_run(ticks, clock.sim.tick_count(), h)
+            }
+            _ => ticks,
+        };
         if ticks == 1 {
             frame.prev = std::mem::take(&mut frame.curr);
             parts.prev = std::mem::take(&mut parts.curr);
@@ -231,6 +238,10 @@ fn advance_sim(
         clock.sim.tick(1);
         frame.curr = clock.sim.marbles();
         parts.curr = part_angles(&clock.sim);
+        if hash_at.is_some_and(|h| clock.sim.tick_count() == u64::from(h)) {
+            clock.last_run_hash = Some(clock.sim.trajectory_hash());
+            clock.runs += 1;
+        }
     }
     frame.alpha = if opts.lockstep_after.is_some() {
         // Show the state at exactly the current tick.
@@ -282,6 +293,15 @@ impl SimClock {
         match &self.tracks.loaded {
             Some(_) if self.scenario != Scenario::Editor => RAMP_10S_TICKS,
             _ => self.scenario.run_ticks(),
+        }
+    }
+
+    /// Tick at which a scenario that never restarts reports its run hash, so it is still checked
+    /// against its golden (the playroom's 4 s). `None` for a loaded track.
+    fn hash_ticks(&self) -> Option<u32> {
+        match &self.tracks.loaded {
+            Some(_) => None,
+            None => self.scenario.hash_ticks(),
         }
     }
 
@@ -434,7 +454,7 @@ mod tests {
         );
         // 2,400 ticks is a whole number of lockstep frames, so a run still ends on the golden hash.
         assert_eq!(RAMP_10S_TICKS % LOCKSTEP_TICKS, 0);
-        assert_eq!(Scenario::Playroom.run_ticks() % LOCKSTEP_TICKS, 0);
+        assert_eq!(parble_sim::playroom_run::PLAYROOM_TICKS % LOCKSTEP_TICKS, 0);
         assert_eq!(Scenario::AllPieces.run_ticks() % LOCKSTEP_TICKS, 0);
     }
 

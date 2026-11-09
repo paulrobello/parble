@@ -175,14 +175,22 @@ impl Scenario {
         }
     }
 
-    /// Ticks in one run before the scenario restarts: 10 s, the playroom run's 4 s, or the
-    /// all-pieces run's 30 s.
+    /// Ticks in one run before the scenario restarts: 10 s, or the all-pieces run's 30 s. The
+    /// playroom never restarts: its train settles at the finish stop and stays there.
     pub fn run_ticks(self) -> u32 {
         match self {
-            Self::Playroom => parble_sim::playroom_run::PLAYROOM_TICKS,
             Self::AllPieces => parble_sim::allpieces::RUN_TICKS,
-            Self::Editor => u32::MAX,
+            Self::Editor | Self::Playroom => u32::MAX,
             _ => parble_sim::golden::RAMP_10S_TICKS,
+        }
+    }
+
+    /// Tick at which a scenario that never restarts reports its run hash: the playroom's 4 s
+    /// golden horizon.
+    pub fn hash_ticks(self) -> Option<u32> {
+        match self {
+            Self::Playroom => Some(parble_sim::playroom_run::PLAYROOM_TICKS),
+            _ => None,
         }
     }
 }
@@ -1057,11 +1065,12 @@ mod tests {
         let mut sim = Scenario::Playroom.build(Some(MarbleKind::Steel), MarbleSize::Shooter);
         let looks = Scenario::Playroom.looks(Some(MarbleKind::Steel), MarbleSize::Shooter);
         assert_eq!(looks.len(), sim.marbles().len());
+        assert_eq!(Scenario::Playroom.run_ticks(), u32::MAX);
         assert_eq!(
-            Scenario::Playroom.run_ticks(),
-            parble_sim::playroom_run::PLAYROOM_TICKS
+            Scenario::Playroom.hash_ticks(),
+            Some(parble_sim::playroom_run::PLAYROOM_TICKS)
         );
-        sim.tick(Scenario::Playroom.run_ticks());
+        sim.tick(parble_sim::playroom_run::PLAYROOM_TICKS);
         assert_eq!(
             sim.trajectory_hash(),
             parble_sim::playroom_run::playroom_4s_hash()

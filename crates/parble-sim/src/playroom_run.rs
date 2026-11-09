@@ -121,10 +121,11 @@ impl Sim {
     }
 }
 
-/// Ticks in one playroom run (4 s): the marbles reach the finish at about 2.75 s. A train left
-/// running settles against the stop (`the_train_settles_at_the_finish_when_the_run_is_left_running`);
-/// before the Coulomb rolling resistance of 2026-11-08 ([`crate::marble`]) two marbles drifted
-/// back up the far leg at 4–9 mm/s and the run had to restart here.
+/// The playroom run's golden horizon (4 s): the marbles reach the finish at about 2.75 s. The app
+/// never restarts the run; a train left running settles against the stop
+/// (`the_train_settles_at_the_finish_when_the_run_is_left_running`). Before the Coulomb rolling
+/// resistance of 2026-11-08 ([`crate::marble`]) two marbles drifted back up the far leg at
+/// 4–9 mm/s and the run had to restart here.
 pub const PLAYROOM_TICKS: u32 = 960;
 
 /// The committed hash of a [`PLAYROOM_TICKS`] playroom run (`tests/golden/playroom_4s.hash`).
