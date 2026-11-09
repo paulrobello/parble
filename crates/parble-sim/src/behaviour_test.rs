@@ -1,7 +1,7 @@
 //! P2-T5 scripted runs: real marbles through each kit mechanism, asserting where they go.
 
 use super::*;
-use crate::marble::{CATS_EYE, MarbleKind};
+use crate::marble::{CATS_EYE, MarbleKind, MarbleSpec};
 use crate::mechanism::{MechEventKind, SimEvent, stream_key};
 use crate::track_run::TrackRun;
 use crate::{MarbleState, Sim};
@@ -42,13 +42,15 @@ fn rig(layout: &[Placement], seed: u64) -> Sim {
 
 /// A cat's eye marble rolling at `vel` from `at`.
 fn launch(sim: &mut Sim, at: Vector, vel: Vector) {
-    let (mut body, collider) = CATS_EYE.build(at);
+    launch_spec(sim, &CATS_EYE, at, vel);
+}
+
+/// A `spec` marble rolling at `vel` from `at`.
+fn launch_spec(sim: &mut Sim, spec: &MarbleSpec, at: Vector, vel: Vector) {
+    let (mut body, collider) = spec.build(at);
     let speed = vel.length();
     body.set_linvel(vel, true);
-    body.set_angvel(
-        Vector::Y.cross(vel / speed) * (speed / CATS_EYE.radius_m),
-        true,
-    );
+    body.set_angvel(Vector::Y.cross(vel / speed) * (speed / spec.radius_m), true);
     let h = sim.world.bodies.insert(body);
     sim.world
         .colliders
@@ -803,6 +805,59 @@ fn shipped_fork_parts_route_slow_and_off_centre_marbles() {
         }
     }
     assert!(bad.is_empty(), "missed the commanded branch: {bad:?}");
+}
+
+/// Every marble type at every size (mini 10 mm, standard 16 mm, shooter 25 mm) passes each fork
+/// and leaves by its commanded branch, from the slowest entry speed the routing test uses to the
+/// fastest the L3 feed bend holds, centred in the feed channel (a shooter has 1.5 mm either side).
+/// Each run lasts 6 s, so a marble the blade slows to a crawl still has time to leave; a failure
+/// is a marble at rest in the fork or back in the feed.
+///
+/// The acceptance test for the shooter fork fix (owner option D1, 2026-11-09), ignored until a
+/// blade passes it. Measured 2026-11-09: the shipped 25° blade pivoted at x -2 fails all 140
+/// shooter runs (mini and standard all pass). The D1 blade (pivot at the wedge tip, x 1.0, 36°,
+/// parked on wip/fork-blade-d1) passes every run at 0.3-0.6 m/s and fails 13 at 0.2 m/s: six glass
+/// shooters jam against the toggle's blade, seven minis stop in the splitter's -z branch.
+#[test]
+#[ignore]
+fn shipped_fork_parts_route_every_marble_type_and_size() {
+    let mut bad = Vec::new();
+    for piece in [TOGGLE, SPLITTER] {
+        for (first, seed) in [(0, 3), (1, 11)] {
+            let want = if piece == TOGGLE {
+                first
+            } else {
+                expected_splits(seed, 1)[0].unwrap()
+            };
+            for size in crate::marble::MarbleSize::ALL {
+                for kind in MarbleKind::ALL {
+                    let spec = kind.spec_sized(size);
+                    for v in [0.2, 0.3, 0.4, 0.5, 0.6] {
+                        let mut t = place(piece, 1, 0, 0, 0);
+                        t.config.insert("first".into(), first);
+                        let mut sim = rig(&[place("blk_straight_l3", 0, 0, 0, 0), t], seed);
+                        let (mut tr, mut ev) = (Vec::new(), Vec::new());
+                        let at = Vector::new(-0.02, 0.045 + spec.radius_m, 0.0);
+                        launch_spec(&mut sim, &spec, at, Vector::X * v);
+                        run(&mut sim, 1440, &mut tr, &mut ev);
+                        let got = fork_side(&tr, 0);
+                        if got != Some(want) {
+                            let last = tr.last().unwrap()[0];
+                            let end = last.position.map(|c| (c * 1e4).round() / 10.0);
+                            let l = last.linvel;
+                            let mm_s = (l[0] * l[0] + l[1] * l[1] + l[2] * l[2]).sqrt() * 1e3;
+                            bad.push((piece, size.name(), kind.name(), want, v, got, end, mm_s));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    assert!(
+        bad.is_empty(),
+        "{} missed the commanded branch: {bad:?}",
+        bad.len()
+    );
 }
 
 // ---------------------------------------------------------------------------------------------
