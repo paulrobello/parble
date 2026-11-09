@@ -27,8 +27,10 @@ PIECE_VERSION = 1
 #   the quintic smootherstep too (contract §7). The gentle slopes' versions are kitgeom's.
 # 2026-11-08: blk_tower_socket_l1 3, a landing pad under the shaft falling 3 % to the socket and a
 #   quintic Hermite descent after it (contract §7).
+# 2026-11-09: blk_tower_socket_l1 4, the collision cap on the socket's port plane dropped like a
+#   channel port's (see _open_port_faces).
 PIECE_VERSIONS = {"blk_redirect_l3": 3, "blk_redirect_l2": 3, "blk_slope_steep_l3": 2,
-                  "blk_tower_socket_l1": 3}
+                  "blk_tower_socket_l1": 4}
 
 
 def piece_version(piece_id):
@@ -460,13 +462,16 @@ def _open_port_faces(piece_id, verts, tris):
     """Drop the boolean's cap triangles on each channel side port's cell face (§5.4: block port
     faces are left open, as kitgeom's are). A kept cap meets the mating piece's floor at the port
     ring as a third triangle on each ring edge, a convex 90° edge facing the marble, which kicked
-    it up to 158 mm/s at the seam (measured 2026-11-08, P2-T2 seam fix). Unused vertices are
-    dropped, the rest keep their order."""
+    it up to 158 mm/s at the seam (measured 2026-11-08, P2-T2 seam fix). A socket port's collision
+    port plane, inset inside the face where the mating spigot takes over, is opened the same way:
+    its cap's ring met a marble rolling out of the tower's landing 1 mm before the plane with the
+    normal leaning 13-26 deg back up the run and took 0.155 of its 0.216 m/s in one tick (measured
+    2026-11-09). Unused vertices are dropped, the rest keep their order."""
     faces = []
     if sp_shape(piece_id) == "redirect":
         return _open_redirect_exit(piece_id, verts, tris)
     for p in spec(piece_id)["ports"]:
-        if p["kind"] == "side" and p["class"] == "channel":
+        if p["kind"] == "side" and p["class"] in ("channel", "socket"):
             ax, plane, _, _ = _expected_rings(p)
             other = 2 if ax == 0 else 0
             y0 = p["cell"][1] * 60000

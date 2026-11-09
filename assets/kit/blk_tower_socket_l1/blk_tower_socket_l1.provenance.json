@@ -1,13 +1,13 @@
 {
   "schema": "parble-kit-provenance/1",
   "pieceId": "blk_tower_socket_l1",
-  "pieceVersion": 3,
+  "pieceVersion": 4,
   "route": "scripted",
   "card": "P2-T2",
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "2acd4572252f06892d41a12eaa626866c06ae1010343f5d8f220259d6119ede1",
+    "sha256": "55e12fdccb33402654f301ed70080957efce66e33758b5179ec83cae9a096ef3",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
@@ -17,11 +17,11 @@
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
+      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
+      "sha256": "dc5e4354830f2f6d50756485cd133bbd220e6033f9901f815880958c55fc99b7"
     }
   ],
   "authoringAgent": {
@@ -46,32 +46,32 @@
     "channels": {
       "blk_tower_socket_l1_lod0_ao": {
         "colorspace": "Non-Color",
-        "sha256": "f9935347cdc4802c795fdac7351158e45df47166919bd32afd1b3ca32cb0175a",
+        "sha256": "8dda5261fdf48417a4b7835ff357ac3fb3202024e7319a1c41ca73399ed2b425",
         "size": 512
       },
       "blk_tower_socket_l1_lod0_normal": {
         "colorspace": "Non-Color",
-        "sha256": "12ec9e88a5e22837f244749c14af0cab138361565ae8f5e383641a64d3c75800",
+        "sha256": "c903288e4de53b0d127cf6abb33d63ccce7646704f4320489bf2e9e74d8159cb",
         "size": 512
       },
       "blk_tower_socket_l1_lod1_ao": {
         "colorspace": "Non-Color",
-        "sha256": "8192779a7adab09c0ae2e54112c06d514f92df8a8185ca89a8a13334d48029d4",
+        "sha256": "c19a3c900e65f8734ec9782c1f62628897c437a83303e85510b8007c1a5b294f",
         "size": 256
       },
       "blk_tower_socket_l1_lod1_normal": {
         "colorspace": "Non-Color",
-        "sha256": "0209eba21257ef9ddbaa6ba0131a92562b89f6e434a6d6cfd883ebe52d05290c",
+        "sha256": "f0f3fae45b65c25671eb52e01797f398c7b4a1f1bbbfc812de1ac2c07bb60766",
         "size": 256
       },
       "blk_tower_socket_l1_lod2_ao": {
         "colorspace": "Non-Color",
-        "sha256": "08fdc0e339936268cd732d3a723ce6989a4fda5fd522e6937e16c1ddc3de9964",
+        "sha256": "4dee45fa07d7a2c4e5838d77a084a33e471076b88f15928c6214039ddc7a33b7",
         "size": 128
       },
       "blk_tower_socket_l1_lod2_normal": {
         "colorspace": "Non-Color",
-        "sha256": "244f305c134ccedc278f59b542042495b8e71c340d9d38287c9d5fcb900f22d4",
+        "sha256": "f70141f7471ad4624ec78c7592584af2df240a1c07aab80aa6b2b9905a8d0c94",
         "size": 128
       }
     }
@@ -92,81 +92,81 @@
   ],
   "collider": {
     "node": "blk_tower_socket_l1_collider",
-    "tris": 538
+    "tris": 500
   },
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2649.2,
-      "median": 2566.5,
-      "min": 2001.3
+      "max": 2704.6,
+      "median": 2621.4,
+      "min": 2042.8
     },
     "lod1": {
-      "max": 1351.9,
-      "median": 1328.3,
-      "min": 1019.3
+      "max": 1326,
+      "median": 1300.5,
+      "min": 1035.3
     },
     "lod2": {
-      "max": 696,
-      "median": 669,
-      "min": 454.8
+      "max": 630.7,
+      "median": 619.2,
+      "min": 530.1
     }
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 109868,
+    "glbBytes": 110816,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/blk_tower_socket_l1/blk_tower_socket_l1.glb",
-      "sha256": "bc86581db9c12dc9d22f2f99048a4c4bc1b9a7d963560d8a716370bc9026b031",
-      "bytes": 109868
+      "sha256": "615dbf9b5bf12e73acbb06bc39848b32dbd45b74aca7bf58ed3543eb51ea23f1",
+      "bytes": 110816
     },
     {
       "path": "assets/kit/blk_tower_socket_l1/blk_tower_socket_l1.kit.json",
-      "sha256": "dbfbbc23982739915444acdde63c8e40b67198383f06edb28401a41f6dea0c4e",
-      "bytes": 33136
+      "sha256": "dd43be875a36a65ac475fa6599bc60fdc2c82abff43d339c540bb9a6877b640b",
+      "bytes": 31814
     },
     {
       "path": "assets/kit/blk_tower_socket_l1/blk_tower_socket_l1_lod0_ao.png",
-      "sha256": "f9935347cdc4802c795fdac7351158e45df47166919bd32afd1b3ca32cb0175a",
-      "bytes": 77428
+      "sha256": "8dda5261fdf48417a4b7835ff357ac3fb3202024e7319a1c41ca73399ed2b425",
+      "bytes": 77023
     },
     {
       "path": "assets/kit/blk_tower_socket_l1/blk_tower_socket_l1_lod0_normal.png",
-      "sha256": "12ec9e88a5e22837f244749c14af0cab138361565ae8f5e383641a64d3c75800",
-      "bytes": 41328
+      "sha256": "c903288e4de53b0d127cf6abb33d63ccce7646704f4320489bf2e9e74d8159cb",
+      "bytes": 49798
     },
     {
       "path": "assets/kit/blk_tower_socket_l1/blk_tower_socket_l1_lod1_ao.png",
-      "sha256": "8192779a7adab09c0ae2e54112c06d514f92df8a8185ca89a8a13334d48029d4",
-      "bytes": 24466
+      "sha256": "c19a3c900e65f8734ec9782c1f62628897c437a83303e85510b8007c1a5b294f",
+      "bytes": 24956
     },
     {
       "path": "assets/kit/blk_tower_socket_l1/blk_tower_socket_l1_lod1_normal.png",
-      "sha256": "0209eba21257ef9ddbaa6ba0131a92562b89f6e434a6d6cfd883ebe52d05290c",
-      "bytes": 19080
+      "sha256": "f0f3fae45b65c25671eb52e01797f398c7b4a1f1bbbfc812de1ac2c07bb60766",
+      "bytes": 22579
     },
     {
       "path": "assets/kit/blk_tower_socket_l1/blk_tower_socket_l1_lod2_ao.png",
-      "sha256": "08fdc0e339936268cd732d3a723ce6989a4fda5fd522e6937e16c1ddc3de9964",
-      "bytes": 8191
+      "sha256": "4dee45fa07d7a2c4e5838d77a084a33e471076b88f15928c6214039ddc7a33b7",
+      "bytes": 7139
     },
     {
       "path": "assets/kit/blk_tower_socket_l1/blk_tower_socket_l1_lod2_normal.png",
-      "sha256": "244f305c134ccedc278f59b542042495b8e71c340d9d38287c9d5fcb900f22d4",
-      "bytes": 9756
+      "sha256": "f70141f7471ad4624ec78c7592584af2df240a1c07aab80aa6b2b9905a8d0c94",
+      "bytes": 9215
     },
     {
       "path": "assets-source/kit/blk_tower_socket_l1/blk_tower_socket_l1_high.blend",
-      "sha256": "7733f3d914dd876da8c7983ee1efc87169ba16015df757d878ffb719556bf72d",
-      "bytes": 391004
+      "sha256": "886d6410b4cea3b190a0a20b35eae8abc2ce359d813a64fdb34bfe989226f74d",
+      "bytes": 390697
     },
     {
       "path": "assets-source/kit/blk_tower_socket_l1/blk_tower_socket_l1_low.blend",
-      "sha256": "bcfe3541cfaa44d5aecf2961350cb9ad204f8c26c135861e9297c7633be0b5e6",
-      "bytes": 205822
+      "sha256": "8042b2331aac470294c55fd4c2c74270006520965a86228b1c824ba9d4e9ed33",
+      "bytes": 205335
     }
   ],
   "references": [
