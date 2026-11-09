@@ -602,6 +602,11 @@ pub struct ChannelSlope {
     /// Plan length of the smootherstep from the entry to the exit, µm: a cell on a slope piece,
     /// shorter on a landing floor ([`ChannelSlope::landing`]).
     pub len_um: i64,
+    /// Plan length of a constant-gradient pad from the entry before the descent, µm: the tower
+    /// socket's landing pad, 0 elsewhere.
+    pub pad_len_um: i64,
+    /// Floor fall over the pad, µm (0 without a pad).
+    pub pad_drop_um: i64,
 }
 
 impl ChannelSlope {
@@ -649,15 +654,20 @@ impl ChannelSlope {
             axis_y_um: e[1],
             drop_um: e[1] - x[1],
             len_um: cell,
+            pad_len_um: 0,
+            pad_drop_um: 0,
         })
     }
 
-    /// The landing floor of a piece a marble falls into and leaves by a side port: the tunnel
-    /// floor rises [`LANDING_RISE_UM`] over the exit floor under the shaft and falls by the same
-    /// smootherstep to the exit (blender/kit/kitblocks.py). On the tower socket block (in by the
-    /// top drop port, out by the socket) it runs from 1 mm past the shaft wall to the socket's
-    /// collision port plane, [`Port::inset_um`] inside the face; on the redirect (in on a side
-    /// port, out one cell lower) from 1 mm past the shaft's far wall to the exit port face.
+    /// The landing floor of a piece a marble falls into and leaves by a side port
+    /// (blender/kit/kitblocks.py), from 1 mm past the shaft's far wall to the exit. On the
+    /// redirect (in on a side port, out one cell lower) the tunnel floor rises
+    /// [`LANDING_RISE_UM`] over the exit floor there and falls by the smootherstep to the exit
+    /// port face. On the tower socket block (in by the top drop port, out by the socket) the
+    /// marble falls straight down the shaft onto a pad falling [`TOWER_PAD_FALL_UM_PER_MM`] µm/mm
+    /// to [`TOWER_PAD_UM`] past the axis, then a quintic Hermite descent of
+    /// [`TOWER_DESCENT_UM`] (gradient continuous with the pad, zero gradient and curvature at both
+    /// its ends) to the socket's collision port plane, [`Port::inset_um`] inside the face.
     ///
     /// [`Port::inset_um`]: parble_core::Port::inset_um
     fn landing(piece: &KitPiece, p: &Placement) -> Option<Self> {
@@ -693,8 +703,15 @@ impl ChannelSlope {
                 [base[0] + n.x * d, base[1] + y, base[2] + n.z * d],
             )
         };
+        let pad_len = LANDING_REACH_UM + TOWER_PAD_UM;
+        let pad_drop = pad_len / 1_000 * TOWER_PAD_FALL_UM_PER_MM;
+        let (rise, pad_len, pad_drop) = if tower {
+            (pad_drop + TOWER_DESCENT_UM, pad_len, pad_drop)
+        } else {
+            (LANDING_RISE_UM, 0, 0)
+        };
         let (e, x) = (
-            at(-LANDING_REACH_UM, axis + LANDING_RISE_UM),
+            at(-LANDING_REACH_UM, axis + rise),
             at(HALF_CELL_UM - out.inset_um, axis),
         );
         let len = i64::from(LANDING_REACH_UM + HALF_CELL_UM - out.inset_um);
@@ -704,23 +721,65 @@ impl ChannelSlope {
             axis_y_um: e[1],
             drop_um: e[1] - x[1],
             len_um: len,
+            pad_len_um: i64::from(pad_len),
+            pad_drop_um: i64::from(pad_drop),
         })
     }
 
     /// The floor's drop below the entry at `t` in [0, 1] along the path, for a total `drop` over
     /// the plan length `len`, and its gradient along the path. Plain multiplies and adds only, so
     /// native and wasm round alike.
+    ///
+    /// With a pad ([`Self::pad_len_um`]) the floor falls at the pad's constant gradient first,
+    /// then by the quintic Hermite that starts at that gradient with zero curvature and ends flat
+    /// with zero curvature: `pad + D s(u) + g L h1(u)`, `s` the smootherstep, `h1(u) = u - 6u^3 +
+    /// 8u^4 - 3u^5`, `D` the descent's own drop and `g L` the pad gradient over its length.
     fn profile(&self, drop: f32, len: f32, t: f32) -> (f32, f32) {
-        let u = t * (1.0 - t);
+        if self.pad_len_um == 0 {
+            let u = t * (1.0 - t);
+            return (
+                drop * (t * t * t * (10.0 + t * (-15.0 + 6.0 * t))),
+                drop * (30.0 * u * u) / len,
+            );
+        }
+        // The pad's share of `drop` (which carries the caller's sign) and of `len`.
+        let k = drop / (self.drop_um as f32 * 1.0e-6);
+        let pl = self.pad_len_um as f32 * 1.0e-6 * (len / (self.len_um as f32 * 1.0e-6));
+        let pd = self.pad_drop_um as f32 * 1.0e-6 * k;
+        let s = t * len;
+        let g = pd / pl;
+        if s <= pl {
+            return (g * s, g);
+        }
+        let l = len - pl;
+        let u = (s - pl) / l;
+        let d = drop - pd;
+        let w = u * (1.0 - u);
+        let h1 = u * (1.0 + u * u * (-6.0 + u * (8.0 - 3.0 * u)));
+        let dh1 = 1.0 + u * u * (-18.0 + u * (32.0 - 15.0 * u));
         (
-            drop * (t * t * t * (10.0 + t * (-15.0 + 6.0 * t))),
-            drop * (30.0 * u * u) / len,
+            pd + d * (u * u * u * (10.0 + u * (-15.0 + 6.0 * u))) + g * l * h1,
+            (d * (30.0 * w * w) + g * l * dh1) / l,
         )
     }
 
     /// [`Self::profile`]'s drop in `f64`, for the µm vertex test ([`Self::holds`]).
     fn profile_f64(&self, drop: f64, t: f64) -> f64 {
-        drop * (t * t * t * (10.0 + t * (-15.0 + 6.0 * t)))
+        if self.pad_len_um == 0 {
+            return drop * (t * t * t * (10.0 + t * (-15.0 + 6.0 * t)));
+        }
+        let k = drop / self.drop_um as f64;
+        let (len, pl) = (self.len_um as f64, self.pad_len_um as f64);
+        let pd = self.pad_drop_um as f64 * k;
+        let s = t * len;
+        let g = pd / pl;
+        if s <= pl {
+            return g * s;
+        }
+        let l = len - pl;
+        let u = (s - pl) / l;
+        let h1 = u * (1.0 + u * u * (-6.0 + u * (8.0 - 3.0 * u)));
+        pd + (drop - pd) * (u * u * u * (10.0 + u * (-15.0 + 6.0 * u))) + g * l * h1
     }
 
     /// Path coordinate from the entry port and lateral offset of a world plan point, metres.
@@ -807,6 +866,18 @@ const LANDING_RISE_UM: i32 = 15_000;
 /// Plan distance from the shaft axis to a landing floor's high end, µm: 1 mm past the 32 mm
 /// shaft's wall (kitblocks `HOLE_R + 1`).
 const LANDING_REACH_UM: i32 = 17_000;
+
+/// Plan distance past the shaft axis to the end of the tower socket's landing pad, µm (kitblocks
+/// `TOWER_PAD`): every 8 mm marble centre in the 32 mm shaft is over the pad.
+const TOWER_PAD_UM: i32 = 8_000;
+
+/// The tower socket's landing pad's fall toward the socket, µm per mm (kitblocks
+/// `TOWER_PAD_FALL`): 3 %, enough that a marble landing on it rolls off.
+const TOWER_PAD_FALL_UM_PER_MM: i32 = 30;
+
+/// The tower socket's descent after the pad, µm (kitblocks `TOWER_DESCENT`): the most the 12 mm
+/// to the socket allows with its concave curvature radius at or above 20 mm.
+const TOWER_DESCENT_UM: i32 = 1_300;
 
 /// Approach speed along the normal, m/s, above which a ball meeting a landing floor bounces even
 /// when its contact penetrates: a rolling ball meets a fresh triangle at up to 64 mm/s (see the
@@ -2249,9 +2320,9 @@ mod tests {
                     (0.0..=len as f32 * 1.0e-6).contains(&s) && l.holds(v)
                 })
                 .count();
-            // 17 floor-ring vertices per station (6 path segments on the tower, 8 on the redirect).
+            // 17 floor-ring vertices per station (4 path segments on the tower, 8 on the redirect).
             assert!(
-                held >= 17 * 7,
+                held >= 17 * 5,
                 "{piece} yaw {yaw}: {held} floor vertices held"
             );
             let m = |v: i64| v as f32 * 1.0e-6;
@@ -2259,8 +2330,7 @@ mod tests {
             let big_r = slope_tube_radius(r);
             let surface = |s: f32, a: f32| {
                 let t = (s / m(len)).clamp(0.0, 1.0);
-                let ay =
-                    m(l.axis_y_um) - m(l.drop_um) * (t * t * t * (10.0 + t * (-15.0 + 6.0 * t)));
+                let ay = m(l.axis_y_um) - l.profile(m(l.drop_um), m(len), t).0;
                 (s, ay - big_r * a.cos(), big_r * a.sin())
             };
             for i in 0..=20 {
@@ -2272,8 +2342,7 @@ mod tests {
                 ] {
                     let s = m(len) * i as f32 / 20.0;
                     let t = (s / m(len)).clamp(0.0, 1.0);
-                    let ay = m(l.axis_y_um)
-                        - m(l.drop_um) * (t * t * t * (10.0 + t * (-15.0 + 6.0 * t)));
+                    let ay = m(l.axis_y_um) - l.profile(m(l.drop_um), m(len), t).0;
                     let y = ay - 0.006 + up;
                     let (dx, dz) = (l.dir[0] as f32, l.dir[1] as f32);
                     let c = Vector::new(

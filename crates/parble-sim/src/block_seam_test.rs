@@ -1088,25 +1088,24 @@ fn tower_sweep() -> Vec<(f32, f32)> {
         .collect()
 }
 
-/// Peak sideways speed out of the tower socket over the sweep, m/s: the measured value with the
-/// exact landing floor, rounded up, as the 0.1 m/s target is not met (see
+/// Peak sideways speed out of the tower socket over the sweep, m/s: the measured value on the
+/// smootherstep landing floor, rounded up, as the 0.1 m/s target is not met (see
 /// `tower_drop_stays_on_the_rails`).
 const TOWER_SIDEWAYS_LIMIT_M_S: f32 = 0.56;
 
 #[test]
 fn tower_drop_stays_on_the_rails() {
     // The marble falls 120 mm through the drop hole, the pillar and the tower's funnel and lands
-    // on the tunnel's landing floor (`chunk::ChannelSlope::landing`). On the faceted floor 2 of
-    // the 24 runs climbed off the rails past the rail joint (0.325 m/s, centred and 2 mm off;
-    // `tower_drop_mesh_landing_leaves_the_rails`) and the marble left the socket at up to
-    // 0.640 m/s sideways. With the exact landing floor, measured 2026-11-08: 0 of 24 off the
-    // rails, peak sideways 0.003-0.544 m/s (2 of 24 under 0.1 m/s).
+    // on the tunnel's landing floor (`chunk::ChannelSlope::landing`). It reaches it 1-5 mm off
+    // centre: the drop's and the pillar's faceted bores turn even a centred entry sideways
+    // (0.04-0.07 m/s seeded on the bore wall, 4 mm of drift over the fall), and a 2 mm offset
+    // more so.
     //
-    // Not under 0.1 m/s sideways. The marble reaches the landing 1-5 mm off centre: the drop's
-    // and the pillar's faceted bores turn even a centred entry sideways (0.04-0.07 m/s seeded on
-    // the bore wall, 4 mm of drift over the fall), and a 2 mm offset more so. A glass marble
-    // falling at 1.5 m/s and bouncing (restitution 0.66) off a round floor that far off centre
-    // leaves it sideways at 0.2-0.6 m/s, on the exact surface as on the facets. Logged per run.
+    // On the smootherstep landing (15 mm over the 37 mm from the shaft wall to the socket) the
+    // marble landed on its steepest part, about 31 deg, and left the socket at up to 0.591 m/s
+    // sideways (measured 2026-11-08). On the landing pad (falling 3 % to 8 mm past the axis, then
+    // 1.3 mm of quintic Hermite descent; 2 % stalled one run on the rails), measured 2026-11-08:
+    // 0 of 24 off the rails, sideways min 0.005, median 0.082, max 0.343 m/s. Logged per run.
     let mut off = Vec::new();
     let mut peak: f32 = 0.0;
     for (v, dz) in tower_sweep() {

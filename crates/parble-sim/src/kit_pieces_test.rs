@@ -86,11 +86,16 @@ fn side(name: &'static str, axis: usize, plane: f32, sign: f32, u: f32, floor: f
     }
 }
 
-/// `e` reached after a fall onto a landing floor (redirect tunnel, tower socket block): the
-/// landing floor sits `LANDING_RISE` above the exit floor (blender/kit/kitblocks.py).
+/// `e` reached after a fall onto a redirect's landing floor, `LANDING_RISE` above the exit floor
+/// (blender/kit/kitblocks.py).
 fn landed(e: Exit) -> Exit {
+    landed_from(e, 0.015)
+}
+
+/// `e` reached after a fall onto a landing floor `h` metres above the exit floor.
+fn landed_from(e: Exit, h: f32) -> Exit {
     Exit {
-        landing: Some(0.015),
+        landing: Some(h),
         ..e
     }
 }
@@ -258,14 +263,12 @@ fn drop_pillar_and_tower_pass_a_marble_down() {
         &[
             bottom("blk_drop_l3 bottom", 0.06, 0.12, 0.0),
             bottom("blk_pillar bottom", 0.06, 0.06, 0.0),
-            landed(side(
-                "blk_tower_socket_l1 socket (-x)",
-                0,
-                0.04,
-                -1.0,
-                0.0,
-                0.015,
-            )),
+            // The tower socket's pad falls 0.75 mm to its end and the descent 1.3 mm more
+            // (kitblocks `TOWER_PAD_FALL` and `TOWER_DESCENT`).
+            landed_from(
+                side("blk_tower_socket_l1 socket (-x)", 0, 0.04, -1.0, 0.0, 0.015),
+                0.002_05,
+            ),
         ],
         start.y,
     );

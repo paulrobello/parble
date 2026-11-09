@@ -5,32 +5,32 @@
   "channels": {
     "blk_tower_socket_l1_lod0_ao": {
       "colorspace": "Non-Color",
-      "sha256": "c6d7ef7222f34a10d5737496647f8f1b7d6c2ed570af49d2e483eab6964d2d32",
+      "sha256": "8dda5261fdf48417a4b7835ff357ac3fb3202024e7319a1c41ca73399ed2b425",
       "size": 512
     },
     "blk_tower_socket_l1_lod0_normal": {
       "colorspace": "Non-Color",
-      "sha256": "640a98e630e7f9db730337ed2c4f3df6ade57471084dfb392c73fd660c48aa6a",
+      "sha256": "c903288e4de53b0d127cf6abb33d63ccce7646704f4320489bf2e9e74d8159cb",
       "size": 512
     },
     "blk_tower_socket_l1_lod1_ao": {
       "colorspace": "Non-Color",
-      "sha256": "e64b8ae80bb3ec93ba8c1929449c2ebdfefee6874511b376c2ae27ff29ec6557",
+      "sha256": "c19a3c900e65f8734ec9782c1f62628897c437a83303e85510b8007c1a5b294f",
       "size": 256
     },
     "blk_tower_socket_l1_lod1_normal": {
       "colorspace": "Non-Color",
-      "sha256": "5ee5c5918dc39c13959ee003b4a862b0bf4670888bf6175b1b9faa1aeb24ddac",
+      "sha256": "f0f3fae45b65c25671eb52e01797f398c7b4a1f1bbbfc812de1ac2c07bb60766",
       "size": 256
     },
     "blk_tower_socket_l1_lod2_ao": {
       "colorspace": "Non-Color",
-      "sha256": "7c3e739e06ad8a852355a00312c8db1b592068122a1adf2189c5285443276bba",
+      "sha256": "4dee45fa07d7a2c4e5838d77a084a33e471076b88f15928c6214039ddc7a33b7",
       "size": 128
     },
     "blk_tower_socket_l1_lod2_normal": {
       "colorspace": "Non-Color",
-      "sha256": "95f48d210c57295c5d03617f1f995b8dc4c1b781e867a123dee685fe870f4761",
+      "sha256": "f70141f7471ad4624ec78c7592584af2df240a1c07aab80aa6b2b9905a8d0c94",
       "size": 128
     }
   },

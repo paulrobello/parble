@@ -25,8 +25,10 @@ PIECE_VERSION = 1
 # 2026-11-08: blk_slope_steep_l3 2, floor on the C2 quintic smootherstep (PRD §5.3).
 # 2026-11-08: blk_redirect_l3 and blk_redirect_l2 3, blk_tower_socket_l1 2: the landing floors on
 #   the quintic smootherstep too (contract §7). The gentle slopes' versions are kitgeom's.
+# 2026-11-08: blk_tower_socket_l1 3, a landing pad under the shaft falling 3 % to the socket and a
+#   quintic Hermite descent after it (contract §7).
 PIECE_VERSIONS = {"blk_redirect_l3": 3, "blk_redirect_l2": 3, "blk_slope_steep_l3": 2,
-                  "blk_tower_socket_l1": 2}
+                  "blk_tower_socket_l1": 3}
 
 
 def piece_version(piece_id):
@@ -52,6 +54,11 @@ SOCKET_INSET = 10.0        # §5.5 collision port plane inside the face
 TUNNEL_WALL = 6.0          # §5.1: 34 mm tunnel = R14 floor + 6 mm wall + R14 crown
 SLIVER_MM2 = 0.05          # render triangles smaller than this are dropped after the redirect boolean
 LANDING_RISE = 15.0        # a dropped marble lands on a floor this much above the tunnel exit floor
+TOWER_PAD = HOLE_R - 8.0   # the tower's landing pad reaches this far past the shaft axis: every
+                           # 8 mm marble centre in the 32 mm shaft is over it
+TOWER_PAD_FALL = 0.03      # the pad falls 3 % toward the socket, so a marble landing on it rolls off
+TOWER_DESCENT = 1.3        # the descent after the pad: the most its 12 mm allow with every concave
+                           # curvature radius at or above 20 mm (sim chunk.rs TOWER_DESCENT_UM)
 COLLISION_SEGS = 16        # §5.4 half-round and bore segments
 COLLISION_PATH = 8         # path segments for collision arcs and slopes (kitgeom COLLISION_PATH)
 
@@ -144,6 +151,26 @@ def smooth(t):
 def smoother(t):
     """Quintic smootherstep: zero gradient and zero curvature at both ends (C2 with the flat ports)."""
     return t * t * t * (10.0 + t * (-15.0 + 6.0 * t))
+
+
+def tower_floor(f0, x_end, x_pad, x0):
+    """The tower socket's landing floor at plan x (the socket is at -x): the pad from x_end falls at
+    TOWER_PAD_FALL to x_pad, then the quintic Hermite that starts at that gradient with zero
+    curvature drops TOWER_DESCENT more and ends flat with zero curvature at x0 (chunk.rs
+    `ChannelSlope::profile`)."""
+    pl, length = x_end - x_pad, x_end - x0
+    pd = pl * TOWER_PAD_FALL
+    rise = pd + TOWER_DESCENT
+
+    def fl(x):
+        s = min(length, max(0.0, x_end - x))
+        if s <= pl:
+            return f0 + rise - TOWER_PAD_FALL * s
+        span = length - pl
+        u = (s - pl) / span
+        h1 = u * (1.0 + u * u * (-6.0 + u * (8.0 - 3.0 * u)))
+        return f0 + rise - (pd + TOWER_DESCENT * smoother(u) + TOWER_PAD_FALL * span * h1)
+    return fl, rise
 
 
 def straight_x(x0, x1, floor_fn, n, extra_x=()):
@@ -306,13 +333,14 @@ def cutters(piece_id, q, collision):
         out.append(lambda bm: sweep(bm, extend(sts_a, True, True), oprof))
     elif shape == "tower_socket":
         x_end = HOLE_R + 1.0
-        fl = lambda x: f0 + LANDING_RISE * smoother((x + 20.0) / (x_end + 20.0))
         x0 = -30.0 + SOCKET_INSET
-        if collision:  # 6 path segments: the 34-vertex tunnel ring at 8 would pass 600 tris (§12)
-            sts_t = straight_x(x0, x_end, fl, 6)
+        x_pad = -TOWER_PAD
+        fl, rise = tower_floor(f0, x_end, x_pad, x0)
+        if collision:  # 4 path segments: the 34-vertex tunnel ring at 5 would pass 600 tris (§12)
+            sts_t = straight_x(x0, x_pad, fl, 3, extra_x=(x_end,))
             out.append(lambda bm: sweep(bm, extend(sts_t, True, False), tprof))
-        else:
-            sts_t = straight_x(x0, x_end, fl, path_n)
+        else:  # the pad is one path segment
+            sts_t = straight_x(x0, x_pad, fl, max(2, path_n - 1), extra_x=(x_end,))
             sts_t = [(x0 - 1.5,) + sts_t[0][1:]] + sts_t   # runs 1.5 mm into the socket bore
             out.append(lambda bm: sweep(bm, sts_t, tprof))
             yc = f0 + K.R
@@ -323,7 +351,7 @@ def cutters(piece_id, q, collision):
         mouth = [(BOWL_R, TOP + K.CUT_ABOVE), (BOWL_R, TOP - 4.0), (HOLE_R, TOP - 8.0)]
         if not collision and q["n_round"] <= 6:  # LOD2 budget: plain bore, no mouth
             mouth = [(HOLE_R, TOP + K.CUT_ABOVE)]
-        out.append(lambda bm: lathe(bm, mouth + [(HOLE_R, f0 + LANDING_RISE + 10.0)], circ))
+        out.append(lambda bm: lathe(bm, mouth + [(HOLE_R, f0 + rise + 10.0)], circ))
     elif shape == "pillar":
         out.append(lambda bm: lathe(bm, [(HOLE_R, TOP + K.CUT_ABOVE), (HOLE_R, -K.EXT)], circ))
     return out
