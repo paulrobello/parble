@@ -1964,6 +1964,28 @@ impl PhysicsHooks for ChunkColliders {
             return;
         }
         if let Some((bends, bend_of)) = self.bends.get(&handle.into_raw_parts())
+            && bend_of.get(tri as usize).is_some_and(|&t| t != 0)
+            && !bends.iter().any(|b| {
+                b.contains(
+                    (centre.x * 1.0e6).round() as i64,
+                    (centre.z * 1.0e6).round() as i64,
+                )
+            })
+            && self
+                .slopes
+                .get(&handle.into_raw_parts())
+                .is_some_and(|(slopes, _)| slopes.iter().any(|s| s.covers(centre, 0.0)))
+        {
+            // A ball centred over a slope's cell belongs to the slope's contact. The bend tube's
+            // continuation past its cell is level, so a bend triangle still in reach would hold
+            // the ball up while the slope floor falls away under it: off the mirrored curve90_l2
+            // onto the gentle slope the ball then dropped clear for one tick (kick 26.03, 7.76
+            // with this rule, measured 2026-11-08 in
+            // `curve90_l2_seams_and_interiors_stay_under_the_kick_threshold`).
+            rigid.solver_contacts.clear();
+            return;
+        }
+        if let Some((bends, bend_of)) = self.bends.get(&handle.into_raw_parts())
             && let Some(&tag @ 1..) = bend_of.get(tri as usize)
             && let Some((n, gap, now)) = {
                 // A straight triangle can lie on the continuation of several bends: the bend
