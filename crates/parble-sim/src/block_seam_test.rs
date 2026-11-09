@@ -967,13 +967,12 @@ fn mech_seams_stay_under_the_seam_thresholds() {
     // inlets threw the marble 147.34-158.02 up, the hopper exit 116.35 and the checkpoint exit
     // 128.81.
     //
-    // The fork inlet does not meet the thresholds: upward 94.72, kick 73.40 (147.34 with the cap),
-    // gated at FORK_INLET_LIMITS_MM_S. It is the faceted mesh contact, not the fork's shape: the
-    // two arcs leave the port ring together, and their facets and the boolean's ridge between
-    // them meet the marble at the seam. The exact junction contact the joiner uses
-    // (`chunk::ChannelJunction`) brings it to 0.00 / 0.56, but is kept off the forks for now: it
-    // takes the splitter's -z outlet over the upward limit at the chunk seam (see
-    // `ChannelJunction::of`).
+    // On the mesh contact the fork inlet did not meet the thresholds: upward 94.72, kick 73.40
+    // (147.34 with the cap), so it is gated at FORK_INLET_LIMITS_MM_S. It is the faceted mesh
+    // contact, not the fork's shape: the two arcs leave the port ring together, and their facets
+    // and the boolean's ridge between them meet the marble at the seam. The forks now take the
+    // exact junction contact on the faceted section (`chunk::ChannelJunction::faceted`), which
+    // reads upward 1.58, kick 1.88 there (measured 2026-11-09); the limit is still the mesh's.
     // Logged, not gated (`mech_fork_interior_metrics`): the fork interior past the inlet window,
     // where the blade's tip meets the marble.
     //

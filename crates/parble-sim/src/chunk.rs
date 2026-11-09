@@ -420,7 +420,8 @@ fn facet_contact(axis: Vector, c: Vector, r: f32) -> Option<(Vector, f32)> {
 /// A one-cell channel junction: three or more channel side ports at one level, as on the joiner
 /// (in at −x and −z, out at +x) and the forks (in at −x, out at ±z). Its channel is the union of
 /// one path per in-to-out port pair: a straight tube between opposite faces, a [`ChannelBend`]
-/// between adjacent ones. Only the joiner uses it for now (see [`ChannelJunction::of`]).
+/// between adjacent ones. The joiner takes the round tube, the forks the faceted section (see
+/// [`ChannelJunction::of`]).
 ///
 /// The sidecar samples each path with flat facets and the boolean union meets them in a faceted
 /// ridge, so a marble crossing the joiner peaked at 45 mm/s upward from its −x inlet and 88 mm/s

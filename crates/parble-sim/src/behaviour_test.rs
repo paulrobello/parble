@@ -820,7 +820,8 @@ fn shipped_fork_parts_route_slow_and_off_centre_marbles() {
 /// parked on wip/fork-blade-d1) passes every run at 0.3-0.6 m/s and fails 13 at 0.2 m/s: six glass
 /// shooters jam against the toggle's blade, seven minis stop in the splitter's -z branch. Option D2
 /// (curved blade faces following the open branch's wall, 16 designs) found none that passes this
-/// and keeps the splitter's -z outlet kick at or under 6.5 mm/s.
+/// and keeps the splitter's -z outlet kick at or under 6.5 mm/s. The contact diagnosis of the D1
+/// failures is in `fork_contact_test`.
 #[test]
 #[ignore]
 fn shipped_fork_parts_route_every_marble_type_and_size() {
