@@ -19,7 +19,7 @@ use parble_render::{
     MarbleFrame, ParbleRenderPlugin,
     camera::{self, DirectorClock, DirectorPlugin, MainCamera},
     inlay::{InlayFrame, inlay_frame},
-    kit::parts::PartFrame,
+    kit::parts::{PartFrame, PartPoses},
     marble::MarbleLook,
     sensors::{SensorDraw, SensorFrame, SensorOverlayPlugin, SensorShape},
     zone_overlay::ZoneOverlayPlugin,
@@ -164,12 +164,20 @@ fn publish_initial(
     parts.prev = parts.curr.clone();
 }
 
-/// Every mechanism instance's part angles (millidegrees), keyed by its anchor cell, for
-/// [`PartFrame`].
-fn part_angles(sim: &Sim) -> std::collections::BTreeMap<[i32; 3], Vec<i32>> {
+/// Every mechanism instance's part angles and chain segment angles (millidegrees), keyed by its
+/// anchor cell, for [`PartFrame`].
+fn part_angles(sim: &Sim) -> std::collections::BTreeMap<[i32; 3], PartPoses> {
     sim.mechanisms()
         .into_iter()
-        .map(|m| ([m.id.0.x, m.id.0.y, m.id.0.z], m.part_angles))
+        .map(|m| {
+            (
+                [m.id.0.x, m.id.0.y, m.id.0.z],
+                PartPoses {
+                    angles: m.part_angles,
+                    segments: m.part_segments,
+                },
+            )
+        })
         .collect()
 }
 

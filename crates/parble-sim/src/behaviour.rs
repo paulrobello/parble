@@ -21,7 +21,7 @@
 //! | `mech_gate_oneway_l1` | `approach`, `exit` | `anim_flap` (physical) | marbles from `approach` push the hinged flap open; the flap's closed stop holds the others back |
 //! | `mech_hole_oneway_l1` | `trap`, `over` | `anim_trapdoor` | opens under marbles that reach `trap` first; marbles from `over` roll across the shut door |
 //! | `mech_stepper_up1_l3`, `mech_stepper_up1_l1` | `lift` | `anim_slats` (slide) | cycles up and down while a marble is on the lift, eases back to rest once it is empty ([`crate::stepper`]) |
-//! | `mech_arch_rope_l1` | `curtain_nx`, `curtain_px` | `anim_rope_0`..`7` (no collider) | a drag zone that halves a marble's speed; each rope row swings away from a marble entering it ([`RopeModel`]) |
+//! | `mech_arch_rope_l1` | `curtain_nx`, `curtain_px` | `anim_rope_0`..`7` (no collider) | a drag zone that halves a marble's speed; each rope row swings away from a marble entering it, and every rope bends round the marbles reaching it ([`RopeModel`], [`crate::rope`]) |
 //!
 //! Both fork parts are a switch blade hinged about +Y with its tip upstream; at its ±25° limits
 //! the tip is 10.1 mm off the channel centre, so the marble meets the blade's face and is steered
@@ -798,26 +798,24 @@ pub const ROPE_KEEP: f32 = 0.5;
 /// falls to 0.475 at 0.1204 m/s. Half of the ±0.05 test band goes to that, the other half to the
 /// drag's own error (0.533 measured at 0.8 m/s). Slower marbles still get through, slowed.
 pub const ROPE_MIN_HALVING_SPEED_M_S: f32 = 0.121;
-/// Rope kick per m/s of speed the curtain takes from the marble, millidegrees, and its bounds.
+/// Rope kick per m/s of speed the curtain takes from the marble, millidegrees, and its bounds:
+/// the peak a row's top segments swing to ([`crate::rope::RopeChain::kick`]).
 pub const ROPE_SWING_GAIN: f32 = 100_000.0;
 pub const ROPE_SWING_MIN_MDEG: i32 = 8_000;
 pub const ROPE_SWING_MAX_MDEG: i32 = 40_000;
-/// Cosmetic swing: push time, pendulum period and decay time constant, ticks, and its length.
-pub const ROPE_PUSH_TICKS: u32 = 8;
-pub const ROPE_PERIOD_TICKS: f32 = 76.0;
-pub const ROPE_DECAY_TICKS: f32 = 70.0;
-pub const ROPE_SWING_TICKS: u32 = 360;
 /// Ropes per row; the outer rope at each wall swings this share of the inner ropes' kick.
 pub const ROPES_PER_ROW: usize = 4;
 const ROPE_OUTER_SHARE: f32 = 0.6;
+const ROPES: usize = 2 * ROPES_PER_ROW;
 
 /// How the arch's ropes move. The curtain's drag does not depend on it.
 ///
-/// `Cosmetic` (shipped): each rope is a kinematic part with no collider, kicked by a damped
-/// keyframed swing ([`rope_swing`]) when a marble enters its row, sized by the speed the curtain
-/// takes from that marble. To make the ropes physical, add a variant whose `physics` returns a
-/// light [`crate::mechanism::PartPhysics`] (a dynamic body on the sidecar hinge whose collider is
-/// the strand, already the sidecar part collision) and whose `kick` does nothing, then point
+/// `Cosmetic` (shipped): each rope is a kinematic chain of segments with no collider
+/// ([`crate::rope`]), kicked when a marble enters its row and bent out of the way of every marble
+/// that reaches it. Its part angle is the pivot-to-tip chord; the renderer draws the strand along
+/// the segments ([`Mechanism::part_segments`]). To make the ropes physical, add a variant whose
+/// `physics` returns a light [`crate::mechanism::PartPhysics`] (a dynamic body on the sidecar
+/// hinge whose collider is the strand, already the sidecar part collision), then point
 /// [`ROPE_MODEL`] at it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RopeModel {
@@ -839,43 +837,50 @@ impl RopeModel {
             Self::Cosmetic => false,
         }
     }
-
-    fn kick(self, ctx: &mut MechContext<'_>, part: usize, mdeg: i32) {
-        match self {
-            Self::Cosmetic => {
-                let from = ctx.part_angle(part).unwrap_or(0);
-                ctx.play(part, rope_swing(from, mdeg));
-            }
-        }
-    }
 }
 
-/// A rope's cosmetic swing: from `from` pushed to `peak` over [`ROPE_PUSH_TICKS`], then a damped
-/// pendulum back to rest, keyed every 4 ticks (libm, so the keys are the same on every platform).
-pub fn rope_swing(from: i32, peak: i32) -> crate::mechanism::Keyframes {
-    let mut keys = vec![(0, from), (ROPE_PUSH_TICKS, peak)];
-    let mut t = ROPE_PUSH_TICKS + 4;
-    while t < ROPE_SWING_TICKS {
-        let s = (t - ROPE_PUSH_TICKS) as f32;
-        let a = peak as f32
-            * libm::expf(-s / ROPE_DECAY_TICKS)
-            * libm::cosf(2.0 * core::f32::consts::PI * s / ROPE_PERIOD_TICKS);
-        keys.push((t, libm::roundf(a) as i32));
-        t += 4;
-    }
-    keys.push((ROPE_SWING_TICKS, 0));
-    crate::mechanism::Keyframes::new(keys).expect("rope swing keys are increasing")
+/// Every marble near rope `part` as a disc in its swing plane ([`crate::rope::Disc`]).
+fn rope_discs(ctx: &MechContext<'_>, part: usize) -> Vec<crate::rope::Disc> {
+    use crate::rope::{CLEAR_M, Disc, LENGTH_UM, STRAND_R_M};
+    use rapier3d::prelude::Vector;
+    let Some((pivot, axis, sign)) = ctx.part_hinge(part) else {
+        return Vec::new();
+    };
+    // A positive part angle swings the strand's lower end along `u`.
+    let u = Vector::Y.cross(axis) * sign;
+    let length = LENGTH_UM as f32 * 1.0e-6;
+    (0..ctx.marble_count())
+        .filter_map(|m| ctx.marble_body(m))
+        .filter_map(|(c, v, r)| {
+            let rel = c - pivot;
+            let reach = r + STRAND_R_M + CLEAR_M;
+            let dz = rel.dot(axis);
+            let (du, dy) = (rel.dot(u), rel.y);
+            let far = length + reach;
+            if dz.abs() >= reach || du * du + dy * dy > far * far {
+                return None;
+            }
+            Some(Disc {
+                u: du,
+                y: dy,
+                rho: libm::sqrtf(reach * reach - dz * dz),
+                vu: v.dot(u),
+            })
+        })
+        .collect()
 }
 
 /// Rope-curtain arch: every marble touching a curtain sensor gets a quadratic drag sized so it
-/// keeps [`ROPE_KEEP`] of its speed over the zone ([`MechContext::drag_marble`]), and each rope
-/// row swings away from a marble entering it ([`RopeModel`]). Signals: `pass` once per marble,
-/// `swing` per kicked row with the inner ropes' kick in millidegrees.
+/// keeps [`ROPE_KEEP`] of its speed over the zone ([`MechContext::drag_marble`]), each rope row
+/// swings away from a marble entering it, and every rope bends out of the way of the marbles
+/// reaching it ([`RopeModel`]). Signals: `pass` once per marble, `swing` per kicked row with the
+/// inner ropes' kick in millidegrees.
 #[derive(Debug, Clone, Default)]
 pub struct RopeArch {
     heading: Heading,
     passes: i64,
     swings: i64,
+    ropes: [crate::rope::RopeChain; ROPES],
 }
 
 impl RopeArch {
@@ -948,10 +953,20 @@ impl Mechanism for RopeArch {
                     1.0
                 };
                 let mdeg = libm::roundf(dir * kick * share) as i32;
-                ROPE_MODEL.kick(ctx, row * ROPES_PER_ROW + i, mdeg);
+                self.ropes[row * ROPES_PER_ROW + i]
+                    .kick(mdeg as f32 * (core::f32::consts::PI / 180_000.0));
             }
             self.swings += 1;
             ctx.emit("swing", libm::roundf(dir * kick) as i64);
+        }
+        for (k, rope) in self.ropes.iter_mut().enumerate() {
+            let discs = rope_discs(ctx, k);
+            rope.step(&discs);
+            let [lo, hi] = ctx.part_limits(k).unwrap_or([i32::MIN, i32::MAX]);
+            let chord = crate::rope::to_mdeg(rope.chord()).clamp(lo, hi);
+            if ctx.part_angle(k) != Some(chord) {
+                ctx.play(k, crate::mechanism::Keyframes::hold(chord));
+            }
         }
     }
 
@@ -961,6 +976,16 @@ impl Mechanism for RopeArch {
             ("swings".to_owned(), self.swings),
         ]);
         self.heading.save(&mut s);
+        // Exact `f32` bits, so a restored chain continues bit for bit.
+        for (k, rope) in self.ropes.iter().enumerate() {
+            for j in 0..crate::rope::SEGMENTS {
+                s.insert(
+                    format!("rope/{k}/{j}/a"),
+                    i64::from(rope.angle[j].to_bits()),
+                );
+                s.insert(format!("rope/{k}/{j}/w"), i64::from(rope.rate[j].to_bits()));
+            }
+        }
         s
     }
 
@@ -968,6 +993,13 @@ impl Mechanism for RopeArch {
         self.passes = get(state, "passes");
         self.swings = get(state, "swings");
         self.heading.restore(state);
+        let bits = |key: String| f32::from_bits(get(state, &key) as u32);
+        for (k, rope) in self.ropes.iter_mut().enumerate() {
+            for j in 0..crate::rope::SEGMENTS {
+                rope.angle[j] = bits(format!("rope/{k}/{j}/a"));
+                rope.rate[j] = bits(format!("rope/{k}/{j}/w"));
+            }
+        }
     }
 
     fn part_physics(&self, part: usize) -> Option<crate::mechanism::PartPhysics> {
@@ -976,6 +1008,13 @@ impl Mechanism for RopeArch {
 
     fn part_collides(&self, part: usize) -> bool {
         ROPE_MODEL.collides(part)
+    }
+
+    fn part_segments(&self, part: usize) -> Vec<i32> {
+        self.ropes
+            .get(part)
+            .map(|r| r.angle.iter().map(|&a| crate::rope::to_mdeg(a)).collect())
+            .unwrap_or_default()
     }
 }
 

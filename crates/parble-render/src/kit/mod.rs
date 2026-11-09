@@ -460,10 +460,12 @@ pub fn piece_parts(piece: usize) -> usize {
         .map_or(0, |p| p.animated_parts.len())
 }
 
-/// Draws one occupied (type, chunk) may cost: `LODS` for the body and `LODS` per animated part
-/// ([`parts`]), so the P1-T4 bound of one draw per (type × LOD × chunk) holds per drawn mesh.
+/// Draws one occupied (type, chunk) may cost: `LODS` for the body and one per LOD per animated
+/// part mesh ([`parts`]; a rope arch rope is [`parts::ROPE_LOD_BANDS`] meshes, one per band), so
+/// the P1-T4 bound of one draw per (type × LOD × chunk) holds per drawn mesh.
 pub fn pair_draws(piece: usize) -> usize {
-    LODS * (1 + piece_parts(piece))
+    let bands: usize = parts::part_bands(PIECES[piece].0).iter().sum();
+    LODS + piece_parts(piece) * bands
 }
 
 /// Occupied chunks and the draw bound: [`pair_draws`] per occupied (type, chunk). A layout with no
@@ -642,11 +644,14 @@ fn part_kits(
                     .find(|p| p.name == part.name)
                     .unwrap_or_else(|| panic!("{} has no {}_lod{lod}", piece.def.id, part.name))
             };
-            let mut lods: [Option<Handle<Mesh>>; LODS] = Default::default();
-            let mut mirrored: [Option<Handle<Mesh>>; LODS] = Default::default();
+            let bands = parts::part_bands(piece.def.id.as_str());
+            let mut lods: [Vec<Handle<Mesh>>; LODS] = Default::default();
+            let mut mirrored: [Vec<Handle<Mesh>>; LODS] = Default::default();
             for lod in 0..LODS {
-                lods[lod] = Some(add(&mesh(lod).mesh));
-                mirrored[lod] = Some(add(&mesh(lod).mesh.reversed_winding()));
+                for band in parts::split_bands(&mesh(lod).mesh, bands[lod]) {
+                    lods[lod].push(add(&band));
+                    mirrored[lod].push(add(&band.reversed_winding()));
+                }
             }
             PartKit {
                 index,
@@ -655,8 +660,8 @@ fn part_kits(
                 axis: Vec3::from_array(part.axis.map(|v| v as f32)).normalize(),
                 rest_mdeg: part.rest_mdeg,
                 rest: std::array::from_fn(|lod| mesh(lod).rest),
-                lods: lods.map(|h| h.expect("set per LOD")),
-                mirrored: mirrored.map(|h| h.expect("set per LOD")),
+                lods,
+                mirrored,
             }
         })
         .collect()
@@ -688,18 +693,21 @@ fn spawn_parts(
         for (slot, k) in kits.iter().enumerate() {
             let meshes = if mirror { &k.mirrored } else { &k.lods };
             for (lod, range) in ranges.iter().enumerate() {
-                c.spawn((
-                    KitPart {
-                        cell,
-                        piece,
-                        slot,
-                        lod: lod as u8,
-                    },
-                    Mesh3d(meshes[lod].clone()),
-                    MeshMaterial3d(materials[lod][variant].clone()),
-                    Transform::from_matrix(k.rest[lod]),
-                    range.clone(),
-                ));
+                for (band, mesh) in meshes[lod].iter().enumerate() {
+                    c.spawn((
+                        KitPart {
+                            cell,
+                            piece,
+                            slot,
+                            lod: lod as u8,
+                            band: band as u8,
+                        },
+                        Mesh3d(mesh.clone()),
+                        MeshMaterial3d(materials[lod][variant].clone()),
+                        Transform::from_matrix(k.rest[lod]),
+                        range.clone(),
+                    ));
+                }
             }
         }
     });
@@ -1410,9 +1418,12 @@ mod tests {
         // Four chunks. The row's two, the lift lane crossing into the second: three (block type,
         // chunk) pairs at 3 draws each, and the toggle, the gate and the stepper at 3 for the body
         // and 3 for their one part each. The rope lane's: a block, and the rope arch at 3 for the
-        // body and 3 for each of its 8 ropes. The checkpoint lane's: the L1 straight and the
-        // checkpoint at 3 each.
-        assert_eq!(chunk_stats(&layout), (4, 3 * 3 + 3 * 6 + 3 + 27 + 3 + 3));
+        // body and, for each of its 8 ropes, one per band of each LOD (6 + 3 + 2). The checkpoint
+        // lane's: the L1 straight and the checkpoint at 3 each.
+        assert_eq!(
+            chunk_stats(&layout),
+            (4, 3 * 3 + 3 * 6 + 3 + (3 + 8 * 11) + 3 + 3)
+        );
         // No parts, no change: the P1-T4 bounds stay.
         for l in [playroom_layout(), stress_layout()] {
             assert!(l.iter().all(|p| piece_parts(p.piece) == 0));

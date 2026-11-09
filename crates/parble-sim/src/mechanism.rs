@@ -91,6 +91,13 @@ pub trait Mechanism: Send + Sync {
     fn part_flush_door(&self, _part: usize) -> bool {
         false
     }
+
+    /// A part drawn as a chain of segments (the rope arch's ropes, [`crate::rope`]): each
+    /// segment's absolute angle about the part's hinge, millidegrees, top first. Empty for a rigid
+    /// part, which is drawn at its one part angle.
+    fn part_segments(&self, _part: usize) -> Vec<i32> {
+        Vec::new()
+    }
 }
 
 /// A physical part: a dynamic body on a revolute joint about the part's pivot and axis, limited to
@@ -582,6 +589,17 @@ impl MechContext<'_> {
     /// Emit a [`MechEventKind::Signal`] (kept only while recording).
     pub fn emit(&mut self, name: &'static str, value: i64) {
         self.signals.push((name, value));
+    }
+
+    /// Marble `marble`'s centre (m), velocity (m/s) and radius (m) at this tick.
+    pub fn marble_body(&self, marble: usize) -> Option<(Vector, Vector, f32)> {
+        self.balls.get(marble).map(|&(p, v, r, _)| (p, v, r))
+    }
+
+    /// Part `index`'s world pivot (m), its world hinge axis and the placement's mirror sign: a
+    /// positive part angle turns the part by `sign` × the angle about the axis.
+    pub fn part_hinge(&self, index: usize) -> Option<(Vector, Vector, f32)> {
+        self.parts.get(index).map(|p| (p.pivot, p.axis, p.sign))
     }
 
     /// Marble `marble`'s speed (m/s) and radius (m) at this tick.
@@ -1163,6 +1181,9 @@ pub struct MechanismView {
     pub state: MechConfig,
     /// Part angles at the current tick, millidegrees, in sidecar order.
     pub part_angles: Vec<i32>,
+    /// Per part, its segment angles when it is drawn as a chain ([`Mechanism::part_segments`]),
+    /// else empty.
+    pub part_segments: Vec<Vec<i32>>,
 }
 
 /// A sensor volume in world metres, for the debug overlay. Boxes are axis-aligned: placement has
@@ -1235,6 +1256,9 @@ impl Sim {
                 kind: inst.behaviour.kind(),
                 state: inst.save(self.tick),
                 part_angles: inst.parts.iter().map(|p| p.angle_at(self.tick)).collect(),
+                part_segments: (0..inst.parts.len())
+                    .map(|i| inst.behaviour.part_segments(i))
+                    .collect(),
             })
             .collect()
     }

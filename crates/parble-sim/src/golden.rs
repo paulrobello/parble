@@ -56,7 +56,7 @@ pub const ROPE_PASS_M_S: f32 = 0.6;
 /// `rope_arch_halves_the_speed_of_a_marble_passing_through` test) at [`ROPE_PASS_M_S`], once
 /// along +X and once along −X, for [`ROPE_PASS_TICKS`] each. The lines of
 /// `tests/golden/rope_arch_pass.hash`: per direction the trajectory hash, the mechanism state hash
-/// (the rope angles, so the cosmetic swing too), and the event count with its
+/// (the ropes' segment angles and rates, so the cosmetic swing and bend too), and the event count with its
 /// [`crate::mechanism::events_hash`].
 pub fn rope_arch_pass() -> String {
     use crate::marble::CATS_EYE;

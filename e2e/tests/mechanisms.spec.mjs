@@ -34,10 +34,10 @@ test("mechanism parts interpolate between physics ticks and sweep smoothly", asy
     "mech_stepper_up1_l3",
   ]);
   // The toggle, the gate and the stepper each add one part mesh per (LOD, variant), the rope arch
-  // (in its own chunk, with one block) eight: the bound counts them. The lift lane reaches the
-  // second chunk of the row. The checkpoint lane sits in a chunk of its own: its L1 straight and
-  // the checkpoint body.
-  expect(k.drawBound).toBe(3 * (1 + 2 + 1 + 2 + 1 + 2) + 3 * (1 + 9) + 3 * (1 + 1));
+  // (in its own chunk, with one block) one per band of each of its eight ropes (6 + 3 + 2 over the
+  // three LODs): the bound counts them. The lift lane reaches the second chunk of the row. The
+  // checkpoint lane sits in a chunk of its own: its L1 straight and the checkpoint body.
+  expect(k.drawBound).toBe(3 * (1 + 2 + 1 + 2 + 1 + 2) + 3 + (3 + 8 * (6 + 3 + 2)) + 3 * (1 + 1));
 
   // Every animation frame for 11 s from the start of a run: the run restarts every 10 s, so one whole
   // run is in the sample. The gate flap swings within the first 0.4 s of a run, so a window opened at

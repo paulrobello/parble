@@ -28,6 +28,7 @@ pub mod mech_showcase;
 pub mod mechanism;
 pub mod playroom_run;
 pub mod rail_arc;
+pub mod rope;
 pub mod scene;
 pub mod stepper;
 pub mod track_run;

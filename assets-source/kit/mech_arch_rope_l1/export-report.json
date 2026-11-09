@@ -3,7 +3,7 @@
   "colliderTris": 74,
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "c4f75d639b933f91f7fc6c3da58452becce0efdde9771e13e44b154b38893155"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
@@ -16,7 +16,7 @@
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "a730a988db2f5e4242d2a619cff9c4eee0d1c306925f2606a35e786e7c56710e"
+      "sha256": "59040698de5578779afe19ff41a4ca955b39c6b049b653b4c794438b5874726c"
     },
     {
       "path": "blender/kit/kitstepper.py",
@@ -111,52 +111,52 @@
   ],
   "partTris": {
     "lod0": {
-      "anim_rope_0_lod0": 120,
-      "anim_rope_1_lod0": 120,
-      "anim_rope_2_lod0": 120,
-      "anim_rope_3_lod0": 120,
-      "anim_rope_4_lod0": 120,
-      "anim_rope_5_lod0": 120,
-      "anim_rope_6_lod0": 120,
-      "anim_rope_7_lod0": 120
+      "anim_rope_0_lod0": 164,
+      "anim_rope_1_lod0": 164,
+      "anim_rope_2_lod0": 164,
+      "anim_rope_3_lod0": 164,
+      "anim_rope_4_lod0": 164,
+      "anim_rope_5_lod0": 164,
+      "anim_rope_6_lod0": 164,
+      "anim_rope_7_lod0": 164
     },
     "lod1": {
-      "anim_rope_0_lod1": 40,
-      "anim_rope_1_lod1": 40,
-      "anim_rope_2_lod1": 40,
-      "anim_rope_3_lod1": 40,
-      "anim_rope_4_lod1": 40,
-      "anim_rope_5_lod1": 40,
-      "anim_rope_6_lod1": 40,
-      "anim_rope_7_lod1": 40
+      "anim_rope_0_lod1": 60,
+      "anim_rope_1_lod1": 60,
+      "anim_rope_2_lod1": 60,
+      "anim_rope_3_lod1": 60,
+      "anim_rope_4_lod1": 60,
+      "anim_rope_5_lod1": 60,
+      "anim_rope_6_lod1": 60,
+      "anim_rope_7_lod1": 60
     },
     "lod2": {
-      "anim_rope_0_lod2": 8,
-      "anim_rope_1_lod2": 8,
-      "anim_rope_2_lod2": 8,
-      "anim_rope_3_lod2": 8,
-      "anim_rope_4_lod2": 8,
-      "anim_rope_5_lod2": 8,
-      "anim_rope_6_lod2": 8,
-      "anim_rope_7_lod2": 8
+      "anim_rope_0_lod2": 14,
+      "anim_rope_1_lod2": 14,
+      "anim_rope_2_lod2": 14,
+      "anim_rope_3_lod2": 14,
+      "anim_rope_4_lod2": 14,
+      "anim_rope_5_lod2": 14,
+      "anim_rope_6_lod2": 14,
+      "anim_rope_7_lod2": 14
     }
   },
   "pieceId": "mech_arch_rope_l1",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2783.0,
-      "median": 2732.4,
-      "min": 2114.6
+      "max": 2628.9,
+      "median": 2580.7,
+      "min": 1997.2
     },
     "lod1": {
-      "max": 1407.8,
-      "median": 1397.7,
-      "min": 1069.7
+      "max": 1403.8,
+      "median": 1393.6,
+      "min": 1066.6
     },
     "lod2": {
-      "max": 704.8,
-      "median": 704.8,
-      "min": 605.1
+      "max": 699.3,
+      "median": 699.3,
+      "min": 600.4
     }
   }
 }

@@ -13,21 +13,74 @@
 //!   the sim's mirrored sign, so the part takes the sim angle unsigned.
 //! - A part's [`bevy::camera::visibility::VisibilityRange`] is measured from its pivot, not the
 //!   piece origin, so inside a crossfade band a part can sit one LOD off its body (sub-cell).
+//! - A chain part (the rope arch's ropes, [`parble_sim::rope`]) is drawn as [`ROPE_LOD_BANDS`]
+//!   bands per LOD, cut from its mesh by height, each posed rigidly along the sim's segment
+//!   polyline ([`band_matrix`]), so the strand bends where the sim bends it.
 
 use std::collections::BTreeMap;
 
 use bevy::prelude::*;
 use serde::Serialize;
 
+use super::glb::LodMesh;
 use super::{KitDiag, KitMeshes, LODS, PIECES};
 use crate::MarbleFrame;
 
-/// Part angles (millidegrees, sidecar part order) per mechanism instance, keyed by its anchor
-/// cell, at the last two physics ticks.
+/// One mechanism instance's part poses at one tick: part angles (millidegrees, sidecar part
+/// order) and, per part, its segment angles when it is a chain (else empty).
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct PartPoses {
+    pub angles: Vec<i32>,
+    pub segments: Vec<Vec<i32>>,
+}
+
+/// Part poses per mechanism instance, keyed by its anchor cell, at the last two physics ticks.
 #[derive(Resource, Debug, Default, Clone)]
 pub struct PartFrame {
-    pub prev: BTreeMap<[i32; 3], Vec<i32>>,
-    pub curr: BTreeMap<[i32; 3], Vec<i32>>,
+    pub prev: BTreeMap<[i32; 3], PartPoses>,
+    pub curr: BTreeMap<[i32; 3], PartPoses>,
+}
+
+/// Bands a rope of the rope arch is cut into per LOD: each covers `SEGMENTS / bands` sim
+/// segments. The generator puts strand rings at these heights (`blender/kit/kitmech.py`).
+pub const ROPE_LOD_BANDS: [usize; LODS] = [6, 3, 2];
+
+/// Bands per LOD of part `part` of piece `piece`: [`ROPE_LOD_BANDS`] for the rope arch's ropes, 1
+/// for a rigid part.
+pub fn part_bands(piece: &str) -> [usize; LODS] {
+    if piece == parble_sim::behaviour::ROPE_ARCH {
+        ROPE_LOD_BANDS
+    } else {
+        [1; LODS]
+    }
+}
+
+/// `mesh` (a part's mesh in its part frame, the pivot at the origin and the strand hanging down
+/// −Y) cut into `bands` equal height bands of the rope: each triangle goes to the band holding
+/// its centroid, the top band also taking anything above the pivot and the bottom band anything
+/// below the rope's end.
+pub fn split_bands(mesh: &LodMesh, bands: usize) -> Vec<LodMesh> {
+    if bands <= 1 {
+        return vec![mesh.clone()];
+    }
+    let band_m = parble_sim::rope::LENGTH_UM as f32 * 1.0e-6 / bands as f32;
+    let mut out = vec![
+        LodMesh {
+            indices: Vec::new(),
+            ..mesh.clone()
+        };
+        bands
+    ];
+    for t in mesh.indices.as_chunks::<3>().0 {
+        let y: f32 = t
+            .iter()
+            .map(|&i| mesh.positions[i as usize][1])
+            .sum::<f32>()
+            / 3.0;
+        let b = ((-y / band_m).floor().max(0.0) as usize).min(bands - 1);
+        out[b].indices.extend_from_slice(t);
+    }
+    out
 }
 
 /// One part of one piece type: its hinge and its meshes per LOD.
@@ -43,9 +96,10 @@ pub struct PartKit {
     pub rest_mdeg: i32,
     /// The GLB node's rest-pose transform into the piece frame, per LOD.
     pub rest: [Mat4; LODS],
-    pub lods: [Handle<Mesh>; LODS],
+    /// Per LOD, the part's mesh, or its bands top first for a chain part ([`split_bands`]).
+    pub lods: [Vec<Handle<Mesh>>; LODS],
     /// [`Self::lods`] with reversed winding, for mirrored pieces.
-    pub mirrored: [Handle<Mesh>; LODS],
+    pub mirrored: [Vec<Handle<Mesh>>; LODS],
 }
 
 /// One LOD instance of an animated part of the piece anchored at `cell`.
@@ -56,6 +110,8 @@ pub struct KitPart {
     /// [`PartKit`] slot of the piece (not the sidecar index).
     pub slot: usize,
     pub lod: u8,
+    /// Band of a chain part (0 for a rigid part).
+    pub band: u8,
 }
 
 /// One part's pose this frame, for the agent diag (`kit.parts`).
@@ -71,8 +127,11 @@ pub struct PartDiag {
     pub prev_mdeg: Option<i32>,
     pub tick_mdeg: Option<i32>,
     pub alpha: f32,
-    /// The LOD0 instance's rotation in the piece frame, `[x, y, z, w]`.
+    /// The LOD0 instance's rotation in the piece frame, `[x, y, z, w]` (a chain part's top band).
     pub rotation: [f32; 4],
+    /// A chain part's segment angles drawn this frame (interpolated between the two ticks), top
+    /// first; empty for a rigid part.
+    pub segments_mdeg: Vec<f32>,
 }
 
 /// The angle drawn at `alpha` in `[0, 1]` between the previous tick's `prev` (or `curr` when the
@@ -98,6 +157,41 @@ pub fn part_matrix(kit: &PartKit, lod: usize, mdeg: f32) -> Mat4 {
         * kit.rest[lod]
 }
 
+/// Band `band` of chain part `kit` at LOD `lod` posed along segment angles `segments`
+/// (millidegrees, top first): the band's rest strand (straight down from its top joint) turned
+/// about the pivot axis to the chord of the segments it covers (and stretched to its length), its
+/// top joint moved to the polyline's ([`parble_sim::rope::polyline_mdeg`]). With every segment at one angle it is
+/// [`part_matrix`] at that angle.
+pub fn band_matrix(kit: &PartKit, lod: usize, band: usize, bands: usize, segments: &[f32]) -> Mat4 {
+    use parble_sim::rope::{SEGMENT_M, SEGMENTS};
+    let per = SEGMENTS / bands.max(1);
+    let (s0, s1) = (band * per, (band + 1) * per);
+    let mut rad = [0.0_f32; SEGMENTS];
+    for (r, &m) in rad.iter_mut().zip(segments) {
+        *r = ((m - kit.rest_mdeg as f32) * 1.0e-3).to_radians();
+    }
+    // Joints in the swing plane: `u` along the swing, `y` up, from the pivot.
+    let mut joints = [(0.0_f32, 0.0_f32); SEGMENTS + 1];
+    for j in 0..SEGMENTS {
+        let (u, y) = joints[j];
+        joints[j + 1] = (u + SEGMENT_M * rad[j].sin(), y - SEGMENT_M * rad[j].cos());
+    }
+    let (a, b) = (joints[s0], joints[s1]);
+    let chord = (b.0 - a.0).atan2(-(b.1 - a.1));
+    // A band over several segments is stretched along itself to the chord, so it ends on the
+    // next band's top joint (1 for a band of one segment).
+    let stretch = (b.0 - a.0).hypot(b.1 - a.1) / (SEGMENT_M * (s1 - s0) as f32);
+    // A positive turn about the axis swings −Y toward `axis × −Y`.
+    let swing = kit.axis.cross(Vec3::NEG_Y);
+    let top = swing * a.0 + Vec3::Y * a.1;
+    let rest_top = Vec3::NEG_Y * (s0 as f32 * SEGMENT_M);
+    Mat4::from_translation(kit.pivot + top)
+        * Mat4::from_axis_angle(kit.axis, chord)
+        * Mat4::from_scale(Vec3::new(1.0, stretch, 1.0))
+        * Mat4::from_translation(-rest_top - kit.pivot)
+        * kit.rest[lod]
+}
+
 /// Poses every part instance from [`PartFrame`] at the marbles' `alpha` and publishes `kit.parts`.
 pub(super) fn animate_parts(
     frame: Res<PartFrame>,
@@ -113,11 +207,38 @@ pub(super) fn animate_parts(
             continue;
         };
         let key = p.cell.to_array();
-        let curr = frame.curr.get(&key).and_then(|a| a.get(kit.index)).copied();
-        let prev = frame.prev.get(&key).and_then(|a| a.get(kit.index)).copied();
+        let (now, before) = (frame.curr.get(&key), frame.prev.get(&key));
+        let curr = now.and_then(|a| a.angles.get(kit.index)).copied();
+        let prev = before.and_then(|a| a.angles.get(kit.index)).copied();
         let mdeg = curr.map_or(kit.rest_mdeg as f32, |c| interpolated_mdeg(prev, c, alpha));
-        *t = Transform::from_matrix(part_matrix(kit, usize::from(p.lod), mdeg));
-        if p.lod == 0 {
+        let lod = usize::from(p.lod);
+        let bands = kit.lods[lod].len();
+        let seg_now = now.and_then(|a| a.segments.get(kit.index));
+        let seg_before = before.and_then(|a| a.segments.get(kit.index));
+        let segments: Vec<f32> = match seg_now {
+            Some(c) if !c.is_empty() => c
+                .iter()
+                .enumerate()
+                .map(|(j, &m)| {
+                    interpolated_mdeg(seg_before.and_then(|b| b.get(j)).copied(), m, alpha)
+                })
+                .collect(),
+            _ => Vec::new(),
+        };
+        let m = if bands > 1 {
+            // A chain part with no sim instance behind it hangs at its rest angle.
+            let rest = vec![kit.rest_mdeg as f32; parble_sim::rope::SEGMENTS];
+            let s = if segments.is_empty() {
+                &rest
+            } else {
+                &segments
+            };
+            band_matrix(kit, lod, usize::from(p.band), bands, s)
+        } else {
+            part_matrix(kit, lod, mdeg)
+        };
+        *t = Transform::from_matrix(m);
+        if p.lod == 0 && p.band == 0 {
             out.push(PartDiag {
                 cell: key,
                 piece: PIECES[p.piece].0,
@@ -127,6 +248,7 @@ pub(super) fn animate_parts(
                 tick_mdeg: curr,
                 alpha,
                 rotation: t.rotation.to_array(),
+                segments_mdeg: segments,
             });
         }
     }
@@ -216,6 +338,59 @@ mod tests {
             }
         }
         assert_eq!(checked, 15, "mechanism parts");
+    }
+
+    /// A rope's bands: every band of every LOD holds triangles, the bands together are the whole
+    /// strand, and with every segment at one angle each band is posed exactly as the rigid part
+    /// at that angle. Bent, consecutive bands meet at their shared joint.
+    #[test]
+    fn rope_bands_cover_the_strand_and_follow_the_segments() {
+        let piece = parble_sim::behaviour::ROPE_ARCH;
+        let kits = kit_of(piece);
+        let split = glb::decode_split(PIECES[piece_index(piece).unwrap()].1, piece).unwrap();
+        assert_eq!(kits.len(), 8);
+        for (lod, l) in split.iter().enumerate() {
+            let bands = part_bands(piece)[lod];
+            for p in &l.parts {
+                let cut = split_bands(&p.mesh, bands);
+                assert_eq!(cut.len(), bands);
+                assert!(
+                    cut.iter().all(|b| !b.indices.is_empty()),
+                    "{} lod{lod}",
+                    p.name
+                );
+                let n: usize = cut.iter().map(LodMesh::triangles).sum();
+                assert_eq!(n, p.mesh.triangles());
+            }
+        }
+        let k = &kits[1];
+        for (lod, &bands) in ROPE_LOD_BANDS.iter().enumerate() {
+            assert_eq!(k.lods[lod].len(), bands);
+            for mdeg in [-30_000.0_f32, 0.0, 12_500.0] {
+                let seg = [mdeg; parble_sim::rope::SEGMENTS];
+                for b in 0..bands {
+                    let got = band_matrix(k, lod, b, bands, &seg);
+                    let want = part_matrix(k, lod, mdeg);
+                    assert!(got.abs_diff_eq(want, 1e-5), "lod{lod} band {b} at {mdeg}");
+                }
+            }
+            // Bent: each band's bottom joint is the next band's top joint.
+            let seg = [0.0, 5_000.0, 15_000.0, 40_000.0, 70_000.0, 95_000.0];
+            let per = parble_sim::rope::SEGMENTS / bands;
+            let len = parble_sim::rope::SEGMENT_M * per as f32;
+            let joint = |m: Mat4, b: usize| {
+                let local = Vec3::NEG_Y * (b as f32 * len);
+                (m * k.rest[lod].inverse()).transform_point3(k.pivot + local)
+            };
+            for b in 0..bands - 1 {
+                let end = joint(band_matrix(k, lod, b, bands, &seg), b + 1);
+                let start = joint(band_matrix(k, lod, b + 1, bands, &seg), b + 1);
+                assert!(
+                    end.distance(start) < 1e-5,
+                    "lod{lod} joint {b}: {end} vs {start}"
+                );
+            }
+        }
     }
 
     /// The split LODs at the rest angle are exactly the old merged rest-pose meshes.

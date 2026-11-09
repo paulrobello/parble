@@ -31,8 +31,10 @@ PIECE_VERSION = 1
 # open port faces.
 # 2026-11-08: mech_hole_oneway_l1 4, mech_splitter_l3 3, mech_toggle_l3 3, mech_arch_rope_l1 2,
 # mech_stepper_up1_l1 2, mech_stepper_up1_l3 2, animated parts baked into the body's atlas.
+# 2026-11-09: mech_arch_rope_l1 3, each rope's strand cut into bands at the sim's rope segment
+# joints (ROPE_LOD_BANDS), so the renderer bends it along the sim's segments.
 PIECE_VERSIONS = {"mech_gate_oneway_l1": 3, "mech_hole_oneway_l1": 4, "mech_finish": 2, "mech_hopper": 3,
-                  "mech_splitter_l3": 3, "mech_toggle_l3": 3, "mech_checkpoint_l1": 2, "mech_arch_rope_l1": 2,
+                  "mech_splitter_l3": 3, "mech_toggle_l3": 3, "mech_checkpoint_l1": 2, "mech_arch_rope_l1": 3,
                   "mech_stepper_up1_l1": 2, "mech_stepper_up1_l3": 2}
 BUILD = ("mech_finish", "mech_hopper", "mech_splitter_l3", "mech_toggle_l3", "mech_checkpoint_l1",
          "mech_gate_oneway_l1", "mech_hole_oneway_l1", "mech_arch_rope_l1") + tuple(S.STEPPERS)
@@ -76,6 +78,16 @@ ROPE_BOTTOM = 22.0      # 2.3 mm above the round floor under the outer ropes
 KNOT_R = 1.6
 KNOT_H = 3.0
 ROPE_LIMIT_MDEG = 45000  # at 45 degrees a rope's tip stays inside the inset cell
+# The sim bends each rope as ROPE_SEGMENTS equal segments over ARCH_Y - ROPE_BOTTOM
+# (crates/parble-sim/src/rope.rs); the renderer cuts each LOD's strand into ROPE_LOD_BANDS bands
+# by height (crates/parble-render/src/kit/parts.rs) and turns each about its top joint. A band is an
+# open tube that runs ROPE_OVERLAP past its bottom joint, inside the next band (whose radius is
+# ROPE_BAND_STEP larger on odd bands, so the two never share a surface), so the bend's outer side
+# shows no gap.
+ROPE_SEGMENTS = 6
+ROPE_LOD_BANDS = (6, 3, 2)
+ROPE_OVERLAP = 0.6
+ROPE_BAND_STEP = 0.04
 
 
 def piece_version(piece_id):
@@ -513,6 +525,33 @@ def _trapdoor(f0, n):
     return solids
 
 
+def _rope_bands(ring, bands, knot):
+    """One rope's strand as `bands` open tubes, top first: band b from its top joint down past its
+    bottom joint by ROPE_OVERLAP (the last to the knot, or to the rope's end, capped), radius
+    ROPE_R, ROPE_BAND_STEP larger on odd bands. The top band is capped at the arch underside."""
+    seg = (ARCH_Y - ROPE_BOTTOM) / ROPE_SEGMENTS
+    per = ROPE_SEGMENTS // bands
+    end = ROPE_BOTTOM + (KNOT_H if knot else 0.0)
+    solids = []
+    for b in range(bands):
+        r = ROPE_R + (ROPE_BAND_STEP if b % 2 else 0.0)
+        top = ARCH_Y - b * per * seg
+        last = b == bands - 1
+        bottom = end if last else ARCH_Y - (b + 1) * per * seg - ROPE_OVERLAP
+        v, f = _solid_prism(ring(r), "y", bottom, top)
+        n = len(v) // 2
+        # _solid_prism faces: [bottom cap, top cap, sides...]; keep the top cap on the top band
+        # and the bottom cap on a last band with no knot under it.
+        keep = f[2:]
+        if b == 0:
+            keep.append(f[1])
+        if last and not knot:
+            keep.append(f[0])
+        solids.append((v, keep))
+        assert n == len(ring(r))
+    return solids
+
+
 def parts(piece_id, segs=None):
     """[(part dict without collision, [convex solids])], sorted by name. `segs` sets the curved
     outlines' segment count (collision: 8)."""
@@ -531,17 +570,23 @@ def parts(piece_id, segs=None):
     if shape in ("splitter", "toggle"):
         return [_switch_blade(shape, f0, s)]
     if shape == "arch_rope":  # each rope: a strand from the arch underside and a knot at its end
-        n = max(3, s)
+        # Collision (segs None): the whole strand and knot. Render LODs: banded strands
+        # (_rope_bands), 10 / 6 / 3 sides, the LOD2 one without a knot, inside the part budget.
+        n = 8 if segs is None else (10 if segs >= 12 else 6 if segs >= 5 else 3)
+        lod = None if segs is None else (0 if segs >= 12 else 1 if segs >= 5 else 2)
         out = []
         for i, (x, z) in enumerate((x, z) for x in ROPE_ROWS_X for z in ROPE_Z):
             def ring(r, x=x, z=z):
                 return [(x + r * math.cos(2 * math.pi * k / n), z + r * math.sin(2 * math.pi * k / n))
                         for k in range(n)]
-            if n == 3:  # LOD2: one plain strand keeps all eight ropes inside the 120-tri part budget
-                solids = [_solid_prism(ring(ROPE_R), "y", ROPE_BOTTOM, ARCH_Y)]
-            else:
+            if lod is None:
                 solids = [_solid_prism(ring(ROPE_R), "y", ROPE_BOTTOM + KNOT_H, ARCH_Y),
                           _solid_prism(ring(KNOT_R), "y", ROPE_BOTTOM, ROPE_BOTTOM + KNOT_H)]
+            else:
+                knot = lod < 2
+                solids = _rope_bands(ring, ROPE_LOD_BANDS[lod], knot)
+                if knot:
+                    solids.append(_solid_prism(ring(KNOT_R), "y", ROPE_BOTTOM, ROPE_BOTTOM + KNOT_H))
             out.append(({"name": f"anim_rope_{i}", "pivot_um": [B.um(x), B.um(ARCH_Y), B.um(z)],
                          "axis": [0, 0, 1], "rest_mdeg": 0,
                          "limits_mdeg": [-ROPE_LIMIT_MDEG, ROPE_LIMIT_MDEG]}, solids))

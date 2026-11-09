@@ -1,18 +1,18 @@
 {
   "schema": "parble-kit-provenance/1",
   "pieceId": "mech_arch_rope_l1",
-  "pieceVersion": 2,
+  "pieceVersion": 3,
   "route": "scripted",
   "card": "P2-T3",
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "9276cc61ec94c1da6189070705a99329f99a4a56b34a9c678741b00262f63829",
+    "sha256": "cc74cbffe52902088749446754ae91dd2c99993dd8401d1077f59ea91270f5ab",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "c4f75d639b933f91f7fc6c3da58452becce0efdde9771e13e44b154b38893155"
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
   },
   "generatorDeps": [
     {
@@ -25,7 +25,7 @@
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "a730a988db2f5e4242d2a619cff9c4eee0d1c306925f2606a35e786e7c56710e"
+      "sha256": "59040698de5578779afe19ff41a4ca955b39c6b049b653b4c794438b5874726c"
     },
     {
       "path": "blender/kit/kitstepper.py",
@@ -54,32 +54,32 @@
     "channels": {
       "mech_arch_rope_l1_lod0_ao": {
         "colorspace": "Non-Color",
-        "sha256": "54fcc642bad0e5cf17f1171e9903ec3aa7741a127bee9497d86bc0042312fc58",
+        "sha256": "02d1b11b6aa38d8042d1cb75cf2c86cacf89b8799ca5966d775941abb404d81e",
         "size": 512
       },
       "mech_arch_rope_l1_lod0_normal": {
         "colorspace": "Non-Color",
-        "sha256": "ab296169ffeae44c02d2df04dc2a133d700729acf32c8fb1e34713edc16efe90",
+        "sha256": "cad59bb15ca958539a95cb843a4245e0ef964e68e7914499148e53562edae4b9",
         "size": 512
       },
       "mech_arch_rope_l1_lod1_ao": {
         "colorspace": "Non-Color",
-        "sha256": "34a53e54f05111a152dc1e68c7f77019c457294fa2345ca02d1236b49cbdee34",
+        "sha256": "b125b8915636669c785dbbaf2a216b254df2be35ceb7f93627c211258fec693b",
         "size": 256
       },
       "mech_arch_rope_l1_lod1_normal": {
         "colorspace": "Non-Color",
-        "sha256": "c5c4217189fb7dd0cb93bff023651827cab59177c855bfc6204343d2b7e4e3cd",
+        "sha256": "61df9da06dcf2efd66da3637416d68f3fa2a21ad884715c1ba70c61cf4678e71",
         "size": 256
       },
       "mech_arch_rope_l1_lod2_ao": {
         "colorspace": "Non-Color",
-        "sha256": "75722bafa1187d0458d1f2b7e8c657b0285df7717ac8c67407fa224506fbfad1",
+        "sha256": "9e91859ecf565fedc0d6e9b6b2a066a48941245890fa30e029044f4278e13867",
         "size": 128
       },
       "mech_arch_rope_l1_lod2_normal": {
         "colorspace": "Non-Color",
-        "sha256": "6cb53078596588c4b710b2a2b757041ef29254bc2bcd2529cfea2f8b772bd7b7",
+        "sha256": "09c16404638d76e15baf33d028fbc308078c53db39b7f47473a1c16d1727fb9c",
         "size": 128
       }
     }
@@ -105,76 +105,76 @@
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2783,
-      "median": 2732.4,
-      "min": 2114.6
+      "max": 2628.9,
+      "median": 2580.7,
+      "min": 1997.2
     },
     "lod1": {
-      "max": 1407.8,
-      "median": 1397.7,
-      "min": 1069.7
+      "max": 1403.8,
+      "median": 1393.6,
+      "min": 1066.6
     },
     "lod2": {
-      "max": 704.8,
-      "median": 704.8,
-      "min": 605.1
+      "max": 699.3,
+      "median": 699.3,
+      "min": 600.4
     }
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 117524,
+    "glbBytes": 148736,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/mech_arch_rope_l1/mech_arch_rope_l1.glb",
-      "sha256": "2996eadf157e75748ab9ce0fb2e7d6c0a209c0b0826bd44d8176257b7d2da96c",
-      "bytes": 117524
+      "sha256": "e51ec5dd965f1c7481129786e7112bcf2d43937b507a1a9f7fa4909bcbae6445",
+      "bytes": 148736
     },
     {
       "path": "assets/kit/mech_arch_rope_l1/mech_arch_rope_l1.kit.json",
-      "sha256": "2cf6775f84b00460f52b790f510bdd12bcbb860523b50ba24224615c9cee0b5e",
+      "sha256": "fb7ffba57c217e95d4b27dd5b94b15a6a879d3514752fe4ad28cf10f9f379071",
       "bytes": 45315
     },
     {
       "path": "assets/kit/mech_arch_rope_l1/mech_arch_rope_l1_lod0_ao.png",
-      "sha256": "54fcc642bad0e5cf17f1171e9903ec3aa7741a127bee9497d86bc0042312fc58",
-      "bytes": 70975
+      "sha256": "02d1b11b6aa38d8042d1cb75cf2c86cacf89b8799ca5966d775941abb404d81e",
+      "bytes": 92315
     },
     {
       "path": "assets/kit/mech_arch_rope_l1/mech_arch_rope_l1_lod0_normal.png",
-      "sha256": "ab296169ffeae44c02d2df04dc2a133d700729acf32c8fb1e34713edc16efe90",
-      "bytes": 69910
+      "sha256": "cad59bb15ca958539a95cb843a4245e0ef964e68e7914499148e53562edae4b9",
+      "bytes": 44512
     },
     {
       "path": "assets/kit/mech_arch_rope_l1/mech_arch_rope_l1_lod1_ao.png",
-      "sha256": "34a53e54f05111a152dc1e68c7f77019c457294fa2345ca02d1236b49cbdee34",
-      "bytes": 21427
+      "sha256": "b125b8915636669c785dbbaf2a216b254df2be35ceb7f93627c211258fec693b",
+      "bytes": 23095
     },
     {
       "path": "assets/kit/mech_arch_rope_l1/mech_arch_rope_l1_lod1_normal.png",
-      "sha256": "c5c4217189fb7dd0cb93bff023651827cab59177c855bfc6204343d2b7e4e3cd",
-      "bytes": 17688
+      "sha256": "61df9da06dcf2efd66da3637416d68f3fa2a21ad884715c1ba70c61cf4678e71",
+      "bytes": 17238
     },
     {
       "path": "assets/kit/mech_arch_rope_l1/mech_arch_rope_l1_lod2_ao.png",
-      "sha256": "75722bafa1187d0458d1f2b7e8c657b0285df7717ac8c67407fa224506fbfad1",
-      "bytes": 5848
+      "sha256": "9e91859ecf565fedc0d6e9b6b2a066a48941245890fa30e029044f4278e13867",
+      "bytes": 5802
     },
     {
       "path": "assets/kit/mech_arch_rope_l1/mech_arch_rope_l1_lod2_normal.png",
-      "sha256": "6cb53078596588c4b710b2a2b757041ef29254bc2bcd2529cfea2f8b772bd7b7",
-      "bytes": 6658
+      "sha256": "09c16404638d76e15baf33d028fbc308078c53db39b7f47473a1c16d1727fb9c",
+      "bytes": 6980
     },
     {
       "path": "assets-source/kit/mech_arch_rope_l1/mech_arch_rope_l1_high.blend",
-      "sha256": "75f37e118d733259c7005fb6db9a6a3dc23e5c51cecf5b5059391632f57731e3",
-      "bytes": 162066
+      "sha256": "3546e37b3dbce0eba2279addd29524dd31e58d75fbe89a7471f7bc84484f6947",
+      "bytes": 168679
     },
     {
       "path": "assets-source/kit/mech_arch_rope_l1/mech_arch_rope_l1_low.blend",
-      "sha256": "7a3be9f68100b96b56d06366fa1dec68afc29cb05f53af3458624d0fe244aa8e",
-      "bytes": 135845
+      "sha256": "4a33d228afcbb95cac8bb89d2c94615762f6d5c34b1403718c1a1ed5b4000b0d",
+      "bytes": 142181
     }
   ],
   "references": [

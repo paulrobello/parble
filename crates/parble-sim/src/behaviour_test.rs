@@ -1240,6 +1240,72 @@ fn rope_arch_ropes_swing_away_from_the_marble_and_settle() {
     }
 }
 
+/// The ropes are drawn along their segments ([`crate::rope::polyline_mdeg`] of
+/// `part_segments`). At every tick of a pass, in both directions and across the speed sweep, no
+/// drawn strand point is inside the marble, and the ropes the marble reaches bend along their
+/// length (their segments differ by more than 20°) rather than turning as sticks.
+#[test]
+fn rope_arch_ropes_bend_round_the_marble_and_never_pass_through_it() {
+    let piece = parble_kit::builtin()
+        .piece(&parble_core::PieceId::new(ROPE_ARCH).unwrap())
+        .unwrap();
+    for dir in [1.0_f32, -1.0] {
+        for speed in [0.15_f32, 0.3, 0.6, 0.8] {
+            let layout = [
+                place("blk_straight_l1", 0, 0, 0, 0),
+                place(ROPE_ARCH, 1, 0, 0, 0),
+                place("blk_straight_l1", 2, 0, 0, 0),
+            ];
+            let mut sim = rig(&layout, 1);
+            let x0 = if dir > 0.0 { -0.02 } else { 0.14 };
+            launch(
+                &mut sim,
+                Vector::new(x0, rest(1), 0.0),
+                Vector::X * speed * dir,
+            );
+            let mut worst = f32::MAX;
+            let mut bend = [0_i32; 8];
+            for _ in 0..600 {
+                sim.tick(1);
+                let v = &sim.mechanisms()[0];
+                let c = Vector::from(sim.marbles()[0].position);
+                for (k, part) in piece.animated_parts.iter().enumerate() {
+                    let seg = &v.part_segments[k];
+                    assert_eq!(seg.len(), crate::rope::SEGMENTS);
+                    let spread = seg.iter().max().unwrap() - seg.iter().min().unwrap();
+                    bend[k] = bend[k].max(spread);
+                    let [px, py, pz] = part.pivot_um.map(|c| c as f32 * 1.0e-6);
+                    let pivot = Vector::new(CELL + px, py, pz);
+                    let pts = crate::rope::polyline_mdeg(seg);
+                    for w in pts.windows(2) {
+                        for i in 0..=4 {
+                            let t = i as f32 / 4.0;
+                            let u = w[0].0 + (w[1].0 - w[0].0) * t;
+                            let y = w[0].1 + (w[1].1 - w[0].1) * t;
+                            let p = pivot + Vector::new(u, y, 0.0);
+                            let gap = (p - c).length() - R - crate::rope::STRAND_R_M;
+                            worst = worst.min(gap);
+                        }
+                    }
+                }
+            }
+            assert!(
+                worst > -1.0e-4,
+                "dir {dir} speed {speed}: a strand point is {:.2} mm inside the marble",
+                -worst * 1.0e3
+            );
+            // The inner ropes (z = ±4.5 mm) are in the marble's path.
+            for k in [1, 2, 5, 6] {
+                assert!(
+                    bend[k] > 20_000,
+                    "dir {dir} speed {speed}: rope {k} bends at most {} mdeg",
+                    bend[k]
+                );
+            }
+        }
+    }
+}
+
 #[test]
 fn rope_arch_drag_keeps_the_same_share_for_every_marble_size() {
     // The zone a marble's centre crosses grows with its radius, and k shrinks with it.
@@ -1251,11 +1317,6 @@ fn rope_arch_drag_keeps_the_same_share_for_every_marble_size() {
             "radius {r}: keeps {keep}"
         );
     }
-    // The swing keyframes are integers that end at rest.
-    let k = rope_swing(0, 20_000);
-    assert_eq!(k.sample(0), 0);
-    assert_eq!(k.sample(u64::from(ROPE_PUSH_TICKS)), 20_000);
-    assert_eq!(k.sample(u64::from(ROPE_SWING_TICKS)), 0);
 }
 
 #[test]
