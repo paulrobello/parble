@@ -7,8 +7,15 @@
 //! A [`Rule`] is a camera rule evaluated every frame into a [`Pose`] (eye, unit forward, vertical
 //! field of view, DoF focus distance):
 //!
-//! - [`Rule::Follow`]: the low, close tracking shot behind the marble (distance, height, lead),
-//!   critically damped springs on the eye and the look point.
+//! - [`Rule::Follow`]: the low tracking shot. It frames the marble's *action window*
+//!   ([`action_window`]): its path over the last [`FOLLOW_TRAIL_S`], its look-ahead along its
+//!   velocity for [`FOLLOW_LEAD_S`], and any point of interest (a mechanism) near that path. The
+//!   look point and the DoF focus sit on the window's centre, ahead of the marble, and the camera
+//!   pulls back from its closest (`back`, `up`) to fit the whole window. Its bearing follows the
+//!   window's chord (oldest trail point to the end of the look-ahead), so it starts to turn before
+//!   a corner and averages out a switchback, and the yaw is rate- and acceleration-limited
+//!   ([`FOLLOW_MAX_YAW_RATE`], [`FOLLOW_MAX_YAW_ACCEL`]): a corner never whips it round.
+//!   Critically damped springs smooth the eye and the look point.
 //! - [`Rule::Frame`]: pull back and fit a [`Target`] (the marble, a point, or a vertical axis
 //!   segment) together with the marble, at a set elevation and either a set bearing or the bearing
 //!   the camera had when the shot began. An axis stays centred in frame; the distance follows the
@@ -45,22 +52,66 @@ use serde::Serialize;
 /// Default vertical field of view (degrees).
 pub const FOV_DEG: f32 = 35.0;
 
-/// Follow shot defaults: distance behind the marble, height above it, sideways offset, look-ahead
-/// (metres). The side offset stays inside the 28 mm channel so the near wall never blocks the
-/// marble.
+/// Follow shot defaults (metres): the closest the camera comes (`back` behind and `up` above the
+/// action window's centre, which also sets the view's elevation), and the shortest look-ahead.
 pub const FOLLOW_BACK_M: f32 = 0.14;
 pub const FOLLOW_UP_M: f32 = 0.07;
-pub const FOLLOW_SIDE_M: f32 = 0.010;
 pub const FOLLOW_AHEAD_M: f32 = 0.05;
 /// Spring smoothing times (seconds) of the follow eye and look point. The spring targets lead by
 /// `velocity × smoothing time`, which cancels the steady lag at constant speed, so the springs
-/// only damp changes (the ramp foot, wall rebounds).
-pub const FOLLOW_EYE_SMOOTH_S: f32 = 0.15;
-pub const FOLLOW_LOOK_SMOOTH_S: f32 = 0.06;
+/// only damp changes (the ramp foot, wall rebounds, the window growing and shrinking).
+pub const FOLLOW_EYE_SMOOTH_S: f32 = 0.30;
+pub const FOLLOW_LOOK_SMOOTH_S: f32 = 0.30;
 /// Smoothing of a framing shot's look point and distance (seconds).
 pub const FRAME_SMOOTH_S: f32 = 0.35;
-/// Below this speed the follow heading holds its last value (m/s).
-const DIR_MIN_SPEED: f32 = 0.05;
+/// Fastest a framing shot changes its distance (m/s).
+pub const FRAME_MAX_PULL_M_S: f32 = 0.4;
+/// The follow shot's action window: the marble's path over the last [`FOLLOW_TRAIL_S`], and its
+/// look-ahead along its velocity for [`FOLLOW_LEAD_S`] (at least the rule's `ahead`).
+pub const FOLLOW_TRAIL_S: f32 = 0.25;
+pub const FOLLOW_LEAD_S: f32 = 0.5;
+/// Points of interest within this distance of the window's path join it (metres).
+pub const FOLLOW_INTEREST_M: f32 = 0.06;
+/// The follow camera's yaw: it turns towards the window's heading with this response time, never
+/// faster than [`FOLLOW_MAX_YAW_RATE`] (rad/s) and never changing that rate faster than
+/// [`FOLLOW_MAX_YAW_ACCEL`] (rad/s²).
+pub const FOLLOW_YAW_RESPONSE_S: f32 = 0.7;
+pub const FOLLOW_MAX_YAW_RATE: f32 = 0.85;
+pub const FOLLOW_MAX_YAW_ACCEL: f32 = 2.5;
+/// Farthest the follow shot pulls back while the marble is out of sight in a hidden path, to hold
+/// the marble's way in and its exit together (metres).
+pub const FOLLOW_HIDDEN_MAX_M: f32 = 1.4;
+/// Steepest the follow view looks down when it rises to see past solid track (radians).
+pub const FOLLOW_MAX_ELEVATION: f32 = 1.3;
+/// The clear-view moves the follow shot tries, cheapest first: (extra elevation, extra bearing),
+/// radians. The first with a clear line of sight to the marble and its look-ahead wins.
+pub const CLEAR_VIEWS: [(f32, f32); 15] = [
+    (0.0, 0.0),
+    (0.2, 0.0),
+    (0.4, 0.0),
+    (0.0, 0.5),
+    (0.0, -0.5),
+    (0.6, 0.0),
+    (0.4, 0.5),
+    (0.4, -0.5),
+    (0.8, 0.0),
+    (0.0, 1.0),
+    (0.0, -1.0),
+    (1.0, 0.0),
+    (0.6, 1.0),
+    (0.6, -1.0),
+    (1.2, 0.0),
+];
+/// The clear-view moves of a framing shot: it keeps its bearing and only rises.
+pub const FRAME_LIFTS: [(f32, f32); 5] =
+    [(0.0, 0.0), (0.2, 0.0), (0.4, 0.0), (0.6, 0.0), (0.8, 0.0)];
+/// The follow shot returns to its plain view once that has been clear this long (seconds).
+pub const CLEAR_RELEASE_S: f32 = 0.5;
+/// Below this chord the heading holds (the marble is nearly still).
+const FOLLOW_MIN_CHORD_M: f32 = 0.02;
+/// Farthest the follow shot pulls back to fit its window (metres), and how loose the fit is.
+pub const FOLLOW_MAX_M: f32 = 0.9;
+pub const FOLLOW_FIT_MARGIN: f32 = 1.15;
 
 /// Blend time of a scripted cue change (seconds).
 pub const CUE_BLEND_S: f32 = 0.8;
@@ -232,13 +283,6 @@ pub fn smooth_damp(cur: Vec3, target: Vec3, vel: &mut Vec3, smooth_s: f32, dt: f
     target + (change + temp) * exp
 }
 
-/// Ideal follow eye and look point for a marble at `p` heading `dir` (unit, horizontal).
-pub fn follow_pose(p: Vec3, dir: Vec3, back: f32, up: f32, ahead: f32) -> (Vec3, Vec3) {
-    let side = dir.cross(Vec3::Y).normalize_or_zero();
-    let eye = p - dir * back + Vec3::Y * up + side * FOLLOW_SIDE_M;
-    (eye, p + dir * ahead)
-}
-
 /// Unit forward for a bearing and elevation (positive looks down).
 pub fn forward_of(azimuth: f32, elevation: f32) -> Vec3 {
     let (sa, ca) = azimuth.sin_cos();
@@ -264,6 +308,161 @@ pub fn fit_distance(radius: f32, fov: f32, aspect: f32, margin: f32) -> f32 {
     radius * margin / half_v.min(half_h).sin().max(1e-3)
 }
 
+/// Angle in (−π, π].
+pub fn wrap_angle(a: f32) -> f32 {
+    let t = std::f32::consts::TAU;
+    let a = a.rem_euclid(t);
+    if a > std::f32::consts::PI { a - t } else { a }
+}
+
+/// The follow shot's action window: its bounding-box centre, the radius around that centre that
+/// holds every point (plus the marble's pad), and the chord from the oldest trail point to the end
+/// of the look-ahead.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ActionWindow {
+    pub centre: Vec3,
+    pub radius: f32,
+    pub chord: Vec3,
+    /// The look-ahead from the marble.
+    pub lead: Vec3,
+    /// Every point of the window.
+    pub points: Vec<Vec3>,
+}
+
+/// The action window of a marble with recent path `hist` (oldest first): the trail, the marble,
+/// its look-ahead along its velocity, and the points of `interest` near that path.
+pub fn action_window(
+    m: MarbleIn,
+    hist: &[(f32, Vec3)],
+    ahead: f32,
+    interest: &[Vec3],
+) -> ActionWindow {
+    let speed = m.v.length();
+    let lead = if speed > 1e-3 {
+        m.v / speed * (speed * FOLLOW_LEAD_S).max(ahead)
+    } else {
+        Vec3::ZERO
+    };
+    let mut pts: Vec<Vec3> = hist.iter().map(|(_, p)| *p).collect();
+    pts.extend((1..=4).map(|k| m.p + lead * (k as f32 / 4.0)));
+    pts.push(m.p);
+    let path = pts.clone();
+    pts.extend(
+        interest
+            .iter()
+            .copied()
+            .filter(|q| path.iter().any(|p| p.distance(*q) < FOLLOW_INTEREST_M)),
+    );
+    let (lo, hi) = pts
+        .iter()
+        .fold((pts[0], pts[0]), |(lo, hi), p| (lo.min(*p), hi.max(*p)));
+    let centre = (lo + hi) * 0.5;
+    let radius = pts.iter().map(|p| p.distance(centre)).fold(0.0, f32::max) + MARBLE_PAD_M;
+    let oldest = hist.first().map_or(m.p, |(_, p)| *p);
+    ActionWindow {
+        centre,
+        radius,
+        chord: m.p + lead - oldest,
+        lead,
+        points: pts,
+    }
+}
+
+/// Distance from `centre` along `-forward` at which every one of `points` (padded by the marble)
+/// sits inside a view of vertical field of view `fov` and width/height `aspect`, `margin` loose.
+/// Points are measured in the view's own basis, so a path running away from the camera, which
+/// the view foreshortens, costs little distance.
+pub fn fit_points(
+    points: &[Vec3],
+    centre: Vec3,
+    forward: Vec3,
+    fov: f32,
+    aspect: f32,
+    margin: f32,
+) -> f32 {
+    let right = forward.cross(Vec3::Y).normalize_or(Vec3::X);
+    let up = right.cross(forward);
+    let tv = (fov * 0.5).tan().max(1e-3);
+    let th = tv * aspect.max(0.1);
+    points
+        .iter()
+        .map(|p| {
+            let r = *p - centre;
+            let h = (r.dot(right).abs() + MARBLE_PAD_M) * margin / th;
+            let v = (r.dot(up).abs() + MARBLE_PAD_M) * margin / tv;
+            h.max(v) - r.dot(forward)
+        })
+        .fold(0.0, f32::max)
+}
+
+/// A piece that hides the marble (a drop shaft, a tower, a tunnel, a hole): its box, and where the
+/// marble comes out, from the piece's exit port (metres).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct HiddenPath {
+    pub min: Vec3,
+    pub max: Vec3,
+    pub exit: Vec3,
+}
+
+impl HiddenPath {
+    pub fn contains(&self, p: Vec3) -> bool {
+        p.cmpge(self.min).all() && p.cmple(self.max).all()
+    }
+}
+
+/// Solid track that can block the view: an axis-aligned box (metres).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Solid {
+    pub min: Vec3,
+    pub max: Vec3,
+}
+
+impl Solid {
+    pub fn contains(&self, p: Vec3) -> bool {
+        p.cmpge(self.min).all() && p.cmple(self.max).all()
+    }
+
+    /// Whether the segment `a`-`b` passes through the box (slab test).
+    pub fn hit(&self, a: Vec3, b: Vec3) -> bool {
+        let d = b - a;
+        let (mut t0, mut t1) = (0.0f32, 1.0f32);
+        for i in 0..3 {
+            let (o, di, lo, hi) = (a[i], d[i], self.min[i], self.max[i]);
+            if di.abs() < 1e-9 {
+                if o < lo || o > hi {
+                    return false;
+                }
+            } else {
+                let (ta, tb) = ((lo - o) / di, (hi - o) / di);
+                t0 = t0.max(ta.min(tb));
+                t1 = t1.min(ta.max(tb));
+                if t0 > t1 {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+}
+
+/// Whether `eye` sees `target` past `solids`. A solid holding the target (the piece the marble
+/// rides in) does not count.
+pub fn line_of_sight(eye: Vec3, target: Vec3, solids: &[Solid]) -> bool {
+    solids
+        .iter()
+        .filter(|s| !s.contains(target))
+        .all(|s| !s.hit(eye, target))
+}
+
+/// Moves `x` towards `target` with the follow yaw's response, rate and acceleration limits.
+fn approach(x: &mut f32, rate: &mut f32, target: f32, dt: f32) {
+    let want =
+        ((target - *x) / FOLLOW_YAW_RESPONSE_S).clamp(-FOLLOW_MAX_YAW_RATE, FOLLOW_MAX_YAW_RATE);
+    let dv = FOLLOW_MAX_YAW_ACCEL * dt;
+    *rate += (want - *rate).clamp(-dv, dv);
+    *x += *rate * dt;
+}
+
 /// One marble as the director sees it.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MarbleIn {
@@ -272,7 +471,7 @@ pub struct MarbleIn {
 }
 
 /// The inputs of one frame.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Frame<'a> {
     /// Interpolated marbles in spawn order.
     pub marbles: &'a [MarbleIn],
@@ -282,6 +481,13 @@ pub struct Frame<'a> {
     pub aspect: f32,
     /// Completed runs (a change is a restart).
     pub run: u32,
+    /// Points of interest (mechanisms, zone targets): the follow shot's action window takes in
+    /// those near the marble's path.
+    pub interest: &'a [Vec3],
+    /// Pieces that hide the marble, and where it comes out of each.
+    pub hidden: &'a [HiddenPath],
+    /// Solid track that can block the view.
+    pub solids: &'a [Solid],
 }
 
 /// A trigger volume in metres.
@@ -352,7 +558,7 @@ enum Key {
 }
 
 /// A live shot: its rule, the marble it is bound to, and its springs.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct Shot {
     rule: Rule,
     marble: Option<usize>,
@@ -361,17 +567,77 @@ struct Shot {
     eye_vel: Vec3,
     look: Vec3,
     look_vel: Vec3,
-    dir: Vec3,
     /// Framing: the bearing captured at the start, and the smoothed distance.
     azimuth: f32,
     dist: f32,
     dist_vel: Vec3,
     /// Orbit angle.
     angle: f32,
+    /// Follow: the shot's own clock, the marble's recent path (time, position) and the yaw rate.
+    clock: f32,
+    hist: Vec<(f32, Vec3)>,
+    yaw_rate: f32,
+    /// Follow: the clear-view move in play (extra elevation and bearing), the elevation's
+    /// rate-limited state, and how long the plain view has been clear.
+    clear: (f32, f32),
+    lift: f32,
+    lift_rate: f32,
+    plain_clear_s: f32,
+    lead_k: f32,
     last: Option<Pose>,
 }
 
 impl Shot {
+    /// Picks the clear-view move in play from `moves` (cheapest first) and eases the elevation
+    /// towards it with the follow rate limits. `clear` tests a move from where the shot is going,
+    /// `blocked_now` says the camera's own eye is blocked (its springs lag), and `off` turns the
+    /// search off (nothing solid, or the marble is meant to be hidden).
+    fn avoid(
+        &mut self,
+        off: bool,
+        first: bool,
+        dt: f32,
+        clear: &dyn Fn((f32, f32)) -> bool,
+        blocked_now: bool,
+        moves: &[(f32, f32)],
+    ) {
+        if off {
+            self.clear = (0.0, 0.0);
+            self.plain_clear_s = 0.0;
+        } else {
+            self.plain_clear_s = if clear((0.0, 0.0)) {
+                self.plain_clear_s + dt
+            } else {
+                0.0
+            };
+            if first || self.plain_clear_s >= CLEAR_RELEASE_S {
+                self.clear = (0.0, 0.0);
+            }
+            // The camera itself still blocked: try only the moves past the one in play.
+            let from = if !first && blocked_now {
+                moves
+                    .iter()
+                    .position(|c| *c == self.clear)
+                    .map_or(0, |i| i + 1)
+            } else {
+                0
+            };
+            if from > 0 || !clear(self.clear) {
+                self.clear = moves[from.min(moves.len() - 1)..]
+                    .iter()
+                    .copied()
+                    .find(|c| clear(*c))
+                    .unwrap_or(moves[moves.len() - 1]);
+            }
+        }
+        if first {
+            self.lift = self.clear.0;
+            self.lift_rate = 0.0;
+        } else {
+            approach(&mut self.lift, &mut self.lift_rate, self.clear.0, dt);
+        }
+    }
+
     fn new(rule: Rule, marble: Option<usize>) -> Self {
         Self {
             rule,
@@ -381,11 +647,18 @@ impl Shot {
             eye_vel: Vec3::ZERO,
             look: Vec3::ZERO,
             look_vel: Vec3::ZERO,
-            dir: Vec3::ZERO,
             azimuth: 0.0,
             dist: 0.0,
             dist_vel: Vec3::ZERO,
             angle: 0.0,
+            clock: 0.0,
+            hist: Vec::new(),
+            yaw_rate: 0.0,
+            clear: (0.0, 0.0),
+            lift: 0.0,
+            lift_rate: 0.0,
+            plain_clear_s: 0.0,
+            lead_k: 1.0,
             last: None,
         }
     }
@@ -405,34 +678,123 @@ impl Shot {
         let pose = match self.rule {
             Rule::Follow { back, up, ahead } => {
                 let m = m?;
-                let flat = Vec3::new(m.v.x, 0.0, m.v.z);
-                let want = if flat.length() > DIR_MIN_SPEED {
-                    Some(flat.normalize())
+                self.clock += dt;
+                self.hist.push((self.clock, m.p));
+                let keep = self.clock - FOLLOW_TRAIL_S;
+                let old = self.hist.iter().take_while(|(t, _)| *t < keep).count();
+                self.hist.drain(..old.min(self.hist.len() - 1));
+                let mut w = action_window(m, &self.hist, ahead, f.interest);
+                // A hidden path: the marble is out of sight, so the window reaches to where it
+                // will come out, and the heading turns towards the exit.
+                let hidden = f.hidden.iter().find(|h| h.contains(m.p));
+                if let Some(h) = hidden {
+                    w.points.push(h.exit);
+                    let (lo, hi) = w
+                        .points
+                        .iter()
+                        .fold((h.exit, h.exit), |(lo, hi), p| (lo.min(*p), hi.max(*p)));
+                    w.centre = (lo + hi) * 0.5;
+                    w.chord = h.exit - self.hist.first().map_or(m.p, |(_, p)| *p);
+                }
+                let fov = FOV_DEG.to_radians();
+                // Heading: the window's chord, from the oldest trail point to the end of the
+                // look-ahead, so a corner turns the camera before the marble and a switchback
+                // averages out instead of swinging it.
+                let chord = Vec3::new(w.chord.x, 0.0, w.chord.z);
+                let heading =
+                    (chord.length() > FOLLOW_MIN_CHORD_M).then(|| azimuth_of(Vec3::ZERO, chord));
+                // The bearing swing of the clear-view move in play joins the heading, through the
+                // same yaw limiter.
+                let want = heading.map(|h| h + self.clear.1);
+                if first {
+                    // Start from the bearing the camera already has, so a shot change never
+                    // swings it round: the yaw limiter turns it towards the heading from there.
+                    self.azimuth = from
+                        .map(|p| azimuth_of(p.eye, w.centre))
+                        .or(heading)
+                        .unwrap_or(-std::f32::consts::FRAC_PI_2);
+                    self.yaw_rate = 0.0;
+                } else if let Some(want) = want {
+                    // Rate- and acceleration-limited yaw: a slow, eased swing whatever the turn.
+                    let err = wrap_angle(want - self.azimuth);
+                    let rate = (err / FOLLOW_YAW_RESPONSE_S)
+                        .clamp(-FOLLOW_MAX_YAW_RATE, FOLLOW_MAX_YAW_RATE);
+                    let dv = FOLLOW_MAX_YAW_ACCEL * dt;
+                    self.yaw_rate += (rate - self.yaw_rate).clamp(-dv, dv);
+                    self.azimuth = wrap_angle(self.azimuth + self.yaw_rate * dt);
                 } else {
-                    None
+                    self.yaw_rate = 0.0;
+                }
+                // Distance: the rule's close shot, pulled back to fit the action window.
+                let base = up.atan2(back);
+                let near = back.hypot(up);
+                let far = if hidden.is_some() {
+                    FOLLOW_HIDDEN_MAX_M
+                } else {
+                    FOLLOW_MAX_M
                 };
-                self.dir = match (self.dir == Vec3::ZERO, want) {
-                    (true, w) => w.unwrap_or(Vec3::X),
-                    (false, Some(w)) => self.dir.lerp(w, (dt * 6.0).min(1.0)).normalize_or(w),
-                    (false, None) => self.dir,
+                let view = |azimuth: f32, lift: f32| {
+                    let fwd = forward_of(azimuth, (base + lift).min(FOLLOW_MAX_ELEVATION));
+                    let d = fit_points(&w.points, w.centre, fwd, fov, f.aspect, FOLLOW_FIT_MARGIN)
+                        .clamp(near, far);
+                    (fwd, w.centre - fwd * d)
                 };
-                let (eye_t, look_t) = follow_pose(m.p, self.dir, back, up, ahead);
+                // Line of sight: the marble and its look-ahead must stay in view past solid track.
+                // A candidate view must be clear both at the bearing the camera has now (the yaw
+                // limiter lags a turn) and at the bearing it is heading for, and against the
+                // look-ahead as well as the marble, so the camera starts to rise or swing before
+                // the marble passes behind a piece. A hidden path is the exception: there the
+                // marble is meant to be out of sight.
+                // While the marble is hidden, the view must see the exit instead, and a little
+                // way out of it.
+                let probes: Vec<Vec3> = match hidden {
+                    Some(h) => {
+                        let mid = (h.min + h.max) * 0.5;
+                        let out = Vec3::new(h.exit.x - mid.x, 0.0, h.exit.z - mid.z);
+                        vec![h.exit, h.exit + out.normalize_or_zero() * 0.04]
+                    }
+                    None => vec![m.p, m.p + w.lead * 0.5, m.p + w.lead, m.p + w.lead * 2.0],
+                };
+                let (az, eye_now) = (self.azimuth, self.eye);
+                let aim = heading.unwrap_or(az);
+                let sees = |eye: Vec3| probes.iter().all(|p| line_of_sight(eye, *p, f.solids));
+                self.avoid(
+                    f.solids.is_empty(),
+                    first,
+                    dt,
+                    &|(lift, swing)| sees(view(aim + swing, lift).1) && sees(view(az, lift).1),
+                    !sees(eye_now),
+                    &CLEAR_VIEWS,
+                );
+                let (_, eye_t) = view(self.azimuth, self.lift);
+                let look_t = w.centre;
+                // While hidden, the marble's velocity is no guide to the shot: no spring lead,
+                // and it eases back in over half a second once the marble is out.
+                self.lead_k = if hidden.is_some() {
+                    0.0
+                } else {
+                    (self.lead_k + dt / 0.5).min(1.0)
+                };
+                let lead_v = m.v * self.lead_k;
+                let slow = 1.0;
                 if first {
                     self.eye = eye_t;
                     self.look = look_t;
                 } else {
+                    // The targets lead by the marble's velocity × smoothing time, which cancels
+                    // the springs' steady lag at constant speed.
                     self.eye = smooth_damp(
                         self.eye,
-                        eye_t + m.v * FOLLOW_EYE_SMOOTH_S,
+                        eye_t + lead_v * FOLLOW_EYE_SMOOTH_S,
                         &mut self.eye_vel,
-                        FOLLOW_EYE_SMOOTH_S,
+                        FOLLOW_EYE_SMOOTH_S * slow,
                         dt,
                     );
                     self.look = smooth_damp(
                         self.look,
-                        look_t + m.v * FOLLOW_LOOK_SMOOTH_S,
+                        look_t + lead_v * FOLLOW_LOOK_SMOOTH_S,
                         &mut self.look_vel,
-                        FOLLOW_LOOK_SMOOTH_S,
+                        FOLLOW_LOOK_SMOOTH_S * slow,
                         dt,
                     );
                 }
@@ -440,8 +802,9 @@ impl Shot {
                 Pose {
                     eye: self.eye,
                     forward: fwd,
-                    fov: FOV_DEG.to_radians(),
-                    focus: depth_to(self.eye, fwd, m.p),
+                    fov,
+                    // The action area is in focus: the window's centre, not the marble point.
+                    focus: depth_to(self.eye, fwd, self.look),
                 }
             }
             Rule::Frame {
@@ -476,7 +839,7 @@ impl Shot {
                 } else {
                     self.look =
                         smooth_damp(self.look, centre, &mut self.look_vel, FRAME_SMOOTH_S, dt);
-                    self.dist = smooth_damp(
+                    let next = smooth_damp(
                         Vec3::splat(self.dist),
                         Vec3::splat(dist),
                         &mut self.dist_vel,
@@ -484,8 +847,32 @@ impl Shot {
                         dt,
                     )
                     .x;
+                    // A marble rolling away from the target pulls the camera back no faster
+                    // than this, so the shot never races after it.
+                    let cap = FRAME_MAX_PULL_M_S * dt;
+                    self.dist += (next - self.dist).clamp(-cap, cap);
                 }
-                let fwd = forward_of(self.azimuth, elevation);
+                // The marble stays in sight past solid track: the view rises when it would not.
+                let (az, look, dist) = (self.azimuth, self.look, self.dist);
+                let eye_at = |lift: f32| {
+                    look - forward_of(az, (elevation + lift).min(FOLLOW_MAX_ELEVATION)) * dist
+                };
+                let hidden = f.hidden.iter().any(|h| h.contains(m.p));
+                let eye_now = eye_at(self.lift);
+                self.avoid(
+                    hidden || f.solids.is_empty(),
+                    first,
+                    dt,
+                    &|(lift, _)| {
+                        let e = eye_at(lift);
+                        [m.p, m.p + m.v * 0.25, m.p + m.v * 0.5]
+                            .iter()
+                            .all(|p| line_of_sight(e, *p, f.solids))
+                    },
+                    !line_of_sight(eye_now, m.p, f.solids),
+                    &FRAME_LIFTS,
+                );
+                let fwd = forward_of(az, (elevation + self.lift).min(FOLLOW_MAX_ELEVATION));
                 let eye = self.look - fwd * self.dist;
                 let focus_m = match (focus, target) {
                     (Focus::Distance { m }, _) => m,
@@ -662,6 +1049,19 @@ pub struct DirectorDiag {
     /// Zones known, and the zones the followed marble is in (by index).
     pub zones: usize,
     pub inside: Vec<usize>,
+    /// The followed marble's hidden path, when it is in one: where it will come out and the
+    /// estimated seconds until it does (distance over its speed).
+    pub hidden: Option<HiddenDiag>,
+    /// Whether the camera sees the followed marble past solid track this frame.
+    pub clear: Option<bool>,
+}
+
+/// A hidden path the followed marble is in.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HiddenDiag {
+    pub exit: [f32; 3],
+    pub eta_s: f32,
 }
 
 /// The director (see the module docs).
@@ -838,6 +1238,17 @@ impl Director {
         d.followed = self.followed;
         d.zones = zones.len();
         d.inside = (0..zones.len()).filter(|i| self.inside[*i]).collect();
+        let m = self.followed.and_then(|i| f.marbles.get(i)).copied();
+        d.hidden = m.and_then(|m| {
+            let h = f.hidden.iter().find(|h| h.contains(m.p))?;
+            Some(HiddenDiag {
+                exit: h.exit.to_array(),
+                eta_s: m.p.distance(h.exit) / m.v.length().max(0.2),
+            })
+        });
+        d.clear = m
+            .zip(pose)
+            .map(|(m, p)| line_of_sight(p.eye, m.p, f.solids));
         pose
     }
 }
@@ -862,6 +1273,8 @@ mod tests {
             dt: DT,
             aspect: 16.0 / 9.0,
             run,
+            interest: &[],
+            ..Default::default()
         }
     }
 
@@ -993,12 +1406,13 @@ mod tests {
         let mut x = 0.4f32;
         let mut vx = 0.5f32;
         for i in 0..900 {
-            if i == 100 {
-                vx = -0.5;
-            }
-            if i == 200 {
-                vx = 0.0;
-            }
+            // Speed changes at 4 m/s² (a marble rebounding off a wall), never instantly.
+            let want = match i {
+                0..100 => 0.5,
+                100..200 => -0.5,
+                _ => 0.0,
+            };
+            vx += (want - vx).clamp(-4.0 * DT, 4.0 * DT);
             x += vx * DT;
             let m1v = if i > 400 { 0.4 } else { 0.0 };
             let m = [
@@ -1063,6 +1477,8 @@ mod tests {
                         dt: DT,
                         aspect,
                         run: i as u32,
+                        interest: &[],
+                        ..Default::default()
                     },
                     None,
                     std::slice::from_ref(&zone),
@@ -1173,6 +1589,126 @@ mod tests {
         assert!(p.eye.distance(Vec3::new(0.0, 0.3, 1.0)) < 0.01);
     }
 
+    /// A marble path: `n` frames of (position, velocity). Straight +X at `v` for `straight` frames,
+    /// a 90° left turn onto −Z round a 90 mm arc (the kit's rail curve), then straight −Z.
+    fn corner_path(v: f32, straight: usize, after: usize) -> Vec<MarbleIn> {
+        let r = 0.09;
+        let mut out = Vec::new();
+        let mut p = Vec3::new(0.0, 0.1, 0.0);
+        for _ in 0..straight {
+            p.x += v * DT;
+            out.push(MarbleIn { p, v: Vec3::X * v });
+        }
+        let c = p + Vec3::new(0.0, 0.0, -r);
+        let arc_frames = ((std::f32::consts::FRAC_PI_2 * r / v) / DT).round() as usize;
+        for k in 1..=arc_frames {
+            let a = std::f32::consts::FRAC_PI_2 * k as f32 / arc_frames as f32;
+            let q = c + Vec3::new(a.sin() * r, 0.0, a.cos() * r);
+            let dir = Vec3::new(a.cos(), 0.0, -a.sin());
+            out.push(MarbleIn { p: q, v: dir * v });
+        }
+        p = *out.last().map(|m| &m.p).unwrap();
+        for _ in 0..after {
+            p.z -= v * DT;
+            out.push(MarbleIn {
+                p,
+                v: Vec3::NEG_Z * v,
+            });
+        }
+        out
+    }
+
+    fn yaw_of(f: Vec3) -> f32 {
+        (-f.x).atan2(-f.z)
+    }
+
+    /// Through a 90° corner the marble's heading turns at v / r = 5.6 rad/s; the follow camera's
+    /// view turns under 1 rad/s (measured 0.93, 53°/s) and its yaw rate changes under 3 rad/s²
+    /// (measured 1.98): the limits are [`FOLLOW_MAX_YAW_RATE`] and [`FOLLOW_MAX_YAW_ACCEL`].
+    #[test]
+    fn a_corner_does_not_whip_the_follow_camera() {
+        let path = corner_path(0.5, 60, 120);
+        let mut d = Director::default();
+        let (mut last, mut prev_rate) = (None::<f32>, 0f32);
+        let (mut peak_rate, mut peak_accel) = (0f32, 0f32);
+        for (i, m) in path.iter().enumerate() {
+            let p = d
+                .update(
+                    &frame(std::slice::from_ref(m), 0),
+                    Some((0, Rule::FOLLOW)),
+                    &[],
+                )
+                .unwrap();
+            let yaw = yaw_of(p.forward);
+            if let Some(l) = last {
+                let rate = wrap_angle(yaw - l) / DT;
+                peak_rate = peak_rate.max(rate.abs());
+                if i > 2 {
+                    peak_accel = peak_accel.max(((rate - prev_rate) / DT).abs());
+                }
+                prev_rate = rate;
+            }
+            last = Some(yaw);
+        }
+        println!("corner: peak yaw {peak_rate:.3} rad/s, accel {peak_accel:.3} rad/s²");
+        assert!(peak_rate < 1.0, "peak yaw rate {peak_rate} rad/s");
+        assert!(
+            peak_accel < 3.0,
+            "peak yaw acceleration {peak_accel} rad/s²"
+        );
+        // It still ends up behind the marble on the new heading.
+        assert!(
+            wrap_angle(last.unwrap() - 0.0).abs() < 0.35,
+            "final yaw {:?}",
+            last
+        );
+    }
+
+    /// On a straight the look point leads the marble and the eye trails it.
+    #[test]
+    fn the_follow_look_point_leads_the_marble() {
+        let path = corner_path(0.5, 150, 0);
+        let mut d = Director::default();
+        let mut pose = None;
+        for m in &path[..120] {
+            pose = d.update(
+                &frame(std::slice::from_ref(m), 0),
+                Some((0, Rule::FOLLOW)),
+                &[],
+            );
+        }
+        let (pose, m) = (pose.unwrap(), path[119]);
+        let look = pose.look();
+        assert!(look.x - m.p.x > 0.03, "look {look} vs marble {}", m.p);
+        assert!(pose.eye.x < m.p.x, "eye {} is behind", pose.eye);
+        // The focus is on the action window's centre, ahead of the marble.
+        let marble_depth = (m.p - pose.eye).dot(pose.forward);
+        assert!(
+            pose.focus > marble_depth,
+            "focus {} vs marble {marble_depth}",
+            pose.focus
+        );
+    }
+
+    /// A mechanism just ahead joins the action window and pulls the look point towards it.
+    #[test]
+    fn a_point_of_interest_ahead_joins_the_action_window() {
+        let m = MarbleIn {
+            p: Vec3::new(0.0, 0.1, 0.0),
+            v: Vec3::X * 0.5,
+        };
+        let hist = [(0.0, Vec3::new(-0.15, 0.1, 0.0))];
+        let plain = action_window(m, &hist, FOLLOW_AHEAD_M, &[]);
+        let side = [Vec3::new(0.2, 0.1, 0.055), Vec3::new(2.0, 0.1, 0.0)];
+        let with = action_window(m, &hist, FOLLOW_AHEAD_M, &side);
+        assert!(with.centre.z > plain.centre.z + 0.02);
+        assert!(with.radius > plain.radius);
+        assert!(
+            plain.centre.x > m.p.x,
+            "the window leans ahead of the marble"
+        );
+    }
+
     #[test]
     fn volumes_contain_their_points() {
         let b = Volume::Box {
@@ -1190,5 +1726,149 @@ mod tests {
         assert!(c.contains(Vec3::new(0.05, 0.9, 0.05), 0.0));
         assert!(!c.contains(Vec3::new(0.2, 0.5, 0.0), 0.0));
         assert!(!c.contains(Vec3::new(0.0, 1.1, 0.0), 0.0));
+    }
+
+    /// Projects `q` into normalised device coordinates of `pose`: (depth, ndc).
+    fn ndc(pose: &Pose, aspect: f32, q: Vec3) -> (f32, Vec2) {
+        let right = pose.forward.cross(Vec3::Y).normalize();
+        let up = right.cross(pose.forward);
+        let t = (pose.fov * 0.5).tan();
+        let r = q - pose.eye;
+        let z = r.dot(pose.forward);
+        (
+            z,
+            Vec2::new(r.dot(right) / (z * t * aspect), r.dot(up) / (z * t)),
+        )
+    }
+
+    /// Peak yaw and pitch rates of a pose sequence (rad/s).
+    fn peak_rates(poses: &[Pose]) -> (f32, f32) {
+        let pitch = |f: Vec3| f.y.asin();
+        poses.windows(2).fold((0f32, 0f32), |(y, p), w| {
+            (
+                y.max((wrap_angle(yaw_of(w[1].forward) - yaw_of(w[0].forward)) / DT).abs()),
+                p.max(((pitch(w[1].forward) - pitch(w[0].forward)) / DT).abs()),
+            )
+        })
+    }
+
+    /// The marble rolls into a drop shaft, falls out of sight and comes out of the shaft's side
+    /// port heading a new way. While it is hidden the camera turns and pulls back to the exit the
+    /// track predicts, through the follow yaw limits, so the exit is in frame when it reappears.
+    #[test]
+    fn a_hidden_path_puts_its_exit_in_view_before_the_marble_reappears() {
+        let shaft = HiddenPath {
+            min: Vec3::new(0.50, 0.0, -0.03),
+            max: Vec3::new(0.56, 0.24, 0.03),
+            exit: Vec3::new(0.53, 0.03, 0.03),
+        };
+        let mut path = Vec::new();
+        let mut p = Vec3::new(0.0, 0.2, 0.0);
+        let mut push = |p: Vec3, v: Vec3| path.push(MarbleIn { p, v });
+        while p.x < 0.53 {
+            p.x += 0.5 * DT;
+            push(p, Vec3::X * 0.5);
+        }
+        while p.y > 0.03 {
+            p.y -= 0.4 * DT;
+            push(p, Vec3::NEG_Y * 0.4);
+        }
+        for _ in 0..90 {
+            p.z += 0.3 * DT;
+            push(p, Vec3::Z * 0.3);
+        }
+        let hidden = [shaft];
+        let mut d = Director::default();
+        let aspect = 16.0 / 9.0;
+        let mut poses = Vec::new();
+        let mut reappeared = None;
+        let mut was_hidden = false;
+        let mut saw_eta = false;
+        for m in &path {
+            let pose = d
+                .update(
+                    &Frame {
+                        marbles: std::slice::from_ref(m),
+                        dt: DT,
+                        aspect,
+                        hidden: &hidden,
+                        ..Default::default()
+                    },
+                    Some((0, Rule::FOLLOW)),
+                    &[],
+                )
+                .unwrap();
+            poses.push(pose);
+            let inside = shaft.contains(m.p);
+            saw_eta |= d.diag.hidden.is_some_and(|h| h.eta_s > 0.0);
+            if was_hidden && !inside && reappeared.is_none() {
+                reappeared = Some(pose);
+            }
+            was_hidden |= inside;
+        }
+        assert!(saw_eta, "the diag reports the exit and its time");
+        let pose = reappeared.expect("the marble comes out");
+        let (z, n) = ndc(&pose, aspect, shaft.exit);
+        assert!(z > 0.0, "exit behind the camera");
+        assert!(n.x.abs() < 1.0 && n.y.abs() < 1.0, "exit off frame at {n}");
+        let (yaw, _) = peak_rates(&poses);
+        assert!(yaw < 1.0, "peak yaw rate {yaw} rad/s");
+    }
+
+    /// A tall piece stands where the plain follow view of the corner would look through it. With
+    /// the solids known, the camera rises or swings ahead of the blockage, within the follow rate
+    /// limits, and sees the marble in at least 95% of frames.
+    #[test]
+    fn a_tall_piece_never_hides_the_followed_marble() {
+        let path = corner_path(0.5, 60, 120);
+        let run = |solids: &[Solid]| {
+            let mut d = Director::default();
+            path.iter()
+                .map(|m| {
+                    d.update(
+                        &Frame {
+                            marbles: std::slice::from_ref(m),
+                            dt: DT,
+                            aspect: 16.0 / 9.0,
+                            solids,
+                            ..Default::default()
+                        },
+                        Some((0, Rule::FOLLOW)),
+                        &[],
+                    )
+                    .unwrap()
+                })
+                .collect::<Vec<Pose>>()
+        };
+        // The tower: a 40 mm column, 0.3 m tall, halfway along the plain view's line of sight
+        // to the marble a little after the corner.
+        let plain = run(&[]);
+        let k = 150;
+        let mid = (plain[k].eye + path[k].p) * 0.5;
+        let tower = Solid {
+            min: Vec3::new(mid.x - 0.02, 0.0, mid.z - 0.02),
+            max: Vec3::new(mid.x + 0.02, 0.3, mid.z + 0.02),
+        };
+        assert!(path.iter().all(|m| !tower.contains(m.p)), "off the path");
+        let solids = [tower];
+        let seen = |poses: &[Pose]| {
+            poses
+                .iter()
+                .zip(&path)
+                .filter(|(p, m)| line_of_sight(p.eye, m.p, &solids))
+                .count() as f32
+                / path.len() as f32
+        };
+        let blind = seen(&plain);
+        assert!(blind < 0.95, "the tower blocks the plain view ({blind})");
+        let avoided = run(&solids);
+        let clear = seen(&avoided);
+        let (yaw, pitch) = peak_rates(&avoided);
+        println!(
+            "line of sight: plain {blind:.3}, avoiding {clear:.3}; peak yaw {yaw:.3}, pitch {pitch:.3} rad/s"
+        );
+        assert!(clear >= 0.95, "clear line of sight in {clear} of frames");
+        assert!(yaw < 1.0, "peak yaw rate {yaw} rad/s");
+        assert!(pitch < 1.0, "peak pitch rate {pitch} rad/s");
     }
 }

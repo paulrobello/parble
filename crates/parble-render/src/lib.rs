@@ -21,6 +21,7 @@ pub mod marble;
 pub mod playroom;
 pub mod post;
 pub mod sensors;
+pub mod zone_overlay;
 pub use playroom::{Environment, PlayroomView, ShadowLights};
 
 /// Backdrop behind the scene (a dim warm room tone).

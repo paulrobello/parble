@@ -10,6 +10,7 @@ mod bridge;
 mod editor;
 mod persist;
 mod playback;
+mod zones;
 
 use agent::{AgentOpts, AgentPlugin, Scenario};
 use bevy::{prelude::*, transform::TransformSystems};
@@ -20,6 +21,7 @@ use parble_render::{
     kit::parts::PartFrame,
     marble::MarbleLook,
     sensors::{SensorDraw, SensorFrame, SensorOverlayPlugin, SensorShape},
+    zone_overlay::ZoneOverlayPlugin,
 };
 use parble_sim::{
     DT, Sim,
@@ -95,6 +97,7 @@ fn main() {
             cues: opts.camera.cues(opts.scenario, opts.view),
         })
         .add_plugins(SensorOverlayPlugin { on: opts.sensors })
+        .add_plugins(ZoneOverlayPlugin { on: opts.zones })
         .add_plugins(editor::EditorPlugin {
             active: opts.scenario == Scenario::Editor,
             fill: opts.editor_fill,
@@ -119,6 +122,7 @@ fn main() {
                 advance_sim,
                 pump_bridge,
                 publish_sensors,
+                zones::publish_zones,
             )
                 .chain(),
         )

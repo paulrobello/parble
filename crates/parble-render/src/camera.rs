@@ -1,10 +1,11 @@
-//! The main camera: a follow-marble director that cuts between shots on scripted cues, and an
-//! orbit camera for the editor. Render-side only: it reads [`MarbleFrame`] and the app's
-//! [`DirectorClock`] and writes the camera's transform and focus. Nothing here reaches the sim.
+//! The main camera: the run director ([`crate::director`]), which blends between scripted cues and
+//! camera zones, and an orbit camera for the editor. Render-side only: it reads [`MarbleFrame`],
+//! the app's [`DirectorClock`] and [`CameraZones`] and writes the camera's transform, field of
+//! view and focus. Nothing here reaches the sim.
 //!
-//! The follow shot is a low, close tracking shot behind the marble, a critically damped spring on
-//! the eye and the look point. The DoF focus is the marble's view-space depth every frame. A cut
-//! snaps the spring and resets the TAA history so the previous shot never ghosts into the next.
+//! The default shot is the low, close tracking shot behind the marble, with the DoF focus on the
+//! marble. Every shot change is a smooth blend. Only a switch of camera mode (`C`, `F`, `Esc`)
+//! snaps, and resets the TAA history so the previous view never ghosts into the next.
 //!
 //! `F` switches to a free-fly camera from the current view ([`Fly`], `docs/agent-operability.md`)
 //! and `F` or `Esc` hands back to the camera it replaced. It moves only on input, so agent runs with
@@ -23,26 +24,18 @@ use bevy::{
 use parble_sim::{MarbleState, scene};
 use serde::Serialize;
 
-use crate::{MarbleFrame, Quality, post};
+use crate::{MarbleFrame, Quality, director, post};
 
-/// Vertical field of view of the main camera.
-pub const FOV_DEG: f32 = 35.0;
+use crate::director::{
+    Director, DirectorDiag, Focus, Frame, HiddenPath, MarbleIn, Rule, Solid, Zone,
+};
+pub use crate::director::{
+    FOLLOW_AHEAD_M, FOLLOW_BACK_M, FOLLOW_EYE_SMOOTH_S, FOLLOW_LOOK_SMOOTH_S, FOLLOW_MAX_YAW_RATE,
+    FOLLOW_UP_M, FOV_DEG, smooth_damp,
+};
+
 /// Screen positions of the marble kept for the ghost check, newest first.
 pub const TRAIL_FRAMES: usize = 8;
-
-/// Follow shot: distance behind the marble, height above it, sideways offset, look-ahead (metres).
-/// The side offset stays inside the 28 mm channel so the near wall never blocks the marble.
-pub const FOLLOW_BACK_M: f32 = 0.14;
-pub const FOLLOW_UP_M: f32 = 0.07;
-pub const FOLLOW_SIDE_M: f32 = 0.010;
-pub const FOLLOW_AHEAD_M: f32 = 0.05;
-/// Spring smoothing times (seconds) of the eye and the look point. The spring targets lead by
-/// `velocity × smoothing time`, which cancels the steady lag at constant speed, so the springs
-/// only damp changes (the ramp foot, wall rebounds).
-pub const FOLLOW_EYE_SMOOTH_S: f32 = 0.15;
-pub const FOLLOW_LOOK_SMOOTH_S: f32 = 0.06;
-/// Below this speed the follow direction holds its last value (m/s).
-const DIR_MIN_SPEED: f32 = 0.05;
 
 /// One camera shot.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
@@ -70,9 +63,46 @@ impl Shot {
             Self::Set { .. } => "set",
         }
     }
+
+    /// The director rule that plays this cue.
+    pub fn rule(&self) -> Rule {
+        match *self {
+            Self::Follow => Rule::FOLLOW,
+            Self::Fixed { eye, look } => Rule::Fixed {
+                eye,
+                look,
+                focus: Focus::Marble,
+                fov: None,
+            },
+            Self::Set { eye, look, focus_m } => Rule::Fixed {
+                eye,
+                look,
+                focus: Focus::Distance { m: focus_m },
+                fov: None,
+            },
+        }
+    }
 }
 
-/// Scripted cues: at sim tick `.0` of every run, cut to shot `.1`. Sorted by tick; the first cue
+/// The camera zones of the loaded track or scenario, in metres. The app fills it from the track
+/// model (authored zones and piece hints); the director tests the followed marble against it.
+#[derive(Resource, Debug, Clone, Default, PartialEq)]
+pub struct CameraZones(pub Vec<Zone>);
+
+/// Points of interest for the follow shot's action window (mechanism centres, metres). The app
+/// fills it from the track; the window takes in those near the marble's path.
+#[derive(Resource, Debug, Clone, Default, PartialEq)]
+pub struct CameraInterest(pub Vec<Vec3>);
+
+/// The track's pieces that hide the marble (with their exits) and its solid pieces that can block
+/// the view, in metres. The app fills it from the track model; the follow shot reads it only.
+#[derive(Resource, Debug, Clone, Default, PartialEq)]
+pub struct CameraObstacles {
+    pub hidden: Vec<HiddenPath>,
+    pub solids: Vec<Solid>,
+}
+
+/// Scripted cues: at sim tick `.0` of every run, blend to shot `.1`. Sorted by tick; the first cue
 /// should be at tick 0.
 #[derive(Resource, Debug, Clone, PartialEq)]
 pub struct Cues(pub Vec<(u64, Shot)>);
@@ -165,9 +195,15 @@ impl Cues {
         ])
     }
 
-    /// All-pieces track (P2-T7 `--scenario allpieces`): one set shot from in front of and above the
-    /// whole track, focused on its middle.
+    /// All-pieces track (P2-T7 `--scenario allpieces`): the follow shot, which the track's camera
+    /// zones (its demo zone over the tower drop and its pieces' hints) take over on the way.
     pub fn allpieces() -> Self {
+        Self(vec![(0, Shot::Follow)])
+    }
+
+    /// All-pieces overview (`--scenario allpieces --camera overview`): one set shot from in front
+    /// of and above the whole track, focused on its middle.
+    pub fn allpieces_overview() -> Self {
         let look = Vec3::new(0.72, 0.18, -0.36);
         let eye = look + Vec3::new(0.0, 0.95, 1.70);
         Self(vec![(
@@ -395,12 +431,7 @@ pub struct OrbitDiag {
 
 #[derive(Resource, Debug, Default)]
 struct DirectorState {
-    cue: Option<(u32, usize)>,
-    eye: Vec3,
-    eye_vel: Vec3,
-    look: Vec3,
-    look_vel: Vec3,
-    dir: Vec3,
+    director: Director,
     orbit: Orbit,
     fly: Fly,
     trail: VecDeque<[f32; 2]>,
@@ -413,9 +444,16 @@ struct DirectorState {
 #[serde(rename_all = "camelCase")]
 pub struct CameraDiag {
     pub mode: Option<CameraMode>,
+    /// The scripted cue playing (the director may be in a zone over it, see `director`).
     pub shot: Option<Shot>,
-    /// Cuts since start.
+    /// Hard cuts since start: only camera mode switches cut, so the director adds none.
     pub cuts: u32,
+    /// The director: active shot rule, source (cue or zone), zone, blend progress, followed marble.
+    pub director: DirectorDiag,
+    /// Vertical field of view this frame (degrees).
+    pub fov_deg: f32,
+    /// Whether the camera zone overlay is drawn (`V`, `--zones`).
+    pub zone_overlay: bool,
     pub eye: [f32; 3],
     /// Unit view direction.
     pub forward: [f32; 3],
@@ -427,34 +465,6 @@ pub struct CameraDiag {
     pub marble_radius_px: f32,
     pub post: post::LivePost,
     pub orbit: OrbitDiag,
-}
-
-/// Critically damped spring towards `target` (Game Programming Gems 4, "Critically Damped Ease-In/
-/// Ease-Out Smoothing"): stable for any `dt`.
-pub fn smooth_damp(cur: Vec3, target: Vec3, vel: &mut Vec3, smooth_s: f32, dt: f32) -> Vec3 {
-    let omega = 2.0 / smooth_s.max(1e-4);
-    let x = omega * dt;
-    let exp = 1.0 / (1.0 + x + 0.48 * x * x + 0.235 * x * x * x);
-    let change = cur - target;
-    let temp = (*vel + omega * change) * dt;
-    *vel = (*vel - omega * temp) * exp;
-    target + (change + temp) * exp
-}
-
-/// Ideal follow eye and look point for a marble at `p` heading `dir` (unit, horizontal).
-pub fn follow_pose(p: Vec3, dir: Vec3) -> (Vec3, Vec3) {
-    let side = dir.cross(Vec3::Y).normalize_or_zero();
-    let eye = p - dir * FOLLOW_BACK_M + Vec3::Y * FOLLOW_UP_M + side * FOLLOW_SIDE_M;
-    (eye, p + dir * FOLLOW_AHEAD_M)
-}
-
-fn lerp_marble(frame: &MarbleFrame) -> Option<(Vec3, Vec3)> {
-    let curr: &MarbleState = frame.curr.first()?;
-    let prev = frame.prev.first().unwrap_or(curr);
-    let t = frame.alpha;
-    let p = Vec3::from_array(prev.position).lerp(Vec3::from_array(curr.position), t);
-    let v = Vec3::from_array(prev.linvel).lerp(Vec3::from_array(curr.linvel), t);
-    Some((p, v))
 }
 
 /// Spawn the main camera with its tier's post stack. The director moves it from the first frame.
@@ -486,6 +496,9 @@ impl Plugin for DirectorPlugin {
             .init_resource::<DirectorState>()
             .init_resource::<CameraDiag>()
             .init_resource::<EditorCamera>()
+            .init_resource::<CameraZones>()
+            .init_resource::<CameraInterest>()
+            .init_resource::<CameraObstacles>()
             .add_systems(
                 Update,
                 (toggle_mode, fly_toggle, orbit_input, fly_input).chain(),
@@ -529,8 +542,8 @@ fn fly_toggle(
     if *mode == CameraMode::Fly {
         if keys.any_just_pressed([KeyCode::KeyF, KeyCode::Escape]) {
             *mode = st.fly.back;
-            // Re-enter the director's current cue as a cut.
-            st.cue = None;
+            // Hand back to the director with a snap to its current shot.
+            st.director.reset();
             lock(false);
         }
     } else if keys.just_pressed(KeyCode::KeyF)
@@ -678,10 +691,14 @@ fn orbit_input(
     }
 }
 
-#[allow(clippy::type_complexity)]
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
 fn direct(
     mode: Res<CameraMode>,
     cues: Res<Cues>,
+    zones: Res<CameraZones>,
+    interest: Res<CameraInterest>,
+    obstacles: Res<CameraObstacles>,
+    overlay: Option<Res<crate::zone_overlay::ZoneOverlay>>,
     clock: Res<DirectorClock>,
     frame: Res<MarbleFrame>,
     mut st: ResMut<DirectorState>,
@@ -690,6 +707,7 @@ fn direct(
         (
             &Camera,
             &mut Transform,
+            &mut Projection,
             Option<&mut DepthOfField>,
             Option<&mut TemporalAntiAliasing>,
             (
@@ -702,94 +720,93 @@ fn direct(
         With<MainCamera>,
     >,
 ) {
-    let Ok((camera, mut tf, dof, mut taa, (msaa, ssao, bloom, tm))) = cams.single_mut() else {
-        return;
-    };
-    // The editor's empty track has no marble: orbit and fly still frame, the director waits.
-    let Some((p, v)) = lerp_marble(&frame)
-        .or_else(|| (*mode != CameraMode::Director).then_some((st.orbit.target, Vec3::ZERO)))
+    let Ok((camera, mut tf, mut proj, dof, mut taa, (msaa, ssao, bloom, tm))) = cams.single_mut()
     else {
         return;
     };
-    let has_taa = taa.is_some();
-    let dt = clock.dt.max(0.0);
-    let flat = Vec3::new(v.x, 0.0, v.z);
-    if flat.length() > DIR_MIN_SPEED || st.dir == Vec3::ZERO {
-        let want = if flat.length() > DIR_MIN_SPEED {
-            flat.normalize()
-        } else {
-            Vec3::X
-        };
-        st.dir = if st.dir == Vec3::ZERO {
-            want
-        } else {
-            st.dir.lerp(want, (dt * 6.0).min(1.0)).normalize_or(want)
-        };
-    }
-
-    let (cut, shot) = match *mode {
-        CameraMode::Orbit | CameraMode::Fly => (false, None),
-        CameraMode::Director => {
-            let Some((idx, shot)) = cues.at(clock.tick) else {
-                return;
-            };
-            let key = (clock.run, idx);
-            let cut = st.cue != Some(key);
-            st.cue = Some(key);
-            (cut, Some(shot))
-        }
-    };
-    if *mode != CameraMode::Director {
-        st.cue = None;
-    }
-    let mode_changed = st.framed.is_some_and(|m| m != *mode);
-    st.framed = Some(*mode);
-    if mode_changed && let Some(t) = taa.as_deref_mut() {
-        t.reset = true;
-    }
-
-    let (eye, look) = match shot {
-        None if *mode == CameraMode::Fly => {
-            let f = st.fly;
-            (f.eye, f.eye + f.rotation() * Vec3::NEG_Z)
-        }
-        None => (st.orbit.eye(), st.orbit.target),
-        Some(Shot::Fixed { eye, look } | Shot::Set { eye, look, .. }) => {
-            (Vec3::from_array(eye), Vec3::from_array(look))
-        }
-        Some(Shot::Follow) => {
-            let (eye_t, look_t) = follow_pose(p, st.dir);
-            if cut {
-                (eye_t, look_t)
-            } else {
-                let (mut ev, mut lv) = (st.eye_vel, st.look_vel);
-                let eye_t = eye_t + v * FOLLOW_EYE_SMOOTH_S;
-                let look_t = look_t + v * FOLLOW_LOOK_SMOOTH_S;
-                let eye = smooth_damp(st.eye, eye_t, &mut ev, FOLLOW_EYE_SMOOTH_S, dt);
-                let look = smooth_damp(st.look, look_t, &mut lv, FOLLOW_LOOK_SMOOTH_S, dt);
-                st.eye_vel = ev;
-                st.look_vel = lv;
-                (eye, look)
+    let t = frame.alpha;
+    let marbles: Vec<MarbleIn> = frame
+        .curr
+        .iter()
+        .enumerate()
+        .map(|(i, curr): (usize, &MarbleState)| {
+            let prev = frame.prev.get(i).unwrap_or(curr);
+            MarbleIn {
+                p: Vec3::from_array(prev.position).lerp(Vec3::from_array(curr.position), t),
+                v: Vec3::from_array(prev.linvel).lerp(Vec3::from_array(curr.linvel), t),
             }
-        }
+        })
+        .collect();
+    let has_taa = taa.is_some();
+    let aspect = match &*proj {
+        Projection::Perspective(p) => p.aspect_ratio,
+        _ => 16.0 / 9.0,
     };
-    if cut {
-        st.eye_vel = Vec3::ZERO;
-        st.look_vel = Vec3::ZERO;
+
+    if st.framed.is_some_and(|m| m != *mode) {
+        // A user switch of camera mode: the one hard cut. The director snaps when it is back.
+        st.director.reset();
+        if let Some(t) = taa.as_deref_mut() {
+            t.reset = true;
+        }
         st.trail.clear();
         diag.cuts += 1;
-        if let Some(mut taa) = taa {
-            taa.reset = true;
-        }
     }
-    st.eye = eye;
-    st.look = look;
-    *tf = Transform::from_translation(eye).looking_at(look, Vec3::Y);
 
+    let cue = cues.at(clock.tick);
+    let still = |eye: Vec3, forward: Vec3| director::Pose {
+        eye,
+        forward,
+        fov: FOV_DEG.to_radians(),
+        focus: 0.0,
+    };
+    let pose = match *mode {
+        CameraMode::Fly => Some(still(st.fly.eye, st.fly.rotation() * Vec3::NEG_Z)),
+        CameraMode::Orbit => {
+            let (eye, look) = (st.orbit.eye(), st.orbit.target);
+            Some(still(eye, (look - eye).normalize_or(Vec3::NEG_Z)))
+        }
+        CameraMode::Director => st.director.update(
+            &Frame {
+                marbles: &marbles,
+                dt: clock.dt.max(0.0),
+                aspect,
+                run: clock.run,
+                interest: &interest.0,
+                hidden: &obstacles.hidden,
+                solids: &obstacles.solids,
+            },
+            cue.map(|(i, s)| (i, s.rule())),
+            &zones.0,
+        ),
+    };
+    // The editor's empty track has no marble: orbit and fly still frame, the director waits.
+    let Some(pose) = pose else {
+        return;
+    };
+    st.framed = Some(*mode);
+
+    *tf = Transform::from_translation(pose.eye).looking_to(pose.forward, Vec3::Y);
+    if let Projection::Perspective(p) = &mut *proj
+        && (p.fov - pose.fov).abs() > 1e-6
+    {
+        p.fov = pose.fov;
+    }
     let forward = tf.forward().as_vec3();
-    let depth = match shot {
-        Some(Shot::Set { focus_m, .. }) => focus_m,
-        _ => (p - eye).dot(forward).max(0.01),
+    let followed = st
+        .director
+        .diag
+        .followed
+        .and_then(|i| marbles.get(i))
+        .or(marbles.first())
+        .copied();
+    let depth = match *mode {
+        CameraMode::Director => pose.focus,
+        // Orbit and fly focus on the marble, or on the orbit pivot without one.
+        _ => {
+            let p = followed.map_or(st.orbit.target, |m| m.p);
+            (p - pose.eye).dot(forward).max(0.01)
+        }
     };
     let mut dof = dof;
     if let Some(d) = dof.as_deref_mut() {
@@ -797,20 +814,30 @@ fn direct(
     }
 
     // Screen-space marble for the ghost check (the transform is final for this frame).
-    let gt = GlobalTransform::from(*tf);
-    let scale = camera.target_scaling_factor().unwrap_or(1.0);
-    let r = scene::standard_marble_radius_m();
-    if let (Ok(c), Ok(e)) = (
-        camera.world_to_viewport(&gt, p),
-        camera.world_to_viewport(&gt, p + tf.right().as_vec3() * r),
-    ) {
-        st.trail.push_front([c.x * scale, c.y * scale]);
-        st.trail.truncate(TRAIL_FRAMES);
-        diag.marble_radius_px = c.distance(e) * scale;
+    if let Some(m) = followed {
+        let gt = GlobalTransform::from(*tf);
+        let scale = camera.target_scaling_factor().unwrap_or(1.0);
+        let r = scene::standard_marble_radius_m();
+        if let (Ok(c), Ok(e)) = (
+            camera.world_to_viewport(&gt, m.p),
+            camera.world_to_viewport(&gt, m.p + tf.right().as_vec3() * r),
+        ) {
+            st.trail.push_front([c.x * scale, c.y * scale]);
+            st.trail.truncate(TRAIL_FRAMES);
+            diag.marble_radius_px = c.distance(e) * scale;
+        }
     }
+    let directing = *mode == CameraMode::Director;
     diag.mode = Some(*mode);
-    diag.shot = shot;
-    diag.eye = eye.to_array();
+    diag.shot = cue.filter(|_| directing).map(|(_, s)| s);
+    diag.director = if directing {
+        st.director.diag.clone()
+    } else {
+        DirectorDiag::default()
+    };
+    diag.fov_deg = pose.fov.to_degrees();
+    diag.zone_overlay = overlay.is_some_and(|o| o.0);
+    diag.eye = pose.eye.to_array();
     diag.forward = forward.to_array();
     diag.fly_speed = st.fly.speed;
     diag.orbit = OrbitDiag {
@@ -827,29 +854,6 @@ fn direct(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn smooth_damp_converges_without_overshoot() {
-        let mut v = Vec3::ZERO;
-        let mut x = Vec3::ZERO;
-        let target = Vec3::new(1.0, 0.0, 0.0);
-        for _ in 0..240 {
-            x = smooth_damp(x, target, &mut v, 0.2, 1.0 / 60.0);
-            assert!(x.x <= 1.0 + 1e-4);
-        }
-        assert!((x - target).length() < 1e-3);
-        // A huge step stays finite.
-        let y = smooth_damp(Vec3::ZERO, target, &mut Vec3::ZERO.clone(), 0.2, 10.0);
-        assert!(y.is_finite());
-    }
-
-    #[test]
-    fn follow_pose_is_behind_above_and_looks_ahead() {
-        let p = Vec3::new(0.3, 0.008, 0.0);
-        let (eye, look) = follow_pose(p, Vec3::X);
-        assert!(eye.x < p.x && eye.y > p.y);
-        assert!(look.x > p.x);
-    }
 
     #[test]
     fn cues_pick_the_latest_started_shot() {

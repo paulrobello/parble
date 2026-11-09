@@ -195,7 +195,7 @@ pub enum CameraChoice {
     Director,
     /// The editor orbit camera.
     Orbit,
-    /// One fixed overview of the whole tray (the P0 view).
+    /// One fixed overview: of the whole tray (the P0 view), or of the all-pieces track.
     Overview,
 }
 
@@ -220,6 +220,7 @@ impl CameraChoice {
     /// lead marble round its kit run.
     pub fn cues(self, scenario: Scenario, view: Option<PlayroomView>) -> Cues {
         match (self, scenario, view) {
+            (Self::Overview, Scenario::AllPieces, _) => Cues::allpieces_overview(),
             (Self::Overview, ..) => Cues::overview(),
             (_, Scenario::Kit2000, _) => Cues::kit(),
             (_, Scenario::Playroom, Some(v)) => Cues::playroom(v),
@@ -266,6 +267,8 @@ pub struct AgentOpts {
     pub editor_fill: Option<u32>,
     /// Start with the mechanism sensor overlay on (`--sensors`, `?sensors=1`); `G` toggles it.
     pub sensors: bool,
+    /// Start with the camera zone overlay on (`--zones`, `?zones=1`); `V` toggles it.
+    pub zones: bool,
     /// Starting time scale (`--time-scale`, one of [`crate::playback::TIME_SCALES`]); `,` and `.`
     /// change it.
     pub time_scale: f64,
@@ -293,6 +296,7 @@ impl Default for AgentOpts {
             tex: None,
             editor_fill: None,
             sensors: false,
+            zones: false,
             time_scale: 1.0,
             paused: false,
         }
@@ -391,6 +395,7 @@ impl AgentOpts {
                 }
                 "dump-state" => o.dump_state = parse_bool(&key, value.as_deref())?,
                 "sensors" => o.sensors = parse_bool(&key, value.as_deref())?,
+                "zones" => o.zones = parse_bool(&key, value.as_deref())?,
                 "paused" => o.paused = parse_bool(&key, value.as_deref())?,
                 "time-scale" | "timescale" => {
                     let v = need(value)?;
@@ -455,7 +460,7 @@ impl AgentOpts {
             };
             if let Some((k, v)) = flag.split_once('=') {
                 pairs.push((k.to_owned(), Some(v.to_owned())));
-            } else if matches!(flag, "dump-state" | "sensors" | "paused") {
+            } else if matches!(flag, "dump-state" | "sensors" | "zones" | "paused") {
                 pairs.push((flag.to_owned(), None));
             } else {
                 pairs.push((flag.to_owned(), args.next()));
@@ -978,6 +983,10 @@ mod tests {
         assert!(args("--paused --scenario editor").unwrap().paused);
         assert_eq!(args("--timescale=0.1").unwrap().time_scale, 0.1);
         assert!(!args("--sensors=0").unwrap().sensors);
+        let z = args("--zones --scenario allpieces").unwrap();
+        assert!(z.zones);
+        assert_eq!(z.scenario, Scenario::AllPieces);
+        assert!(!args("--zones=0").unwrap().zones);
         assert!(args("--sensors=1 --scenario mechanisms").unwrap().sensors);
     }
 
@@ -1190,6 +1199,12 @@ mod tests {
         assert_eq!(q.marble, Some(MarbleKind::CatsEye));
         assert!(q.dump_state);
         assert!(q.sensors);
+        assert!(!q.zones);
+        assert!(
+            AgentOpts::from_query("?zones=1", str::to_owned)
+                .unwrap()
+                .zones
+        );
         assert!(q.paused);
         assert_eq!(q.time_scale, 0.5);
         assert_eq!(
