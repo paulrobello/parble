@@ -321,7 +321,13 @@ fn s_rail_without_the_arc_contact_kicks() {
 #[test]
 fn block_rail_curve_block_seams_stay_under_the_seam_thresholds() {
     // The 90° rail curve (2 × 2, radius 90 mm) between `L2` straights: in along +x at x = 90 mm,
-    // out along -z at z = -90 mm, x = 180 mm. Gated like the S-rail's seams (upward and kick).
+    // out along -z at z = -90 mm, x = 180 mm. Gated like the S-rail's seams (upward and kick),
+    // except the block to rail curve seam and the curve's interior, gated on kick only as a bend
+    // inlet is (`joiner_seams_stay_under_the_seam_thresholds`): their upward speed (3.54 and
+    // 4.41 mm/s) is the swing up the curve's outer wall. Measured 2026-11-08, the old solver against the vendored Rapier
+    // contact fix (PHYSICS_VERSION 3): both trajectories rise the same 0.19 mm over x 92-108 mm
+    // (37.98 to 38.17 mm old, 38.00 to 38.20 mm new) as z swings out. The old reading stayed
+    // negative under the rolling sink's -3 to -10 mm/s offset.
     let turned = |x: i32, z: i32| {
         Placement::new(
             PieceId::new("blk_straight_l2").unwrap(),
@@ -365,11 +371,16 @@ fn block_rail_curve_block_seams_stay_under_the_seam_thresholds() {
         let sel = |m: &MarbleState| at(m, lo, hi);
         assert!(tr.iter().any(sel), "{name}: marble never crossed");
         let (p, u, k) = (peak(&tr, sel), upward(&tr, sel), kick(&tr, sel));
+        let swing = name.starts_with("block to rail curve") || name == "rail curve interior";
         eprintln!(
-            "{name}: peak |vy| {p:.2} mm/s, upward {u:.2} (limit {p_limit:.2}), kick {k:.2} \
-             (limit {k_limit:.2})"
+            "{name}: peak |vy| {p:.2} mm/s, upward {u:.2} (limit {p_limit:.2}{}), kick {k:.2} \
+             (limit {k_limit:.2})",
+            if swing { ", swing, ungated" } else { "" }
         );
-        assert!(u <= p_limit, "{name}: upward {u:.2} mm/s over {p_limit:.2}");
+        assert!(
+            swing || u <= p_limit,
+            "{name}: upward {u:.2} mm/s over {p_limit:.2}"
+        );
         assert!(k <= k_limit, "{name}: kick {k:.2} mm/s over {k_limit:.2}");
     }
 }
