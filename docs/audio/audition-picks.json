@@ -27,7 +27,7 @@
   },
   "tunnel_rumble_swap": {
    "changed_on": "2026-11-08",
-   "note": "not an approval: Paul heard tunnel_rumble v01-v03 as too high, so the runtime picks are the lowered, muffled derived variants (v01m-v03m, scripts/audio/tunnel.py, provenance-group-f.json) pending his re-listen; the originals stay live on the board for comparison"
+   "note": "approved by Paul 2026-11-08 after re-listening on the audition page: the lowered, muffled variants tunnel_rumble_v01m-v03m (scripts/audio/tunnel.py, provenance-group-f.json) are the runtime picks"
   },
   "loop_check_failures": {
    "note": "resolved: all approved loops pass the master and Opus seamless-loop check after make audio-process (P4-T2 criterion 2); see audition/sfx/processing-report.md Loop checks",
