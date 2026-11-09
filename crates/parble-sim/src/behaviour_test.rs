@@ -1,7 +1,7 @@
 //! P2-T5 scripted runs: real marbles through each kit mechanism, asserting where they go.
 
 use super::*;
-use crate::marble::CATS_EYE;
+use crate::marble::{CATS_EYE, MarbleKind};
 use crate::mechanism::{MechEventKind, SimEvent, stream_key};
 use crate::track_run::TrackRun;
 use crate::{MarbleState, Sim};
@@ -910,6 +910,152 @@ fn one_way_hole_carries_every_marble_over_from_the_other_side() {
         stalled.is_empty(),
         "{} of 120 stalled: {stalled:?}",
         stalled.len()
+    );
+}
+
+/// One over-side crossing of the shut trapdoor, or of a straight in its place (`hole` false):
+/// speeds where the marble passes 15 mm before the hole cell's +X face and 15 mm past its −X
+/// face, the seam metrics across that window, and its highest rise above rest.
+#[derive(Debug, Clone, Copy)]
+struct OverCrossing {
+    v_in: f32,
+    v_out: Option<f32>,
+    upward: f32,
+    kick: f32,
+    rise_mm: f32,
+}
+
+const OVER_IN_X: f32 = 1.5 * CELL + 0.015;
+const OVER_OUT_X: f32 = CELL / 2.0 - 0.015;
+
+fn over_crossing(
+    kind: MarbleKind,
+    size: crate::marble::MarbleSize,
+    speed: f32,
+    hole: bool,
+) -> OverCrossing {
+    let spec = kind.spec_sized(size);
+    let middle = if hole { HOLE } else { "blk_straight_l1" };
+    let layout = [
+        place("blk_straight_l1", 0, 0, 0, 0),
+        place(middle, 1, 0, 0, 0),
+        place("blk_straight_l1", 2, 0, 0, 0),
+        place("blk_straight_l1", 3, 0, 0, 0),
+        place("blk_straight_l1", 4, 0, 0, 0),
+    ];
+    let mut sim = rig(&layout, 1);
+    let y0 = 0.015 + spec.radius_m;
+    // Launched 35 mm before the window, a little faster, so it reaches the window at about
+    // `speed` (rolling resistance on the level is about 15 mm/s²).
+    let launch_x = OVER_IN_X + 0.035;
+    let v0 = libm::sqrtf(speed * speed + 2.0 * 0.015 * 0.035);
+    let (mut body, collider) = spec.build(Vector::new(launch_x, y0, 0.0));
+    body.set_linvel(Vector::X * -v0, true);
+    body.set_angvel(Vector::Z * (v0 / spec.radius_m), true);
+    let h = sim.world.bodies.insert(body);
+    sim.world
+        .colliders
+        .insert_with_parent(collider, h, &mut sim.world.bodies);
+    sim.marbles.push(h);
+    let mut tr = Vec::new();
+    for _ in 0..4_800 {
+        sim.tick(1);
+        let s = sim.marbles()[0];
+        tr.push(s);
+        if s.position[0] < OVER_OUT_X - 0.005 {
+            break;
+        }
+    }
+    let plan = |s: &MarbleState| s.linvel[0].hypot(s.linvel[2]);
+    let v_in = tr
+        .iter()
+        .find(|s| s.position[0] < OVER_IN_X)
+        .map_or(0.0, plan);
+    let v_out = tr.iter().find(|s| s.position[0] < OVER_OUT_X).map(plan);
+    let sel = |s: &MarbleState| {
+        (OVER_OUT_X..OVER_IN_X).contains(&s.position[0]) && libm::fabsf(s.position[2]) < 0.03
+    };
+    let rise_mm = tr
+        .iter()
+        .filter(|s| sel(s))
+        .map(|s| (s.position[1] - y0) * 1_000.0)
+        .fold(0.0, f32::max);
+    OverCrossing {
+        v_in,
+        v_out,
+        upward: crate::seam_test::upward(&tr, sel),
+        kick: crate::seam_test::kick(&tr, sel),
+        rise_mm,
+    }
+}
+
+/// Over-side sweep across the shut trapdoor: standard cat's eye, glazed and steel marbles and
+/// their minis at 0.06–0.65 m/s. Each keeps its speed to within 1.5× the loss a straight in the
+/// door's place costs (rolling resistance alone over the same window), stays under the `L1` seam
+/// thresholds (`block_seam_test::limits`) and in the channel.
+///
+/// The v4 door fails every row (measured 2026-11-09). Per entry speed: exit speed m/s (a straight
+/// in the door's place), upward mm/s:
+/// - standard cat's eye: 0.06 stopped (0.029), 12.1; 0.09 0.017 (0.073), 26.7; 0.15 0.111
+///   (0.140), 46.6; 0.26 0.209 (0.254), 118; 0.4 0.283 (0.396), 215; 0.65 0.454 (0.646), 474,
+///   11.4 mm up.
+/// - mini cat's eye: 0.06 stopped (0.029), 17.2; 0.09 stopped (0.073), 40.8; 0.15 0.104 (0.140),
+///   64.2; 0.26 0.157 (0.254), 171; 0.4 0.210 (0.395), 268; 0.65 0.560 (0.646), 361, 7.0 mm up.
+/// - glazed and steel follow the cat's eye of their size to within a few per cent.
+///
+/// The straight in the door's place meets the thresholds at every speed (upward at most 0.17 for
+/// the standard marbles, 1.07 for the minis). The door's top is flush with the floor (at z = 0 it
+/// is the floor's 15.000 mm, and the bore and the disc share their 16-gon vertices): the losses
+/// are contacts on the other body's edge at each seam. At the hinge a door contact 0.37 mm away,
+/// tilted 0.30 against the travel, took 1.15e-3 N·s (five times the resting load) from a 0.4 m/s
+/// marble and threw it 1.9 mm up; at the free edge a floor contact 0.69 mm away, tilted 0.39,
+/// took 1.27e-3. Shrinking the prediction distance tenfold roughly halves the high-speed kicks
+/// but leaves the 0.09–0.15 m/s losses at about 4×, so no door shape fixes it: the fix is a
+/// contact correction at the door seams, as `chunk.rs` does at chunk seams.
+#[test]
+#[ignore = "v4 door: contacts on the other body's edge at both door seams (see the doc)"]
+fn one_way_hole_over_side_sweep_keeps_rolling_resistance_speed() {
+    let (up_lim, kick_lim) = crate::block_seam_test::limits(1);
+    let mut bad = Vec::new();
+    for size in [
+        crate::marble::MarbleSize::Standard,
+        crate::marble::MarbleSize::Mini,
+    ] {
+        for kind in [MarbleKind::CatsEye, MarbleKind::Glazed, MarbleKind::Steel] {
+            for speed in [0.06, 0.09, 0.15, 0.26, 0.4, 0.65] {
+                let door = over_crossing(kind, size, speed, true);
+                let ctrl = over_crossing(kind, size, speed, false);
+                let ctrl_loss = ctrl.v_in - ctrl.v_out.unwrap_or(0.0);
+                let loss = door.v_out.map(|v| door.v_in - v);
+                eprintln!(
+                    "{:>8} {:>8} {speed:.2}: in {:.4} out {} (straight {:.4}) loss ratio {} \
+                     upward {:.2} kick {:.2} rise {:.3} mm (straight upward {:.2} kick {:.2})",
+                    kind.name(),
+                    size.name(),
+                    door.v_in,
+                    door.v_out.map_or("stopped".into(), |v| format!("{v:.4}")),
+                    ctrl.v_out.unwrap_or(0.0),
+                    loss.map_or("-".into(), |l| format!("{:.2}", l / ctrl_loss)),
+                    door.upward,
+                    door.kick,
+                    door.rise_mm,
+                    ctrl.upward,
+                    ctrl.kick,
+                );
+                let ok = loss.is_some_and(|l| l <= 1.5 * ctrl_loss)
+                    && door.upward <= up_lim
+                    && door.kick <= kick_lim
+                    && door.rise_mm < 2.0;
+                if !ok {
+                    bad.push((kind.name(), size.name(), speed));
+                }
+            }
+        }
+    }
+    assert!(
+        bad.is_empty(),
+        "over-side crossings outside the window (upward limit {up_lim:.2}, kick {kick_lim:.2}): \
+         {bad:?}"
     );
 }
 

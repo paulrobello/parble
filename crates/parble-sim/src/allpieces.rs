@@ -41,10 +41,12 @@
 //!   redirect or a cup two layers down (0 of 10 and 0 of 5); that case was not re-measured with
 //!   v2. The track still uses the hole from its other side, where marbles roll over the shut door.
 //! - One-way hole from the over side (v4 door, cat's eye on a level `L1` test layout, measured
-//!   2026-11-09): the door's hinge knuckle and its free edge stand into the path (contact normals
-//!   tilted 0.24–0.47 and 0.15–0.21 against the travel), so a marble entering at 0.09 m/s leaves at
-//!   0.036 m/s (rolling resistance alone would leave 0.082), and below about 0.085 m/s it stops on
-//!   the door. From about 0.3 m/s the knuckle throws it up (0.2 m/s up at 0.35 m/s), and at
+//!   2026-11-09): at the hinge and at the free edge the marble meets contacts on the other body's
+//!   edge (the door's at the hinge, the floor's at the free edge), tilted 0.24–0.47 and 0.15–0.21
+//!   against the travel, though the door's top is flush with the floor (see
+//!   `behaviour::tests::one_way_hole_over_side_sweep_keeps_rolling_resistance_speed`). A marble
+//!   entering at 0.09 m/s leaves at 0.036 m/s (rolling resistance alone would leave 0.082), and
+//!   below about 0.085 m/s it stops on the door. From about 0.3 m/s the hinge throws it up (0.2 m/s up at 0.35 m/s), and at
 //!   0.65 m/s off the channel. The usable window is about 0.09–0.26 m/s. The layer-2 `L1` run
 //!   delivers real marbles to it at 0.06–0.12 m/s, because the tower landing resets their speed to
 //!   0.14–0.20 m/s.
