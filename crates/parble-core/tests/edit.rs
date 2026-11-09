@@ -29,6 +29,8 @@ const PIECES: [&str; 6] = [STRAIGHT, CURVE, S_RAIL, SLOPE, HOPPER, TOGGLE];
 
 fn def(name: &str, chiral: bool, footprint: Vec<CellCoord>, exit: CellCoord) -> PieceDef {
     PieceDef {
+        structural: false,
+        routes: Vec::new(),
         id: id(name),
         chiral,
         footprint,

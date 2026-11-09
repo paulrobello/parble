@@ -24,6 +24,8 @@ fn all_orientations() -> Vec<Orientation> {
 /// 2×2 rail curve: enters the anchor cell from −X, exits the far corner cell to +Z.
 fn rail_curve() -> PieceDef {
     PieceDef {
+        structural: false,
+        routes: Vec::new(),
         id: PieceId::new("rail_curve90_r90_l2").unwrap(),
         chiral: true,
         footprint: vec![c(0, 0, 0), c(1, 0, 0), c(0, 0, 1), c(1, 0, 1)],
@@ -37,6 +39,8 @@ fn rail_curve() -> PieceDef {
 /// 2×3 S-rail: lateral offset of one cell over three cells of length (contract §9, Q7).
 fn s_rail() -> PieceDef {
     PieceDef {
+        structural: false,
+        routes: Vec::new(),
         id: PieceId::new("rail_s_1x3_l2").unwrap(),
         chiral: true,
         footprint: vec![
@@ -57,6 +61,8 @@ fn s_rail() -> PieceDef {
 /// 1×1×2 gentle slope from L0 into L3 of the layer below; the exit is in the lower cell.
 fn slope_two_tall() -> PieceDef {
     PieceDef {
+        structural: false,
+        routes: Vec::new(),
         id: PieceId::new("blk_slope_gentle_l0").unwrap(),
         chiral: false,
         footprint: vec![c(0, 0, 0), c(0, -1, 0)],

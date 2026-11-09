@@ -21,7 +21,7 @@ pub use contract::KIT_CONTRACT_VERSION;
 pub use edit::{EditCommand, EditError, Editor, Selection};
 pub use file::{FileError, MechanismState, Metadata, ParbleFile};
 pub use grid::{CellCoord, InvalidYaw, Mirror, Orientation, PortFace, Yaw4};
-pub use piece::{InvalidPieceId, PieceDef, PieceDefError, PieceId};
+pub use piece::{InvalidPieceId, PieceDef, PieceDefError, PieceId, Route};
 pub use port::{InvalidLevel, Port, PortClass, PortError, PortFlow, PortLevel};
 pub use rng::{SeededRng, SubStream};
 pub use track::{

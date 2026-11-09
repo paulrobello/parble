@@ -1,8 +1,8 @@
 use parble_core::{
     CONTROLLED_DROP_MAX_FALL_UM, CellCoord, ControlledDrop, FUNNEL_CATCH_RADIUS_UM,
-    FUNNEL_MAX_FALL_UM, Issue, IssueKind, LinkFault, MapCatalog, Mirror, PieceDef, PieceId,
-    Placement, Port, PortClass, PortFace, PortFlow, PortLevel, Track, Yaw4, controlled_drops,
-    is_funnel, validate_track,
+    FUNNEL_MAX_FALL_UM, Issue, IssueKind, LinkFault, MapCatalog, Mirror, PieceDef, PieceDefError,
+    PieceId, Placement, Port, PortClass, PortFace, PortFlow, PortLevel, Route, Track, Yaw4,
+    controlled_drops, is_funnel, validate_track,
 };
 
 fn c(x: i32, y: i32, z: i32) -> CellCoord {
@@ -15,6 +15,8 @@ fn ch(cell: CellCoord, face: PortFace, level: PortLevel, flow: PortFlow) -> Port
 
 fn def(id: &str, chiral: bool, footprint: Vec<CellCoord>, ports: Vec<Port>) -> PieceDef {
     PieceDef {
+        structural: false,
+        routes: Vec::new(),
         id: PieceId::new(id).unwrap(),
         chiral,
         footprint,
@@ -716,4 +718,227 @@ fn drop_off_the_funnel_catch_radius_or_onto_a_non_funnel_stays_open() {
         FUNNEL_CATCH_RADIUS_UM, 66_000,
         "the 74 mm opening less the marble radius"
     );
+}
+
+// Structural pieces and routes (owner ruling 2026-11-09, options O1 + O2).
+
+/// [`catalog`] plus a structural pillar, a non-structural post with the same ports, a one-way
+/// hole with routes (over: +X → −X; trap: −X → bottom) and a hole with the same ports and no
+/// routes.
+fn routed_catalog() -> MapCatalog {
+    use PortFace::*;
+    use PortFlow::*;
+    use PortLevel::*;
+    let column = || vec![Port::drop(O, Top, In), Port::drop(O, Bottom, Out)];
+    let hole_ports = || {
+        vec![
+            ch(O, NegX, L3, Both),
+            ch(O, PosX, L3, In),
+            Port::drop(O, Bottom, Out),
+        ]
+    };
+    let mut pillar = def("blk_pillar", false, vec![O], column());
+    pillar.structural = true;
+    let post = def("blk_post", false, vec![O], column());
+    let mut hole = def("mech_hole_oneway_l3", false, vec![O], hole_ports());
+    hole.routes = vec![Route { from: 1, to: 0 }, Route { from: 0, to: 2 }];
+    let plain = def("mech_hole_plain_l3", false, vec![O], hole_ports());
+    let mut cat = catalog();
+    for d in [pillar, post, hole, plain] {
+        d.validate().unwrap_or_else(|e| panic!("{}: {e:?}", d.id));
+        cat.insert(d);
+    }
+    cat
+}
+
+/// `(placement, kind)` of every issue, track-level issues as `None`.
+fn found(issues: &[Issue]) -> Vec<(Option<usize>, &IssueKind)> {
+    issues.iter().map(|i| (i.placement, &i.kind)).collect()
+}
+
+/// The clean track with `piece` standing under its hopper: the top drop port is capped by the
+/// hopper's solid bottom, the bottom drop port opens onto nothing.
+fn under_the_hopper(piece: &str) -> Track {
+    let mut placements = clean_placements();
+    placements.push(place(piece, c(0, 0, 0), 0));
+    track(placements)
+}
+
+#[test]
+fn idle_structural_piece_with_open_ports_gives_no_issue() {
+    let cat = routed_catalog();
+    assert_eq!(
+        validate_track(&under_the_hopper("blk_pillar"), &cat),
+        vec![]
+    );
+    // Alone, both drop ports open.
+    let mut alone = clean_placements();
+    alone.push(place("blk_pillar", c(5, 0, 5), 0));
+    assert_eq!(validate_track(&track(alone), &cat), vec![]);
+}
+
+#[test]
+fn non_structural_piece_with_the_same_open_ports_is_reported() {
+    let cat = routed_catalog();
+    let issues = validate_track(&under_the_hopper("blk_post"), &cat);
+    let post = 7;
+    assert_eq!(
+        found(&issues),
+        vec![
+            (
+                Some(post),
+                &IssueKind::OpenPort {
+                    port: 1,
+                    face: PortFace::Bottom,
+                    flow: PortFlow::Out,
+                }
+            ),
+            (Some(post), &IssueKind::Unreachable),
+            (
+                Some(post),
+                &IssueKind::BrokenLink {
+                    port: 0,
+                    other: 0,
+                    other_port: None,
+                    fault: LinkFault::NoMatingPort,
+                }
+            ),
+        ],
+        "{issues:#?}"
+    );
+}
+
+#[test]
+fn structural_piece_a_marble_can_enter_keeps_every_rule() {
+    let cat = routed_catalog();
+    // The clean track's drop falls into the pillar instead of the finish, and the pillar's
+    // bottom opens onto nothing.
+    let mut placements = clean_placements();
+    placements[6] = place("blk_pillar", c(0, 0, 3), 0);
+    placements.push(place("mech_finish", c(0, 0, 5), 0));
+    let issues = validate_track(&track(placements), &cat);
+    assert_eq!(
+        found(&issues),
+        vec![
+            (
+                Some(6),
+                &IssueKind::OpenPort {
+                    port: 1,
+                    face: PortFace::Bottom,
+                    flow: PortFlow::Out,
+                }
+            ),
+            (
+                Some(7),
+                &IssueKind::OpenPort {
+                    port: 0,
+                    face: PortFace::Top,
+                    flow: PortFlow::In,
+                }
+            ),
+            (Some(7), &IssueKind::FinishUnreachable),
+        ],
+        "{issues:#?}"
+    );
+}
+
+#[test]
+fn drop_port_on_a_fed_trap_side_route_is_reported_when_it_opens_onto_nothing() {
+    let cat = routed_catalog();
+    // The hopper feeds the hole's −X port, so the trap route reaches the bottom drop port.
+    let t = track(vec![
+        place("mech_hopper", c(0, 1, 0), 0),
+        place("mech_hole_oneway_l3", c(1, 1, 0), 0),
+    ]);
+    let issues = validate_track(&t, &cat);
+    assert_eq!(
+        found(&issues),
+        vec![
+            (None, &IssueKind::MissingFinish),
+            (
+                Some(1),
+                &IssueKind::OpenPort {
+                    port: 1,
+                    face: PortFace::PosX,
+                    flow: PortFlow::In,
+                }
+            ),
+            (
+                Some(1),
+                &IssueKind::OpenPort {
+                    port: 2,
+                    face: PortFace::Bottom,
+                    flow: PortFlow::Out,
+                }
+            ),
+        ],
+        "{issues:#?}"
+    );
+}
+
+/// Hopper → hole over its +X side → `exit` on its −X side, facing −X (yaw 2).
+fn over_side(hole: &str, exit: &str) -> Track {
+    track(vec![
+        place("mech_hopper", c(3, 1, 0), 2),
+        place(hole, c(2, 1, 0), 0),
+        place(exit, c(1, 1, 0), 2),
+    ])
+}
+
+#[test]
+fn drop_port_no_fed_route_reaches_is_not_reported() {
+    let cat = routed_catalog();
+    // The slope's +X entry (yaw 2) takes marbles from the hole and feeds nothing back, so only
+    // the over route is fed and no marble reaches the drop port.
+    let issues = validate_track(
+        &over_side("mech_hole_oneway_l3", "blk_slope_gentle_l3"),
+        &cat,
+    );
+    let slope_exit = IssueKind::OpenPort {
+        port: 1,
+        face: PortFace::NegX,
+        flow: PortFlow::Out,
+    };
+    assert_eq!(
+        found(&issues),
+        vec![(None, &IssueKind::MissingFinish), (Some(2), &slope_exit)],
+        "{issues:#?}"
+    );
+
+    let trap_drop = (
+        Some(1),
+        &IssueKind::OpenPort {
+            port: 2,
+            face: PortFace::Bottom,
+            flow: PortFlow::Out,
+        },
+    );
+    // A straight there could roll marbles back into the −X port: the trap route is fed.
+    let issues = validate_track(&over_side("mech_hole_oneway_l3", "blk_straight_l3"), &cat);
+    assert!(found(&issues).contains(&trap_drop), "{issues:#?}");
+    // The same ports without routes: every inflow port reaches the drop port.
+    let issues = validate_track(
+        &over_side("mech_hole_plain_l3", "blk_slope_gentle_l3"),
+        &cat,
+    );
+    assert!(found(&issues).contains(&trap_drop), "{issues:#?}");
+}
+
+#[test]
+fn a_route_must_enter_by_an_inflow_port_and_leave_by_an_outflow_port() {
+    let cat = routed_catalog();
+    let hole = cat
+        .iter()
+        .find(|d| d.id.as_str() == "mech_hole_oneway_l3")
+        .unwrap();
+    for route in [
+        Route { from: 2, to: 0 }, // port 2 is Out only
+        Route { from: 0, to: 1 }, // port 1 is In only
+        Route { from: 0, to: 3 }, // no port 3
+        Route { from: 0, to: 0 },
+    ] {
+        let mut bad = hole.clone();
+        bad.routes.push(route);
+        assert_eq!(bad.validate(), Err(PieceDefError::BadRoute(2)));
+    }
 }

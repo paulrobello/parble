@@ -11,7 +11,7 @@ use std::sync::OnceLock;
 use parble_core::contract::KIT_CONTRACT_VERSION;
 use parble_core::{
     CellCoord, PieceCatalog, PieceDef, PieceDefError, PieceId, Port, PortClass, PortFace, PortFlow,
-    PortLevel,
+    PortLevel, Route,
 };
 use serde::Deserialize;
 
@@ -78,6 +78,16 @@ macro_rules! sidecars {
 
 /// Sidecars shipped in `assets/kit/`, in id order.
 const BUILTIN_SIDECARS: [&str; 34] = builtin_piece_ids!(sidecars);
+
+/// Pieces that carry no marble path of their own ([`PieceDef::structural`]): supports. The
+/// sidecar schema has no field for it, so the catalogue sets it by id.
+const STRUCTURAL: &[&str] = &["blk_pillar"];
+
+/// Paths through pieces whose ports do not all connect ([`PieceDef::routes`]), as `(from, to)`
+/// port indices; a piece not listed routes every inflow port to every outflow port. The one-way
+/// hole: a marble from `+X` (port 1) rolls over the shut door to `-X` (port 0); one from `-X`
+/// opens the door and falls out of the bottom (port 2).
+const ROUTES: &[(&str, &[(usize, usize)])] = &[("mech_hole_oneway_l1", &[(1, 0), (0, 2)])];
 
 /// [`BUILTIN_SIDECARS`] index of `blk_straight_l3`, the tests' reference sidecar.
 #[cfg(test)]
@@ -374,6 +384,12 @@ pub fn parse_sidecar(text: &str) -> Result<KitPiece, KitError> {
         });
     }
     let def = PieceDef {
+        structural: STRUCTURAL.contains(&id.as_str()),
+        routes: ROUTES
+            .iter()
+            .filter(|(pid, _)| *pid == id.as_str())
+            .flat_map(|(_, routes)| routes.iter().map(|&(from, to)| Route { from, to }))
+            .collect(),
         id,
         chiral: raw.chiral,
         footprint: raw.footprint,
@@ -1045,5 +1061,28 @@ mod tests {
             KitCatalog::from_sidecars([good, good]),
             Err(KitError::Duplicate(_))
         ));
+    }
+
+    #[test]
+    fn only_the_pillar_is_structural_and_only_the_one_way_hole_has_routes() {
+        let kit = builtin();
+        let structural: Vec<&str> = kit
+            .iter()
+            .filter(|p| p.def.structural)
+            .map(|p| p.def.id.as_str())
+            .collect();
+        assert_eq!(structural, ["blk_pillar"]);
+        let routed: Vec<(&str, &[Route])> = kit
+            .iter()
+            .filter(|p| !p.def.routes.is_empty())
+            .map(|p| (p.def.id.as_str(), p.def.routes.as_slice()))
+            .collect();
+        assert_eq!(
+            routed,
+            [(
+                "mech_hole_oneway_l1",
+                &[Route { from: 1, to: 0 }, Route { from: 0, to: 2 }][..]
+            )]
+        );
     }
 }

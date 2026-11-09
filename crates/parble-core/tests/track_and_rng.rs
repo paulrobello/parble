@@ -93,6 +93,8 @@ fn track_json_rejects_out_of_range_yaw_and_bad_piece_id() {
 #[test]
 fn placement_world_cells_offset_by_anchor() {
     let def = PieceDef {
+        structural: false,
+        routes: Vec::new(),
         id: id("rail_curve90_r90_l2"),
         chiral: true,
         footprint: vec![

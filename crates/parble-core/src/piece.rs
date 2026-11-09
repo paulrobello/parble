@@ -2,7 +2,7 @@
 
 use crate::contract::{MAX_FOOTPRINT_LAYERS, MAX_FOOTPRINT_PLAN_CELLS, MAX_PIECE_ID_LEN};
 use crate::grid::{CellCoord, Orientation, PortFace};
-use crate::port::{Port, PortError};
+use crate::port::{Port, PortError, PortFlow};
 use serde::{Deserialize, Serialize};
 
 const FAMILIES: [&str; 6] = ["blk", "rail", "mech", "terr", "music", "deco"];
@@ -88,6 +88,22 @@ pub struct PieceDef {
     pub chiral: bool,
     pub footprint: Vec<CellCoord>,
     pub ports: Vec<Port>,
+    /// A support that carries no marble path of its own (a pillar). While no marble can enter
+    /// it, the validator does not report its unlinked ports or count it unreachable.
+    #[serde(default, skip_serializing_if = "core::ops::Not::not")]
+    pub structural: bool,
+    /// Paths through the piece. Empty: a marble entering any inflow port can leave by any
+    /// outflow port. Otherwise only these paths exist.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub routes: Vec<Route>,
+}
+
+/// A path through a piece: a marble entering by port `from` can leave by port `to` (port
+/// indices, so a route survives orientation).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct Route {
+    pub from: usize,
+    pub to: usize,
 }
 
 /// Why a [`PieceDef`] breaks the §9 footprint rules.
@@ -105,6 +121,9 @@ pub enum PieceDefError {
     PortOnInternalFace(usize),
     /// Port index that is malformed.
     Port(usize, PortError),
+    /// Route index whose `from` port does not allow inflow or whose `to` port does not allow
+    /// outflow, or that names a port the piece does not have.
+    BadRoute(usize),
 }
 
 impl PieceDef {
@@ -122,6 +141,8 @@ impl PieceDef {
             chiral: self.chiral,
             footprint: self.footprint_for(o),
             ports: self.ports.iter().map(|p| p.transformed(o)).collect(),
+            structural: self.structural,
+            routes: self.routes.clone(),
         }
     }
 
@@ -165,6 +186,14 @@ impl PieceDef {
                 .is_ok()
             {
                 return Err(PieceDefError::PortOnInternalFace(i));
+            }
+        }
+        for (i, r) in self.routes.iter().enumerate() {
+            let flow = |port: usize| self.ports.get(port).map(|p| p.flow);
+            let enters = matches!(flow(r.from), Some(PortFlow::In | PortFlow::Both));
+            let leaves = matches!(flow(r.to), Some(PortFlow::Out | PortFlow::Both));
+            if !enters || !leaves || r.from == r.to {
+                return Err(PieceDefError::BadRoute(i));
             }
         }
         Ok(())

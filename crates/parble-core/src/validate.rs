@@ -54,11 +54,26 @@
 //! # Reachability
 //!
 //! Marbles flow along valid links only, from a port that allows outflow (`Out`, `Both`) into a
-//! port that allows inflow (`In`, `Both`). Inside a piece, a marble entering any port can leave
-//! by any outflow port (the validator does not model internal routing). Every resolved
+//! port that allows inflow (`In`, `Both`). Placement reachability ignores internal routing: a
+//! marble entering a piece can reach every piece its outflow ports link to. Every resolved
 //! placement not reached from a source is [`IssueKind::Unreachable`], except a finish, which is
-//! reported once as [`IssueKind::FinishUnreachable`]. Without any source only
-//! [`IssueKind::MissingHopper`] is reported.
+//! reported once as [`IssueKind::FinishUnreachable`], and an idle structural piece (below).
+//! Without any source only [`IssueKind::MissingHopper`] is reported.
+//!
+//! # Fed ports, routes and structural pieces (owner ruling 2026-11-09)
+//!
+//! A port is fed when a marble can enter by it: the port allows inflow and faces a port that
+//! allows outflow (whether or not the two link), or it is a controlled drop's landing port.
+//!
+//! [`PieceDef::routes`] lists the paths through a piece; an empty list routes every inflow port
+//! to every outflow port. An open `Out` port of a piece with routes is reported only when a route
+//! to it starts at a fed port (or the piece is a funnel drop's target, which is entered without a
+//! port): no marble can leave by a port no fed route leads to. Open `In` and `Both` ports are
+//! reported as before.
+//!
+//! A [`PieceDef::structural`] piece (a support) that no marble can enter (no fed port, no funnel
+//! drop into it) is idle: its open and one-sided ports and its unreachability are not issues. Once
+//! a marble can enter it, every rule applies to it as to any other piece.
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
@@ -490,13 +505,26 @@ pub fn validate_track(track: &Track, catalog: &impl PieceCatalog) -> Vec<Issue> 
     let mut edges: BTreeMap<usize, BTreeSet<usize>> = BTreeMap::new();
     let drops = find_drops(&resolved, &occupancy);
     let mut drop_ports: BTreeSet<(usize, usize)> = BTreeSet::new();
+    // Ports a marble can enter by: a link from a port that allows outflow, or a drop landing.
+    let mut fed: BTreeSet<(usize, usize)> = BTreeSet::new();
+    // Placements a marble falls into without a port (a funnel's bowl).
+    let mut bowls: BTreeSet<usize> = BTreeSet::new();
     for d in &drops {
         edges.entry(d.from).or_default().insert(d.to);
         drop_ports.insert((d.from, d.from_port));
-        if let Some(to_port) = d.to_port {
-            drop_ports.insert((d.to, to_port));
+        match d.to_port {
+            Some(to_port) => {
+                drop_ports.insert((d.to, to_port));
+                fed.insert((d.to, to_port));
+            }
+            None => {
+                bowls.insert(d.to);
+            }
         }
     }
+    // Open ports and one-sided ports of this placement's own, decided once every link is known
+    // (structural pieces and routes, module docs): (placement, port, issue).
+    let mut unlinked: Vec<(usize, usize, Issue)> = Vec::new();
     for (i, r) in resolved.iter().enumerate() {
         let Some(r) = r else { continue };
         for (pi, port) in r.ports.iter().enumerate() {
@@ -507,14 +535,18 @@ pub fn validate_track(track: &Track, catalog: &impl PieceCatalog) -> Vec<Issue> 
                 .unwrap_or_default();
             if neighbours.is_empty() {
                 if !r.cells.contains(&facing) && !drop_ports.contains(&(i, pi)) {
-                    issues.insert(on(
+                    unlinked.push((
                         i,
-                        vec![port.cell],
-                        IssueKind::OpenPort {
-                            port: pi,
-                            face: port.face,
-                            flow: port.flow,
-                        },
+                        pi,
+                        on(
+                            i,
+                            vec![port.cell],
+                            IssueKind::OpenPort {
+                                port: pi,
+                                face: port.face,
+                                flow: port.flow,
+                            },
+                        ),
                     ));
                 }
                 continue;
@@ -540,18 +572,26 @@ pub fn validate_track(track: &Track, catalog: &impl PieceCatalog) -> Vec<Issue> 
                     if drop_ports.contains(&(i, pi)) {
                         continue;
                     }
-                    issues.insert(on(
+                    unlinked.push((
                         i,
-                        face_cells.clone(),
-                        IssueKind::BrokenLink {
-                            port: pi,
-                            other: q,
-                            other_port: None,
-                            fault: LinkFault::NoMatingPort,
-                        },
+                        pi,
+                        on(
+                            i,
+                            face_cells.clone(),
+                            IssueKind::BrokenLink {
+                                port: pi,
+                                other: q,
+                                other_port: None,
+                                fault: LinkFault::NoMatingPort,
+                            },
+                        ),
                     ));
                     continue;
                 };
+                // A facing port that lets marbles out feeds this one, linked or not.
+                if allows_out(m.flow) && allows_in(port.flow) {
+                    fed.insert((i, pi));
+                }
                 match link_fault(port, m) {
                     Some(fault) => {
                         // Both ends see the fault; report it once, on the lower end.
@@ -576,6 +616,36 @@ pub fn validate_track(track: &Track, catalog: &impl PieceCatalog) -> Vec<Issue> 
                 }
             }
         }
+    }
+
+    // A structural piece no marble can enter keeps its ports unlinked. A port that only routes
+    // lead to (it takes no marble in) is open only when a route to it starts at a fed port.
+    let entered =
+        |i: usize| bowls.contains(&i) || fed.range((i, 0)..=(i, usize::MAX)).next().is_some();
+    let idle_support = |i: usize| {
+        resolved[i]
+            .as_ref()
+            .is_some_and(|r| r.def.structural && !entered(i))
+    };
+    for (i, pi, issue) in unlinked {
+        let Some(r) = &resolved[i] else { continue };
+        if idle_support(i) {
+            continue;
+        }
+        let routed_out = matches!(issue.kind, IssueKind::OpenPort { .. })
+            && r.ports[pi].flow == PortFlow::Out
+            && !r.def.routes.is_empty()
+            && !bowls.contains(&i);
+        if routed_out
+            && !r
+                .def
+                .routes
+                .iter()
+                .any(|rt| rt.to == pi && fed.contains(&(i, rt.from)))
+        {
+            continue;
+        }
+        issues.insert(issue);
     }
 
     // Sources and targets.
@@ -646,7 +716,7 @@ pub fn validate_track(track: &Track, catalog: &impl PieceCatalog) -> Vec<Issue> 
         }
         for (i, r) in resolved.iter().enumerate() {
             let Some(r) = r else { continue };
-            if reached[i] {
+            if reached[i] || idle_support(i) {
                 continue;
             }
             let kind = if is_finish(&r.def.id) {
