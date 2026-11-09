@@ -115,7 +115,33 @@ pub const CLEAR_VIEWS: [(f32, f32); 20] = [
     (0.6, 1.0),
     (0.6, -1.0),
 ];
-/// The clear-view moves of a framing shot: it keeps its bearing and only rises.
+/// The clear-view moves of a framing shot that takes its bearing from the camera, cheapest first
+/// as in [`CLEAR_VIEWS`]. A framing shot shows its target from above: a swing of a radian or more
+/// rises with it, so the view round on the far side still looks down over the track rather than
+/// across it side-on, and those low far swings come last.
+pub const FRAME_VIEWS: [(f32, f32); 20] = [
+    (0.0, 0.0),
+    (0.0, 0.5),
+    (0.0, -0.5),
+    (0.2, 0.0),
+    (0.2, 0.5),
+    (0.2, -0.5),
+    (0.4, 0.0),
+    (0.4, 1.0),
+    (0.4, -1.0),
+    (0.4, 1.5),
+    (0.4, -1.5),
+    (0.4, 0.5),
+    (0.4, -0.5),
+    (0.6, 0.0),
+    (0.6, 1.0),
+    (0.6, -1.0),
+    (0.0, 1.0),
+    (0.0, -1.0),
+    (0.0, 1.5),
+    (0.0, -1.5),
+];
+/// The clear-view moves of a framing shot with a set bearing: it keeps its bearing and only rises.
 pub const FRAME_LIFTS: [(f32, f32); 5] =
     [(0.0, 0.0), (0.2, 0.0), (0.4, 0.0), (0.6, 0.0), (0.8, 0.0)];
 /// The follow shot returns to its plain view once that has been clear this long (seconds).
@@ -1000,7 +1026,7 @@ impl Shot {
                 let moves: &[(f32, f32)] = if azimuth.is_some() {
                     &FRAME_LIFTS
                 } else {
-                    &CLEAR_VIEWS
+                    &FRAME_VIEWS
                 };
                 self.avoid(
                     f.solids.is_empty(),
