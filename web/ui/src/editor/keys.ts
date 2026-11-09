@@ -1,6 +1,9 @@
 // The editor keyboard map (docs/design/editor/README.md, Keyboard map). The overlay owns the keys on
 // the web (it sends `keys {enabled:false}` so Bevy's editor shortcuts never double-fire); every key
-// here only shortens a visible button. `F`, `C`, `P`, `,`, `.` and `N` stay with the engine.
+// here only shortens a visible button. `P` (pause), `C` (follow cam) and `F` (fly) are the engine's
+// own keys: Bevy only hears them while the canvas has focus, so the overlay answers them when focus
+// is elsewhere (a strip button, the drawer) and leaves them to the engine otherwise. `,`, `.` and
+// `N` stay with the engine alone.
 
 import { type Action, type EditorDiag, sliceDown, sliceUp } from "./model";
 
@@ -14,13 +17,15 @@ export interface KeyLike {
 }
 
 /** What a key does: engine actions, or an overlay command. */
-export type KeyResult =
-  | { kind: "actions"; actions: Action[] }
-  | { kind: "ui"; command: "drawer" | "panel" | "run" | "space" | "escape" | "remove" | "sliceToggle" }
-  | null;
+export type KeyResult = { kind: "actions"; actions: Action[] } | { kind: "ui"; command: UiCommand } | null;
+
+export type UiCommand = "drawer" | "panel" | "run" | "space" | "escape" | "remove" | "sliceToggle" | "follow" | "fly";
+
+/** The engine's own keys (playback and camera), which Bevy handles itself while the canvas has focus. */
+export const ENGINE_KEYS: ReadonlySet<string> = new Set(["KeyP", "KeyC", "KeyF"]);
 
 const acts = (...actions: Action[]): KeyResult => ({ kind: "actions", actions });
-const ui = (command: "drawer" | "panel" | "run" | "space" | "escape" | "remove" | "sliceToggle"): KeyResult => ({
+const ui = (command: UiCommand): KeyResult => ({
   kind: "ui",
   command,
 });
@@ -44,6 +49,12 @@ export function keyResult(e: KeyLike, d: Pick<EditorDiag, "slice" | "maxLevel">)
       return acts({ op: "rotate", by: e.shiftKey ? 3 : 1 });
     case "KeyM":
       return acts({ op: "mirror" });
+    case "KeyP":
+      return acts({ op: "pause" });
+    case "KeyC":
+      return ui("follow");
+    case "KeyF":
+      return ui("fly");
     case "BracketLeft":
       return acts({ op: "slice", level: sliceDown(d.slice, d.maxLevel) });
     case "BracketRight":

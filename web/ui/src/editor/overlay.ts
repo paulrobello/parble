@@ -8,14 +8,17 @@ import { downloadText, fileName } from "../files";
 import type { Library, TrackSummary } from "../library";
 import { RunFade } from "./fade";
 import { icon, iconSprite } from "./icons";
-import { keyResult, ownsKeys } from "./keys";
+import { ENGINE_KEYS, keyResult, ownsKeys } from "./keys";
 import {
   type Action,
+  boxPath,
   cellText,
+  countBadge,
   type EditorDiag,
   FAMILIES,
   type Family,
   familyOf,
+  faceWord,
   familyText,
   focusOrbit,
   ghostText,
@@ -24,13 +27,16 @@ import {
   levelLabel,
   MAX_MARBLES,
   pieceName,
+  type PieceOption,
   piecesOf,
+  planThumb,
   portsText,
   type Release,
   runTime,
   type Send,
   sliceDown,
   sliceUp,
+  strokeText,
   TICK_HZ,
   type Vec3i,
 } from "./model";
@@ -58,7 +64,21 @@ export interface EditorDeps {
   now?: () => number;
   /** The orbit camera now (`window.__parble.camera.orbit`). */
   orbit?: () => Orbit | null;
+  /** The camera mode now (`window.__parble.camera.mode`): in `fly` the engine owns every key. */
+  cameraMode?: () => string | null;
 }
+
+/** Folded run controls (below 1280 px): the tooltip's label and key cap. */
+const RUN_TIPS: Record<string, [string, string?]> = {
+  one: ["Release one"],
+  all: ["Release all"],
+  interval: ["Interval"],
+  pause: ["Pause", "Space"],
+  reset: ["Reset"],
+  follow: ["Follow cam", "C"],
+};
+/** Piece options by key: the inspector's label. */
+const OPTION_LABEL: Record<string, string> = { first: "First side" };
 
 export interface EditorOverlay {
   root: HTMLElement;
@@ -152,12 +172,12 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
 </div>
 <span class="sp"></span>
 <div class="grp" data-g="run">
- <button class="t rc" data-k="one" title="Release one marble">${icon("r1")}<span>Release one</span></button>
- <button class="t rc" data-k="all" title="Release all marbles">${icon("ra")}<span>Release all</span></button>
- <button class="t rc" data-k="interval" title="Release on an interval" aria-haspopup="menu" aria-expanded="false">${icon("int")}<span>Interval</span></button>
- <button class="t rc" data-k="pause" title="Pause (Space while running)" aria-pressed="false">${icon("pau")}<span>Pause <kbd class="rk">Space</kbd></span></button>
- <button class="t rc" data-k="reset" title="Reset: marbles back to the hopper, edits kept">${icon("rst")}<span>Reset</span></button>
- <button class="t rc" data-k="follow" title="Follow cam: the director films the run (C)" aria-pressed="false">${icon("cam")}<span>Follow cam</span></button>
+ <button class="t rc" data-k="one" aria-label="Release one" title="Release one marble">${icon("r1")}<span>Release one</span></button>
+ <button class="t rc" data-k="all" aria-label="Release all" title="Release all marbles">${icon("ra")}<span>Release all</span></button>
+ <button class="t rc" data-k="interval" aria-label="Interval" title="Release on an interval" aria-haspopup="menu" aria-expanded="false">${icon("int")}<span>Interval</span></button>
+ <button class="t rc" data-k="pause" aria-label="Pause" aria-keyshortcuts="Space P" title="Pause (Space or P while running)" aria-pressed="false">${icon("pau")}<span>Pause <kbd class="rk">Space</kbd></span></button>
+ <button class="t rc" data-k="reset" aria-label="Reset" title="Reset: marbles back to the hopper, edits kept">${icon("rst")}<span>Reset</span></button>
+ <button class="t rc" data-k="follow" aria-label="Follow cam" aria-keyshortcuts="C" title="Follow cam: the director films the run (C)" aria-pressed="false">${icon("cam")}<span>Follow cam</span></button>
 </div><i class="sep"></i>
 <div class="mb"><span class="sc">Marbles<b data-k="count"></b></span><span class="row" data-k="pins"></span></div>
 <button class="run" data-k="run"></button>
@@ -266,6 +286,7 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
   );
   let family: Family = "blocks";
   let tileFor = "";
+  let countFor = "";
 
   // ---- floating: tooltip, marquee, capsule, hairlines, sound, sheet --------------------------
   const tip = h(doc, "div", { id: "pe-tip", class: "inlay", role: "status" }, `<i class="pin"></i><span></span>`);
@@ -290,14 +311,46 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
   const ask = q(sheet, '[data-k="ask"]');
   const fileIn = q<HTMLInputElement>(sheet, '[data-k="file"]');
 
-  root.append(top, side, tray, tip, marq, mlabel, cap, ...hairs, sheet);
+  // The dashed placement ghost: the brush footprint's box (and a drag-to-lay run's boxes), projected
+  // by the engine, drawn under the chrome. Brass where valid, red where not.
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const ghost = doc.createElementNS(SVG_NS, "svg");
+  ghost.setAttribute("id", "pe-ghost");
+  ghost.setAttribute("aria-hidden", "true");
+  const ghostRun = doc.createElementNS(SVG_NS, "path");
+  ghostRun.setAttribute("class", "run");
+  const ghostBox = doc.createElementNS(SVG_NS, "path");
+  ghost.append(ghostRun, ghostBox);
+  // Folded run controls (below 1280 px) show their label and key cap in this inlay tooltip.
+  const tt = h(doc, "div", { id: "pe-tt", class: "inlay", role: "tooltip" });
+
+  root.append(ghost, top, side, tray, tip, marq, mlabel, cap, ...hairs, sheet, tt);
   doc.body.append(root);
+
+  const narrow = (): boolean => win.matchMedia?.("(max-width: 1279px)").matches ?? false;
+  const showTip = (b: HTMLElement): void => {
+    const t = RUN_TIPS[b.dataset.k ?? ""];
+    if (!t || !narrow()) return;
+    tt.innerHTML = `<span>${esc(t[0])}</span>${t[1] ? `<kbd>${esc(t[1])}</kbd>` : ""}`;
+    const left = b.offsetLeft + runGrp.offsetLeft + top.offsetLeft;
+    tt.style.transform = `translate(${Math.round(left + b.offsetWidth / 2)}px, ${top.offsetTop + top.offsetHeight + 6}px) translateX(-50%)`;
+    tt.classList.add("show");
+  };
+  const hideTip = (): void => tt.classList.remove("show");
+  for (const b of runGrp.querySelectorAll<HTMLElement>(".rc")) {
+    b.addEventListener("pointerenter", () => showTip(b));
+    b.addEventListener("focus", () => showTip(b));
+    b.addEventListener("pointerleave", hideTip);
+    b.addEventListener("blur", hideTip);
+  }
 
   // ---- run fade & pointer ----------------------------------------------------------------------
   const fade = new RunFade();
   let pointer: { x: number; y: number; on: boolean } = { x: 0, y: 0, on: false };
   let press: { x: number; y: number; marquee: boolean } | null = null;
   let marqueeEnd: { x: number; y: number } | null = null;
+  /** A drag-to-lay stroke from a drawer tile is open. */
+  let laying = false;
   let mlabelUntil = 0;
   const canvas = (): HTMLElement | null => doc.getElementById("parble");
   win.addEventListener("pointermove", (e) => {
@@ -321,7 +374,23 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     if (press?.marquee && marq.classList.contains("show")) marqueeEnd = { x: e.clientX, y: e.clientY };
     press = null;
     marq.classList.remove("show");
+    if (laying) {
+      laying = false;
+      act({ op: "stroke", phase: "end" });
+    }
   });
+  // Drag-to-lay from the drawer: pressing a tile picks its piece and opens a stroke; while the
+  // button is held, the engine lays one piece per cell the pointer enters on the scene, and the
+  // release ends the stroke as one undo step. Pointer events only (no HTML drag and drop, which
+  // would stop the moves reaching the canvas), and no pointer capture, for the same reason.
+  tiles.addEventListener("pointerdown", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>("[data-piece]");
+    if (!b?.dataset.piece || e.button !== 0) return;
+    pick(b.dataset.piece);
+    laying = true;
+    act({ op: "stroke", phase: "start" });
+  });
+  tiles.addEventListener("dragstart", (e) => e.preventDefault());
 
   // ---- hints (announced once each, then remembered) ---------------------------------------
   const seen = new Set<string>();
@@ -371,16 +440,22 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
       sheetList.innerHTML = `<p class="note">The library needs IndexedDB, which this browser does not offer.</p>`;
       return;
     }
-    const rows: (TrackSummary & { pieces: number })[] = [];
+    const rows: (TrackSummary & { pieces: number; plan: string })[] = [];
     for (const s of await lib.list()) {
       const rec = await lib.get(s.id);
-      let pieces = 0;
+      let placements: { piece: string; anchor: [number, number, number] }[] = [];
       try {
-        pieces = (JSON.parse(rec?.json ?? "{}") as { placements?: unknown[] }).placements?.length ?? 0;
+        const raw = (JSON.parse(rec?.json ?? "{}") as { placements?: unknown[] }).placements ?? [];
+        placements = raw.filter(
+          (p): p is { piece: string; anchor: [number, number, number] } =>
+            typeof (p as { piece?: unknown }).piece === "string" &&
+            Array.isArray((p as { anchor?: unknown }).anchor) &&
+            (p as { anchor: unknown[] }).anchor.length === 3,
+        );
       } catch {
         /* a bad record lists with 0 pieces */
       }
-      rows.push({ ...s, pieces });
+      rows.push({ ...s, pieces: placements.length, plan: planThumb(placements) });
     }
     rows.sort((a, b) => b.saved - a.saved);
     sheetList.innerHTML = rows.length
@@ -388,7 +463,7 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
           .map(
             (
               r,
-            ) => `<div class="row"><div class="thumb" aria-hidden="true">${esc(r.name.slice(0, 1).toUpperCase())}</div>
+            ) => `<div class="row"><div class="thumb" aria-hidden="true">${r.plan || esc(r.name.slice(0, 1).toUpperCase())}</div>
 <div><div>${esc(r.name)}</div><div class="meta">${r.pieces} piece${r.pieces === 1 ? "" : "s"} · ${new Date(r.saved).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</div></div>
 <button class="btn" data-open="${esc(r.id)}">Open</button><span></span></div>`,
           )
@@ -446,17 +521,19 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
   });
 
   // ---- camera fly to an issue ------------------------------------------------------------------
-  let fly: { from: Orbit; to: Orbit; t0: number; cell: Vec3i } | null = null;
+  let fly: { from: Orbit; to: Orbit; t0: number; cell: Vec3i; anchor: Vec3i | null } | null = null;
+  const reduced = (): boolean => win.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
   const show = (cell: Vec3i, anchor: Vec3i | null): void => {
     const from = deps.orbit?.() ?? null;
     const base = from ?? { target: [0, 0, 0] as [number, number, number], yaw: 0, pitch: 0.95, radius: 2.6 };
     const to = focusOrbit(cell, base);
-    if (!from || win.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    if (!from || reduced()) {
       act({ op: "camera", ...to });
       if (anchor) act({ op: "boxSelect", a: anchor, b: anchor });
+      if (anchor && !reduced()) act({ op: "pulse", anchor });
       return;
     }
-    fly = { from, to, t0: now(), cell: anchor ?? cell };
+    fly = { from, to, t0: now(), cell: anchor ?? cell, anchor };
   };
   const stepFly = (): void => {
     if (!fly) return;
@@ -471,9 +548,11 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
       radius: mix(fly.from.radius, fly.to.radius),
     });
     if (t >= 1) {
-      const c = fly.cell;
+      const { cell: c, anchor } = fly;
       fly = null;
       act({ op: "boxSelect", a: c, b: c });
+      // Two pale-blue pulses of the selection mark on the piece (engine, real time).
+      if (anchor) act({ op: "pulse", anchor });
     }
   };
 
@@ -537,7 +616,10 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
       setMenu(false);
       run("interval");
     } else if (b.dataset.piece) pick(b.dataset.piece);
-    else if (b.dataset.show) {
+    else if (b.dataset.opt) {
+      const [k, v] = b.dataset.opt.split(":");
+      if (k && v !== undefined) act({ op: "mechConfig", key: k, value: Number(v) });
+    } else if (b.dataset.show) {
       const [x, y, z, ax, ay, az] = b.dataset.show.split(",").map(Number) as number[];
       show([x, y, z] as Vec3i, Number.isFinite(ax) ? ([ax, ay, az] as Vec3i) : null);
     } else if (b.dataset.k && commands[b.dataset.k]) commands[b.dataset.k]?.();
@@ -598,13 +680,25 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
           (
             p,
           ) => `<div class="pc"><button class="tile" role="option" data-piece="${p}" aria-selected="false" title="${esc(pieceName(p))}">
-<img alt="" src="${versioned(win, `${THUMB_DIR}${p}.png`)}" width="80" height="80" decoding="async"></button><span class="nm">${esc(pieceName(p))}</span></div>`,
+<img alt="" src="${versioned(win, `${THUMB_DIR}${p}.png`)}" width="80" height="80" decoding="async" draggable="false"><b class="ct" data-ct="${p}"></b></button><span class="nm">${esc(pieceName(p))}</span></div>`,
         )
         .join("");
       tiles.append(tilePin.el);
       tiles.scrollLeft = 0;
       edgeCue();
       tilePin.refresh();
+      countFor = "";
+    }
+    const counts = s.pieceCounts ?? {};
+    const ck = `${key}|${s.edits}`;
+    if (ck !== countFor) {
+      countFor = ck;
+      for (const b of tiles.querySelectorAll<HTMLElement>("[data-ct]")) {
+        const n = counts[b.dataset.ct ?? ""];
+        const text = countBadge(n);
+        if (b.textContent !== text) b.textContent = text;
+        b.setAttribute("aria-label", n ? `${n} placed` : "");
+      }
     }
     for (const t of tabs.querySelectorAll<HTMLElement>("[data-f]")) {
       const on = t.dataset.f === family;
@@ -621,6 +715,20 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     }
     tilePin.to(active);
   };
+
+  /** Inspector rows for a piece's options: a segmented control per option, the brass pin on the set value. */
+  const optionRows = (options: readonly PieceOption[]): string =>
+    options
+      .map(
+        (o) =>
+          `<span class="sc">${esc(OPTION_LABEL[o.key] ?? o.key)}</span><div class="seg opt" role="radiogroup" aria-label="${esc(OPTION_LABEL[o.key] ?? o.key)}">${o.choices
+            .map(
+              (c) =>
+                `<button role="radio" data-opt="${esc(o.key)}:${c.value}" aria-checked="${c.value === o.value}"${c.value === o.value ? ' class="on"' : ""}>${c.value === o.value ? '<i class="pin"></i>' : ""}${esc(faceWord(c.face))}</button>`,
+            )
+            .join("")}</div>`,
+      )
+      .join("");
 
   let selKey = "";
   const renderSelection = (s: EditorDiag): void => {
@@ -666,7 +774,8 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
 <div class="kv"><span class="sc">Ports</span><span>${esc(portsText(p.ports))}</span>
 <span class="sc">Level</span><span>L${p.anchor[1]}</span>
 <span class="sc">Cell</span><span>${cellText(p.anchor)}</span>
-<span class="sc">Turn</span><span>${p.yaw * 90}°${p.mirror ? " · mirrored" : ""}</span></div>
+<span class="sc">Turn</span><span>${p.yaw * 90}°${p.mirror ? " · mirrored" : ""}</span>${optionRows(p.options ?? [])}</div>
+${p.options?.length ? `<p class="note">Piece options take effect on the next Run or Reset.</p>` : ""}
 ${groupActs}`;
       return;
     }
@@ -791,7 +900,9 @@ ${groupActs}
   const renderTip = (s: EditorDiag): void => {
     let text: string | null = null;
     let valid = true;
-    if (s.drag) {
+    if (s.stroke) {
+      text = strokeText(s.stroke.placed);
+    } else if (s.drag) {
       text = `Move ${cellText(s.drag.offset)} · ${s.drag.valid ? "valid" : "blocked"}`;
       valid = s.drag.valid;
     } else if (s.tool === "place" && pointer.on) {
@@ -807,6 +918,20 @@ ${groupActs}
       if (text !== null) tipText.textContent = text;
     }
     if (text !== null) tip.style.transform = `translate(${pointer.x + 18}px, ${pointer.y + 22}px)`;
+  };
+
+  let ghostKey = "";
+  const renderGhost = (s: EditorDiag): void => {
+    const on = s.tool === "place" && pointer.on && !s.run.active;
+    const box = on && !s.stroke ? boxPath(s.hover?.outline) : "";
+    const run = on ? (s.stroke?.outlines ?? []).map((o) => boxPath(o)).join("") : "";
+    const bad = !!box && !(s.hover?.valid ?? false);
+    const k = `${box}|${run}|${bad}`;
+    if (k === ghostKey) return;
+    ghostKey = k;
+    ghostBox.setAttribute("d", box);
+    ghostBox.setAttribute("class", bad ? "bad" : "ok");
+    ghostRun.setAttribute("d", run);
   };
 
   let capKey = "";
@@ -898,12 +1023,25 @@ ${groupActs}
     renderValidation(next);
     renderHint(next);
     renderTip(next);
+    renderGhost(next);
     renderRun(next);
     renderMarqueeLabel(next);
   };
 
   const key = (e: KeyboardEvent): boolean => {
     if (!d || ownsKeys(e.target) || e.isComposing) return false;
+    const cv = canvas();
+    // Synthetic keys on the canvas (pointer-lock's Escape, the F forwarded below) are the engine's.
+    if (cv && e.target === cv && !e.isTrusted) return false;
+    // The fly camera owns every key (WASD, Space, Q/E, Esc) until it is left.
+    if (deps.cameraMode?.() === "fly") return false;
+    // The engine hears its own keys while the canvas has focus; answering them too would double them.
+    if (ENGINE_KEYS.has(e.code) && cv && (doc.activeElement === cv || e.target === cv)) return false;
+    if (e.code === "Escape" && laying) {
+      laying = false;
+      act({ op: "stroke", phase: "cancel" });
+      return true;
+    }
     if (e.code === "Escape" && menu.classList.contains("open")) {
       setMenu(false);
       return true;
@@ -946,6 +1084,17 @@ ${groupActs}
         break;
       case "run":
         commands.run?.();
+        break;
+      case "follow":
+        commands.follow?.();
+        break;
+      case "fly":
+        // Fly is the engine's (it saves the view it leaves); hand it the key on the canvas.
+        // pointer-lock.ts already asked for the lock from this same trusted key press.
+        if (cv) {
+          for (const type of ["keydown", "keyup"])
+            cv.dispatchEvent(new KeyboardEvent(type, { code: "KeyF", key: "f", bubbles: true }));
+        }
         break;
     }
     return true;

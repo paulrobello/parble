@@ -40,6 +40,7 @@ function start(bindings: WasmBindings): void {
           post: (cmd) => bridge.post(cmd),
           library,
           orbit: () => cameraState()?.orbit ?? null,
+          cameraMode: () => cameraState()?.mode ?? null,
         })
       : null;
   const files = editor ? null : mountFiles(document, (cmd) => bridge.post(cmd), library);

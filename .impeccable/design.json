@@ -314,9 +314,9 @@
       "name": "Piece Tile",
       "kind": "card",
       "refersTo": "piece-tile-active",
-      "description": "96px kit tile; selected adds a brass edge and the tile lift.",
-      "html": "<div class=\"ds-tray\"><div class=\"ds-pc\"><button class=\"ds-tile\"></button><span>Join · 3</span></div><div class=\"ds-pc\"><button class=\"ds-tile ds-on\"></button><span>Straight · 3</span></div></div>",
-      "css": ".ds-tray{display:flex;gap:14px;padding:10px 18px;background:rgba(34,22,15,.9);border:1px solid rgba(217,194,160,.55);border-radius:6px;box-shadow:0 10px 28px rgba(0,0,0,.45),0 2px 4px rgba(0,0,0,.4);color:#f0e6d6;font-family:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.25;font-feature-settings:\"lnum\" 1;}.ds-pc{width:96px;display:flex;flex-direction:column;gap:5px;text-align:center;font-size:12px}.ds-tile{width:96px;height:96px;background:rgba(0,0,0,.22);border:1px solid rgba(217,194,160,.28);border-radius:5px;cursor:pointer}.ds-tile:hover{background:#3a271b}.ds-tile:focus-visible{outline:2px solid #a8c8d8;outline-offset:2px;}.ds-tile.ds-on{background:#3a271b;border-color:#c49a52;box-shadow:0 4px 10px rgba(0,0,0,.4)}"
+      "description": "96px kit tile with the placed count top right; selected adds a brass edge and the tile lift. Press and drag to lay a run.",
+      "html": "<div class=\"ds-tray\"><div class=\"ds-pc\"><button class=\"ds-tile\"></button><span>Join · 3</span></div><div class=\"ds-pc\"><button class=\"ds-tile ds-on\"><i class=\"ds-ct\">×3</i></button><span>Straight · 3</span></div></div>",
+      "css": ".ds-tray{display:flex;gap:14px;padding:10px 18px;background:rgba(34,22,15,.9);border:1px solid rgba(217,194,160,.55);border-radius:6px;box-shadow:0 10px 28px rgba(0,0,0,.45),0 2px 4px rgba(0,0,0,.4);color:#f0e6d6;font-family:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.25;font-feature-settings:\"lnum\" 1;}.ds-pc{width:96px;display:flex;flex-direction:column;gap:5px;text-align:center;font-size:12px}.ds-tile{width:96px;height:96px;background:rgba(0,0,0,.22);border:1px solid rgba(217,194,160,.28);border-radius:5px;cursor:pointer}.ds-tile:hover{background:#3a271b}.ds-tile:focus-visible{outline:2px solid #a8c8d8;outline-offset:2px;}.ds-tile.ds-on{background:#3a271b;border-color:#c49a52;box-shadow:0 4px 10px rgba(0,0,0,.4)}.ds-tile{position:relative}.ds-ct{position:absolute;top:5px;right:6px;font:500 11px/1 \"Alegreya Sans\",sans-serif;font-style:normal;font-variant-numeric:lining-nums tabular-nums;color:#d9c2a0}"
     },
     {
       "name": "Segmented Control",
@@ -339,6 +339,20 @@
       "description": "Follows the ghost: pin, cell, level, validity; red border when invalid (shown on hover here).",
       "html": "<div class=\"ds-tip\"><i class=\"ds-tp\"></i>[6, 0, −4] · L0 · valid</div>",
       "css": ".ds-tip{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;font-variant-numeric:tabular-nums;background:rgba(34,22,15,.9);border:1px solid rgba(217,194,160,.55);border-radius:6px;box-shadow:0 10px 28px rgba(0,0,0,.45),0 2px 4px rgba(0,0,0,.4);color:#f0e6d6;font-family:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.25;font-feature-settings:\"lnum\" 1;}.ds-tip:hover{border-color:#e0705a}.ds-tp{width:7px;height:7px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#e8c985,#c49a52 55%,#7d5f2c);box-shadow:0 1px 2px rgba(0,0,0,.6);}"
+    },
+    {
+      "name": "Placement Ghost",
+      "kind": "custom",
+      "description": "Dashed brass footprint box over the scene; fault red when invalid; fainter boxes for a run being laid.",
+      "html": "<svg class=\"ds-gh\" viewBox=\"0 0 120 80\" aria-hidden=\"true\"><path class=\"ds-run\" d=\"M8 50L38 42L38 22L8 30Z\"/><path d=\"M44 46L74 38L74 18L44 26Z M44 46L58 56 M74 38L88 48 M74 18L88 28 M58 56L88 48L88 28\"/><path class=\"ds-bad\" d=\"M94 62L112 57L112 45L94 50Z\"/></svg>",
+      "css": ".ds-gh{width:240px;height:160px;background:#2a1c13;border-radius:6px}.ds-gh path{fill:none;stroke:#c49a52;stroke-width:1.4;stroke-dasharray:5 4;stroke-linecap:round}.ds-gh .ds-run{stroke:rgba(196,154,82,.7);stroke-width:1;stroke-dasharray:3 4}.ds-gh .ds-bad{stroke:#e0705a}"
+    },
+    {
+      "name": "Fold Tooltip",
+      "kind": "custom",
+      "description": "Below 1280px: a folded run control's label and key cap in a small inlay under it.",
+      "html": "<div class=\"ds-tt\"><span>Pause</span><kbd class=\"ds-kbd\">Space</kbd></div>",
+      "css": ".ds-tt{display:inline-flex;align-items:center;gap:7px;padding:5px 10px;white-space:nowrap;background:rgba(34,22,15,.9);border:1px solid rgba(217,194,160,.55);border-radius:6px;box-shadow:0 10px 28px rgba(0,0,0,.45),0 2px 4px rgba(0,0,0,.4);color:#f0e6d6;font-family:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.25;font-feature-settings:\"lnum\" 1;}.ds-kbd{font:500 11px/1 \"Alegreya Sans\",sans-serif;font-variant-numeric:lining-nums tabular-nums;color:#d9c2a0;border:1px solid rgba(217,194,160,.5);border-bottom-width:2px;border-radius:3px;padding:2px 3px;background:rgba(0,0,0,.25)}"
     }
   ],
   "narrative": {

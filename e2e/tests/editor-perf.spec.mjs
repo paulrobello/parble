@@ -25,6 +25,8 @@ async function edit(page, action) {
   return page.evaluate(() => window.__parble.editor.last);
 }
 
+const state = (page) => page.evaluate(() => window.__parble.editor);
+
 async function settle(page) {
   await page.waitForFunction(() => window.__parble.editor.dirtyColliderChunks === 0, null, { timeout: 30_000 });
   for (let i = 0; i < 4; i++) await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r())));
@@ -149,4 +151,87 @@ test("editing a 2,000-piece track keeps the chunk rebuild inside one frame", asy
   if (!result.taken) {
     console.log(`NOT TAKEN: load ${loadBefore.toFixed(2)} before, ${loadAfter.toFixed(2)} after (max ${LOAD_MAX})`);
   }
+});
+
+// P3-T5 run-build latency: pressing Run (and Stop) on the same 2,000-piece fill, plus a hopper at
+// [0, 0, 0] (the fill starts at z −5). Each sample is the longest rAF delta while the run swaps in,
+// and the engine's own timing around the build and install (`editor.lastRun.buildMs`, absent on
+// engines that predate it). The bar is the frame budget (PRD §6 P3: edits ≤ 1 frame amortized).
+// Writes target/perf/p3t5-run-build.json before asserting, so a miss still records its numbers.
+const RUN_OUT = new URL("../../target/perf/p3t5-run-build.json", import.meta.url);
+const RUN_SAMPLES = 4;
+
+test("Run on a 2,000-piece track builds the run inside one frame", async ({ page }) => {
+  mkdirSync(new URL(".", RUN_OUT), { recursive: true });
+  const diagRun = process.env.PARBLE_PERF_DIAG === "1";
+  const loadBefore = diagRun ? loadavg()[0] : await waitForLoad();
+  if (loadBefore > LOAD_MAX && !diagRun) {
+    const result = { taken: false, reason: `1-min load ${loadBefore.toFixed(2)} > ${LOAD_MAX}`, loadBefore };
+    writeFileSync(RUN_OUT, `${JSON.stringify(result, null, 2)}\n`);
+    test.skip(true, result.reason);
+    return;
+  }
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  await page.goto("/?mute=1&scenario=editor&editor-fill=2000&editor-ui=0");
+  await page.waitForFunction(
+    () => window.__parble?.editor?.pieces === 2000 && window.__parble.editor.stats.fill && window.__parble.editor.dirtyColliderChunks === 0,
+    null,
+    { timeout: 120_000 },
+  );
+  expect((await edit(page, { op: "place", piece: "mech_hopper", cell: [0, 0, 0] })).ok).toBe(true);
+  await edit(page, { op: "camera", target: [1.5, 0, -1.55], yaw: -0.4, pitch: 0.85, radius: 3.4 });
+  await settle(page);
+  const sample = async (action, done) => {
+    await page.evaluate(() => {
+      window.__ft = [];
+      let last = performance.now();
+      window.__ftStop = false;
+      const loop = (t) => {
+        window.__ft.push(t - last);
+        last = t;
+        if (!window.__ftStop) requestAnimationFrame(loop);
+      };
+      requestAnimationFrame(loop);
+    });
+    await page.waitForTimeout(300);
+    const t0 = Date.now();
+    expect((await edit(page, action)).ok).toBe(true);
+    await page.waitForFunction(done, null, { timeout: 30_000 });
+    const roundTripMs = Date.now() - t0;
+    await page.waitForTimeout(300);
+    const ft = await page.evaluate(() => {
+      window.__ftStop = true;
+      return window.__ft.splice(0);
+    });
+    const lastRun = await page.evaluate(() => window.__parble.editor.lastRun ?? null);
+    return { op: action.op, worstFrameMs: Math.max(...ft), roundTripMs, buildMs: lastRun?.buildMs ?? null };
+  };
+  const samples = [];
+  for (let i = 0; i < RUN_SAMPLES; i++) {
+    samples.push(await sample({ op: "run", release: "all" }, () => window.__parble.editor.run.active === true));
+    samples.push(await sample({ op: "stop" }, () => window.__parble.editor.run.active === false));
+  }
+  const loadAfter = loadavg()[0];
+  const runs = samples.filter((s) => s.op === "run");
+  const result = {
+    taken: loadBefore <= LOAD_MAX && loadAfter <= LOAD_MAX,
+    loadBefore,
+    loadAfter,
+    userAgent: await page.evaluate(() => navigator.userAgent),
+    pieces: (await state(page)).pieces,
+    budgetMs: BUDGET_MS,
+    run: {
+      worstFrameMs: Math.max(...runs.map((s) => s.worstFrameMs)),
+      meanWorstFrameMs: runs.reduce((a, s) => a + s.worstFrameMs, 0) / runs.length,
+      buildMs: runs.map((s) => s.buildMs),
+    },
+    samples,
+  };
+  writeFileSync(RUN_OUT, `${JSON.stringify(result, null, 2)}\n`);
+  console.log(JSON.stringify(result, null, 2));
+  expect(errors).toEqual([]);
+  if (!result.taken) console.log(`NOT TAKEN: load ${loadBefore.toFixed(2)} before, ${loadAfter.toFixed(2)} after (max ${LOAD_MAX})`);
+  expect(result.run.worstFrameMs).toBeLessThan(BUDGET_MS);
 });

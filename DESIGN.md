@@ -246,19 +246,27 @@ Drawer tabs round only their top corners. The pin is the only circle in the chro
 A maple glyph on a 25% black ground, with a 1px maple border at 50% opacity and a 2px bottom edge so it reads as a physical key. On the Run button the cap inverts to a walnut glyph on a 15% white ground.
 
 ### Segmented Control
-A row of buttons inside one stringing-bordered 4px box. Segments are split by inlay rules, and the active segment is filled raised walnut.
+A row of buttons inside one stringing-bordered 4px box. Segments are split by inlay rules, and the active segment is filled raised walnut. A piece option (the toggle's First side) is a segmented radio in the selection panel: one segment per side, named by compass word, the chosen one with a brass pin, and a maple note that it takes effect on the next Run or Reset.
 
 ### Drawer Tabs and Piece Tiles
-Tabs are maple-text labels on an inlay baseline. The open tab is raised walnut, cream and bold. Tiles are 96px squares on a 22% black ground with stringing borders, holding 80px thumbnails rendered from the kit. Hover and selected fill raised walnut, and the selected tile adds a brass border and the tile lift shadow. Each scroll edge fades out over 48px when more tiles lie that way.
+Tabs are maple-text labels on an inlay baseline. The open tab is raised walnut, cream and bold. Tiles are 96px squares on a 22% black ground with stringing borders, holding 80px thumbnails rendered from the kit. Hover and selected fill raised walnut, and the selected tile adds a brass border and the tile lift shadow. Each scroll edge fades out over 48px when more tiles lie that way. A tile's top-right corner carries the placed count in maple 11px lining numerals ("×3"), empty when none is placed. Pressing a tile picks it and starts laying: drag onto the board to lay a run.
 
 ### Validation Issue Row
-A three-column grid: a pale-blue pin, the issue text, and an underlined pale-blue "Show" link. The cell coordinate sits in pale blue weight 500 above the description. Rows are separated by 14% stringing rules.
+A three-column grid: a pale-blue pin, the issue text, and an underlined pale-blue "Show" link. The cell coordinate sits in pale blue weight 500 above the description. Rows are separated by 14% stringing rules. Show flies the camera to the piece, selects it, and blinks the engine's pale-blue selection mark twice (four 160ms phases). Under reduced motion it cuts to the piece and does not blink.
 
 ### Brass Pin (signature)
 A 7px sphere drawn with a radial gradient (`#e8c985`, then brass, then `#7d5f2c`). There are blue and red variants, plus an "off" ring for an unspent marble or an idle state. One pin travels along the inlay to the active tool, tab or tile with an .18s ease-out transform. Marble budget pins and completed "Start here" steps use the same form.
 
 ### Cell Tooltip and Run Capsule
 These are small inlay panels. The tooltip follows the ghost with a pin, the cell and level, and the word "valid". Its border turns red when the placement is invalid. The RUNNING capsule shows the released count over the budget, the elapsed time as m:ss, and a Space key cap for pause. It appears only while the chrome is faded.
+
+Below 1280px the folded run controls show the same inlay as a fold tooltip under the button on hover or focus: the label, then its key cap when it has one. It never shows while the chrome is faded.
+
+### Placement Ghost
+A dashed brass outline (1.4px, dash 5 4, round caps) of the brush's footprint box, drawn in SVG over the scene with its 12 edges. It turns fault red when the placement is invalid. While a run is being laid, each laid piece keeps a fainter outline (brass at 70%, 1px, dash 3 4) and the tooltip reads "Laying a run · n pieces · release to finish". The ghost hides off the canvas, outside the place tool and during a run. The engine's tinted ghost mesh sits inside it.
+
+### Library Thumbnail
+Each Library row shows a 64×48 plan of the saved track: one square per placement on the cell grid, north up, blocks brass, rails maple, mechanisms pale blue and supports dark brass, drawn top level last. A track with no placements falls back to its initial letter.
 
 ## Do's and Don'ts
 

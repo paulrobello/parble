@@ -1,7 +1,8 @@
 // P3-T5 editor overlay smoke in GPU Chromium at the 1440×900 reference layout: load the editor, place
 // a piece through the drawer and a click, select, slice, show a validation issue, run, and confirm the
 // run fade and the edge-hover return, with no console errors. It also saves the five spec states
-// (docs/design/editor/README.md, Frames) as docs/design/editor/built-*.png.
+// (docs/design/editor/README.md, Frames) as docs/design/editor/built-*.png. Two more tests lay a run by
+// dragging from a drawer tile, and check the below-1280 fold at 1180×800 (built-narrow.png).
 import { mkdirSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
@@ -26,6 +27,19 @@ async function cellPx(page, cell) {
   const last = await edit(page, { op: "project", cells: [cell] });
   const p = last.projected[0];
   return { centre: [box.x + p[0], box.y + p[1]], floor: [box.x + p[2], box.y + p[3]] };
+}
+async function openEditor(page, errors) {
+  page.on("console", (m) => {
+    if (m.type() === "error" || BAD_TEXT(m.text())) errors.push(m.text());
+  });
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.goto("/?mute=1&scenario=editor&quality=low");
+  await page.waitForFunction(() => window.__parble?.ready === true && window.__parble.editor && window.__parble.frame > 10, null, {
+    timeout: 60_000,
+  });
+  await page.waitForFunction(() => window.__parble.editor.keys === false);
+  await edit(page, { op: "camera", target: [0.36, 0.03, -0.36], yaw: -0.5, pitch: 0.85, radius: 1.25 });
+  await frames(page, 3);
 }
 async function shot(page, name) {
   mkdirSync(SHOTS, { recursive: true });
@@ -116,6 +130,10 @@ test("editor overlay: drawer place, select, slice, show an issue, run, fade and 
   await page.mouse.move(...gp.floor);
   await page.waitForFunction((c) => JSON.stringify(window.__parble.editor.hover?.target) === JSON.stringify(c), ghostCell);
   await expect(page.locator("#pe-tip")).toBeVisible();
+  // The dashed ghost outlines the brush's footprint box: 12 edges, brass while the cell is valid.
+  const ghost = page.locator("#pe-ghost path:not(.run)");
+  await expect(ghost).toHaveClass("ok");
+  expect((await ghost.getAttribute("d")).match(/M/g)).toHaveLength(12);
   await shot(page, "building");
 
   // Slice with the stepper, then a 14-piece group selection under the slice (spec frame 3).
@@ -171,4 +189,93 @@ test("editor overlay: drawer place, select, slice, show an issue, run, fade and 
 
   expect(fontRequests).toEqual([]);
   expect(errors).toEqual([]);
+});
+
+test("drag-to-lay: press a drawer tile, drag over the board, release, and undo takes the run back", async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors = [];
+  await openEditor(page, errors);
+  await page.locator('[data-f="blocks"]').click();
+  const tile = page.locator('[data-piece="blk_straight_l3"]');
+  await expect(tile).toBeVisible();
+  const cells = [
+    [2, 0, -6],
+    [3, 0, -6],
+    [4, 0, -6],
+    [5, 0, -6],
+    [6, 0, -6],
+  ];
+  const px = [];
+  for (const c of cells) px.push((await cellPx(page, c)).floor);
+  for (const p of px) expect(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.id, p)).toBe("parble");
+  const tb = await tile.boundingBox();
+  await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height / 2);
+  await page.mouse.down();
+  await page.waitForFunction(() => window.__parble.editor.stroke !== null && window.__parble.editor.brush.piece === "blk_straight_l3");
+  await page.mouse.move(...px[0], { steps: 8 });
+  await page.waitForFunction(() => window.__parble.editor.stroke?.placed >= 1);
+  for (const p of px.slice(1)) {
+    await page.mouse.move(...p, { steps: 4 });
+    await frames(page, 2);
+  }
+  await page.waitForFunction((n) => window.__parble.editor.stroke?.placed === n, cells.length);
+  await expect(page.locator("#pe-tip")).toContainText(`Laying a run · ${cells.length} pieces`);
+  await page.mouse.up();
+  await page.waitForFunction(() => window.__parble.editor.stroke === null);
+  let s = await state(page);
+  expect(s.pieces).toBe(cells.length);
+  expect(s.last.op).toBe("lay");
+  expect(s.pieceCounts.blk_straight_l3).toBe(cells.length);
+  await expect(page.locator('[data-ct="blk_straight_l3"]')).toHaveText(`×${cells.length}`);
+  // One undo step for the whole run.
+  await page.keyboard.press("ControlOrMeta+KeyZ");
+  await page.waitForFunction(() => window.__parble.editor.pieces === 0);
+  s = await state(page);
+  expect(s.canUndo).toBe(false);
+
+  // Esc mid-drag takes the laid pieces back.
+  await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(...px[0], { steps: 8 });
+  await page.mouse.move(...px[2], { steps: 6 });
+  await page.waitForFunction(() => window.__parble.editor.stroke?.placed >= 2);
+  await page.keyboard.press("Escape");
+  await page.waitForFunction(() => window.__parble.editor.stroke === null && window.__parble.editor.pieces === 0);
+  await page.mouse.up();
+  await frames(page, 4);
+  expect((await state(page)).pieces).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test.describe("below 1280 px", () => {
+  test.use({ viewport: { width: 1180, height: 800 } });
+
+  test("the run controls fold to icons with inlay tooltips, and the strip never overflows", async ({ page }) => {
+    test.setTimeout(120_000);
+    const errors = [];
+    await openEditor(page, errors);
+    const fits = () =>
+      page.evaluate(() => {
+        const t = document.querySelector("#pe-top");
+        return t.scrollWidth <= t.clientWidth && t.getBoundingClientRect().right <= window.innerWidth;
+      });
+    expect(await fits()).toBe(true);
+    await expect(page.locator("#pe-top .hint")).toBeHidden();
+    await edit(page, { op: "place", piece: "mech_hopper", cell: [4, 0, -6] });
+    for (const x of [5, 6, 7]) await edit(page, { op: "place", piece: "blk_straight_l3", cell: [x, 0, -6], yaw: 1 });
+    await page.locator('[data-k="run"]').click();
+    await page.waitForFunction(() => window.__parble.editor.run.active === true, null, { timeout: 15_000 });
+    expect(await fits()).toBe(true);
+    await expect(page.locator('[data-k="pause"] span')).toBeHidden();
+    await page.locator('[data-k="pause"]').hover();
+    const tt = page.locator("#pe-tt");
+    await expect(tt).toHaveClass(/show/);
+    await expect(tt).toContainText("Pause");
+    await expect(tt.locator("kbd")).toHaveText("Space");
+    await shot(page, "narrow");
+    await page.locator('[data-k="run"]').click();
+    await page.waitForFunction(() => window.__parble.editor.run.active === false);
+    expect(await fits()).toBe(true);
+    expect(errors).toEqual([]);
+  });
 });

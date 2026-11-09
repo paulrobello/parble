@@ -64,6 +64,12 @@ const MAX_ISSUES: usize = 32;
 const UNTITLED: &str = "Untitled track";
 /// Support pieces, counted apart from their `blk` family in `selectionInfo.families`.
 const SUPPORTS: [&str; 2] = ["blk_pillar", "blk_tower_socket_l1"];
+/// Most cells one frame of a drag-to-lay stroke walks (a cursor near the horizon jumps far).
+const STROKE_MAX_STEP: i32 = 64;
+/// Stroke outlines listed in the diag at most.
+const MAX_STROKE_OUTLINES: usize = 64;
+/// One half of a Show pulse: the selection mark is off, then on, twice ([`Action::Pulse`]).
+const PULSE_PHASE_MS: u128 = 160;
 
 /// Editor tool.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -206,6 +212,31 @@ pub enum Action {
     },
     /// Push a `trackExported` bridge event with the track as `.parble` text.
     Export {},
+    /// Drag-to-lay. `start` opens a stroke (the web drawer's tile press; a left drag in the place
+    /// tool opens one by itself): while it is open, each cell the cursor enters on the stroke's
+    /// level gets the brush, one placement per cell. `end` folds the stroke into one undo step;
+    /// `cancel` removes what it laid.
+    Stroke {
+        phase: StrokePhase,
+    },
+    /// Blink the selection mark on `anchor` twice (the overlay's Show), on real time.
+    Pulse {
+        anchor: [i32; 3],
+    },
+    /// Set one piece option of the single selected piece ([`piece_options`]), one undoable
+    /// command. The run reads it when it is built, so it applies from the next `run` or `reset`.
+    MechConfig {
+        key: String,
+        value: i64,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum StrokePhase {
+    Start,
+    End,
+    Cancel,
 }
 
 fn one() -> u8 {
@@ -418,6 +449,45 @@ pub struct HoverDiag {
     pub valid: bool,
     pub error: Option<String>,
     pub ports: Vec<PortDiag>,
+    /// The brush footprint's box at `target`: 8 corners in CSS px (corner `i` takes the high x,
+    /// y and z for bits 0, 1 and 2), or `null` off screen. Updated every frame.
+    pub outline: Option<Vec<[f32; 2]>>,
+}
+
+/// A drag-to-lay stroke in progress.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct StrokeDiag {
+    pub placed: usize,
+    /// The level it lays on, once its first cell is known.
+    pub level: Option<i32>,
+    /// Outlines (as [`HoverDiag::outline`]) of the first 64 pieces it laid.
+    pub outlines: Vec<Vec<[f32; 2]>>,
+}
+
+/// The last `run`, `stop` or `reset`: building the run and installing it as the live sim, ms.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RunTiming {
+    pub op: &'static str,
+    pub build_ms: f32,
+    pub pieces: usize,
+}
+
+/// A piece option the inspector offers: its value and, per choice, the side face it sends to.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PieceOption {
+    pub key: &'static str,
+    pub value: i64,
+    pub choices: Vec<OptionChoice>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct OptionChoice {
+    pub value: i64,
+    pub face: PortFace,
 }
 
 /// Timing of the last edit, ms. `collider_ms` and `collider_chunks` sum every frame's budgeted
@@ -490,6 +560,12 @@ pub struct EditorDiag {
     pub issues: Vec<IssueDiag>,
     /// The selection's make-up; `null` when nothing is selected.
     pub selection_info: Option<SelectionDiag>,
+    /// Placed pieces by id (the drawer's counts), as of the last edit.
+    pub piece_counts: BTreeMap<String, usize>,
+    pub stroke: Option<StrokeDiag>,
+    /// The anchor a Show pulse is blinking, while it runs.
+    pub pulse: Option<[i32; 3]>,
+    pub last_run: Option<RunTiming>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -542,6 +618,8 @@ pub struct SingleDiag {
     pub yaw: u8,
     pub mirror: bool,
     pub ports: Vec<SelectedPort>,
+    pub config: BTreeMap<String, i64>,
+    pub options: Vec<PieceOption>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -614,6 +692,19 @@ impl RunState {
     }
 }
 
+/// A drag-to-lay stroke ([`Action::Stroke`]).
+#[derive(Debug, Clone, Default)]
+struct Stroke {
+    /// The press point of a drag in the place tool: its cell is the stroke's first.
+    from_px: Option<Vec2>,
+    level: Option<i32>,
+    last: Option<CellCoord>,
+    /// What it laid, in order.
+    placed: Vec<Placement>,
+    /// `EditorDiag::edits` before its first piece; folding needs every edit since to be its own.
+    base: Option<u64>,
+}
+
 #[derive(Debug, Clone, Copy)]
 enum Press {
     Box,
@@ -644,7 +735,7 @@ struct EditState {
     /// Edit whose dirty colliders are still being rebuilt.
     pending: Option<EditTiming>,
     pending_is_fill: bool,
-    marks_key: Option<(u64, usize)>,
+    marks_key: Option<(u64, usize, Option<u128>)>,
     /// [`SimClock::restarts`] this state is synced to.
     restarts: u64,
     /// The editor's keyboard shortcuts are on (`keys`).
@@ -655,6 +746,9 @@ struct EditState {
     checked_at: Option<u64>,
     /// Edit count and selection `selectionInfo` was computed for.
     selection_at: Option<(u64, Selection)>,
+    stroke: Option<Stroke>,
+    /// Show pulse: the anchor and when it started.
+    pulse: Option<(CellCoord, Instant)>,
 }
 
 fn palette() -> Vec<&'static str> {
@@ -739,6 +833,8 @@ impl EditState {
             },
             checked_at: None,
             selection_at: None,
+            stroke: None,
+            pulse: None,
         }
     }
 
@@ -781,6 +877,7 @@ impl EditState {
         self.dragging = false;
         self.pending = None;
         self.pending_is_fill = false;
+        self.stroke = None;
     }
 
     fn visible(&self, anchor: CellCoord) -> bool {
@@ -1033,6 +1130,9 @@ fn op_name(a: &Action) -> &'static str {
         Action::Follow { .. } => "follow",
         Action::Rename { .. } => "rename",
         Action::Export {} => "export",
+        Action::Stroke { .. } => "stroke",
+        Action::Pulse { .. } => "pulse",
+        Action::MechConfig { .. } => "mechConfig",
     }
 }
 
@@ -1140,10 +1240,17 @@ fn editor_run(track: &Track, release: Option<ReleaseMode>) -> Result<TrackRun, S
 fn start_run(
     st: &mut EditState,
     ctx: &mut Ctx,
+    op: &'static str,
     release: Option<ReleaseMode>,
 ) -> Result<(), String> {
+    let start = Instant::now();
     let run = editor_run(st.editor.track(), release)?;
     ctx.clock.install(run, ctx.frame, ctx.parts);
+    ctx.diag.last_run = Some(RunTiming {
+        op,
+        build_ms: start.elapsed().as_secs_f32() * 1e3,
+        pieces: st.editor.track().placements.len(),
+    });
     st.pending = None;
     st.pending_is_fill = false;
     st.run.active = release.is_some();
@@ -1262,6 +1369,8 @@ fn selection_diag(st: &EditState) -> Option<SelectionDiag> {
             yaw: first.yaw.quarter_turns(),
             mirror: first.mirror == Mirror::On,
             ports,
+            config: first.config.clone(),
+            options: piece_options(first),
         }
     });
     Some(SelectionDiag {
@@ -1507,15 +1616,15 @@ fn apply_action(st: &mut EditState, ctx: &mut Ctx, action: Action) -> Result<Las
             interval_ticks,
         } => {
             let release = release_mode(&release, interval_ticks)?;
-            start_run(st, ctx, Some(release))?;
+            start_run(st, ctx, "run", Some(release))?;
             st.run.set_release(release);
             ctx.playback.paused = false;
             ctx.playback.step = false;
         }
-        Action::Stop {} => start_run(st, ctx, None)?,
+        Action::Stop {} => start_run(st, ctx, "stop", None)?,
         Action::Reset {} => {
             let release = st.run.active.then_some(st.run.release);
-            start_run(st, ctx, release)?;
+            start_run(st, ctx, "reset", release)?;
         }
         Action::Pause { paused } => match paused {
             Some(p) => {
@@ -1539,9 +1648,224 @@ fn apply_action(st: &mut EditState, ctx: &mut Ctx, action: Action) -> Result<Las
                 json,
             });
         }
+        Action::Stroke { phase } => match phase {
+            StrokePhase::Start => {
+                st.tool = Tool::Place;
+                st.stroke = Some(Stroke::default());
+            }
+            StrokePhase::End => end_stroke(st, ctx)?,
+            StrokePhase::Cancel => cancel_stroke(st, ctx),
+        },
+        Action::Pulse { anchor } => st.pulse = Some((arr_cell(anchor), Instant::now())),
+        Action::MechConfig { key, value } => {
+            let index = match st.editor.selection.iter().collect::<Vec<_>>()[..] {
+                [i] => i,
+                _ => return Err("mechConfig: select one piece".into()),
+            };
+            let p = st
+                .editor
+                .track()
+                .placements
+                .get(index as usize)
+                .ok_or("mechConfig: no such placement")?;
+            let offered = piece_options(p)
+                .into_iter()
+                .any(|o| o.key == key && o.choices.iter().any(|c| c.value == value));
+            if !offered {
+                return Err(format!(
+                    "mechConfig: {} has no option {key} = {value}",
+                    p.piece.as_str()
+                ));
+            }
+            let mut config = p.config.clone();
+            config.insert(key, value);
+            run_command(
+                st,
+                ctx,
+                "mechConfig",
+                EditCommand::SetMechConfig { index, config },
+            )?;
+        }
     }
     out.ok = true;
     Ok(out)
+}
+
+/// The options the inspector offers for `p`: the toggle's first side (`first`, 0 = the piece's +z
+/// side, 1 = its −z side), named by the world face each sends to.
+pub fn piece_options(p: &Placement) -> Vec<PieceOption> {
+    if p.piece.as_str() != parble_sim::behaviour::TOGGLE {
+        return Vec::new();
+    }
+    let o = Orientation::new(p.yaw, p.mirror);
+    let face = |z: i32| PortFace::from_normal(o.apply_cell(CellCoord::new(0, 0, z)));
+    let (Some(a), Some(b)) = (face(1), face(-1)) else {
+        return Vec::new();
+    };
+    vec![PieceOption {
+        key: "first",
+        value: p.config.get("first").copied().unwrap_or(0).clamp(0, 1),
+        choices: vec![
+            OptionChoice { value: 0, face: a },
+            OptionChoice { value: 1, face: b },
+        ],
+    }]
+}
+
+/// The cells a 4-connected walk on `a`'s level visits from `a` to `b`, `a` excluded.
+fn stroke_walk(a: CellCoord, b: CellCoord) -> Vec<CellCoord> {
+    let (dx, dz) = ((b.x - a.x).abs(), (b.z - a.z).abs());
+    if dx + dz > STROKE_MAX_STEP {
+        return vec![CellCoord::new(b.x, a.y, b.z)];
+    }
+    let (sx, sz) = ((b.x - a.x).signum(), (b.z - a.z).signum());
+    let (mut x, mut z) = (a.x, a.z);
+    let mut out = Vec::new();
+    while (x, z) != (b.x, b.z) {
+        // Step the axis whose share of the way would be smaller after the step.
+        let px = i64::from((x - a.x).abs() + 1) * i64::from(dz);
+        let pz = i64::from((z - a.z).abs() + 1) * i64::from(dx);
+        if x != b.x && (z == b.z || px <= pz) {
+            x += sx;
+        } else {
+            z += sz;
+        }
+        out.push(CellCoord::new(x, a.y, z));
+    }
+    out
+}
+
+/// Advance the open stroke to `cell` (on its level): lay the brush on every cell entered on the
+/// way that takes it, skipping taken ones.
+fn stroke_to(st: &mut EditState, ctx: &mut Ctx, cell: CellCoord) {
+    let Some(mut s) = st.stroke.take() else {
+        return;
+    };
+    let level = *s.level.get_or_insert(cell.y);
+    let cell = CellCoord::new(cell.x, level, cell.z);
+    s.base.get_or_insert(ctx.diag.edits);
+    let path = match s.last {
+        None => vec![cell],
+        Some(last) if last == cell => Vec::new(),
+        Some(last) => stroke_walk(last, cell),
+    };
+    for c in path {
+        let p = st.placement_at(c);
+        if st
+            .editor
+            .check(st.kit, EditCommand::Place(p.clone()))
+            .is_ok()
+            && run_command(st, ctx, "place", EditCommand::Place(p.clone())).is_ok()
+        {
+            s.placed.push(p);
+        }
+        s.last = Some(c);
+    }
+    st.stroke = Some(s);
+}
+
+/// This frame's step of the open stroke: its first cell is the pick under the press point (or the
+/// cursor), later ones the cursor's cell on the stroke's level.
+fn step_stroke(st: &mut EditState, ctx: &mut Ctx, cursor: Option<Vec2>) {
+    let Some(s) = st.stroke.as_ref() else {
+        return;
+    };
+    let cell = match s.level {
+        None => s
+            .from_px
+            .or(cursor)
+            .and_then(|px| ctx.ray(px))
+            .and_then(|r| st.pick_ray(r))
+            .and_then(Hit::target),
+        Some(level) => cursor
+            .and_then(|c| ctx.ray(c))
+            .and_then(|r| plane_cell(r.origin, *r.direction, level)),
+    };
+    if let Some(c) = cell {
+        stroke_to(st, ctx, c);
+    }
+}
+
+/// Whether every edit since the stroke opened is one of its own placements.
+fn stroke_owns_history(s: &Stroke, ctx: &Ctx) -> bool {
+    s.base.map(|b| b + s.placed.len() as u64) == Some(ctx.diag.edits)
+}
+
+/// Close the stroke, folding its placements into one undo step (a `PasteGroup` of the same
+/// placements, so the track and the colliders are unchanged).
+fn end_stroke(st: &mut EditState, ctx: &mut Ctx) -> Result<(), String> {
+    let Some(s) = st.stroke.take() else {
+        return Ok(());
+    };
+    let n = s.placed.len();
+    if n < 2 || !stroke_owns_history(&s, ctx) {
+        return Ok(());
+    }
+    let start = Instant::now();
+    for _ in 0..n {
+        st.editor.undo();
+    }
+    let paste = EditCommand::PasteGroup {
+        placements: s.placed,
+        offset: CellCoord::ORIGIN,
+    };
+    if let Err(e) = st.editor.apply(st.kit, paste) {
+        for _ in 0..n {
+            st.editor.redo();
+        }
+        return Err(format!("stroke: {e}"));
+    }
+    finish_edit(st, ctx, "lay", start);
+    Ok(())
+}
+
+/// Close the stroke and take back what it laid.
+fn cancel_stroke(st: &mut EditState, ctx: &mut Ctx) {
+    let Some(s) = st.stroke.take() else {
+        return;
+    };
+    if s.placed.is_empty() || !stroke_owns_history(&s, ctx) {
+        return;
+    }
+    let start = Instant::now();
+    for _ in 0..s.placed.len() {
+        st.editor.undo();
+    }
+    finish_edit(st, ctx, "strokeCancel", start);
+}
+
+/// The axis box (metres) around `p`'s footprint.
+fn footprint_box(kit: &KitCatalog, p: &Placement) -> Option<(Vec3, Vec3)> {
+    let def = kit.get(&p.piece)?;
+    let cells = p.world_cells(def);
+    let first = *cells.first()?;
+    let (lo, hi) = cells.iter().fold((first, first), |(lo, hi), c| {
+        (
+            CellCoord::new(lo.x.min(c.x), lo.y.min(c.y), lo.z.min(c.z)),
+            CellCoord::new(hi.x.max(c.x), hi.y.max(c.y), hi.z.max(c.z)),
+        )
+    });
+    let half = Vec3::new(CELL_M * 0.5, 0.0, CELL_M * 0.5);
+    Some((
+        cell_floor_m(lo) - half,
+        cell_floor_m(hi) + half + Vec3::Y * CELL_M,
+    ))
+}
+
+/// The 8 corners of `b` projected by `project` (corner `i`: bit 0 high x, bit 1 high y, bit 2
+/// high z), or `None` if any is off the view.
+fn project_box(b: (Vec3, Vec3), project: impl Fn(Vec3) -> Option<Vec2>) -> Option<Vec<[f32; 2]>> {
+    let (lo, hi) = b;
+    (0..8)
+        .map(|i| {
+            let p = Vec3::new(
+                if i & 1 == 0 { lo.x } else { hi.x },
+                if i & 2 == 0 { lo.y } else { hi.y },
+                if i & 4 == 0 { lo.z } else { hi.z },
+            );
+            project(p).map(|v| [v.x, v.y])
+        })
+        .collect()
 }
 
 fn click(st: &mut EditState, ctx: &mut Ctx, px: Vec2, shift: bool) -> Result<(), String> {
@@ -1654,6 +1978,13 @@ fn mouse_and_keys(
             && c.distance(p0) > DRAG_PX
         {
             st.dragging = true;
+            // A drag in the place tool lays a run from the pressed cell.
+            if st.tool == Tool::Place && st.stroke.is_none() {
+                st.stroke = Some(Stroke {
+                    from_px: Some(p0),
+                    ..default()
+                });
+            }
         }
         if b.just_released(MouseButton::Left)
             && let Some((p0, kind)) = st.press.take()
@@ -1664,6 +1995,10 @@ fn mouse_and_keys(
                     x: x1,
                     y: y1,
                     shift,
+                });
+            } else if st.tool == Tool::Place {
+                out.push(Action::Stroke {
+                    phase: StrokePhase::End,
                 });
             } else if st.tool == Tool::Select {
                 match kind {
@@ -1746,6 +2081,7 @@ fn apply_actions(
     mut playback: ResMut<Playback>,
     mut mode: ResMut<CameraMode>,
     cams: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
 ) {
     if st.restarts != clock.restarts {
         st.restarts = clock.restarts;
@@ -1789,6 +2125,14 @@ fn apply_actions(
         last.op = op;
         ctx.diag.seq += 1;
         ctx.diag.last = last;
+    }
+    if st.stroke.is_some() {
+        if st.tool == Tool::Place && *ctx.mode != CameraMode::Fly {
+            let cursor = windows.single().ok().and_then(Window::cursor_position);
+            step_stroke(st, &mut ctx, cursor);
+        } else {
+            st.stroke = None;
+        }
     }
     // Press kind for a drag that starts on a selected piece (needs the camera and the pick).
     if let Some((p0, Press::Box)) = st.press
@@ -1852,6 +2196,12 @@ fn apply_actions(
             .filter(|p| is_finish(&p.piece))
             .count();
         d.max_level = st.by_anchor.keys().map(|a| a.y).max().unwrap_or(0);
+        d.piece_counts.clear();
+        for p in st.by_anchor.values() {
+            *d.piece_counts
+                .entry(p.piece.as_str().to_owned())
+                .or_insert(0) += 1;
+        }
     }
     if st
         .selection_at
@@ -1881,10 +2231,12 @@ fn update_hover(
         HoverSrc::Cell(_) => ("cell", None),
     };
     let target = match st.hover_src {
+        _ if st.stroke.is_some() => None,
         HoverSrc::Cell(c) => Some(c),
         _ if st.tool == Tool::Place => hit.and_then(Hit::target),
         _ => None,
     };
+    let project = |p: Vec3| camera.and_then(|(c, gt)| c.world_to_viewport(gt, p).ok());
     let edits = diag.edits;
     let key = (target, st.brush.piece, st.brush.yaw, st.brush.mirror, edits);
     let hover_known = st.hover_src == HoverSrc::Cursor && cursor.is_none();
@@ -1931,6 +2283,7 @@ fn update_hover(
             valid,
             error,
             ports,
+            outline: None,
         });
     }
     if let Some(h) = diag.hover.as_mut() {
@@ -1946,7 +2299,20 @@ fn update_hover(
             Hit::Piece { anchor, .. } => Some(cell_arr(anchor)),
             Hit::Ground { .. } => None,
         });
+        h.outline = target
+            .and_then(|t| footprint_box(st.kit, &st.placement_at(t)))
+            .and_then(|b| project_box(b, project));
     }
+    diag.stroke = st.stroke.as_ref().map(|s| StrokeDiag {
+        placed: s.placed.len(),
+        level: s.level,
+        outlines: s
+            .placed
+            .iter()
+            .take(MAX_STROKE_OUTLINES)
+            .filter_map(|p| footprint_box(st.kit, p).and_then(|b| project_box(b, project)))
+            .collect(),
+    });
     if hover_known {
         diag.hover = None;
         if ghost.piece.is_some() {
@@ -1978,7 +2344,17 @@ fn update_hover(
             });
         }
     }
-    let mkey = (edits, st.editor.selection.len());
+    // Show pulse: the mark on its anchor goes off in phases 0 and 2, on in 1 and 3, then it ends.
+    let phase = st.pulse.and_then(|(a, t0)| {
+        let n = t0.elapsed().as_millis() / PULSE_PHASE_MS;
+        (n < 4).then_some((a, n))
+    });
+    if phase.is_none() {
+        st.pulse = None;
+    }
+    diag.pulse = phase.map(|(a, _)| cell_arr(a));
+    let hidden = phase.filter(|(_, n)| n % 2 == 0).map(|(a, _)| a);
+    let mkey = (edits, st.editor.selection.len(), phase.map(|(_, n)| n));
     if st.marks_key != Some(mkey) || drag.is_some() || diag.drag.is_some() {
         st.marks_key = Some(mkey);
         let placements = &st.editor.track().placements;
@@ -1987,7 +2363,9 @@ fn update_hover(
             .selection
             .iter()
             .take(MAX_MARKS)
-            .filter_map(|i| placements.get(i as usize).map(|p| ivec(p.anchor)))
+            .filter_map(|i| placements.get(i as usize).map(|p| p.anchor))
+            .filter(|a| Some(*a) != hidden)
+            .map(ivec)
             .collect();
         marks.offset = ivec(offset);
         marks.valid = drag.as_ref().is_none_or(|d| d.valid);
@@ -2600,5 +2978,234 @@ mod tests {
         act(st, ctx, r#"{"op":"pause"}"#).unwrap();
         assert!(ctx.playback.paused);
         assert_eq!(ctx.clock.restarts, 0);
+    }
+
+    /// The pieces of a test `Ctx` (no camera).
+    struct Rig {
+        clock: SimClock,
+        edits: KitEdits,
+        diag: EditorDiag,
+        editor_cam: EditorCamera,
+        frame: MarbleFrame,
+        parts: PartFrame,
+        playback: Playback,
+        mode: CameraMode,
+    }
+
+    impl Rig {
+        fn new() -> Self {
+            let (edits, diag, editor_cam) = Default::default();
+            let (frame, parts, playback) = Default::default();
+            Self {
+                clock: SimClock {
+                    sim: TrackRun::from_sim(parble_sim::Sim::tray_scene()),
+                    scenario: crate::agent::Scenario::Editor,
+                    tracks: Default::default(),
+                    marble: None,
+                    marble_size: parble_sim::marble::MarbleSize::Standard,
+                    acc: 0.0,
+                    runs: 0,
+                    last_run_hash: None,
+                    restarts: 0,
+                },
+                edits,
+                diag,
+                editor_cam,
+                frame,
+                parts,
+                playback,
+                mode: CameraMode::Orbit,
+            }
+        }
+
+        fn ctx(&mut self) -> Ctx<'_> {
+            Ctx {
+                clock: &mut self.clock,
+                edits: &mut self.edits,
+                diag: &mut self.diag,
+                camera: None,
+                editor_cam: &mut self.editor_cam,
+                frame: &mut self.frame,
+                parts: &mut self.parts,
+                playback: &mut self.playback,
+                mode: &mut self.mode,
+            }
+        }
+    }
+
+    #[test]
+    fn a_stroke_walk_enters_every_cell_once_on_the_first_level() {
+        let walk = stroke_walk(c(0, 2, 0), c(3, 0, -2));
+        assert_eq!(walk.len(), 5);
+        assert_eq!(walk.last(), Some(&c(3, 2, -2)));
+        for w in std::iter::once(c(0, 2, 0))
+            .chain(walk.iter().copied())
+            .collect::<Vec<_>>()
+            .windows(2)
+        {
+            assert_eq!(
+                (w[1].x - w[0].x).abs() + (w[1].z - w[0].z).abs(),
+                1,
+                "{w:?}"
+            );
+            assert_eq!(w[1].y, 2);
+        }
+        assert!(stroke_walk(c(1, 0, 1), c(1, 0, 1)).is_empty());
+        assert_eq!(stroke_walk(c(0, 0, 0), c(100, 0, 0)), vec![c(100, 0, 0)]);
+    }
+
+    #[test]
+    fn a_stroke_lays_one_piece_per_cell_and_folds_into_one_undo_step() {
+        let mut rig = Rig::new();
+        let mut st = EditState::new();
+        let ctx = &mut rig.ctx();
+        let st = &mut st;
+        act(
+            st,
+            ctx,
+            r#"{"op":"place","piece":"blk_straight_l3","cell":[2,0,0]}"#,
+        )
+        .unwrap();
+        act(st, ctx, r#"{"op":"stroke","phase":"start"}"#).unwrap();
+        // Through [2,0,0], which is taken: it is skipped, the rest are laid.
+        stroke_to(st, ctx, c(0, 0, 0));
+        stroke_to(st, ctx, c(4, 0, 0));
+        stroke_to(st, ctx, c(4, 0, 0));
+        // A cell above the stroke's level is laid on its level.
+        stroke_to(st, ctx, c(4, 3, -1));
+        assert_eq!(st.stroke.as_ref().unwrap().placed.len(), 5);
+        assert_eq!(st.editor.track().placements.len(), 6);
+        act(st, ctx, r#"{"op":"stroke","phase":"end"}"#).unwrap();
+        assert!(st.stroke.is_none());
+        let laid: Vec<_> = st
+            .editor
+            .track()
+            .placements
+            .iter()
+            .map(|p| p.anchor)
+            .collect();
+        assert_eq!(
+            laid,
+            vec![
+                c(2, 0, 0),
+                c(0, 0, 0),
+                c(1, 0, 0),
+                c(3, 0, 0),
+                c(4, 0, 0),
+                c(4, 0, -1)
+            ]
+        );
+        assert_eq!(st.by_anchor.len(), 6);
+        // One undo takes the whole run back, one redo brings it back with the same order.
+        act(st, ctx, r#"{"op":"undo"}"#).unwrap();
+        assert_eq!(st.editor.track().placements.len(), 1);
+        act(st, ctx, r#"{"op":"redo"}"#).unwrap();
+        let again: Vec<_> = st
+            .editor
+            .track()
+            .placements
+            .iter()
+            .map(|p| p.anchor)
+            .collect();
+        assert_eq!(again, laid);
+        act(st, ctx, r#"{"op":"undo"}"#).unwrap();
+        act(st, ctx, r#"{"op":"undo"}"#).unwrap();
+        assert!(!st.editor.can_undo());
+    }
+
+    #[test]
+    fn a_cancelled_stroke_takes_its_pieces_back() {
+        let mut rig = Rig::new();
+        let mut st = EditState::new();
+        let ctx = &mut rig.ctx();
+        let st = &mut st;
+        act(st, ctx, r#"{"op":"stroke","phase":"start"}"#).unwrap();
+        stroke_to(st, ctx, c(0, 0, 0));
+        stroke_to(st, ctx, c(0, 0, 3));
+        assert_eq!(st.editor.track().placements.len(), 4);
+        act(st, ctx, r#"{"op":"stroke","phase":"cancel"}"#).unwrap();
+        assert!(st.editor.track().placements.is_empty() && st.by_anchor.is_empty());
+        // An empty stroke ends quietly.
+        act(st, ctx, r#"{"op":"stroke","phase":"start"}"#).unwrap();
+        act(st, ctx, r#"{"op":"stroke","phase":"end"}"#).unwrap();
+        assert!(st.editor.track().placements.is_empty());
+    }
+
+    #[test]
+    fn the_toggle_offers_its_first_side_and_keeps_it_through_export() {
+        let mut rig = Rig::new();
+        let mut st = EditState::new();
+        let ctx = &mut rig.ctx();
+        let st = &mut st;
+        act(
+            st,
+            ctx,
+            r#"{"op":"place","piece":"mech_toggle_l3","cell":[0,0,0],"yaw":1}"#,
+        )
+        .unwrap();
+        let p = &st.editor.track().placements[0];
+        let opts = piece_options(p);
+        assert_eq!(opts.len(), 1);
+        assert_eq!(opts[0].key, "first");
+        assert_eq!(opts[0].value, 0);
+        // Yaw 1 turns the piece's +z side to +x.
+        assert_eq!(opts[0].choices[0].face, PortFace::PosX);
+        assert_eq!(opts[0].choices[1].face, PortFace::NegX);
+        assert!(piece_options(&placed("mech_splitter_l3", c(0, 0, 0))).is_empty());
+        act(st, ctx, r#"{"op":"boxSelect","a":[0,0,0],"b":[0,0,0]}"#).unwrap();
+        assert!(act(st, ctx, r#"{"op":"mechConfig","key":"first","value":2}"#).is_err());
+        assert!(act(st, ctx, r#"{"op":"mechConfig","key":"start","value":1}"#).is_err());
+        act(st, ctx, r#"{"op":"mechConfig","key":"first","value":1}"#).unwrap();
+        assert_eq!(
+            st.editor.track().placements[0].config.get("first"),
+            Some(&1)
+        );
+        let info = selection_diag(st).unwrap().single.unwrap();
+        assert_eq!(info.options[0].value, 1);
+        let json = export_json(st.editor.track(), "t").unwrap();
+        let back = parble_core::file::load(&json).unwrap();
+        assert_eq!(back.track.placements[0].config.get("first"), Some(&1));
+        act(st, ctx, r#"{"op":"undo"}"#).unwrap();
+        assert!(st.editor.track().placements[0].config.is_empty());
+    }
+
+    #[test]
+    fn piece_counts_and_run_timing_land_in_the_diag() {
+        let mut rig = Rig::new();
+        let mut st = EditState::new();
+        let ctx = &mut rig.ctx();
+        let st = &mut st;
+        act(
+            st,
+            ctx,
+            r#"{"op":"place","piece":"mech_hopper","cell":[0,0,0]}"#,
+        )
+        .unwrap();
+        act(st, ctx, r#"{"op":"run","release":"all"}"#).unwrap();
+        let t = ctx.diag.last_run.clone().unwrap();
+        assert_eq!((t.op, t.pieces), ("run", 1));
+        assert!(t.build_ms >= 0.0);
+        act(st, ctx, r#"{"op":"pulse","anchor":[0,0,0]}"#).unwrap();
+        assert_eq!(st.pulse.map(|(a, _)| a), Some(c(0, 0, 0)));
+    }
+
+    #[test]
+    fn a_footprint_box_covers_every_cell_of_the_piece() {
+        let kit = parble_kit::builtin();
+        let (lo, hi) = footprint_box(kit, &placed("blk_straight_l3", c(2, 1, -3))).unwrap();
+        let h = CELL_M * 0.5;
+        assert!(
+            (lo - Vec3::new(2.0 * CELL_M - h, CELL_M, -3.0 * CELL_M - h)).length() < 1e-6,
+            "{lo}"
+        );
+        assert!(
+            (hi - Vec3::new(2.0 * CELL_M + h, 2.0 * CELL_M, -3.0 * CELL_M + h)).length() < 1e-6,
+            "{hi}"
+        );
+        let corners = project_box((lo, hi), |p| Some(Vec2::new(p.x, p.z))).unwrap();
+        assert_eq!(corners.len(), 8);
+        assert_eq!(corners[0], [lo.x, lo.z]);
+        assert_eq!(corners[7], [hi.x, hi.z]);
+        assert!(project_box((lo, hi), |_| None).is_none());
     }
 }

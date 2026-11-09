@@ -16,6 +16,8 @@ export interface HoverDiag {
   target: Vec3i | null;
   valid: boolean;
   error: string | null;
+  /** The brush footprint box at the target, 8 projected corners (CSS px, corner i = x | y<<1 | z<<2). */
+  outline?: [number, number][] | null;
 }
 
 export interface IssueDiag {
@@ -38,7 +40,24 @@ export interface SelectionDiag {
     yaw: number;
     mirror: boolean;
     ports: { face: Face; flow: "in" | "out" | "both"; hint: Hint }[];
+    config?: Record<string, number>;
+    options?: PieceOption[];
   } | null;
+}
+
+/** A piece option the inspector offers (a toggle's first side): the side each value sends to. */
+export interface PieceOption {
+  key: string;
+  value: number;
+  choices: { value: number; face: Face }[];
+}
+
+/** A drag-to-lay stroke in progress: pieces laid so far and the level it lays on. */
+export interface StrokeDiag {
+  placed: number;
+  level: number | null;
+  /** Outlines of the cells this stroke laid, as `HoverDiag.outline` (at most 64). */
+  outlines?: [number, number][][];
 }
 
 export interface RunDiag {
@@ -77,6 +96,11 @@ export interface EditorDiag {
   issueCount: number;
   issues: IssueDiag[];
   selectionInfo: SelectionDiag | null;
+  /** Placed pieces by id. */
+  pieceCounts?: Record<string, number>;
+  stroke?: StrokeDiag | null;
+  /** The last run, stop or reset: the engine's build and install time. */
+  lastRun?: { op: string; buildMs: number; pieces: number } | null;
 }
 
 export type Action =
@@ -100,7 +124,10 @@ export type Action =
   | { op: "pause"; paused?: boolean }
   | { op: "follow"; on: boolean }
   | { op: "rename"; name: string }
-  | { op: "export" };
+  | { op: "export" }
+  | { op: "stroke"; phase: "start" | "end" | "cancel" }
+  | { op: "pulse"; anchor: Vec3i }
+  | { op: "mechConfig"; key: string; value: number };
 
 export type Send = (a: Action) => void;
 
@@ -293,4 +320,84 @@ export function focusOrbit(
     pitch: Math.min(Math.max(from.pitch, 0.5), 1.2),
     radius: Math.min(Math.max(from.radius * 0.7, 0.6), 2.0),
   };
+}
+
+/** Compass word for a side face, as the ports line uses (`+x` east, `-z` north). */
+export const faceWord = (f: Face): string => FACE[f].replace(/^./, (c) => c.toUpperCase());
+
+/** The drawer tile badge: "×3" for a placed count, "" for none. */
+export const countBadge = (n: number | undefined): string => (n && n > 0 ? `×${n}` : "");
+
+const EDGES: readonly [number, number][] = [
+  [0, 1],
+  [2, 3],
+  [4, 5],
+  [6, 7],
+  [0, 2],
+  [1, 3],
+  [4, 6],
+  [5, 7],
+  [0, 4],
+  [1, 5],
+  [2, 6],
+  [3, 7],
+];
+
+/** SVG path data for the 12 edges of a projected box (8 corners, corner i = x | y<<1 | z<<2). */
+export function boxPath(corners: readonly (readonly [number, number])[] | null | undefined): string {
+  if (corners?.length !== 8) return "";
+  const r = (v: number): string => (Math.round(v * 10) / 10).toString();
+  return EDGES.map(([a, b]) => {
+    const p = corners[a] as readonly [number, number];
+    const q = corners[b] as readonly [number, number];
+    return `M${r(p[0])} ${r(p[1])}L${r(q[0])} ${r(q[1])}`;
+  }).join("");
+}
+
+/** The trailing tooltip during a drag-to-lay stroke. */
+export function strokeText(placed: number): string {
+  return `Laying a run · ${placed} piece${placed === 1 ? "" : "s"} · release to finish`;
+}
+
+const PLAN_FILL: Record<Family, string> = {
+  blocks: "#c49a52",
+  rails: "#d9c2a0",
+  mechanisms: "#a8c8d8",
+  supports: "#7d5f2c",
+};
+
+/**
+ * A plan-view thumbnail of a saved track for the Library: one square per placement anchor seen
+ * from above (higher levels drawn last), coloured by family, fitted into `w`×`h`. Empty when the
+ * track has no placements.
+ */
+export function planThumb(
+  placements: readonly { piece: string; anchor: [number, number, number] }[],
+  w = 64,
+  h = 48,
+): string {
+  if (placements.length === 0) return "";
+  let [x0, x1, z0, z1] = [Infinity, -Infinity, Infinity, -Infinity];
+  for (const p of placements) {
+    x0 = Math.min(x0, p.anchor[0]);
+    x1 = Math.max(x1, p.anchor[0]);
+    z0 = Math.min(z0, p.anchor[2]);
+    z1 = Math.max(z1, p.anchor[2]);
+  }
+  const pad = 4;
+  const cols = x1 - x0 + 1;
+  const rows = z1 - z0 + 1;
+  const s = Math.min((w - 2 * pad) / cols, (h - 2 * pad) / rows, 8);
+  const ox = (w - cols * s) / 2;
+  const oy = (h - rows * s) / 2;
+  const r = (v: number): string => (Math.round(v * 100) / 100).toString();
+  const cells = [...placements]
+    .sort((a, b) => a.anchor[1] - b.anchor[1])
+    .map((p) => {
+      const x = ox + (p.anchor[0] - x0) * s;
+      const y = oy + (p.anchor[2] - z0) * s;
+      return `<rect x="${r(x)}" y="${r(y)}" width="${r(Math.max(s - 0.6, 0.8))}" height="${r(Math.max(s - 0.6, 0.8))}" fill="${PLAN_FILL[familyOf(p.piece)]}"/>`;
+    })
+    .join("");
+  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true">${cells}</svg>`;
 }

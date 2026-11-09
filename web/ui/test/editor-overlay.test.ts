@@ -59,6 +59,7 @@ let posted: BridgeCommand[];
 let clock: number;
 let ui: EditorOverlay;
 let orbit: { target: [number, number, number]; yaw: number; pitch: number; radius: number } | null;
+let mode: string | null;
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string): T => {
   const el = document.querySelector(sel);
@@ -78,6 +79,7 @@ beforeEach(() => {
   posted = [];
   clock = 0;
   orbit = null;
+  mode = "orbit";
   ui = mountEditor({
     doc: document,
     win: window,
@@ -86,6 +88,7 @@ beforeEach(() => {
     library: null,
     now: () => clock,
     orbit: () => orbit,
+    cameraMode: () => mode,
   });
 });
 
@@ -292,8 +295,10 @@ describe("editor overlay", () => {
     expect(mid?.op).toBe("camera");
     clock = FLY_MS;
     ui.update(diag());
-    expect(sent.at(-2)?.op).toBe("camera");
-    expect(sent.at(-1)).toEqual({ op: "boxSelect", a: [12, 3, -4], b: [12, 3, -4] });
+    expect(sent.at(-3)?.op).toBe("camera");
+    expect(sent.at(-2)).toEqual({ op: "boxSelect", a: [12, 3, -4], b: [12, 3, -4] });
+    // Then the piece's selection mark pulses twice (engine, real time).
+    expect(sent.at(-1)).toEqual({ op: "pulse", anchor: [12, 3, -4] });
     ui.update(diag({ edits: 9, issueCount: 0, issues: [] }));
     expect($('[data-k="vh"]').textContent).toBe("Track is complete");
   });
@@ -383,5 +388,191 @@ describe("editor overlay", () => {
     expect($('#pe-sheet [data-k="ask"]').classList.contains("open")).toBe(true);
     click('#pe-sheet [data-k="no"]');
     expect($('#pe-sheet [data-k="ask"]').classList.contains("open")).toBe(false);
+  });
+
+  it("drag-to-lay: pressing a tile picks it and opens a stroke, releasing ends it, Esc cancels", () => {
+    ui.update(diag({ tool: "place" }));
+    sent = [];
+    const tile = $('[data-piece="blk_straight_l3"]');
+    tile.dispatchEvent(new PointerEvent("pointerdown", { button: 0, bubbles: true }));
+    expect(sent).toEqual([
+      { op: "brush", piece: "blk_straight_l3", yaw: 0, mirror: false },
+      { op: "tool", tool: "place" },
+      { op: "stroke", phase: "start" },
+    ]);
+    expect($<HTMLImageElement>(".tile img").getAttribute("draggable")).toBe("false");
+    // While it lays, the tooltip counts the pieces.
+    const canvas = $("#parble");
+    canvas.dispatchEvent(new PointerEvent("pointermove", { clientX: 300, clientY: 300, bubbles: true }));
+    ui.update(diag({ tool: "place", stroke: { placed: 4, level: 0, outlines: [] } }));
+    expect($("#pe-tip").textContent).toBe("Laying a run · 4 pieces · release to finish");
+    window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+    expect(sent.at(-1)).toEqual({ op: "stroke", phase: "end" });
+    // A second release ends nothing more.
+    const n = sent.length;
+    window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+    expect(sent.length).toBe(n);
+    tile.dispatchEvent(new PointerEvent("pointerdown", { button: 0, bubbles: true }));
+    expect(press("Escape")).toBe(true);
+    expect(sent.at(-1)).toEqual({ op: "stroke", phase: "cancel" });
+    window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+    expect(sent.at(-1)).toEqual({ op: "stroke", phase: "cancel" });
+    // A right press opens no stroke.
+    tile.dispatchEvent(new PointerEvent("pointerdown", { button: 2, bubbles: true }));
+    expect(sent.at(-1)).toEqual({ op: "stroke", phase: "cancel" });
+  });
+
+  it("the dashed ghost outlines the brush footprint, red when invalid, with the run's boxes", () => {
+    const box: [number, number][] = [
+      [100, 100],
+      [140, 100],
+      [100, 80],
+      [140, 80],
+      [110, 110],
+      [150, 110],
+      [110, 90],
+      [150, 90],
+    ];
+    const hover = {
+      source: "cursor",
+      hit: "ground",
+      hitCell: null,
+      hitAnchor: null,
+      target: [1, 0, 1] as [number, number, number],
+      valid: true,
+      error: null,
+      outline: box,
+    };
+    ui.update(diag({ tool: "place", hover }));
+    const path = (): SVGPathElement => document.querySelectorAll<SVGPathElement>("#pe-ghost path")[1] as SVGPathElement;
+    // The pointer is not on the scene yet: nothing drawn.
+    expect(path().getAttribute("d") ?? "").toBe("");
+    $("#parble").dispatchEvent(new PointerEvent("pointermove", { clientX: 120, clientY: 95, bubbles: true }));
+    ui.update(diag({ tool: "place", hover }));
+    expect(path().getAttribute("d")?.match(/M/g)?.length).toBe(12);
+    expect(path().getAttribute("class")).toBe("ok");
+    ui.update(diag({ tool: "place", hover: { ...hover, valid: false, error: "occupied" } }));
+    expect(path().getAttribute("class")).toBe("bad");
+    // During a stroke the single box gives way to the laid run's boxes.
+    ui.update(diag({ tool: "place", hover, stroke: { placed: 2, level: 0, outlines: [box, box] } }));
+    expect(path().getAttribute("d")).toBe("");
+    expect($("#pe-ghost .run").getAttribute("d")?.match(/M/g)?.length).toBe(24);
+    // Not in the select tool, and not during a run.
+    ui.update(diag({ tool: "select", hover }));
+    expect(path().getAttribute("d")).toBe("");
+    ui.update(diag({ tool: "place", hover, run: { ...diag().run, active: true } }));
+    expect(path().getAttribute("d")).toBe("");
+  });
+
+  it("drawer tiles show how many of each piece are placed", () => {
+    ui.update(diag({ pieceCounts: { blk_straight_l3: 2, blk_end_l3: 1 } }));
+    click('[data-f="blocks"]');
+    ui.update(diag({ pieceCounts: { blk_straight_l3: 2, blk_end_l3: 1 } }));
+    expect($('[data-ct="blk_straight_l3"]').textContent).toBe("×2");
+    expect($('[data-ct="blk_end_l3"]').textContent).toBe("×1");
+    expect($('[data-ct="blk_curve90_l3"]').textContent).toBe("");
+    ui.update(diag({ edits: 4, pieceCounts: { blk_straight_l3: 3 } }));
+    expect($('[data-ct="blk_straight_l3"]').textContent).toBe("×3");
+    expect($('[data-ct="blk_end_l3"]').textContent).toBe("");
+  });
+
+  it("a toggle's first side is a piece option in the panel", () => {
+    const single = {
+      piece: "mech_toggle_l3",
+      anchor: [2, 0, 1] as [number, number, number],
+      yaw: 1,
+      mirror: false,
+      ports: [],
+      config: {},
+      options: [
+        {
+          key: "first",
+          value: 0,
+          choices: [
+            { value: 0, face: "+x" as const },
+            { value: 1, face: "-x" as const },
+          ],
+        },
+      ],
+    };
+    ui.update(
+      diag({
+        selection: 1,
+        selected: [[2, 0, 1]],
+        selectionInfo: { count: 1, families: { mech: 1 }, levels: [0, 0], single },
+      }),
+    );
+    const opts = document.querySelectorAll<HTMLButtonElement>("[data-opt]");
+    expect([...opts].map((b) => b.textContent)).toEqual(["East", "West"]);
+    expect(opts[0]?.getAttribute("aria-checked")).toBe("true");
+    expect(opts[0]?.querySelector(".pin")).not.toBeNull();
+    expect($('[data-k="sel"]').textContent).toContain("First side");
+    expect($('[data-k="sel"]').textContent).toContain("next Run or Reset");
+    opts[1]?.click();
+    expect(sent.at(-1)).toEqual({ op: "mechConfig", key: "first", value: 1 });
+  });
+
+  it("P, C and F work from the overlay when the canvas has no focus, and yield to the engine otherwise", () => {
+    ui.update(diag({ run: { ...diag().run, active: true } }));
+    sent = [];
+    expect(press("KeyP")).toBe(true);
+    expect(sent.at(-1)).toEqual({ op: "pause" });
+    expect(press("KeyC")).toBe(true);
+    expect(sent.at(-1)).toEqual({ op: "follow", on: true });
+    const canvas = $("#parble");
+    const heard: string[] = [];
+    canvas.addEventListener("keydown", (e) => heard.push((e as KeyboardEvent).code));
+    expect(press("KeyF")).toBe(true);
+    expect(heard).toEqual(["KeyF"]);
+    // The canvas has focus: Bevy hears its own keys, the overlay leaves them.
+    canvas.tabIndex = 0;
+    canvas.focus();
+    const n = sent.length;
+    expect(press("KeyP")).toBe(false);
+    expect(sent.length).toBe(n);
+    // Synthetic keys on the canvas (pointer-lock's Escape) are the engine's too.
+    let answered: boolean | null = null;
+    canvas.addEventListener("keydown", (e) => {
+      answered = ui.key(e as KeyboardEvent);
+    });
+    canvas.dispatchEvent(new KeyboardEvent("keydown", { code: "Escape", bubbles: true }));
+    expect(answered).toBe(false);
+    canvas.blur();
+    // In fly every key is the engine's (Space is up, Esc leaves fly).
+    mode = "fly";
+    expect(press("Space")).toBe(false);
+    expect(press("Escape")).toBe(false);
+    expect(sent.length).toBe(n);
+  });
+
+  it("below 1280 px the run controls show their label and key cap in an inlay tooltip", () => {
+    const mm = window.matchMedia;
+    window.matchMedia = ((q: string) =>
+      ({ matches: q.includes("1279") }) as MediaQueryList) as typeof window.matchMedia;
+    try {
+      ui.update(diag());
+      const pause = $('[data-k="pause"]');
+      expect(pause.getAttribute("aria-label")).toBe("Pause");
+      pause.dispatchEvent(new PointerEvent("pointerenter"));
+      const tt = $("#pe-tt");
+      expect(tt.classList.contains("show")).toBe(true);
+      expect(tt.textContent).toBe("PauseSpace");
+      expect(tt.querySelector("kbd")?.textContent).toBe("Space");
+      pause.dispatchEvent(new PointerEvent("pointerleave"));
+      expect(tt.classList.contains("show")).toBe(false);
+      $('[data-k="one"]').dispatchEvent(new FocusEvent("focus"));
+      expect(tt.textContent).toBe("Release one");
+    } finally {
+      window.matchMedia = mm;
+    }
+    // Wide: no tooltip (the label is on the button).
+    window.matchMedia = (() => ({ matches: false }) as MediaQueryList) as typeof window.matchMedia;
+    try {
+      $('[data-k="one"]').dispatchEvent(new FocusEvent("blur"));
+      $('[data-k="one"]').dispatchEvent(new FocusEvent("focus"));
+      expect($("#pe-tt").classList.contains("show")).toBe(false);
+    } finally {
+      window.matchMedia = mm;
+    }
   });
 });

@@ -1,19 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { EDGE_PX, IDLE_MS, RunFade } from "../src/editor/fade";
-import { type KeyLike, keyResult, ownsKeys } from "../src/editor/keys";
+import { ENGINE_KEYS, type KeyLike, keyResult, ownsKeys } from "../src/editor/keys";
 import {
   familyOf,
   familyText,
+  boxPath,
+  countBadge,
+  faceWord,
   focusOrbit,
   ghostText,
   issueText,
   levelLabel,
   pieceName,
   piecesOf,
+  planThumb,
   portsText,
   runTime,
   sliceDown,
   sliceUp,
+  strokeText,
 } from "../src/editor/model";
 
 const key = (code: string, mods: Partial<KeyLike> = {}): KeyLike => ({
@@ -96,6 +101,56 @@ describe("editor model", () => {
     expect(runTime(240 * 75)).toBe("1:15");
   });
 
+  it("draws the 12 edges of a projected footprint box, and nothing for a partial one", () => {
+    const corners: [number, number][] = [
+      [0, 0],
+      [10, 0],
+      [0, 10],
+      [10, 10],
+      [2, 2],
+      [12, 2],
+      [2, 12],
+      [12, 12],
+    ];
+    const d = boxPath(corners);
+    expect(d.match(/M/g)?.length).toBe(12);
+    expect(d.startsWith("M0 0L10 0")).toBe(true);
+    expect(d).toContain("M10 10L12 12");
+    expect(boxPath(corners.slice(0, 7))).toBe("");
+    expect(boxPath(null)).toBe("");
+    expect(boxPath([[0.123, 4.56], ...corners.slice(1)]).startsWith("M0.1 4.6L")).toBe(true);
+  });
+
+  it("labels tile counts, stroke tips and option sides", () => {
+    expect(countBadge(3)).toBe("×3");
+    expect(countBadge(0)).toBe("");
+    expect(countBadge(undefined)).toBe("");
+    expect(strokeText(1)).toBe("Laying a run · 1 piece · release to finish");
+    expect(strokeText(7)).toBe("Laying a run · 7 pieces · release to finish");
+    expect(faceWord("+x")).toBe("East");
+    expect(faceWord("-z")).toBe("North");
+  });
+
+  it("draws a Library plan thumbnail from the saved placements, top level last", () => {
+    expect(planThumb([])).toBe("");
+    const svg = planThumb([
+      { piece: "blk_pillar", anchor: [0, 1, 0] },
+      { piece: "blk_straight_l3", anchor: [0, 0, 0] },
+      { piece: "rail_straight_l2", anchor: [3, 0, -2] },
+      { piece: "mech_hopper", anchor: [1, 0, -1] },
+    ]);
+    expect(svg.startsWith('<svg viewBox="0 0 64 48"')).toBe(true);
+    expect(svg.match(/<rect/g)?.length).toBe(4);
+    // Blocks brass, rails maple, mechanisms pale blue, supports dark brass; the pillar (L1) on top.
+    expect(svg).toContain('fill="#c49a52"');
+    expect(svg).toContain('fill="#d9c2a0"');
+    expect(svg).toContain('fill="#a8c8d8"');
+    expect(svg.lastIndexOf('fill="#7d5f2c"')).toBeGreaterThan(svg.lastIndexOf('fill="#a8c8d8"'));
+    // 4 columns by 3 rows of 8 px cells, centred, north (-z) up.
+    expect(svg).toContain('<rect x="16" y="28" width="7.4"');
+    expect(svg).toContain('<rect x="40" y="12" width="7.4"');
+  });
+
   it("aims the focus orbit at the cell centre", () => {
     const o = focusOrbit([10, 2, -5], { yaw: 0.3, pitch: 0.2, radius: 3 });
     expect(o.target.map((v) => Math.round(v * 1000))).toEqual([600, 150, -300]);
@@ -138,11 +193,22 @@ describe("editor keyboard map", () => {
     expect(keyResult(key("Backslash"), d)).toEqual({ kind: "ui", command: "panel" });
     expect(keyResult(key("KeyX"), d)).toEqual({ kind: "ui", command: "sliceToggle" });
     expect(keyResult(key("Tab", { shiftKey: true }), d)).toBeNull();
-    expect(keyResult(key("KeyF"), d)).toBeNull();
-    expect(keyResult(key("KeyP"), d)).toBeNull();
+    expect(keyResult(key("KeyN"), d)).toBeNull();
+    expect(keyResult(key("Comma"), d)).toBeNull();
     expect(keyResult(key("KeyC", { metaKey: true }), d)).toBeNull();
     expect(ownsKeys({ tagName: "INPUT" } as unknown as EventTarget)).toBe(true);
     expect(ownsKeys({ tagName: "BUTTON" } as unknown as EventTarget)).toBe(false);
+  });
+});
+
+describe("engine keys", () => {
+  const d = { slice: null, maxLevel: 0 };
+  it("P pauses, C toggles the follow cam and F hands fly to the engine", () => {
+    expect([...ENGINE_KEYS].sort()).toEqual(["KeyC", "KeyF", "KeyP"]);
+    expect(keyResult(key("KeyP"), d)).toEqual({ kind: "actions", actions: [{ op: "pause" }] });
+    expect(keyResult(key("KeyC"), d)).toEqual({ kind: "ui", command: "follow" });
+    expect(keyResult(key("KeyF"), d)).toEqual({ kind: "ui", command: "fly" });
+    expect(keyResult(key("KeyP", { ctrlKey: true }), d)).toBeNull();
   });
 });
 

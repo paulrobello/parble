@@ -185,6 +185,18 @@ body.parble-editor.pe-faded #parble-mixer{opacity:0;pointer-events:none}
 body.parble-editor.pe-faded.pe-show-bottom #parble-mixer{opacity:1;pointer-events:auto}
 body.parble-editor #parble-hud,body.parble-editor #parble-controls{display:none}
 
+#pe-ghost{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+#pe-ghost path{fill:none;stroke:var(--b);stroke-width:1.4;stroke-dasharray:5 4;stroke-linecap:round}
+#pe-ghost path.bad{stroke:var(--f)}
+#pe-ghost path.run{stroke:rgba(196,154,82,.7);stroke-width:1;stroke-dasharray:3 4}
+#pe .tile .ct{position:absolute;top:5px;right:6px;font:500 11px/1 "Alegreya Sans",sans-serif;font-variant-numeric:lining-nums tabular-nums;color:var(--m)}
+#pe .kv .seg.opt button{display:flex;align-items:center;justify-content:center;gap:6px;padding:5px 8px}
+#pe .kv .seg.opt button .pin{margin-left:-2px}
+#pe-sheet .thumb svg{display:block}
+#pe-tt{left:0;top:0;display:none;align-items:center;gap:7px;padding:5px 10px;white-space:nowrap;pointer-events:none;z-index:6;transition:none}
+#pe-tt.show{display:flex}
+#pe.faded #pe-tt{display:none}
+
 #pe.running .build kbd{display:none}
 @media (max-width:1279px){
   #pe .rc span{display:none}

@@ -58,6 +58,14 @@ opt-level = 3
 [profile.wasm-release.package.parble-app]
 opt-level = 3
 
+# The editor's Run builds every chunk collider in one frame. At opt-level 3 that build is 887 → 833 ms
+# on a 2,000-piece track (make web-editor-perf, Run on a 2,000-piece track).
+[profile.wasm-release.package.parry3d]
+opt-level = 3
+
+[profile.wasm-release.package.rapier3d]
+opt-level = 3
+
 # Rapier 0.36.1 with the rolling-ball contact fix (third_party/rapier3d-0.36.1/README.parble.md).
 [patch.crates-io]
 rapier3d = { path = "third_party/rapier3d-0.36.1" }
