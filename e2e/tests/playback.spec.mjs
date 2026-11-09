@@ -18,7 +18,7 @@ const hud = (page) => page.evaluate(() => document.getElementById("parble-hud")?
 test("P pauses, N steps, comma and period change the scale, fly works while paused", async ({ page }) => {
   const errors = watchErrors(page);
   // The editor never restarts its run, so the tick only moves forward.
-  await page.goto("/?scenario=editor&quality=low&mute=1");
+  await page.goto("/?scenario=editor&quality=low&mute=1&editor-ui=0");
   await page.waitForFunction(() => window.__parble?.ready === true && window.__parble.frame > 10, null, { timeout: 60_000 });
   const canvas = page.locator("canvas#parble");
   const box = await canvas.boundingBox();

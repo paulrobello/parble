@@ -482,6 +482,8 @@ pub struct EditorDiag {
     /// Hopper and finish placements.
     pub hoppers: usize,
     pub finishes: usize,
+    /// Highest anchor level placed (0 when empty), for the slice stepper.
+    pub max_level: i32,
     /// Validation of the track with its hopper resolved, as of the last edit.
     pub issue_count: usize,
     /// The first 32 issues.
@@ -1849,6 +1851,7 @@ fn apply_actions(
             .iter()
             .filter(|p| is_finish(&p.piece))
             .count();
+        d.max_level = st.by_anchor.keys().map(|a| a.y).max().unwrap_or(0);
     }
     if st
         .selection_at

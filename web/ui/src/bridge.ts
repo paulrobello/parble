@@ -133,6 +133,8 @@ export interface WasmBridge {
 
 export interface WasmBindings {
   Bridge: new () => WasmBridge;
+  /** Editor actions (crates/parble-app/src/editor.rs); present in every wasm build, used in the editor scenario. */
+  parbleEdit?(json: string): void;
 }
 
 type Obj = Record<string, unknown>;

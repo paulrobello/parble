@@ -81,7 +81,7 @@ test("editor: ghost, picking, slicing, box select and move drag over 50 placed p
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error" || BAD_TEXT(m.text())) errors.push(m.text()); });
   page.on("pageerror", (e) => errors.push(String(e)));
-  await page.goto("/?mute=1&scenario=editor&quality=low");
+  await page.goto("/?mute=1&scenario=editor&quality=low&editor-ui=0");
   await page.waitForFunction(() => window.__parble?.ready === true && window.__parble.editor && window.__parble.frame > 10, null, {
     timeout: 60_000,
   });
@@ -287,7 +287,7 @@ async function openEditor(page) {
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error" || BAD_TEXT(m.text())) errors.push(m.text()); });
   page.on("pageerror", (e) => errors.push(String(e)));
-  await page.goto("/?mute=1&scenario=editor&quality=low");
+  await page.goto("/?mute=1&scenario=editor&quality=low&editor-ui=0");
   await page.waitForFunction(() => window.__parble?.ready === true && window.__parble.editor && window.__parble.frame > 10, null, {
     timeout: 60_000,
   });
