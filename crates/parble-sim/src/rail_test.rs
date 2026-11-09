@@ -318,16 +318,9 @@ fn s_rail_without_the_arc_contact_kicks() {
     );
 }
 
-#[test]
-fn block_rail_curve_block_seams_stay_under_the_seam_thresholds() {
-    // The 90° rail curve (2 × 2, radius 90 mm) between `L2` straights: in along +x at x = 90 mm,
-    // out along -z at z = -90 mm, x = 180 mm. Gated like the S-rail's seams (upward and kick),
-    // except the block to rail curve seam and the curve's interior, gated on kick only as a bend
-    // inlet is (`joiner_seams_stay_under_the_seam_thresholds`): their upward speed (3.54 and
-    // 4.41 mm/s) is the swing up the curve's outer wall. Measured 2026-11-08, the old solver against the vendored Rapier
-    // contact fix (PHYSICS_VERSION 3): both trajectories rise the same 0.19 mm over x 92-108 mm
-    // (37.98 to 38.17 mm old, 38.00 to 38.20 mm new) as z swings out. The old reading stayed
-    // negative under the rolling sink's -3 to -10 mm/s offset.
+/// The 90° rail curve (2 × 2, radius 90 mm) between `L2` straights, in along +x at x = 90 mm and
+/// out along -z at z = -90 mm, x = 180 mm, with `extra` triangles added (a control's step).
+fn rail_curve_run(extra: Vec<[[i64; 3]; 3]>) -> Vec<MarbleState> {
     let turned = |x: i32, z: i32| {
         Placement::new(
             PieceId::new("blk_straight_l2").unwrap(),
@@ -343,9 +336,34 @@ fn block_rail_curve_block_seams_stay_under_the_seam_thresholds() {
         turned(3, -2),
         turned(3, -3),
     ];
-    let mut sim = track_sim(&layout);
+    let kit = parble_kit::builtin();
+    let mut sim = Sim::empty();
+    sim.pieces.extra_triangles = extra;
+    for p in &layout {
+        sim.place_piece(kit, p.clone()).unwrap();
+    }
+    sim.rebuild_chunks(kit).unwrap();
     launch(&mut sim, Vector::new(-0.02, REST_Y, 0.0), Vector::X, SPEED);
-    let tr = trace(&mut sim, TICKS);
+    trace(&mut sim, TICKS)
+}
+
+/// The rail curve's exit window into the block (z -90 mm).
+const RAIL_CURVE_EXIT: ([f32; 2], [f32; 2]) = ([0.15, -0.105], [0.21, -0.075]);
+
+#[test]
+fn block_rail_curve_block_seams_stay_under_the_seam_thresholds() {
+    // Gated like the S-rail's seams (upward and kick), except the two hand-overs between the
+    // block channel and the rails and the curve's interior, gated on kick only as a bend inlet is
+    // (`joiner_seams_stay_under_the_seam_thresholds`). On the way in the marble swings up the
+    // curve's outer wall (upward 3.54 at the seam and 4.41 inside). Measured 2026-11-08, the old
+    // solver against the vendored Rapier contact fix (PHYSICS_VERSION 3): both trajectories rise
+    // the same 0.19 mm over x 92-108 mm (37.98 to 38.17 mm old, 38.00 to 38.20 mm new) as z swings
+    // out. The old reading stayed negative under the rolling sink's -3 to -10 mm/s offset. On the
+    // way out the mirror image: the marble rides about 1 mm outward and 0.1 mm high on the rails,
+    // comes back down at 2.4 mm/s past the seam and the block channel takes it 6 mm in (upward
+    // 4.04, kick 4.18, measured 2026-11-08). A real step there still fails the kick
+    // (`rail_curve_exit_step_kicks`).
+    let tr = rail_curve_run(Vec::new());
     let (p_base, k_base) = seamless_l2();
     let (p_limit, k_limit) = (p_base + SEAM_SPIKE_MM_S, k_base + KICK_MARGIN_MM_S);
     assert!(
@@ -362,8 +380,8 @@ fn block_rail_curve_block_seams_stay_under_the_seam_thresholds() {
         ("rail curve interior", [0.105, -0.075], [0.21, 0.03]),
         (
             "rail curve to block (z -90 mm)",
-            [0.15, -0.105],
-            [0.21, -0.075],
+            RAIL_CURVE_EXIT.0,
+            RAIL_CURVE_EXIT.1,
         ),
         ("block to block (z -150 mm)", [0.15, -0.165], [0.21, -0.135]),
     ];
@@ -371,7 +389,7 @@ fn block_rail_curve_block_seams_stay_under_the_seam_thresholds() {
         let sel = |m: &MarbleState| at(m, lo, hi);
         assert!(tr.iter().any(sel), "{name}: marble never crossed");
         let (p, u, k) = (peak(&tr, sel), upward(&tr, sel), kick(&tr, sel));
-        let swing = name.starts_with("block to rail curve") || name == "rail curve interior";
+        let swing = name != "block to block (z -150 mm)";
         eprintln!(
             "{name}: peak |vy| {p:.2} mm/s, upward {u:.2} (limit {p_limit:.2}{}), kick {k:.2} \
              (limit {k_limit:.2})",
@@ -383,6 +401,30 @@ fn block_rail_curve_block_seams_stay_under_the_seam_thresholds() {
         );
         assert!(k <= k_limit, "{name}: kick {k:.2} mm/s over {k_limit:.2}");
     }
+}
+
+/// A step up of `rise_um` in the block's floor just past the rail curve's exit (z -90 mm): a flat
+/// plate 12 mm wide across the channel bottom at x = 180 mm, from the seam to 10 mm into the
+/// block, `rise_um` over the `L2` floor (30 mm), facing up.
+fn rail_curve_exit_step(rise_um: i64) -> Vec<[[i64; 3]; 3]> {
+    let (x0, x1, y) = (174_000, 186_000, 30_000 + rise_um);
+    let (z0, z1) = (-100_000, -90_000);
+    vec![
+        [[x0, y, z0], [x0, y, z1], [x1, y, z0]],
+        [[x1, y, z0], [x0, y, z1], [x1, y, z1]],
+    ]
+}
+
+#[test]
+fn rail_curve_exit_step_kicks() {
+    // Negative control for the kick-only exit gate: a 0.5 mm step at the seam still fails it.
+    let tr = rail_curve_run(rail_curve_exit_step(500));
+    let (_, k_base) = seamless_l2();
+    let limit = k_base + KICK_MARGIN_MM_S;
+    let (lo, hi) = RAIL_CURVE_EXIT;
+    let k = kick(&tr, |m| at(m, lo, hi));
+    eprintln!("rail curve to block with a 500 um step: kick {k:.2} (limit {limit:.2})");
+    assert!(k > limit, "control kick {k:.2} not over {limit:.2}");
 }
 
 #[test]
