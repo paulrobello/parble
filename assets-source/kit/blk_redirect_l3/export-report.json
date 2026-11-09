@@ -3,16 +3,16 @@
   "colliderTris": 770,
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
+    "sha256": "dcf7195a751790e68529e5ffcb2aedbaa27db37b748bb051a145fc6a1468df13"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "2b032fa6636758cdf00059a508238ef7f13deee90dc0a14e737e7b08a8ccc1f4"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "660a716bb5b6aacfc73d0247ef39e4a8c30387d314fa250e99e76aaa39d0d366"
+      "sha256": "b532be7b2d25fb6fa25beccc4dd1d7a41678e43639b11a17d855f0fd759ca009"
     }
   ],
   "lodParams": {
@@ -51,8 +51,8 @@
     }
   },
   "lodTris": {
-    "blk_redirect_l3_lod0": 2539,
-    "blk_redirect_l3_lod1": 581,
+    "blk_redirect_l3_lod0": 2504,
+    "blk_redirect_l3_lod1": 578,
     "blk_redirect_l3_lod2": 253
   },
   "mapSize": {
@@ -72,19 +72,19 @@
   "pieceId": "blk_redirect_l3",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 4383.9,
-      "median": 4242.2,
-      "min": 3357.0
+      "max": 4426.2,
+      "median": 4242.6,
+      "min": 3404.7
     },
     "lod1": {
-      "max": 2078.4,
-      "median": 2012.1,
-      "min": 1569.6
+      "max": 2153.4,
+      "median": 1926.1,
+      "min": 1388.6
     },
     "lod2": {
-      "max": 1060.9,
-      "median": 1035.9,
-      "min": 894.1
+      "max": 1068.8,
+      "median": 1051.2,
+      "min": 903.1
     }
   }
 }

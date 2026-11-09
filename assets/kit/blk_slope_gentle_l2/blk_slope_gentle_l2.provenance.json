@@ -1,27 +1,27 @@
 {
   "schema": "parble-kit-provenance/1",
   "pieceId": "blk_slope_gentle_l2",
-  "pieceVersion": 1,
+  "pieceVersion": 2,
   "route": "scripted",
   "card": "P2-T2",
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "a13c69a3266ee63dea8295af3ec536aa93e4c358675b95e24628502ad217aaf1",
+    "sha256": "760b35d6f7a9e6926759cc641b78dfc88c5e19b486619d0ac7ff3a297c7e9637",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "52d66541d215359b38230d881691fef0056465aa5d5cd90d645cf288678f685f"
+    "sha256": "dcf7195a751790e68529e5ffcb2aedbaa27db37b748bb051a145fc6a1468df13"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "4af584be5af2ea3827da638e45c13fbba52ecec08950720b05597f733c591e9e"
+      "sha256": "424c4d70279c4fdacf884307888efaffac042e45e91bedf09ef053abb0e92e2e"
     }
   ],
   "authoringAgent": {
@@ -46,32 +46,32 @@
     "channels": {
       "blk_slope_gentle_l2_lod0_ao": {
         "colorspace": "Non-Color",
-        "sha256": "408b00514f664f354133552927e1566b199eb3024bea41906f223c60535fe847",
+        "sha256": "d726cacc97c0f971b2d348e366f1c6bc1185a7580ca0309eb9abf9abf4202658",
         "size": 512
       },
       "blk_slope_gentle_l2_lod0_normal": {
         "colorspace": "Non-Color",
-        "sha256": "1a91535e845320496ed6688214b3fc7e8fa76656295899910249f6022beca3f5",
+        "sha256": "8230b13eb0cd45a53236c5e9dc9503c090e4e3c76a2e42da45615f521ddea9da",
         "size": 512
       },
       "blk_slope_gentle_l2_lod1_ao": {
         "colorspace": "Non-Color",
-        "sha256": "7393adbe236b6b422fd5c6303a4460e9c8fd0fbef8e810509fe9ba83afdd12ce",
+        "sha256": "f99cdb40ab8325222444d1b0a3a30f37f03efe895205bb8da518769ca9152dff",
         "size": 256
       },
       "blk_slope_gentle_l2_lod1_normal": {
         "colorspace": "Non-Color",
-        "sha256": "ad86b99b8e07f0181c930a79f488310c4b3b076ecf4f2c104754ac797224838e",
+        "sha256": "329804c89f2a39249d51dae5a6dcb0f5f331724b94ac316299d92ef6d399f020",
         "size": 256
       },
       "blk_slope_gentle_l2_lod2_ao": {
         "colorspace": "Non-Color",
-        "sha256": "f2fa6ed43bb521668d9e26a575db045814e0a28b0e0891644b27c2877f49feb3",
+        "sha256": "b85eb43a7df18e084fe7adb8c1e83aa7786111866725226f0fa3396d8bbf4a47",
         "size": 128
       },
       "blk_slope_gentle_l2_lod2_normal": {
         "colorspace": "Non-Color",
-        "sha256": "2e28f96898b433bd421a2883de66a8881a58580c38d5d669d55182fdaf2e50fe",
+        "sha256": "73c919261c57ab8ca70921a521e1bd4199dd96f1bd6b54d035491c01b219dc6e",
         "size": 128
       }
     }
@@ -97,9 +97,9 @@
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2822.9,
-      "median": 2751.3,
-      "min": 2187.2
+      "max": 2824.3,
+      "median": 2752.1,
+      "min": 2188.4
     },
     "lod1": {
       "max": 1419.3,
@@ -107,66 +107,66 @@
       "min": 1078.4
     },
     "lod2": {
-      "max": 704.4,
-      "median": 700.7,
-      "min": 615.8
+      "max": 704.5,
+      "median": 700.9,
+      "min": 612.2
     }
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 61344,
+    "glbBytes": 61456,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/blk_slope_gentle_l2/blk_slope_gentle_l2.glb",
-      "sha256": "65a9d41532701b82de11626a5120e7179b38a7617319f545eb1d32764f46b222",
-      "bytes": 61344
+      "sha256": "2bda1b70ab150721617e8b802d28f056524d94b982ed50c0c92e4a57817b4e0f",
+      "bytes": 61456
     },
     {
       "path": "assets/kit/blk_slope_gentle_l2/blk_slope_gentle_l2.kit.json",
-      "sha256": "99ace66d0ae1ac35d59cf98ea6bc6eb4efbd4c4a0b23dd88e8d730eadb833d8b",
+      "sha256": "7b6f4e0bb0ee35d82881387510ec6c0d66232583524e0772128298296d6bb2ba",
       "bytes": 20366
     },
     {
       "path": "assets/kit/blk_slope_gentle_l2/blk_slope_gentle_l2_lod0_ao.png",
-      "sha256": "408b00514f664f354133552927e1566b199eb3024bea41906f223c60535fe847",
-      "bytes": 41145
+      "sha256": "d726cacc97c0f971b2d348e366f1c6bc1185a7580ca0309eb9abf9abf4202658",
+      "bytes": 40774
     },
     {
       "path": "assets/kit/blk_slope_gentle_l2/blk_slope_gentle_l2_lod0_normal.png",
-      "sha256": "1a91535e845320496ed6688214b3fc7e8fa76656295899910249f6022beca3f5",
-      "bytes": 51176
+      "sha256": "8230b13eb0cd45a53236c5e9dc9503c090e4e3c76a2e42da45615f521ddea9da",
+      "bytes": 50223
     },
     {
       "path": "assets/kit/blk_slope_gentle_l2/blk_slope_gentle_l2_lod1_ao.png",
-      "sha256": "7393adbe236b6b422fd5c6303a4460e9c8fd0fbef8e810509fe9ba83afdd12ce",
-      "bytes": 12996
+      "sha256": "f99cdb40ab8325222444d1b0a3a30f37f03efe895205bb8da518769ca9152dff",
+      "bytes": 13649
     },
     {
       "path": "assets/kit/blk_slope_gentle_l2/blk_slope_gentle_l2_lod1_normal.png",
-      "sha256": "ad86b99b8e07f0181c930a79f488310c4b3b076ecf4f2c104754ac797224838e",
-      "bytes": 21978
+      "sha256": "329804c89f2a39249d51dae5a6dcb0f5f331724b94ac316299d92ef6d399f020",
+      "bytes": 21459
     },
     {
       "path": "assets/kit/blk_slope_gentle_l2/blk_slope_gentle_l2_lod2_ao.png",
-      "sha256": "f2fa6ed43bb521668d9e26a575db045814e0a28b0e0891644b27c2877f49feb3",
-      "bytes": 4354
+      "sha256": "b85eb43a7df18e084fe7adb8c1e83aa7786111866725226f0fa3396d8bbf4a47",
+      "bytes": 4392
     },
     {
       "path": "assets/kit/blk_slope_gentle_l2/blk_slope_gentle_l2_lod2_normal.png",
-      "sha256": "2e28f96898b433bd421a2883de66a8881a58580c38d5d669d55182fdaf2e50fe",
-      "bytes": 8241
+      "sha256": "73c919261c57ab8ca70921a521e1bd4199dd96f1bd6b54d035491c01b219dc6e",
+      "bytes": 8485
     },
     {
       "path": "assets-source/kit/blk_slope_gentle_l2/blk_slope_gentle_l2_high.blend",
-      "sha256": "6717b59f0dcc10f4dae322a0c9a3b8544b2550fd28612912a2d6aff2aa82b4c2",
-      "bytes": 269331
+      "sha256": "61a5b13260efb22e2a3faaf73ecbe89845676f8144fd8674fd1f0eb238c1934a",
+      "bytes": 269617
     },
     {
       "path": "assets-source/kit/blk_slope_gentle_l2/blk_slope_gentle_l2_low.blend",
-      "sha256": "0aa5cbbd3e8616798974c002666f0aa67f965bdc7832c764e415e8d1f235d1f0",
-      "bytes": 150313
+      "sha256": "e07e704c60318e0ef8eb9916bc876e4823a626d9e3f5219376c3543dfbaed904",
+      "bytes": 150350
     }
   ],
   "references": [

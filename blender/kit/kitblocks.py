@@ -23,7 +23,10 @@ PIECE_VERSION = 1
 # Pieces whose geometry changed since version 1 (contract §10: the id stays, the version bumps).
 # 2026-11-08: blk_redirect_l3 and blk_redirect_l2 2, exit port face opened.
 # 2026-11-08: blk_slope_steep_l3 2, floor on the C2 quintic smootherstep (PRD §5.3).
-PIECE_VERSIONS = {"blk_redirect_l3": 2, "blk_redirect_l2": 2, "blk_slope_steep_l3": 2}
+# 2026-11-08: blk_redirect_l3 and blk_redirect_l2 3, blk_tower_socket_l1 2: the landing floors on
+#   the quintic smootherstep too (contract §7). The gentle slopes' versions are kitgeom's.
+PIECE_VERSIONS = {"blk_redirect_l3": 3, "blk_redirect_l2": 3, "blk_slope_steep_l3": 2,
+                  "blk_tower_socket_l1": 2}
 
 
 def piece_version(piece_id):
@@ -47,6 +50,7 @@ SOCKET_R = 20.0            # §5.5: 40 mm socket bore
 SOCKET_DEPTH = 10.5        # §5.5 render bore depth
 SOCKET_INSET = 10.0        # §5.5 collision port plane inside the face
 TUNNEL_WALL = 6.0          # §5.1: 34 mm tunnel = R14 floor + 6 mm wall + R14 crown
+SLIVER_MM2 = 0.05          # render triangles smaller than this are dropped after the redirect boolean
 LANDING_RISE = 15.0        # a dropped marble lands on a floor this much above the tunnel exit floor
 COLLISION_SEGS = 16        # §5.4 half-round and bore segments
 COLLISION_PATH = 8         # path segments for collision arcs and slopes (kitgeom COLLISION_PATH)
@@ -287,7 +291,7 @@ def cutters(piece_id, q, collision):
     elif shape == "redirect":
         fe = f0 - K.CELL                      # exit floor in the lower cell (same level)
         x_land = -HOLE_R - 1.0                # tunnel reaches 1 mm past the shaft's far wall
-        fl = lambda x: fe + LANDING_RISE * (1.0 - smooth((x - x_land) / (30.0 - x_land)))
+        fl = lambda x: fe + LANDING_RISE * (1.0 - smoother((x - x_land) / (30.0 - x_land)))
         sts_in = straight_x(-30.0, 0.0, lambda x: f0, 1)
         out.append(lambda bm: sweep(bm, extend(sts_in, True, False), oprof))
         bowl_and_bore(fe + 30.0)
@@ -302,7 +306,7 @@ def cutters(piece_id, q, collision):
         out.append(lambda bm: sweep(bm, extend(sts_a, True, True), oprof))
     elif shape == "tower_socket":
         x_end = HOLE_R + 1.0
-        fl = lambda x: f0 + LANDING_RISE * smooth((x + 20.0) / (x_end + 20.0))
+        fl = lambda x: f0 + LANDING_RISE * smoother((x + 20.0) / (x_end + 20.0))
         x0 = -30.0 + SOCKET_INSET
         if collision:  # 6 path segments: the 34-vertex tunnel ring at 8 would pass 600 tris (§12)
             sts_t = straight_x(x0, x_end, fl, 6)
@@ -391,6 +395,12 @@ def _boolean_mesh(piece_id, q, name, collection, collision):
     bm.from_mesh(result)
     bmesh.ops.dissolve_degenerate(bm, edges=bm.edges, dist=1e-4)
     bmesh.ops.triangulate(bm, faces=bm.faces, quad_method="FIXED", ngon_method="EAR_CLIP")
+    if not collision and sp_shape(piece_id) == "redirect":
+        # The smootherstep landing leaves sliver triangles where the tunnel meets the shaft (zero
+        # UV area, so no tangent, a glTF validator error). Dropping them leaves no visible gap.
+        slivers = [f for f in bm.faces if f.calc_area() < SLIVER_MM2]
+        bmesh.ops.delete(bm, geom=slivers, context="FACES_ONLY")
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(result)
     bm.free()

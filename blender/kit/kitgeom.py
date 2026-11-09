@@ -17,6 +17,10 @@ import re
 KIT_CONTRACT_VERSION = 1
 SIDECAR_SCHEMA = 1
 PIECE_VERSION = 1
+# Pieces whose geometry changed since version 1 (contract §10: the id stays, the version bumps).
+# 2026-11-08: blk_slope_gentle_l3 and blk_slope_gentle_l2 (kitblocks' variant) 2, floor on the C2
+#   quintic smootherstep (contract §7).
+PIECE_VERSIONS = {"blk_slope_gentle_l3": 2, "blk_slope_gentle_l2": 2}
 
 CELL = 60.0          # mm (§2)
 INSET = 0.5          # visual seam inset per face, render mesh only (§2)
@@ -93,10 +97,10 @@ def spec(piece_id):
 
 
 def floor_mm(shape, level, t):
-    """Channel floor height at path parameter t in [0, 1]. Gentle slope: cubic smoothstep (§7)."""
+    """Channel floor height at path parameter t in [0, 1]. Gentle slope: quintic smootherstep (§7)."""
     f0 = LEVEL_STEP * level
     if shape == "slope_gentle":
-        return f0 - LEVEL_STEP * (3 * t * t - 2 * t ** 3)
+        return f0 - LEVEL_STEP * (t * t * t * (10.0 + t * (-15.0 + 6.0 * t)))
     return f0
 
 
@@ -268,7 +272,7 @@ def sidecar(piece_id):
         "footprint": sp["footprint"],
         "id": piece_id,
         "kit_contract": KIT_CONTRACT_VERSION,
-        "piece_version": PIECE_VERSION,
+        "piece_version": PIECE_VERSIONS.get(piece_id, PIECE_VERSION),
         "ports": sp["ports"],
         "schema": SIDECAR_SCHEMA,
         "sensors": [],

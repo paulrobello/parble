@@ -571,10 +571,10 @@ impl ChannelJunction {
 
 /// A one-cell channel slope: the channel half-round, in vertical cross-sections across the path,
 /// lowered along the path from the entry floor to the exit floor by the contract's profile
-/// (contract §7): the cubic smoothstep on the gentle slope (the generator's `kitgeom.stations`)
-/// and on a landing floor, the quintic smootherstep on the steep slope (`kitblocks.smoother`,
-/// [`ChannelSlope::c2`]). Both are flat at both ports, so past either port the tube continues
-/// flat at that port's level, as the mating straight does.
+/// (contract §7): the quintic smootherstep on both slopes and on a landing floor (the generator's
+/// `kitgeom.floor_mm` and `kitblocks.smoother`). Its gradient and curvature are zero at both ports,
+/// so past either port the tube continues flat at that port's level, as the mating straight does,
+/// and the marble's normal acceleration does not step at the seams.
 ///
 /// The same surface, shorter, is the landing floor a dropped marble lands on in the tower socket
 /// block and the redirect ([`ChannelSlope::landing`]).
@@ -601,13 +601,9 @@ pub struct ChannelSlope {
     pub axis_y_um: i64,
     /// Floor drop from the entry port to the exit port, µm.
     pub drop_um: i64,
-    /// Plan length of the smoothstep from the entry to the exit, µm: a cell on a slope piece,
+    /// Plan length of the smootherstep from the entry to the exit, µm: a cell on a slope piece,
     /// shorter on a landing floor ([`ChannelSlope::landing`]).
     pub len_um: i64,
-    /// The steep slope's quintic smootherstep (PRD §5.3): its curvature, like its gradient, is
-    /// zero at both ports, so the floor is C2 with the flat straights and the marble's normal
-    /// acceleration does not step at the seams. Otherwise the cubic smoothstep, C1 only.
-    pub c2: bool,
 }
 
 impl ChannelSlope {
@@ -655,13 +651,12 @@ impl ChannelSlope {
             axis_y_um: e[1],
             drop_um: e[1] - x[1],
             len_um: cell,
-            c2: hi.floor_um() - lo.floor_um() == 2 * LEVEL_STEP_UM,
         })
     }
 
     /// The landing floor of a piece a marble falls into and leaves by a side port: the tunnel
     /// floor rises [`LANDING_RISE_UM`] over the exit floor under the shaft and falls by the same
-    /// smoothstep to the exit (blender/kit/kitblocks.py). On the tower socket block (in by the
+    /// smootherstep to the exit (blender/kit/kitblocks.py). On the tower socket block (in by the
     /// top drop port, out by the socket) it runs from 1 mm past the shaft wall to the socket's
     /// collision port plane, [`Port::inset_um`] inside the face; on the redirect (in on a side
     /// port, out one cell lower) from 1 mm past the shaft's far wall to the exit port face.
@@ -711,36 +706,23 @@ impl ChannelSlope {
             axis_y_um: e[1],
             drop_um: e[1] - x[1],
             len_um: len,
-            c2: false,
         })
     }
 
     /// The floor's drop below the entry at `t` in [0, 1] along the path, for a total `drop` over
     /// the plan length `len`, and its gradient along the path. Plain multiplies and adds only, so
-    /// native and wasm round alike; the smoothstep keeps its original operation order, so the
-    /// gentle slope and the landing floors run bit for bit as before the steep slope's profile.
+    /// native and wasm round alike.
     fn profile(&self, drop: f32, len: f32, t: f32) -> (f32, f32) {
-        if self.c2 {
-            let u = t * (1.0 - t);
-            (
-                drop * (t * t * t * (10.0 + t * (-15.0 + 6.0 * t))),
-                drop * (30.0 * u * u) / len,
-            )
-        } else {
-            (
-                drop * t * t * (3.0 - 2.0 * t),
-                drop * 6.0 * t * (1.0 - t) / len,
-            )
-        }
+        let u = t * (1.0 - t);
+        (
+            drop * (t * t * t * (10.0 + t * (-15.0 + 6.0 * t))),
+            drop * (30.0 * u * u) / len,
+        )
     }
 
     /// [`Self::profile`]'s drop in `f64`, for the µm vertex test ([`Self::holds`]).
     fn profile_f64(&self, drop: f64, t: f64) -> f64 {
-        if self.c2 {
-            drop * (t * t * t * (10.0 + t * (-15.0 + 6.0 * t)))
-        } else {
-            drop * t * t * (3.0 - 2.0 * t)
-        }
+        drop * (t * t * t * (10.0 + t * (-15.0 + 6.0 * t)))
     }
 
     /// Path coordinate from the entry port and lateral offset of a world plan point, metres.
@@ -2279,7 +2261,8 @@ mod tests {
             let big_r = slope_tube_radius(r);
             let surface = |s: f32, a: f32| {
                 let t = (s / m(len)).clamp(0.0, 1.0);
-                let ay = m(l.axis_y_um) - m(l.drop_um) * t * t * (3.0 - 2.0 * t);
+                let ay =
+                    m(l.axis_y_um) - m(l.drop_um) * (t * t * t * (10.0 + t * (-15.0 + 6.0 * t)));
                 (s, ay - big_r * a.cos(), big_r * a.sin())
             };
             for i in 0..=20 {
@@ -2291,7 +2274,8 @@ mod tests {
                 ] {
                     let s = m(len) * i as f32 / 20.0;
                     let t = (s / m(len)).clamp(0.0, 1.0);
-                    let ay = m(l.axis_y_um) - m(l.drop_um) * t * t * (3.0 - 2.0 * t);
+                    let ay = m(l.axis_y_um)
+                        - m(l.drop_um) * (t * t * t * (10.0 + t * (-15.0 + 6.0 * t)));
                     let y = ay - 0.006 + up;
                     let (dx, dz) = (l.dir[0] as f32, l.dir[1] as f32);
                     let c = Vector::new(

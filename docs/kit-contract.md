@@ -272,8 +272,8 @@ Slope pieces join side ports. Every side port has a level (horizontal) floor tan
 | Gentle | 1 level = 15 mm | 15 / 60 = 25% | 14.04° | 61.85 mm (straight-line, nominal) |
 | Steep | 2 levels = 30 mm | 30 / 60 = 50% | 26.57° | 67.08 mm (straight-line, nominal) |
 
-- **Floor profile:** `t = 0 … 1` along the cell, `h` = drop. The gentle slope uses the cubic smoothstep `y(t) = y_in − h × (3t² − 2t³)`: zero gradient at both ports, so the vertical velocity stays continuous across the seam. The steep slope uses the quintic smootherstep `y(t) = y_in − h × (10t³ − 15t⁴ + 6t⁵)` (PRD §5.3, decided 2026-11-08): zero gradient and zero curvature at both ports, so the marble's normal acceleration is continuous too and its seams stay under the seam bump limits.
-- **Peak gradient** (at mid-cell): gentle 1.5 × nominal, 37.5% (20.56°); steep 1.875 × nominal, 93.75% (43.15°).
+- **Floor profile:** `t = 0 … 1` along the cell, `h` = drop. Both slopes use the quintic smootherstep `y(t) = y_in − h × (10t³ − 15t⁴ + 6t⁵)` (PRD §5.3; steep decided 2026-11-08, gentle approved 2026-11-08): zero gradient and zero curvature at both ports, so the vertical velocity and the marble's normal acceleration stay continuous across the seam and its seams stay under the seam bump limits. The landing floors a dropped marble lands on (the redirect's tunnel and the tower socket's) fall to their exit by the same smootherstep.
+- **Peak gradient** (at mid-cell): 1.875 × nominal. Gentle 46.875% (25.11°); steep 93.75% (43.15°).
 - Gentle slopes descend one port level per cell, steep slopes two, both using the carry rule in §3. Every entry level has a slope, so chains of either kind never dead-end:
 
 | ID | Entry | Exit | Footprint |
@@ -472,13 +472,13 @@ The dimensioned sections are inline above so every number is searchable:
        side ports at u = 0; drop ports Ø32 at the centre of Top and Bottom
 ```
 
-- Gentle and steep slope profiles (side elevation; gentle cubic smoothstep, steep quintic smootherstep):
+- Gentle and steep slope profiles (side elevation; both quintic smootherstep):
 
 ```
    gentle (L3 -> L2)                        steep (L3 -> L1)
    45 ==.                                   45 ==.
          '-.                                       '.
-           '-.  peak 37.5% (20.56 deg)               \   peak 93.75% (43.15 deg)
+           '-.  peak 46.9% (25.11 deg)               \   peak 93.75% (43.15 deg)
    30         '==                                     \
               |<-- 60 -->|                             '.
                                             15           '==
@@ -536,7 +536,7 @@ Each item is a judgment call made while writing this contract. **Resolved 2026-1
 | Q1 | **Marble size wording conflict.** `plans/phase-0-foundations.md` P0-T2a says "marble radii (mini 10, standard 16, shooter 25 mm)", but PRD §5.3 says "mini 10 mm, standard 16 mm, shooter 25 mm. Max size 25 mm" and the gates are 12 mm and 19 mm holes. The numbers only work as diameters: a 25 mm radius is a 50 mm marble, which cannot fit the 28 mm channel or pass any gate. Fix the plan wording to "diameters"? | Diameters 10 / 16 / 25 mm, radii 5 / 8 / 12.5 mm (§6) |
 | Q2 | Drop port diameter | 32 mm (3.5 mm radial clearance for the shooter). A channel ends in a 36 mm bowl around the hole (§4). |
 | Q3 | Block body is a full 60 mm cube with channels carved from the top, so lip height falls with level (45 / 30 / 15 mm at `L1` / `L2` / `L3`). The alternative is a fixed lip height with variable body height. | Full cube, which matches the tiled walls in `ref-02` and the tower in `ref-06` |
-| Q4 | Slope gradients. Gentle is fixed by the PRD at one level per cell (25%, 14.04°), which is steep for wood. Steep chosen as two levels per cell (50%, 26.57°). Profiles have horizontal ports: gentle cubic smoothstep (peak 1.5 × nominal), steep quintic smootherstep (peak 1.875 × nominal, PRD §5.3, 2026-11-08). Alternatives: gradient-carrying ports for linear chains, or a 2-cell gentle slope (12.5%). | As in §7 |
+| Q4 | Slope gradients. Gentle is fixed by the PRD at one level per cell (25%, 14.04°), which is steep for wood. Steep chosen as two levels per cell (50%, 26.57°). Profiles have horizontal ports and follow the quintic smootherstep (peak 1.875 × nominal, PRD §5.3; steep and gentle 2026-11-08). Alternatives: gradient-carrying ports for linear chains, or a 2-cell gentle slope (12.5%). | As in §7 |
 | Q5 | `L0` ports, slopes that exit into the layer below, and `L3` rails need a 2-cell-tall footprint. A gentle chain therefore uses two 2-tall pieces in every four cells (`_l1`, `_l0`). 2-tall block pieces carve from the top of the upper cube, so channels there run 60 to 90 mm deep. The alternative is to trim the upper cube so the lip follows the floor. There is no straight or curve at `L0`, so a run reaching `L0` must keep descending. | Accepted (§5.2, §5.3, §7, §9) |
 | Q6 | Shooter containment. At `L3` the block lip is 15 mm (2.5 mm above the shooter's centre). The rail lip is 18 mm (5.5 mm above). Shooters may jump curves at speed. | Kept. P2 sim tests must run a shooter at max entry speed through `L3` curves and rail curves. If it escapes, shooter-rated routes use `L1` / `L2` blocks. |
 | Q7 | "S-rail 1×3" read as a lateral offset of 1 cell over 3 cells of length, which needs a 2 × 3 footprint. A 1-wide S can only be a vertical S, since ports sit at face centres. | Plan-view S, 2 × 3, radius 150 mm (§9) |

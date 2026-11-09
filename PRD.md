@@ -101,7 +101,7 @@ parble-sim-wasm ──► parble-procgen, parble-sim   (wasm-bindgen worker buil
 - **Size gates:** a 12 mm hole passes minis only, a 19 mm hole passes up to standard.
 - **Ports:** a port is (cell face, floor height level). Side faces carry horizontal ports at floor height levels in 15 mm steps. Top and bottom faces carry vertical drop ports. Exact levels, tolerances and the slope gradients they imply are fixed by the P0 kit-contract task.
 - **Orientation:** yaw only, 4 orientations, plus a mirror flag for chiral pieces. Pieces never tip on their sides.
-- **Slope profiles:** the steep slope's floor uses a C2-continuous profile (decided 2026-11-08) so its entry and exit seams stay under the seam bump limits. The gentle slope keeps its smoothstep.
+- **Slope profiles:** the slope floors and the landing floors (redirect, tower socket) use a C2-continuous profile, the quintic smootherstep (steep decided 2026-11-08, gentle and landings approved 2026-11-08), so their seams stay under the seam bump limits.
 - **Footprints:** most block pieces fill 1 cell, and some span several cells (for example the 2×1×2 stepper lift and large funnels, owner ruling 2026-11-08). Rail pieces span several cells (for example S-rail 1×3, helix 2×2×N) and land their ends on grid ports.
 
 ### 5.4 Simulation rules

@@ -3,16 +3,16 @@
   "colliderTris": 558,
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "52d66541d215359b38230d881691fef0056465aa5d5cd90d645cf288678f685f"
+    "sha256": "dcf7195a751790e68529e5ffcb2aedbaa27db37b748bb051a145fc6a1468df13"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "2b032fa6636758cdf00059a508238ef7f13deee90dc0a14e737e7b08a8ccc1f4"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "4af584be5af2ea3827da638e45c13fbba52ecec08950720b05597f733c591e9e"
+      "sha256": "b532be7b2d25fb6fa25beccc4dd1d7a41678e43639b11a17d855f0fd759ca009"
     }
   ],
   "lodParams": {
@@ -52,7 +52,7 @@
   },
   "lodTris": {
     "blk_tower_socket_l1_lod0": 2362,
-    "blk_tower_socket_l1_lod1": 580,
+    "blk_tower_socket_l1_lod1": 572,
     "blk_tower_socket_l1_lod2": 224
   },
   "mapSize": {
@@ -72,19 +72,19 @@
   "pieceId": "blk_tower_socket_l1",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2695.7,
-      "median": 2616.8,
-      "min": 2037.5
+      "max": 2703.8,
+      "median": 2610.9,
+      "min": 2044.4
     },
     "lod1": {
-      "max": 1360.2,
-      "median": 1331.8,
-      "min": 1029.1
+      "max": 1328.3,
+      "median": 1302.1,
+      "min": 1032.7
     },
     "lod2": {
-      "max": 641.7,
-      "median": 627.6,
-      "min": 534.8
+      "max": 629.7,
+      "median": 616.2,
+      "min": 510.8
     }
   }
 }
