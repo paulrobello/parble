@@ -40,16 +40,16 @@
 //!   tower socket: 10 of 10). Into an empty cell below, the v1 door kept no falling marble on a
 //!   redirect or a cup two layers down (0 of 10 and 0 of 5); that case was not re-measured with
 //!   v2. The track still uses the hole from its other side, where marbles roll over the shut door.
-//! - One-way hole from the over side (v4 door, cat's eye on a level `L1` test layout, measured
-//!   2026-11-09): at the hinge and at the free edge the marble meets contacts on the other body's
-//!   edge (the door's at the hinge, the floor's at the free edge), tilted 0.24–0.47 and 0.15–0.21
-//!   against the travel, though the door's top is flush with the floor (see
-//!   `behaviour::tests::one_way_hole_over_side_sweep_keeps_rolling_resistance_speed`). A marble
-//!   entering at 0.09 m/s leaves at 0.036 m/s (rolling resistance alone would leave 0.082), and
-//!   below about 0.085 m/s it stops on the door. From about 0.3 m/s the hinge throws it up (0.2 m/s up at 0.35 m/s), and at
-//!   0.65 m/s off the channel. The usable window is about 0.09–0.26 m/s. The layer-2 `L1` run
-//!   delivers real marbles to it at 0.06–0.12 m/s, because the tower landing resets their speed to
-//!   0.14–0.20 m/s.
+//! - One-way hole from the over side (v4 door, cat's eye, glazed and steel at both sizes on a
+//!   level `L1` test layout, measured 2026-11-09): the door's top is flush with the floor, but at
+//!   the hinge and at the free edge the marble met contacts on the other body's edge, tilted
+//!   against the travel, so a marble entering at 0.09 m/s left at 0.017–0.023 m/s, below about
+//!   0.09 m/s it stopped on the door, and from about 0.3 m/s the hinge threw it up. The door seam
+//!   hook (`crate::door_seam`) drops those edge contacts and the shut door is a fixed body, so it
+//!   now costs what a straight in its place costs, 0.06–0.65 m/s
+//!   (`behaviour::tests::one_way_hole_over_side_sweep_keeps_rolling_resistance_speed`). The
+//!   layer-2 `L1` run delivers real marbles to it at 0.06–0.12 m/s, because the tower landing
+//!   resets their speed to 0.14–0.20 m/s.
 //! - A drop → pillar → tower fall (120 mm) gave tower exit speeds of 0.25–0.96 m/s and marbles
 //!   leaving the rails past the rail joint, so the drop feeds the tower directly and the pillar is
 //!   a support. The sideways speed comes from the tower, not the joint (re-measured 2026-11-08,
@@ -442,25 +442,27 @@ mod tests {
     /// P5-T1: every marble type at every size on the track, each with its physics table entry
     /// (the track's own test and golden run the P0 legacy marble). Each outcome is pinned: only
     /// steel at the standard size meets the success condition. Swirl, onionskin, opal and glow
-    /// share the cat's eye spec, so they share its outcome at each size. The failures, per
-    /// measurement on 2026-11-08:
+    /// share the cat's eye spec, so they share its outcome at each size. Since the door seam
+    /// correction (`crate::door_seam`, PHYSICS_VERSION 7) every marble that reaches the one-way
+    /// hole rolls over it, so the queue that used to form there is gone. The failures, per
+    /// measurement on 2026-11-09:
     ///
     /// - Shooter (every type): stopped by the splitter's rest-pose kinematic part at the entry of
     ///   `mech_splitter_l3` [4, 5, −6], so the queue backs up into the hopper.
-    /// - Standard cat's eye family: the landing out of the layer-1 redirect kicks the first marble
-    ///   sideways (0.25–0.29 m/s), so it meets the layer-0 `mech_toggle_l3` at 0.52 m/s 5.6 mm off
-    ///   the centreline on the blade-tip side, stops against the tip and rolls back onto
-    ///   [16, 0, −7]. The later ones reach the one-way hole at 0.06–0.12 m/s (the hole's over-side
-    ///   window, module docs), leave it at 0.02–0.06 m/s and park on [18, 1, −7] or on the door's
-    ///   free edge; the rest stop against them, back through the gate and the checkpoint.
+    /// - Standard cat's eye family: 6 of 10 in the cups when the run ends. The later marbles
+    ///   crawl along the layer-5 `L3` run past the joiner at 0.03–0.05 m/s (marble 5 takes 1,000
+    ///   ticks over [7, 5, −5]), so marbles 8 and 9 are still on [7, 5, −5], and 5 and 7 on the
+    ///   layer-0 toggle and the layer-1 redirect.
     /// - Standard glazed: the first marble reaches `rail_s_1x3_l2` still bouncing from the
     ///   transfer-2 landing (0.67 m/s, 0.14 m/s sideways, 0.10 m/s down) and leaves the rails.
-    /// - Mini: the same queue from the hole and [18, 1, −7] (one cat's eye mini also stops on the
-    ///   layer-4 toggle's branch, [11, 4, −6], after meeting the toggle at 0.34 m/s off its
-    ///   redirect's landing), or some reach the cups and the rest stop on the layer-1 run.
+    /// - Mini cat's eye family: marble 5 leaves the hole at 0.10 m/s, lands near the open +X end
+    ///   of [18, 1, −7] (transfer 3), bounces back +X at 0.21 m/s and falls out of that end.
+    /// - Mini glazed: 9 in the cups, marble 9 still on the layer-4 toggle [10, 4, −5].
+    /// - Mini steel: all 10 in the cups (5 and 5), but one marble rolls back through the layer-4
+    ///   toggle, which counts 11 passes.
     ///
-    /// With the glass restitution at 0.60 instead of the table's 0.66 (measured 2026-11-09, not
-    /// shipped) the standard toggle bounce and the glazed fall clear and the hole queue stays.
+    /// The run is chaotic past the hole: a change there (the door seam hook, the shut door as a
+    /// fixed body) moves which marbles collide later, and so these outcomes.
     fn every_size_of(kind: MarbleKind, want: [Result<(), Failure>; 3]) {
         let sizes = [MarbleSize::Mini, MarbleSize::Standard, MarbleSize::Shooter];
         for (size, want) in sizes.into_iter().zip(want) {
@@ -475,35 +477,13 @@ mod tests {
         every_size_of(
             kind,
             [
-                Err(Failure::Short {
-                    cups: vec![0, 0],
-                    stuck: vec![
-                        (0, Some(39)),
-                        (1, Some(39)),
-                        (2, Some(39)),
-                        (3, Some(39)),
-                        (4, Some(39)),
-                        (5, Some(39)),
-                        (6, Some(38)),
-                        (7, Some(38)),
-                        (8, Some(38)),
-                        (9, Some(20)),
-                    ],
+                Err(Failure::FellOff {
+                    marble: 5,
+                    last: Some(40),
                 }),
                 Err(Failure::Short {
-                    cups: vec![0, 0],
-                    stuck: vec![
-                        (0, Some(42)),
-                        (1, Some(40)),
-                        (2, Some(40)),
-                        (3, Some(39)),
-                        (4, Some(39)),
-                        (5, Some(39)),
-                        (6, Some(38)),
-                        (7, Some(38)),
-                        (8, Some(38)),
-                        (9, Some(38)),
-                    ],
+                    cups: vec![4, 2],
+                    stuck: vec![(5, Some(43)), (7, Some(41)), (8, Some(13)), (9, Some(13))],
                 }),
                 Err(shooter_at_splitter()),
             ],
@@ -559,8 +539,8 @@ mod tests {
             MarbleKind::Glazed,
             [
                 Err(Failure::Short {
-                    cups: vec![4, 3],
-                    stuck: vec![(7, Some(40)), (8, Some(40)), (9, Some(39))],
+                    cups: vec![4, 5],
+                    stuck: vec![(9, Some(16))],
                 }),
                 Err(Failure::FellOff {
                     marble: 0,
@@ -590,10 +570,7 @@ mod tests {
         every_size_of(
             MarbleKind::Steel,
             [
-                Err(Failure::Short {
-                    cups: vec![4, 4],
-                    stuck: vec![(8, Some(41)), (9, Some(40))],
-                }),
+                Err(Failure::Other("placement 16 passes = 11, want 10".into())),
                 Ok(()),
                 Err(shooter_at_splitter()),
             ],

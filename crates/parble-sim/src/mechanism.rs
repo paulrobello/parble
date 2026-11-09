@@ -85,6 +85,12 @@ pub trait Mechanism: Send + Sync {
     fn part_collides(&self, _part: usize) -> bool {
         true
     }
+    /// `true` for a kinematic part modelled flush with the static floor (the one-way hole's
+    /// trapdoor): while it rests its marble contacts take the door seam correction
+    /// ([`crate::door_seam`]). Asked once per part when the instance is added.
+    fn part_flush_door(&self, _part: usize) -> bool {
+        false
+    }
 }
 
 /// A physical part: a dynamic body on a revolute joint about the part's pivot and axis, limited to
@@ -396,6 +402,10 @@ struct PartRuntime {
     /// −1 when mirrored: a reflection turns a rotation by θ into one by −θ about the image axis.
     sign: f32,
     limits: [i32; 2],
+    /// Rest angle, millidegrees (the sidecar's `rest_mdeg`).
+    rest: i32,
+    /// A flush door ([`Mechanism::part_flush_door`]).
+    flush: bool,
     start: u64,
     motion: Keyframes,
     /// Physical part: its angle read from the body after the last step, millidegrees.
@@ -424,6 +434,24 @@ impl PartRuntime {
         let (s, c) = (libm::sinf(theta / 2.0), libm::cosf(theta / 2.0));
         let a = self.axis * s;
         Pose::from_parts(self.pivot, Rotation::from_xyzw(a.x, a.y, a.z, c))
+    }
+
+    /// Pose a kinematic part's body for the step from `tick`. A flush door that rests through the
+    /// step is a fixed body: Rapier gives contacts against a fixed body its stiffer static
+    /// contact softness (60 Hz against 30 Hz), and on the kinematic door a resting marble sank
+    /// 139 µm against the floor's 35 µm (measured 2026-11-09). Marbles never sleep, so the switch
+    /// strands none on the door.
+    fn pose_next(&self, body: &mut RigidBody, tick: u64) {
+        if self.flush {
+            let shut = self.angle_at(tick) == self.rest && self.angle_at(tick + 1) == self.rest;
+            let kind = if shut {
+                RigidBodyType::Fixed
+            } else {
+                RigidBodyType::KinematicPositionBased
+            };
+            body.set_body_type(kind, true);
+        }
+        body.set_next_kinematic_position(self.pose_at(tick + 1));
     }
 
     /// A physical part's angle from its body rotation, millidegrees (rounded).
@@ -646,6 +674,8 @@ pub struct Mechanisms {
     touching: BTreeSet<(usize, (u32, u32))>,
     /// Part colliders → `(instance, part, surface)`.
     part_colliders: BTreeMap<(u32, u32), (InstanceId, usize, Surface)>,
+    /// Flush door part colliders ([`Mechanism::part_flush_door`]) → their seam.
+    doors: BTreeMap<(u32, u32), crate::door_seam::DoorSeam>,
     hasher: Fnv1a64,
 }
 
@@ -672,6 +702,38 @@ fn marble_ball(world: &PhysicsWorld, h: RigidBodyHandle) -> (Vector, Vector, f32
 }
 
 impl Mechanisms {
+    /// The seam of the flush door whose collider is `collider`, when the door rests through the
+    /// step from `tick` to `tick + 1`.
+    pub(crate) fn shut_door(
+        &self,
+        collider: ColliderHandle,
+        tick: u64,
+    ) -> Option<&crate::door_seam::DoorSeam> {
+        self.doors
+            .get(&collider.into_raw_parts())
+            .filter(|d| self.door_shut(d, tick))
+    }
+
+    /// Whether any flush door collider is registered.
+    pub(crate) fn has_doors(&self) -> bool {
+        !self.doors.is_empty()
+    }
+
+    /// The seams of the flush doors that rest through the step from `tick` to `tick + 1`.
+    pub(crate) fn shut_doors(
+        &self,
+        tick: u64,
+    ) -> impl Iterator<Item = &crate::door_seam::DoorSeam> {
+        self.doors.values().filter(move |d| self.door_shut(d, tick))
+    }
+
+    fn door_shut(&self, d: &crate::door_seam::DoorSeam, tick: u64) -> bool {
+        self.instances
+            .get(&d.instance)
+            .and_then(|i| i.parts.get(d.part))
+            .is_some_and(|p| p.angle_at(tick) == p.rest && p.angle_at(tick + 1) == p.rest)
+    }
+
     fn add(
         &mut self,
         world: &mut PhysicsWorld,
@@ -805,16 +867,31 @@ impl Mechanisms {
                 slide,
                 sign: if mirrored { -1.0 } else { 1.0 },
                 limits: part.limits_mdeg,
+                rest: part.rest_mdeg,
+                flush: false,
                 start: tick,
                 motion: Keyframes::hold(part.rest_mdeg),
                 physical: physics.map(|_| part.rest_mdeg),
                 braced: false,
             };
-            built.push((runtime, colliders, physics));
+            let door = (behaviour.part_flush_door(pi) && physics.is_none() && !slide)
+                .then(|| {
+                    crate::door_seam::DoorSeam::of(
+                        id,
+                        pi,
+                        part.collision
+                            .iter()
+                            .flat_map(|g| &g.vertices_um)
+                            .map(|&v| um_m(place_point_um(o, anchor, v))),
+                        um_m(pivot_um).y,
+                    )
+                })
+                .flatten();
+            built.push((runtime, colliders, physics, door));
         }
 
         let mut parts = Vec::with_capacity(built.len());
-        for (pi, (mut runtime, colliders, physics)) in built.into_iter().enumerate() {
+        for (pi, (mut runtime, colliders, physics, door)) in built.into_iter().enumerate() {
             let body = match physics {
                 Some(ph) => RigidBodyBuilder::dynamic()
                     .angular_damping(ph.angular_damping)
@@ -825,14 +902,21 @@ impl Mechanisms {
             .can_sleep(false)
             .build();
             let handle = world.bodies.insert(body);
-            for (collider, surface) in colliders {
+            for (mut collider, surface) in colliders {
+                if door.is_some() {
+                    collider.set_active_hooks(ActiveHooks::MODIFY_SOLVER_CONTACTS);
+                }
                 let ch = world
                     .colliders
                     .insert_with_parent(collider, handle, &mut world.bodies);
                 self.part_colliders
                     .insert(ch.into_raw_parts(), (id, pi, surface));
+                if let Some(d) = door {
+                    self.doors.insert(ch.into_raw_parts(), d);
+                }
             }
             runtime.body = handle;
+            runtime.flush = door.is_some();
             if physics.is_some() {
                 let frame = world
                     .bodies
@@ -844,7 +928,7 @@ impl Mechanisms {
                     .contacts_enabled(false);
                 world.impulse_joints.insert(frame, handle, joint, true);
             } else {
-                world.bodies[handle].set_next_kinematic_position(runtime.pose_at(tick + 1));
+                runtime.pose_next(&mut world.bodies[handle], tick);
             }
             parts.push(runtime);
         }
@@ -933,7 +1017,7 @@ impl Mechanisms {
                 if p.physical.is_some() {
                     body.set_dominance_group(i8::from(p.braced));
                 } else {
-                    body.set_next_kinematic_position(p.pose_at(tick + 1));
+                    p.pose_next(body, tick);
                 }
             }
 
@@ -1261,7 +1345,7 @@ impl Sim {
                     w.set_linvel(Vector::ZERO, true);
                     w.set_angvel(Vector::ZERO, true);
                 } else {
-                    w.set_next_kinematic_position(part.pose_at(tick + 1));
+                    part.pose_next(w, tick);
                 }
             }
         }

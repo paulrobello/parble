@@ -195,6 +195,9 @@ pub struct ChunkMesh {
     /// Per triangle, `k + 1` when it lies on the union of `junctions[k]`'s paths, else 0. Empty
     /// for meshes built outside a chunk.
     pub junction_of: Vec<u32>,
+    /// The chunk holds a piece with a trapdoor over a bottom drop port (the one-way hole), so its
+    /// collider takes the door seam contact correction ([`crate::door_seam`]).
+    pub trapdoor: bool,
 }
 
 /// [`ChunkMesh::bend_of`] flag: the triangle lies in its bend's cell.
@@ -1527,6 +1530,12 @@ impl ChunkColliders {
                     ChannelSlope::landing(piece, &placed.placement)
                 }));
             mesh.arcs.extend(ChannelArc::of(piece, &placed.placement));
+            mesh.trapdoor |= !piece.animated_parts.is_empty()
+                && piece
+                    .def
+                    .ports
+                    .iter()
+                    .any(|q| q.face == PortFace::Bottom && q.class == PortClass::Drop);
         }
         if from.saturating_add(count) < members.len() {
             return false;
@@ -1856,7 +1865,10 @@ impl ChunkColliders {
             collider.set_active_hooks(
                 ActiveHooks::MODIFY_SOLVER_CONTACTS | ActiveHooks::FILTER_CONTACT_PAIRS,
             );
-        } else if mesh.stitched.iter().any(|&b| b != 0) || mesh.bend_of.iter().any(|&b| b != 0) {
+        } else if mesh.stitched.iter().any(|&b| b != 0)
+            || mesh.bend_of.iter().any(|&b| b != 0)
+            || mesh.trapdoor
+        {
             collider.set_active_hooks(ActiveHooks::MODIFY_SOLVER_CONTACTS);
         }
         collider
@@ -1894,6 +1906,13 @@ impl ChunkColliders {
 /// produce contacts whose normal leans toward the edge (a measured 60+ mm/s vertical kick). For a
 /// contact that lies on a stitched edge, the manifold normal is replaced by that triangle's face
 /// normal, which is what one merged mesh would have produced.
+impl ChunkColliders {
+    /// Whether `h` is one of the chunk colliders.
+    pub(crate) fn is_chunk(&self, h: ColliderHandle) -> bool {
+        self.stitched.contains_key(&h.into_raw_parts())
+    }
+}
+
 impl PhysicsHooks for ChunkColliders {
     fn filter_contact_pair(&self, _: &PairFilterContext) -> Option<SolverFlags> {
         *self

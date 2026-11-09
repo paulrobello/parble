@@ -41,7 +41,7 @@ fn sample_track() -> Track {
 #[test]
 fn version_constants_are_set() {
     assert_eq!(SCHEMA_VERSION, 1);
-    assert_eq!(PHYSICS_VERSION, 6);
+    assert_eq!(PHYSICS_VERSION, 7);
     assert_eq!(KIT_CONTRACT_VERSION, 1);
 }
 

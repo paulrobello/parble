@@ -18,6 +18,7 @@
 pub mod allpieces;
 pub mod behaviour;
 pub mod chunk;
+pub mod door_seam;
 pub mod golden;
 pub mod hash;
 pub mod inlay;
@@ -212,8 +213,14 @@ impl Sim {
             #[cfg(not(test))]
             marble::apply_rolling_resistance(&mut self.world, &self.marbles);
             if self.pieces.chunks().next().is_some() {
-                // The chunk colliders carry the seam contact hook ([`chunk::ChunkColliders`]).
-                self.world.step_with_events(&self.pieces, &());
+                // The chunk colliders carry the seam contact hook ([`chunk::ChunkColliders`]), the
+                // one-way hole's door and floor the door seam hook ([`door_seam`]).
+                let hooks = door_seam::StepHooks {
+                    pieces: &self.pieces,
+                    mechanisms: &self.mechanisms,
+                    tick: self.tick,
+                };
+                self.world.step_with_events(&hooks, &());
             } else {
                 self.world.step();
             }

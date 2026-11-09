@@ -780,6 +780,9 @@ impl Mechanism for OneWayHole {
         self.overs = get(state, "overs");
         self.heading.restore(state);
     }
+    fn part_flush_door(&self, part: usize) -> bool {
+        part == 0
+    }
 }
 
 /// Rope-curtain arch: half the length of its drag zone along travel, µm (the `curtain_nx` and

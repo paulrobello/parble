@@ -994,26 +994,15 @@ fn over_crossing(
 /// door's place costs (rolling resistance alone over the same window), stays under the `L1` seam
 /// thresholds (`block_seam_test::limits`) and in the channel.
 ///
-/// The v4 door fails every row (measured 2026-11-09). Per entry speed: exit speed m/s (a straight
-/// in the door's place), upward mm/s:
-/// - standard cat's eye: 0.06 stopped (0.029), 12.1; 0.09 0.017 (0.073), 26.7; 0.15 0.111
-///   (0.140), 46.6; 0.26 0.209 (0.254), 118; 0.4 0.283 (0.396), 215; 0.65 0.454 (0.646), 474,
-///   11.4 mm up.
-/// - mini cat's eye: 0.06 stopped (0.029), 17.2; 0.09 stopped (0.073), 40.8; 0.15 0.104 (0.140),
-///   64.2; 0.26 0.157 (0.254), 171; 0.4 0.210 (0.395), 268; 0.65 0.560 (0.646), 361, 7.0 mm up.
-/// - glazed and steel follow the cat's eye of their size to within a few per cent.
-///
-/// The straight in the door's place meets the thresholds at every speed (upward at most 0.17 for
-/// the standard marbles, 1.07 for the minis). The door's top is flush with the floor (at z = 0 it
-/// is the floor's 15.000 mm, and the bore and the disc share their 16-gon vertices): the losses
-/// are contacts on the other body's edge at each seam. At the hinge a door contact 0.37 mm away,
-/// tilted 0.30 against the travel, took 1.15e-3 N·s (five times the resting load) from a 0.4 m/s
-/// marble and threw it 1.9 mm up; at the free edge a floor contact 0.69 mm away, tilted 0.39,
-/// took 1.27e-3. Shrinking the prediction distance tenfold roughly halves the high-speed kicks
-/// but leaves the 0.09–0.15 m/s losses at about 4×, so no door shape fixes it: the fix is a
-/// contact correction at the door seams, as `chunk.rs` does at chunk seams.
+/// The v4 door is flush with the floor, but it failed every row (measured 2026-11-09): at each
+/// seam the marble met contacts on the other body's edge (at the hinge a door contact 0.37 mm
+/// ahead tilted 0.30 against the travel, at the free edge a floor contact 0.69 mm ahead tilted
+/// 0.39), up to 474 mm/s upward, and below 0.09 m/s it stopped on the door. The door seam hook
+/// (`crate::door_seam`) drops those edge contacts, and the shut door is a fixed body, so it rides
+/// as deep as the floor (35 µm, against 139 µm on the kinematic door). Measured 2026-11-09 with
+/// both: loss ratio 0.83–1.31 (the most at 0.65 m/s for the standard marbles), upward at most
+/// 0.20 mm/s, rise at most 0.011 mm.
 #[test]
-#[ignore = "v4 door: contacts on the other body's edge at both door seams (see the doc)"]
 fn one_way_hole_over_side_sweep_keeps_rolling_resistance_speed() {
     let (up_lim, kick_lim) = crate::block_seam_test::limits(1);
     let mut bad = Vec::new();
