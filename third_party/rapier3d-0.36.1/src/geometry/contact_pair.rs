@@ -807,7 +807,7 @@ pub struct SolverContactGeneric<N: ScalarType, const LANES: usize> {
     /// update (negative = penetration), minus the contact skins. Writable from
     /// [`PhysicsHooks::modify_solver_contacts`] (the delta is baked into the anchors after
     /// the hook); afterwards the solver re-derives the live separation and reads this only to
-    /// rebuild a centred-ball side's point ([`ContactManifoldData::centered_ball`]).
+    /// rebuild a centred-ball side's point (`ContactManifoldData::centered_ball`).
     ///
     /// [`PhysicsHooks::modify_solver_contacts`]: crate::pipeline::PhysicsHooks::modify_solver_contacts
     pub dist: N, // 1/1
