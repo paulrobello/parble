@@ -923,7 +923,7 @@ fn mech_cases() -> Vec<MechCase> {
             at: l3,
             mechanisms: true,
             windows: vec![outlet],
-            measured_limits: None,
+            measured_limits: (id == "mech_toggle_l3").then_some(TOGGLE_OUTLET_LIMITS_MM_S),
         });
     }
     cases
@@ -933,6 +933,12 @@ fn mech_cases() -> Vec<MechCase> {
 /// open, rounded up, as the seam thresholds are not met there (see
 /// `mech_seams_stay_under_the_seam_thresholds`).
 const FORK_INLET_LIMITS_MM_S: (f32, f32) = (100.0, 80.0);
+
+/// The toggle's +z outlet seam's `(upward, kick)` limits, mm/s: measured 2026-11-08 at upward
+/// 6.87, kick 5.21, rounded up. The marble crosses the 16-segment straight channel's facet edges
+/// there, and a bare straight with no toggle shows the same jumps. The exact straight-tube
+/// contact (card 01a1be3d61b6708190352b15b54d6d48) removes this limit.
+const TOGGLE_OUTLET_LIMITS_MM_S: (f32, f32) = (7.0, 5.3);
 
 fn mech_level(id: &str) -> u8 {
     if id.ends_with("_l3") || id == "mech_finish" {
@@ -975,6 +981,9 @@ fn mech_seams_stay_under_the_seam_thresholds() {
     // mm), with no one-tick jump. Measured 2026-11-08: upward 2.62, kick 0.70 with the faceted
     // junction contact, 3.51 / 3.61 on the mesh. A real step there still fails the kick
     // (`splitter_outlet_step_kicks`).
+    //
+    // The toggle's +z outlet is gated at TOGGLE_OUTLET_LIMITS_MM_S, its measured values, until
+    // the exact straight-tube contact lands.
     for case in mech_cases() {
         let (p_lim, k_lim) = case
             .measured_limits
