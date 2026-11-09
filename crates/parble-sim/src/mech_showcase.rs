@@ -16,7 +16,7 @@
 //! - Lift lane: an L3 straight into `mech_stepper_up1_l3`, and an L3 straight on its exit one
 //!   layer up. The marble climbs the slats ([`crate::stepper`]) and the slats ease back to rest.
 //!
-//! - Checkpoint lane (four rows behind the toggle and gate row, out of its set shot): L1
+//! - Checkpoint lane (eight rows behind the toggle and gate row, out of its set shot): L1
 //!   straight, `mech_checkpoint_l1`, L1 straight. The marble rolls through the arch and lights
 //!   its glow inlay ([`crate::inlay`]).
 //!
@@ -42,9 +42,9 @@ pub const ROPE_X: i32 = -3;
 pub const ROPE_Z: i32 = -1;
 pub const ROPE_ARCH_Z: i32 = -4;
 
-/// Row and first cell (x) of the checkpoint lane: four rows further from the tray, outside the
+/// Row and first cell (x) of the checkpoint lane: eight rows further from the tray, outside the
 /// set shot of the other two (`--camera checkpoint` frames it).
-pub const CHECKPOINT_ROW: i32 = ROW - 4;
+pub const CHECKPOINT_ROW: i32 = ROW - 8;
 pub const CHECKPOINT_X: i32 = 3;
 
 /// The showcase's pieces: id, anchor cell, yaw in quarter turns.
