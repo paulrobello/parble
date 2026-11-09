@@ -303,7 +303,7 @@ Acceptance:
 Scope:
 - **Vertical spans:** helix 1–4 turns at two radii, vertical drop tube, zig-zag switchback wall.
 - **Terrain:** wave/bump channels, S-bends, funnel bowl spinner, half-pipe.
-- **Large funnel catcher** (owner request 2026-11-08): a multi-cell funnel (for example 2×2 and 3×3 footprints) that catches controlled free falls and launcher shots over a wide area and spirals the marble down to a centre exit port.
+- **Large funnel catcher** (owner request 2026-11-08): a multi-cell funnel (for example 2×2 and 3×3 footprints) that catches controlled free falls and launcher shots over a wide area and spirals the marble down to a centre exit port. Marbles can also roll in from the track: the funnel has side entry ports at track level whose inlets feed the marble tangentially onto the bowl rim. Funnel adapter pieces join funnels to the rest of the kit: channel-to-rim inlets, rail-to-rim inlets, and centre-exit adapters that turn the drop out of the bottom into a channel or rail port.
 - **Musical:** xylophone/chime bars, bell, wood-block knockers, each tuned to a scale.
 - **Mechanisms:** further lift/elevator types (the stepper elevator ships in P2), seesaw/catapult, turnstile, trapdoor, size sieve, counterweight switch.
 - **Decor:** placeable lanterns. Light-strip inlays (`ref-09`) are optional and only allowed on mechanical pieces (lift, seesaw, turnstile and similar). Track channels and plain track pieces never carry them.
