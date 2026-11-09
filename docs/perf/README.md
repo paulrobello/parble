@@ -63,7 +63,7 @@ scp -i <ssh-key> <user>@gpu-host-b.local:Repos/parble-perf/docs/perf/p1-gate.jso
 ssh -i <ssh-key> <user>@gpu-host-b.local 'rm -rf ~/Repos/parble-perf /tmp/parble-perf.tgz /tmp/parble-perf.log'
 ```
 
-Headless Chromium paces rAF from its own frame source. Run a second, headed Chromium pass and keep it as a separate baseline (house rule: headed and headless timings are never mixed), written to its own file:
+Headless Chromium paces rAF from its own 60 Hz frame source, which may not show GPU back-pressure. Headed Chromium follows the display: on a 120 Hz ProMotion screen it paces at 8.3 ms (a 2026-11-08 non-gating smoke on gpu-host-a's M4 Max read p95 10.1 ms showcase and 9.9 ms stress2000 headed, against 16.7 / 16.8 ms headless), and the jitter allowance above assumes 60 Hz. Run a second, headed Chromium pass and keep it as a separate baseline (house rule: headed and headless timings are never mixed), written to its own file:
 
 ```bash
 PARBLE_PERF_HEADED=1 PARBLE_PERF_BROWSERS=chromium PARBLE_PERF_OUT=docs/perf/p1-gate-chromium-headed.json node e2e/perf-gate.mjs
