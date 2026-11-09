@@ -38,6 +38,8 @@ mod kit_pieces_test;
 #[cfg(test)]
 mod rail_test;
 #[cfg(test)]
+mod rolling_load_test;
+#[cfg(test)]
 mod rolling_sink_test;
 #[cfg(test)]
 mod seam_test;
@@ -103,6 +105,10 @@ pub struct Sim {
     /// Placed piece id → its static collision surface, for contact events
     /// ([`mechanism::StaticSurfaces`]).
     piece_surfaces: std::collections::BTreeMap<parble_core::PieceId, parble_kit::Surface>,
+    /// Test control: the rolling-resistance load summed over every manifold point, stale ones
+    /// included ([`marble::solved_impulse`]).
+    #[cfg(test)]
+    stale_rolling_load: bool,
 }
 
 impl Sim {
@@ -120,6 +126,8 @@ impl Sim {
             hasher: Fnv1a64::default(),
             mechanisms: mechanism::Mechanisms::default(),
             piece_surfaces: std::collections::BTreeMap::new(),
+            #[cfg(test)]
+            stale_rolling_load: false,
         }
     }
 
@@ -191,6 +199,15 @@ impl Sim {
     /// [`HASH_SAMPLE_TICKS`].
     pub fn tick(&mut self, n: u32) {
         for _ in 0..n {
+            #[cfg(test)]
+            if self.stale_rolling_load {
+                marble::rolling_resistance(&mut self.world, &self.marbles, |m| {
+                    m.points.iter().map(|p| p.data.impulse).sum()
+                });
+            } else {
+                marble::apply_rolling_resistance(&mut self.world, &self.marbles);
+            }
+            #[cfg(not(test))]
             marble::apply_rolling_resistance(&mut self.world, &self.marbles);
             if self.pieces.chunks().next().is_some() {
                 // The chunk colliders carry the seam contact hook ([`chunk::ChunkColliders`]).

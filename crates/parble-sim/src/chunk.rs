@@ -454,7 +454,8 @@ impl ChannelJunction {
         // ([`ChannelJunction::faceted`]); the blade is untouched (the ball-blade pair is not a
         // chunk pair, so this hook never sees it). Against the mesh contact the splitter's -z
         // outlet seam goes from upward 3.51 / kick 3.61 to 2.62 / 0.70 mm/s (limit 2.19, still
-        // over) and its fork interior from 80.10 / 65.47 to 14.10 / 26.89; the round tube took
+        // over; 4.45 / 4.96 with the solved rolling-resistance load) and its fork interior from
+        // 80.10 / 65.47 to 14.10 / 26.89 (14.18 / 28.26); the round tube took
         // the outlet to 15.35. An 8 mm reach on the faceted forks takes it to 15.09 (measured
         // 2026-11-08 in `block_seam_test`).
         if def.footprint.len() != 1

@@ -361,7 +361,7 @@ fn block_rail_curve_block_seams_stay_under_the_seam_thresholds() {
     // out. The old reading stayed negative under the rolling sink's -3 to -10 mm/s offset. On the
     // way out the mirror image: the marble rides about 1 mm outward and 0.1 mm high on the rails,
     // comes back down at 2.4 mm/s past the seam and the block channel takes it 6 mm in (upward
-    // 4.04, kick 4.18, measured 2026-11-08). A real step there still fails the kick
+    // 4.04, kick 4.18, measured 2026-11-08; 4.57 / 5.10 with the solved rolling-resistance load). A real step there still fails the kick
     // (`rail_curve_exit_step_kicks`).
     let tr = rail_curve_run(Vec::new());
     let (p_base, k_base) = seamless_l2();

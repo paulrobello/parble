@@ -325,8 +325,9 @@ fn steep_slope_runout_rises_smoothly() {
 #[test]
 fn steep_runout_steps_fail_the_runout_check() {
     // Negative controls: a 0.5 and a 1 mm step on the run-out floor from x = 132 mm. A 0.3 mm step
-    // there reads kick 27.59 against 27.16 without it and is below what any metric here resolves
-    // (measured 2026-11-08); it is logged only.
+    // there read kick 27.59 against 27.16 without it, below what any metric here resolves; with
+    // the solved rolling-resistance load it reverses vy at tick 8 like the larger steps (measured
+    // 2026-11-08). It is logged only.
     let (p_lim, _) = limits(3);
     for rise in [300, 500, 1_000] {
         let tr = steep_run(&Control {
@@ -935,7 +936,7 @@ fn mech_cases() -> Vec<MechCase> {
 const FORK_INLET_LIMITS_MM_S: (f32, f32) = (100.0, 80.0);
 
 /// The toggle's +z outlet seam's `(upward, kick)` limits, mm/s: measured 2026-11-08 at upward
-/// 6.87, kick 5.21, rounded up. The marble crosses the 16-segment straight channel's facet edges
+/// 6.87, kick 5.21, rounded up (6.84, 5.19 with the solved rolling-resistance load). The marble crosses the 16-segment straight channel's facet edges
 /// there, and a bare straight with no toggle shows the same jumps. The exact straight-tube
 /// contact (card 01a1be3d61b6708190352b15b54d6d48) removes this limit.
 const TOGGLE_OUTLET_LIMITS_MM_S: (f32, f32) = (7.0, 5.3);
@@ -978,8 +979,9 @@ fn mech_seams_stay_under_the_seam_thresholds() {
     //
     // The splitter's -z outlet is gated on kick only, as a bend inlet is: the marble leaves the
     // fork swinging 1.7 mm across the channel and its height moves under 0.2 mm (53.01 to 53.21
-    // mm), with no one-tick jump. Measured 2026-11-08: upward 2.62, kick 0.70 with the faceted
-    // junction contact, 3.51 / 3.61 on the mesh. A real step there still fails the kick
+    // mm), with no one-tick jump. Measured 2026-11-08: upward 4.45, kick 4.96 with the faceted
+    // junction contact (2.62 / 0.70 while the rolling-resistance load counted stale manifold
+    // impulses, `marble::solved_impulse`), 3.51 / 3.61 on the mesh. A real step there still fails the kick
     // (`splitter_outlet_step_kicks`).
     //
     // The toggle's +z outlet is gated at TOGGLE_OUTLET_LIMITS_MM_S, its measured values, until
