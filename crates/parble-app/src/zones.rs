@@ -177,9 +177,11 @@ const SOLID_INSET_M: f32 = 0.004;
 ///
 /// A hidden path is a placement of a [`hides_marble`] piece: its cells' box, and its exit, the
 /// world position of its `Out` port (the last port when none is `Out`) on the port's face, at the
-/// port's channel floor for a side port. A solid is every vertical run of two or more occupied
-/// cells in one cell column (a tower, a pillar stack, a block under a rail): low track the marble
-/// rolls over never counts, so only tall pieces turn the camera.
+/// port's channel floor for a side port. Solids are the cells of every vertical run of two or more
+/// occupied cells in one cell column (a tower, a pillar stack, a block over a rail), one box per
+/// cell: low track the marble rolls over never counts, so only tall pieces turn the camera, and a
+/// marble running under a block (the rail joint below `blk_straight_l2` on `allpieces`) is hidden
+/// by the block's own cell, not excused by sharing its column's box.
 pub fn obstacles_for(track: &Track) -> CameraObstacles {
     let catalog = parble_kit::builtin();
     let half = m(HALF_CELL_UM);
@@ -248,14 +250,16 @@ pub fn obstacles_for(track: &Track) -> CameraObstacles {
             if j > i {
                 let (cx, cz) = (m(x * CELL_UM), m(z * CELL_UM));
                 let inset = half - SOLID_INSET_M;
-                solids.push(Solid {
-                    min: Vec3::new(cx - inset, m(ys[i] * CELL_UM), cz - inset),
-                    max: Vec3::new(
-                        cx + inset,
-                        m((ys[j] + 1) * CELL_UM) - SOLID_INSET_M,
-                        cz + inset,
-                    ),
-                });
+                for y in &ys[i..=j] {
+                    solids.push(Solid {
+                        min: Vec3::new(cx - inset, m(y * CELL_UM), cz - inset),
+                        max: Vec3::new(
+                            cx + inset,
+                            m((y + 1) * CELL_UM) - SOLID_INSET_M,
+                            cz + inset,
+                        ),
+                    });
+                }
             }
             i = j + 1;
         }
@@ -371,6 +375,8 @@ mod tests {
     fn the_first_marble_drops_through_the_demo_zone() {
         let t = scenario_track(Scenario::AllPieces).unwrap();
         let zones = zones_for(&t);
+        let o = obstacles_for(&t);
+        let interest = interest_for(&t);
         let mut run = parble_sim::allpieces::run().unwrap();
         let mut d = Director::default();
         let (mut entered, mut left) = (None, None);
@@ -391,8 +397,9 @@ mod tests {
                     dt: 1.0 / 60.0,
                     aspect: 16.0 / 9.0,
                     run: 0,
-                    interest: &[],
-                    ..Default::default()
+                    interest: &interest,
+                    hidden: &o.hidden,
+                    solids: &o.solids,
                 },
                 Some((0, Rule::FOLLOW)),
                 &zones,
@@ -492,5 +499,78 @@ mod tests {
         );
         assert!(share > plain, "avoidance helps: {share} vs {plain}");
         assert!(share >= 0.95, "clear in {share} of frames");
+    }
+
+    /// The tower drop zone, every pass of every marble: on each frame it plays, outside hidden
+    /// paths, the followed marble projects inside the frame (its hold lets the marble go rather
+    /// than lose it), and no camera view looks down more steeply than 60°. The one exception is
+    /// the second after the director moves on to a new marble that is already at the tower: that
+    /// blend starts from the old marble's view, so the new one comes into frame during it.
+    #[test]
+    fn the_tower_zone_keeps_the_marble_in_frame() {
+        let t = scenario_track(Scenario::AllPieces).unwrap();
+        let zones = zones_for(&t);
+        let o = obstacles_for(&t);
+        let interest = interest_for(&t);
+        let aspect = 16.0 / 9.0;
+        let mut run = parble_sim::allpieces::run().unwrap();
+        let mut d = Director::default();
+        let (mut frames, mut steepest) = (0u32, 0f32);
+        let (mut followed, mut since_retarget) = (None, u32::MAX);
+        for _ in 0..(parble_sim::allpieces::RUN_TICKS / 4) {
+            run.tick(4);
+            let marbles: Vec<MarbleIn> = run
+                .marbles()
+                .iter()
+                .map(|s| MarbleIn {
+                    p: Vec3::from_array(s.position),
+                    v: Vec3::from_array(s.linvel),
+                })
+                .collect();
+            let Some(pose) = d.update(
+                &Frame {
+                    marbles: &marbles,
+                    dt: 1.0 / 60.0,
+                    aspect,
+                    run: 0,
+                    interest: &interest,
+                    hidden: &o.hidden,
+                    solids: &o.solids,
+                },
+                Some((0, Rule::FOLLOW)),
+                &zones,
+            ) else {
+                continue;
+            };
+            steepest = steepest.max((-pose.forward.y).asin());
+            since_retarget = if d.diag.followed != followed && followed.is_some() {
+                0
+            } else {
+                since_retarget.saturating_add(1)
+            };
+            followed = d.diag.followed;
+            if d.diag.zone != Some(0) || since_retarget < 60 {
+                continue;
+            }
+            let Some(m) = d.diag.followed.and_then(|i| marbles.get(i)) else {
+                continue;
+            };
+            if o.hidden.iter().any(|h| h.contains(m.p)) {
+                continue;
+            }
+            frames += 1;
+            assert!(
+                parble_render::director::in_frame(&pose, aspect, m.p, 1.0),
+                "tick {}: marble {} out of frame",
+                run.tick_count(),
+                m.p
+            );
+        }
+        println!(
+            "tower zone: {frames} frames with the marble in frame; steepest view {:.1}°",
+            steepest.to_degrees()
+        );
+        assert!(frames > 30, "the zone plays with the marble in sight");
+        assert!(steepest <= std::f32::consts::FRAC_PI_3 + 0.01, "{steepest}");
     }
 }

@@ -28,7 +28,7 @@
 //! Every change of shot blends: a cue change, entering or leaving a zone, a change of followed
 //! marble, a run restart. A blend mixes the outgoing [`Layer`] and the incoming shot, both still
 //! evaluated live, with a smootherstep weight over the blend time: the eye is interpolated, the
-//! forward direction slerped, the field of view and focus distance interpolated. A blend that
+//! forward direction's bearing and elevation interpolated, the field of view and focus distance interpolated. A blend that
 //! starts during another keeps the one in flight as its source (nested up to [`MAX_DEPTH`], past
 //! which the oldest freezes at its last pose), so retargeting never stops the camera dead. A run
 //! restart freezes the outgoing layer first, so the teleported marble cannot drag it.
@@ -65,7 +65,7 @@ pub const FOLLOW_LOOK_SMOOTH_S: f32 = 0.30;
 /// Smoothing of a framing shot's look point and distance (seconds).
 pub const FRAME_SMOOTH_S: f32 = 0.35;
 /// Fastest a framing shot changes its distance (m/s).
-pub const FRAME_MAX_PULL_M_S: f32 = 0.4;
+pub const FRAME_MAX_PULL_M_S: f32 = 1.0;
 /// The follow shot's action window: the marble's path over the last [`FOLLOW_TRAIL_S`], and its
 /// look-ahead along its velocity for [`FOLLOW_LEAD_S`] (at least the rule's `ahead`).
 pub const FOLLOW_TRAIL_S: f32 = 0.25;
@@ -84,25 +84,31 @@ pub const FOLLOW_HIDDEN_MAX_M: f32 = 1.4;
 /// A view whose forward has a y below minus this counts as top-down.
 pub const FOLLOW_TOP_DOWN_Y: f32 = 0.8;
 /// Steepest the follow view looks down when it rises to see past solid track (radians).
-pub const FOLLOW_MAX_ELEVATION: f32 = 1.3;
+pub const FOLLOW_MAX_ELEVATION: f32 = std::f32::consts::FRAC_PI_3;
 /// The clear-view moves the follow shot tries, cheapest first: (extra elevation, extra bearing),
-/// radians. The first with a clear line of sight to the marble and its look-ahead wins.
-pub const CLEAR_VIEWS: [(f32, f32); 15] = [
+/// radians. The first with a clear line of sight to the marble and its look-ahead wins. Swings
+/// come before rises, and no view looks down more steeply than [`FOLLOW_MAX_ELEVATION`] (60°).
+pub const CLEAR_VIEWS: [(f32, f32); 20] = [
     (0.0, 0.0),
-    (0.2, 0.0),
-    (0.4, 0.0),
     (0.0, 0.5),
     (0.0, -0.5),
-    (0.6, 0.0),
-    (0.4, 0.5),
-    (0.4, -0.5),
-    (0.8, 0.0),
+    (0.2, 0.0),
+    (0.2, 0.5),
+    (0.2, -0.5),
     (0.0, 1.0),
     (0.0, -1.0),
-    (1.0, 0.0),
+    (0.4, 0.0),
+    (0.2, 1.0),
+    (0.2, -1.0),
+    (0.0, 1.5),
+    (0.0, -1.5),
+    (0.4, 0.5),
+    (0.4, -0.5),
+    (0.4, 1.0),
+    (0.4, -1.0),
+    (0.6, 0.0),
     (0.6, 1.0),
     (0.6, -1.0),
-    (1.2, 0.0),
 ];
 /// The clear-view moves of a framing shot: it keeps its bearing and only rises.
 pub const FRAME_LIFTS: [(f32, f32); 5] =
@@ -263,11 +269,25 @@ pub fn slerp_dir(a: Vec3, b: Vec3, t: f32) -> Vec3 {
     bevy::math::Quat::from_axis_angle(axis, angle * t) * a
 }
 
+/// The view direction `t` of the way from `a` to `b`: bearing (the short way round) and elevation
+/// interpolated apart, so a blend between views facing apart turns level and never tips over the
+/// top through a steeper view than either end. A straight-down end has no bearing: slerp then.
+pub fn mix_dir(a: Vec3, b: Vec3, t: f32) -> Vec3 {
+    if a.y.abs() > 0.999 || b.y.abs() > 0.999 {
+        return slerp_dir(a, b, t);
+    }
+    let az = |f: Vec3| (-f.x).atan2(-f.z);
+    let el = |f: Vec3| (-f.y).clamp(-1.0, 1.0).asin();
+    let (aa, ab) = (az(a), az(b));
+    let (ea, eb) = (el(a), el(b));
+    forward_of(aa + wrap_angle(ab - aa) * t, ea + (eb - ea) * t)
+}
+
 /// The pose `t` of the way from `a` to `b`.
 pub fn mix(a: &Pose, b: &Pose, t: f32) -> Pose {
     Pose {
         eye: a.eye.lerp(b.eye, t),
-        forward: slerp_dir(a.forward, b.forward, t),
+        forward: mix_dir(a.forward, b.forward, t),
         fov: a.fov + (b.fov - a.fov) * t,
         focus: a.focus + (b.focus - a.focus) * t,
     }
@@ -463,6 +483,23 @@ fn approach(x: &mut f32, rate: &mut f32, target: f32, dt: f32) {
     let dv = FOLLOW_MAX_YAW_ACCEL * dt;
     *rate += (want - *rate).clamp(-dv, dv);
     *x += *rate * dt;
+}
+
+/// How far from the centre (in normalised device coordinates) the marble may sit before a zone's
+/// hold lets it go.
+pub const HOLD_FRAME_NDC: f32 = 0.9;
+
+/// Whether `q` projects inside `pose`'s frame, within `lim` of the centre in normalised device
+/// coordinates.
+pub fn in_frame(pose: &Pose, aspect: f32, q: Vec3, lim: f32) -> bool {
+    let right = pose.forward.cross(Vec3::Y).normalize_or(Vec3::X);
+    let up = right.cross(pose.forward);
+    let t = (pose.fov * 0.5).tan();
+    let r = q - pose.eye;
+    let z = r.dot(pose.forward);
+    z > 0.0
+        && (r.dot(right) / (z * t * aspect.max(0.1))).abs() < lim
+        && (r.dot(up) / (z * t)).abs() < lim
 }
 
 /// One marble as the director sees it.
@@ -1191,6 +1228,17 @@ impl Director {
                 self.since[i] + dt
             };
         }
+        // A zone's hold never leaves the marble out of frame: once it has left the volume and the
+        // camera no longer has it in frame, the hold ends and the shot blends back.
+        if let (Some(p), Some(pose)) = (p, self.layer.as_ref().and_then(Layer::last_pose))
+            && !in_frame(&pose, f.aspect, p, HOLD_FRAME_NDC)
+        {
+            for i in 0..zones.len() {
+                if !self.inside[i] {
+                    self.since[i] = f32::INFINITY;
+                }
+            }
+        }
         let active = zones
             .iter()
             .enumerate()
@@ -1637,15 +1685,21 @@ mod tests {
         assert_eq!(d.diag.zone, Some(0));
         d.update(&frame(&at(1.0), 0), Some((0, Rule::FOLLOW)), &zones);
         assert_eq!(d.diag.zone, Some(1), "the higher priority wins");
-        // Out of both: the hold keeps zone 0 for 0.5 s, then the cue returns.
+        // Just out of both, still in frame: the hold keeps zone 0 for 0.5 s, then the cue returns.
         for _ in 0..20 {
-            d.update(&frame(&at(2.5), 0), Some((0, Rule::FOLLOW)), &zones);
+            d.update(&frame(&at(2.02), 0), Some((0, Rule::FOLLOW)), &zones);
         }
         assert_eq!(d.diag.zone, Some(0));
         for _ in 0..30 {
-            d.update(&frame(&at(2.5), 0), Some((0, Rule::FOLLOW)), &zones);
+            d.update(&frame(&at(2.02), 0), Some((0, Rule::FOLLOW)), &zones);
         }
         assert_eq!(d.diag.source, Some("cue"));
+        // A marble that leaves the frame ends the hold at once.
+        d.update(&frame(&at(0.5), 0), Some((0, Rule::FOLLOW)), &zones);
+        assert_eq!(d.diag.zone, Some(0));
+        d.update(&frame(&at(6.0), 0), Some((0, Rule::FOLLOW)), &zones);
+        d.update(&frame(&at(6.0), 0), Some((0, Rule::FOLLOW)), &zones);
+        assert_eq!(d.diag.source, Some("cue"), "the hold let the marble go");
     }
 
     #[test]
