@@ -232,6 +232,11 @@ web-size:
 audio-process:
 	python3 scripts/audio/process.py
 
+# P4-T5: seamless loop derivatives of the Suno music into audition/music-loops (and the provenance record).
+.PHONY: music-loops
+music-loops:
+	python3 scripts/audio/music_loops.py
+
 # Audition page on the reserved parble port (Trunk dev server is not built yet).
 audition:
 	@test -f audition/sfx/manifest.json || { echo "ERROR: run make audio-process first"; exit 1; }

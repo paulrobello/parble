@@ -94,5 +94,142 @@
       "songUrl": null,
       "ownerSelected": true
     }
+  ],
+  "loopDerivatives": [
+    {
+      "cue_id": "music_build_calm",
+      "source_sha256": "f41b000a631d5d4bf9ad9063eae7d0ef8fb3c6177f507fe2fc8544f4fea3c69a",
+      "loop_start_sample": 197760,
+      "loop_end_sample": 3911890,
+      "sample_rate": 48000,
+      "gain_db": -2.4,
+      "lufs": -18.0,
+      "true_peak_db": -4.9,
+      "outputs": {
+        "ogg": {
+          "file": "audition/music-loops/music_build_calm.ogg",
+          "sha256": "b7e745f058d3654bc1a903c03f3c366efca5104b923ade09a93518ae2be5299e"
+        },
+        "m4a": {
+          "file": "audition/music-loops/music_build_calm.m4a",
+          "sha256": "7fcef685677ef78af5d60daa9e4f3774a387a4c97a4b9662a068a226e485e686"
+        }
+      },
+      "pipeline": "scripts/audio/music_loops.py",
+      "manifest": "audition/music-loops/manifest.json",
+      "status": {
+        "technical": "pass",
+        "creative": "pending Paul's listening approval",
+        "owner": "pending"
+      }
+    },
+    {
+      "cue_id": "music_build_playful",
+      "source_sha256": "2415928c6a62aebf6893c4b6e511a9d1881a05413d10c2f4d478ad2318663ea0",
+      "loop_start_sample": 994080,
+      "loop_end_sample": 4833257,
+      "sample_rate": 48000,
+      "gain_db": -2.4,
+      "lufs": -18.0,
+      "true_peak_db": -5.8,
+      "outputs": {
+        "ogg": {
+          "file": "audition/music-loops/music_build_playful.ogg",
+          "sha256": "6d2bbfd7f51a0fe5d14803e3b1fc4e32419bb3f4508808dc06301ed2e50b1164"
+        },
+        "m4a": {
+          "file": "audition/music-loops/music_build_playful.m4a",
+          "sha256": "1ceac95d5777fe708fcb8c073ec6ec6ee971b0c5c019931e3ee72f195229e571"
+        }
+      },
+      "pipeline": "scripts/audio/music_loops.py",
+      "manifest": "audition/music-loops/manifest.json",
+      "status": {
+        "technical": "pass",
+        "creative": "pending Paul's listening approval",
+        "owner": "pending"
+      }
+    },
+    {
+      "cue_id": "music_night_lanterns",
+      "source_sha256": "f4d1afafeaca85e934cff7e0dd474311d8048070ee49e282d5cb48490d9e6efd",
+      "loop_start_sample": 249120,
+      "loop_end_sample": 4348347,
+      "sample_rate": 48000,
+      "gain_db": -1.1,
+      "lufs": -18.0,
+      "true_peak_db": -5.9,
+      "outputs": {
+        "ogg": {
+          "file": "audition/music-loops/music_night_lanterns.ogg",
+          "sha256": "64529af567419b03e12efd719fdae98eb63c371bb33b8c5e012a5453f34df6dd"
+        },
+        "m4a": {
+          "file": "audition/music-loops/music_night_lanterns.m4a",
+          "sha256": "45fe31b96161ebbe52be2f25131a908ce9a37d93327020120b64f4bc4872d51b"
+        }
+      },
+      "pipeline": "scripts/audio/music_loops.py",
+      "manifest": "audition/music-loops/manifest.json",
+      "status": {
+        "technical": "pass",
+        "creative": "pending Paul's listening approval",
+        "owner": "pending"
+      }
+    },
+    {
+      "cue_id": "music_run_flow",
+      "source_sha256": "5bbc7d0981b55591472d9f24c3499b8ae0e445408f24ab90f8e10c2dcb53aad0",
+      "loop_start_sample": 198240,
+      "loop_end_sample": 4028315,
+      "sample_rate": 48000,
+      "gain_db": -3.1,
+      "lufs": -18.0,
+      "true_peak_db": -6.4,
+      "outputs": {
+        "ogg": {
+          "file": "audition/music-loops/music_run_flow.ogg",
+          "sha256": "c707de96e7e71ea40bee71778588d0d111c1a507ba4ed4e1fb41b4af80e5ff1c"
+        },
+        "m4a": {
+          "file": "audition/music-loops/music_run_flow.m4a",
+          "sha256": "0ae022277365524c379e9678b60d2ace1f35641341c714967b3b9cf3fb1d9df6"
+        }
+      },
+      "pipeline": "scripts/audio/music_loops.py",
+      "manifest": "audition/music-loops/manifest.json",
+      "status": {
+        "technical": "pass",
+        "creative": "pending Paul's listening approval",
+        "owner": "pending"
+      }
+    },
+    {
+      "cue_id": "music_title",
+      "source_sha256": "a4472a1d131208d632089a79bfd7befcc69e9fe26e5c61256e6afef4285d06a0",
+      "loop_start_sample": 745920,
+      "loop_end_sample": 3222498,
+      "sample_rate": 48000,
+      "gain_db": -4.0,
+      "lufs": -18.0,
+      "true_peak_db": -7.0,
+      "outputs": {
+        "ogg": {
+          "file": "audition/music-loops/music_title.ogg",
+          "sha256": "b14a1033e548518dd728d0cdd7923ce97f8f8754549683dca8b0e178ee014b56"
+        },
+        "m4a": {
+          "file": "audition/music-loops/music_title.m4a",
+          "sha256": "4c72638a692bbd3f72ae9980af774b0153497835571a6a7ecb0ae90c8d3d6964"
+        }
+      },
+      "pipeline": "scripts/audio/music_loops.py",
+      "manifest": "audition/music-loops/manifest.json",
+      "status": {
+        "technical": "pass",
+        "creative": "pending Paul's listening approval",
+        "owner": "pending"
+      }
+    }
   ]
 }

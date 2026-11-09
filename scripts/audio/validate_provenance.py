@@ -159,6 +159,49 @@ def validate(repo: Path) -> list[str]:
                 lc = item["loop_check"]
                 if not (lc["master_pass"] and lc["pass"]):
                     errs.append(f"picks {cue}: loop {s} fails the master or Opus loop check")
+    errs += validate_music_loops(repo, rows)
+    return errs
+
+
+def validate_music_loops(repo: Path, rows: list[dict[str, Any]]) -> list[str]:
+    """8. every music loop derivative (provenance "loopDerivatives", scripts/audio/music_loops.py)
+    traces to a source row by hash, matches audition/music-loops/manifest.json (loop points and
+    output hashes), exists with its recorded hash, and no file there is unlisted."""
+    errs: list[str] = []
+    prov_path = repo / "assets-source/audio/music/provenance.json"
+    loops_dir = repo / "audition/music-loops"
+    if not prov_path.is_file():
+        return errs
+    derivs = json.loads(prov_path.read_text()).get("loopDerivatives", [])
+    manifest_path = loops_dir / "manifest.json"
+    if not derivs:
+        return [f"{manifest_path.relative_to(repo)} exists but provenance has no loopDerivatives"] \
+            if manifest_path.is_file() else []
+    items = {i["cue_id"]: i for i in json.loads(manifest_path.read_text())["items"]}
+    src_hashes = {r.get("sha256") for r in rows}
+    listed: set[str] = set()
+    for d in derivs:
+        cue = d["cue_id"]
+        if d["source_sha256"] not in src_hashes:
+            errs.append(f"loop {cue}: source hash matches no provenance row")
+        item = items.get(cue)
+        if item is None:
+            errs.append(f"loop {cue}: not in the music-loops manifest")
+            continue
+        if (item["loop"]["start_sample"], item["loop"]["end_sample"]) != (d["loop_start_sample"], d["loop_end_sample"]):
+            errs.append(f"loop {cue}: loop points differ from the manifest")
+        if item["source"]["sha256"] != d["source_sha256"]:
+            errs.append(f"loop {cue}: source hash differs from the manifest")
+        for ext, out in d["outputs"].items():
+            p = repo / out["file"]
+            listed.add(p.name)
+            if not p.is_file():
+                errs.append(f"{out['file']}: loop derivative missing")
+            elif sha256(p) != out["sha256"] or item["files"][ext]["sha256"] != out["sha256"]:
+                errs.append(f"{out['file']}: hash differs from provenance or manifest")
+    for p in sorted([*loops_dir.glob("*.ogg"), *loops_dir.glob("*.m4a")]):
+        if p.name not in listed:
+            errs.append(f"{p.relative_to(repo)}: loop derivative not in provenance (orphan)")
     return errs
 
 
