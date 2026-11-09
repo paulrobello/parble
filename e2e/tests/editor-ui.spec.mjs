@@ -222,10 +222,11 @@ test("drag-to-lay: press a drawer tile, drag over the board, release, and undo t
     await page.mouse.move(...p, { steps: 4 });
     await frames(page, 2);
   }
-  // Every cell the cursor walks through gets a piece (the screen path between two cell centres can
-  // cross a neighbouring row), so the run covers the five cells and possibly a few more.
+  // One piece per cell entered: the run starts at the first board cell the pointer crosses on its
+  // way out of the drawer, so it covers the five target cells and the cells before them.
   await page.waitForFunction((n) => window.__parble.editor.stroke?.placed >= n, cells.length);
   const laid = (await state(page)).stroke.placed;
+  console.log(`drag-to-lay: ${laid} pieces laid for ${cells.length} target cells`);
   await expect(page.locator("#pe-tip")).toContainText(`Laying a run · ${laid} pieces`);
   await expect(page.locator("#pe-ghost .run")).toHaveAttribute("d", /M/);
   await page.mouse.up();
@@ -271,7 +272,8 @@ test.describe("below 1280 px", () => {
         return t.scrollWidth <= t.clientWidth && t.getBoundingClientRect().right <= window.innerWidth;
       });
     expect(await fits()).toBe(true);
-    await expect(page.locator("#pe-top .hint")).toBeHidden();
+    await expect(page.locator("#pe-tray .hint")).toHaveCount(1);
+    await expect(page.locator("#pe-tray .hint")).toBeHidden();
     await edit(page, { op: "place", piece: "mech_hopper", cell: [4, 0, -6] });
     for (const x of [5, 6, 7]) await edit(page, { op: "place", piece: "blk_straight_l3", cell: [x, 0, -6], yaw: 1 });
     await page.locator('[data-k="run"]').click();

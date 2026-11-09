@@ -135,7 +135,7 @@ The system rejects the grey engine-editor shell: icon-only toolbars, permanent s
 **Key Characteristics:**
 - Walnut panels at 90% opacity over the scene, each with a 1px maple outer rule and a fainter inner stringing line inset 4px.
 - State is shown by a raised-walnut fill with a brass edge, and the traveling brass pin sits on top of it.
-- Every action button carries a label, and every keyed action shows its key cap.
+- Every action button carries a label, and every keyed action shows its key cap (below 1280px the run controls move theirs into the fold tooltip, and the build tools and Stop into their titles).
 - One typeface, Alegreya Sans, self-hosted at weights 400, 500 and 700. Labels are set in small caps.
 - The chrome fades to hairlines during a run and returns when the pointer reaches an edge.
 
