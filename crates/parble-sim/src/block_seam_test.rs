@@ -969,6 +969,12 @@ fn mech_seams_stay_under_the_seam_thresholds() {
     // `ChannelJunction::of`).
     // Logged, not gated (`mech_fork_interior_metrics`): the fork interior past the inlet window,
     // where the blade's tip meets the marble.
+    //
+    // The splitter's -z outlet is gated on kick only, as a bend inlet is: the marble leaves the
+    // fork swinging 1.7 mm across the channel and its height moves under 0.2 mm (53.01 to 53.21
+    // mm), with no one-tick jump. Measured 2026-11-08: upward 2.62, kick 0.70 with the faceted
+    // junction contact, 3.51 / 3.61 on the mesh. A real step there still fails the kick
+    // (`splitter_outlet_step_kicks`).
     for case in mech_cases() {
         let (p_lim, k_lim) = case
             .measured_limits
@@ -986,8 +992,9 @@ fn mech_seams_stay_under_the_seam_thresholds() {
                 "{} {name}: upward {u:.2} mm/s (limit {p_lim:.2}), kick {k:.2} (limit {k_lim:.2})",
                 case.id
             );
+            let swing = case.id == "mech_splitter_l3" && *name == "piece to -z straight";
             assert!(
-                u <= p_lim,
+                swing || u <= p_lim,
                 "{} {name}: upward {u:.2} over {p_lim:.2}",
                 case.id
             );
@@ -998,6 +1005,34 @@ fn mech_seams_stay_under_the_seam_thresholds() {
             );
         }
     }
+}
+
+/// A step up of `rise_um` in the `L3` straight's floor just past the splitter's -z outlet
+/// (z -30 mm): a flat plate 12 mm wide across the channel bottom at x = 60 mm, from the seam to
+/// 10 mm into the straight, `rise_um` over the floor (45 mm), facing up.
+fn splitter_outlet_step(rise_um: i64) -> Vec<[[i64; 3]; 3]> {
+    let (x0, x1, y) = (54_000, 66_000, 45_000 + rise_um);
+    let (z0, z1) = (-40_000, -30_000);
+    vec![
+        [[x0, y, z0], [x0, y, z1], [x1, y, z0]],
+        [[x1, y, z0], [x0, y, z1], [x1, y, z1]],
+    ]
+}
+
+#[test]
+fn splitter_outlet_step_kicks() {
+    // Negative control for the splitter outlet's kick-only gate: a 0.5 mm step at the seam still
+    // fails it.
+    let case = mech_cases()
+        .into_iter()
+        .find(|c| c.id == "mech_splitter_l3" && c.mechanisms)
+        .unwrap();
+    let (_, k_lim) = limits(mech_level(case.id));
+    let (name, lo, hi) = case.windows[0];
+    let tr = mech_run(&case, splitter_outlet_step(500));
+    let k = kick(&tr, window(lo, hi));
+    eprintln!("mech_splitter_l3 {name} with a 500 um step: kick {k:.2} (limit {k_lim:.2})");
+    assert!(k > k_lim, "control kick {k:.2} not over {k_lim:.2}");
 }
 
 #[test]
