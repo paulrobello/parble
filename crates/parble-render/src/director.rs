@@ -298,6 +298,31 @@ pub fn mix(a: &Pose, b: &Pose, t: f32) -> Pose {
     }
 }
 
+/// The pose `t` of the way from `a` to `b` about `pivot`: the eyes' bearing, elevation and
+/// distance from the pivot interpolate, so the eye swings round the pivot rather than cutting
+/// the chord between the two eyes (through the track between them). The elevation follows
+/// `rise` instead of `t`.
+pub fn mix_around(a: &Pose, b: &Pose, t: f32, rise: f32, pivot: Vec3) -> Pose {
+    let polar = |e: Vec3| {
+        let o = e - pivot;
+        let r = o.length().max(1e-4);
+        (o.x.atan2(o.z), (o.y / r).clamp(-1.0, 1.0).asin(), r)
+    };
+    let ((aa, ea, ra), (ab, eb, rb)) = (polar(a.eye), polar(b.eye));
+    let (az, el, r) = (
+        aa + wrap_angle(ab - aa) * t,
+        ea + (eb - ea) * rise,
+        ra + (rb - ra) * t,
+    );
+    let o = Vec3::new(el.cos() * az.sin(), el.sin(), el.cos() * az.cos()) * r;
+    Pose {
+        eye: pivot + o,
+        forward: mix_dir(a.forward, b.forward, t),
+        fov: a.fov + (b.fov - a.fov) * t,
+        focus: a.focus + (b.focus - a.focus) * t,
+    }
+}
+
 /// Critically damped spring towards `target` (Game Programming Gems 4, "Critically Damped Ease-In/
 /// Ease-Out Smoothing"): stable for any `dt`.
 pub fn smooth_damp(cur: Vec3, target: Vec3, vel: &mut Vec3, smooth_s: f32, dt: f32) -> Vec3 {
@@ -1027,6 +1052,9 @@ enum Layer {
         to: Box<Shot>,
         t: f32,
         dur: f32,
+        /// A retarget blend's pivot, the incoming marble's latest position: the eye swings round
+        /// it ([`mix_around`]) rather than along the chord from the old marble's view.
+        around: Option<Vec3>,
     },
 }
 
@@ -1053,8 +1081,14 @@ impl Layer {
         match self {
             Self::Shot(s) => s.last,
             Self::Frozen(p) => Some(*p),
-            Self::Blend { from, to, t, dur } => match (from.last_pose(), to.last) {
-                (Some(a), Some(b)) => Some(mix(&a, &b, ease(*t / *dur))),
+            Self::Blend {
+                from,
+                to,
+                t,
+                dur,
+                around,
+            } => match (from.last_pose(), to.last) {
+                (Some(a), Some(b)) => Some(blend(&a, &b, *t / *dur, *around)),
                 (a, b) => b.or(a),
             },
         }
@@ -1065,13 +1099,24 @@ impl Layer {
         match self {
             Self::Shot(s) => s.eval(f, start),
             Self::Frozen(p) => Some(*p),
-            Self::Blend { from, to, t, dur } => {
+            Self::Blend {
+                from,
+                to,
+                t,
+                dur,
+                around,
+            } => {
                 let a = from.eval(f, None);
                 let b = to.eval(f, a.as_ref().or(start));
                 *t = (*t + f.dt.max(0.0)).min(*dur);
-                let w = ease(*t / *dur);
+                let progress = *t / *dur;
+                if around.is_some()
+                    && let Some(m) = to.marble.and_then(|i| f.marbles.get(i))
+                {
+                    *around = Some(m.p);
+                }
                 let pose = match (a, b) {
-                    (Some(a), Some(b)) => Some(mix(&a, &b, w)),
+                    (Some(a), Some(b)) => Some(blend(&a, &b, progress, *around)),
                     (a, b) => b.or(a),
                 };
                 if *t >= *dur {
@@ -1087,6 +1132,21 @@ impl Layer {
             Self::Shot(s) | Self::Blend { to: s, .. } => Some(s),
             Self::Frozen(_) => None,
         }
+    }
+}
+
+/// A blend's pose `progress` (0 to 1, linear) of the way: about its pivot when it has one
+/// ([`mix_around`]), else along the chord, both eased. About a pivot the elevation leads on an
+/// ease-out: an old view level with the new marble looks through the track around it, and
+/// rising first clears it soonest.
+fn blend(a: &Pose, b: &Pose, progress: f32, around: Option<Vec3>) -> Pose {
+    let w = ease(progress);
+    match around {
+        Some(pivot) => {
+            let u = 1.0 - progress;
+            mix_around(a, b, w, 1.0 - u * u * u, pivot)
+        }
+        None => mix(a, b, w),
     }
 }
 
@@ -1307,11 +1367,16 @@ impl Director {
                         from.freeze_at(MAX_DEPTH - 2);
                     }
                     self.diag.blends += 1;
+                    // The followed marble changed: swing round the new one.
+                    let around = (retarget && !restarted)
+                        .then(|| self.followed.and_then(|i| f.marbles.get(i)).map(|m| m.p))
+                        .flatten();
                     Layer::Blend {
                         from: Box::new(from),
                         to: shot,
                         t: 0.0,
                         dur,
+                        around,
                     }
                 }
             });
