@@ -327,6 +327,11 @@ struct HandOver {
     /// Largest backward excursion of the marble's x below its running maximum, m, from the first
     /// level moment to the exit.
     roll_back: f32,
+    /// [`roll_back_bar`] of the slat top under the running maximum the largest excursion was
+    /// measured from, m (`f32::INFINITY` past the last slat top).
+    roll_back_bar: f32,
+    /// The marble's centre went back over the slat top before the one under its running maximum.
+    onto_previous: bool,
     /// Tick the marble reached the exit straight.
     out: Option<u32>,
 }
@@ -349,6 +354,12 @@ fn hand_over(
     let mut prev = 0;
     let mut max_x: Option<f32> = None;
     let mut roll_back = 0.0f32;
+    let mut roll_back_bar = f32::INFINITY;
+    let mut onto_previous = false;
+    let tops = slat_tops(&cols);
+    let sin_a = (def.animated_parts[0].slant_mdeg.unwrap_or(0) as f32 * 1e-3)
+        .to_radians()
+        .sin();
     let mut out = None;
     for t in 0..6_000u32 {
         sim.tick(1);
@@ -376,7 +387,14 @@ fn hand_over(
             pending = None;
         }
         if let Some(m) = max_x.as_mut() {
-            roll_back = roll_back.max(*m - x);
+            let top = tops.iter().find(|&&(back, riser)| *m >= back && *m < riser);
+            if *m - x > roll_back {
+                roll_back = *m - x;
+                roll_back_bar = top.map_or(f32::INFINITY, |&t| {
+                    roll_back_bar_m(t, CATS_EYE.radius_m, sin_a)
+                });
+            }
+            onto_previous |= top.is_some_and(|&(back, _)| x < back);
             *m = m.max(x);
         }
         prev = part_at;
@@ -392,17 +410,45 @@ fn hand_over(
         stall,
         on_slat,
         roll_back,
+        roll_back_bar,
+        onto_previous,
         out,
     }
+}
+
+/// Every slat top's `(back edge, riser ahead)` x, m, in order along +x, from the moving slats'
+/// collider extents `cols` ([`moving_columns`]). The generator (`kitstepper.layout`) lays the slats
+/// at a pitch of the slat width w, a moving slat CLEAR inside its slot on each side, so
+/// `w = (cols[1].0 - cols[0].0) / 2` and `CLEAR = (w - moving width) / 2`. A moving slat's top runs
+/// from its own back face to the fixed slat face CLEAR ahead; a fixed slat's top from CLEAR past the
+/// moving slat behind to the moving slat ahead.
+fn slat_tops(cols: &[(f32, f32)]) -> Vec<(f32, f32)> {
+    let w = (cols[1].0 - cols[0].0) / 2.0;
+    let clear = (w - (cols[0].1 - cols[0].0)) / 2.0;
+    let mut tops = Vec::new();
+    for (i, &(a, b)) in cols.iter().enumerate() {
+        tops.push((a, b + clear));
+        if let Some(&(next, _)) = cols.get(i + 1) {
+            tops.push((b + clear, next));
+        }
+    }
+    tops
+}
+
+/// Most a marble resting against the riser ahead of slat top `(back, riser)` may roll back, m, and
+/// stay on that slat: the top's depth less the marble's contact margin. At rest the centre sits r
+/// behind the riser and the slanted top (slant a) touches the ball r sin(a) further back, so the
+/// contact point stays on the top while the roll-back is under `(riser - back) - r (1 + sin a)`.
+/// With the generator's w = 12.79 mm, CLEAR 0.5 mm, r = 8 mm and a = 11.06 deg (r (1 + sin a) =
+/// 9.53 mm): 12.29 - 9.53 = 2.75 mm on a moving slat, 13.29 - 9.53 = 3.75 mm on a fixed one.
+fn roll_back_bar_m((back, riser): (f32, f32), r: f32, sin_a: f32) -> f32 {
+    (riser - back) - r * (1.0 + sin_a)
 }
 
 /// Most ticks a marble may sit on a moving slat after it comes level with the step after it. From
 /// rest against the riser ahead its centre has ~7.5 mm to roll to the exit edge: ~26 ticks at
 /// 11.06° with Coulomb rolling resistance; the slat stays level for ~62 ticks.
 const MAX_STALL_TICKS: u32 = 30;
-/// Most the marble may move back toward the entry, m, once on the first slat: the bounce off each
-/// riser it rolls against, well short of the 12.8 mm slat it came from.
-const ROLL_BACK_M: f32 = 0.0025;
 /// Moving slats in each stepper (`kitstepper.STEPPERS`).
 const MOVING_SLATS: usize = 4;
 
@@ -425,8 +471,19 @@ fn check(h: &HandOver) -> Result<(), String> {
     if h.on_slat != up || h.out.is_none() {
         return Err(format!("not one slat per cycle to the exit: {h:?}"));
     }
-    if h.roll_back > ROLL_BACK_M {
-        return Err(format!("rolled back {} m: {h:?}", h.roll_back));
+    // The roll-back must leave the marble on its slat (`roll_back_bar_m`). Its largest source is
+    // not a riser bounce: a descending moving slat's top corner sweeps down over the shoulder of a
+    // marble at rest on the fixed slat behind it and pushes it back (measured 2026-11-08, L1:
+    // 0.106 m/s from rest on stock Rapier, 1.79 mm; 0.140 m/s with the vendored contact fix,
+    // 3.48 mm, bar 3.75). Stepper card 01a1be6d632e739eab5629999a2a6244 tracks the push.
+    if h.roll_back > h.roll_back_bar {
+        return Err(format!(
+            "rolled back {} m over the {} m the slat holds: {h:?}",
+            h.roll_back, h.roll_back_bar
+        ));
+    }
+    if h.onto_previous {
+        return Err(format!("rolled back onto the previous slat: {h:?}"));
     }
     Ok(())
 }
@@ -489,5 +546,43 @@ fn the_sidecar_slant_is_the_slats_collider_slant() {
                 "{piece}: {mdeg} vs {slant}"
             );
         }
+    }
+}
+
+#[test]
+fn the_roll_back_bar_is_the_slat_depth_less_the_contact_margin() {
+    let kit = parble_kit::builtin();
+    for (piece, _, _) in STEPPERS {
+        let def = kit.piece(&PieceId::new(piece).unwrap()).unwrap();
+        let tops = slat_tops(&moving_columns(def));
+        assert_eq!(tops.len(), 2 * MOVING_SLATS - 1, "{piece}: {tops:?}");
+        let sin_a = (def.animated_parts[0].slant_mdeg.unwrap() as f32 * 1e-3)
+            .to_radians()
+            .sin();
+        let bars: Vec<f32> = tops
+            .iter()
+            .map(|&t| roll_back_bar_m(t, CATS_EYE.radius_m, sin_a))
+            .collect();
+        for (i, b) in bars.iter().enumerate() {
+            let want = if i % 2 == 0 { 0.00275 } else { 0.00375 };
+            assert!(
+                (b - want).abs() < 0.0001,
+                "{piece} top {i}: bar {b} m, want {want}"
+            );
+        }
+        let mut h = HandOver {
+            stall: vec![Some(10); MOVING_SLATS],
+            on_slat: (0..MOVING_SLATS).map(Some).collect(),
+            roll_back: 0.001,
+            roll_back_bar: bars[1],
+            onto_previous: false,
+            out: Some(900),
+        };
+        assert!(check(&h).is_ok(), "{piece}: {h:?}");
+        h.roll_back = bars[1] + 0.0002;
+        assert!(check(&h).is_err(), "{piece}: past the bar passed");
+        h.roll_back = 0.001;
+        h.onto_previous = true;
+        assert!(check(&h).is_err(), "{piece}: onto the previous slat passed");
     }
 }
