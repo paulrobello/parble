@@ -36,7 +36,7 @@ import { LOAD_MAX, load1, stats, waitForLoad } from "./perf-helpers.mjs";
 // reads 16.6–16.8 ms), Safari to 1 ms (16 or 17 ms). A missed refresh at 60 Hz reads ≥ 25 ms. So
 // the check adds the browser's jitter allowance: the 95th-percentile frame made its vsync. The raw
 // p95 is recorded unrounded.
-const JITTER_MS = { chromium: 0.3, safari: 1.0 };
+const JITTER_MS = { chromium: 0.3, safari: 0.3 };
 const passMs = (browser) => 16.7 + JITTER_MS[browser];
 
 const HERE = dirname(fileURLToPath(import.meta.url));
