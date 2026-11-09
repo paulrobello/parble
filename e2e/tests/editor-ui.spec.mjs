@@ -29,6 +29,7 @@ async function cellPx(page, cell) {
 }
 async function shot(page, name) {
   mkdirSync(SHOTS, { recursive: true });
+  await page.waitForTimeout(250);
   await frames(page, 4);
   await page.screenshot({ path: new URL(`built-${name}.png`, SHOTS).pathname });
 }

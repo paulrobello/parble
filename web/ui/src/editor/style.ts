@@ -185,6 +185,7 @@ body.parble-editor.pe-faded #parble-mixer{opacity:0;pointer-events:none}
 body.parble-editor.pe-faded.pe-show-bottom #parble-mixer{opacity:1;pointer-events:auto}
 body.parble-editor #parble-hud,body.parble-editor #parble-controls{display:none}
 
+#pe.running .build kbd{display:none}
 @media (max-width:1279px){
   #pe .rc span{display:none}
   #pe .rc{min-width:34px}

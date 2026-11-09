@@ -1,0 +1,397 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-09T21:28:36+00:00",
+  "title": "Design System: parble",
+  "extensions": {
+    "colorMeta": {
+      "walnut": {
+        "role": "neutral",
+        "displayName": "Walnut",
+        "canonical": "#22160f",
+        "tonalRamp": [
+          "#2f241e",
+          "#563e31",
+          "#815841",
+          "#ae714d",
+          "#bd9279",
+          "#ccb3a4",
+          "#dfd3cb",
+          "#f5f2f0"
+        ]
+      },
+      "walnut-veil": {
+        "role": "neutral",
+        "displayName": "Walnut Veil",
+        "canonical": "rgba(34,22,15,.9)",
+        "tonalRamp": [
+          "#2f241e",
+          "#563e31",
+          "#815841",
+          "#ae714d",
+          "#bd9279",
+          "#ccb3a4",
+          "#dfd3cb",
+          "#f5f2f0"
+        ]
+      },
+      "walnut-raised": {
+        "role": "neutral",
+        "displayName": "Raised Walnut",
+        "canonical": "#3a271b",
+        "tonalRamp": [
+          "#2e241e",
+          "#553f32",
+          "#7f5a42",
+          "#ab7350",
+          "#bb947b",
+          "#cbb4a5",
+          "#ded3cc",
+          "#f4f2f0"
+        ]
+      },
+      "maple-stringing": {
+        "role": "neutral",
+        "displayName": "Maple Stringing",
+        "canonical": "#d9c2a0",
+        "tonalRamp": [
+          "#30281d",
+          "#58472f",
+          "#84673d",
+          "#b38848",
+          "#c0a275",
+          "#cebca2",
+          "#e0d7ca",
+          "#f5f3f0"
+        ]
+      },
+      "stringing-rule": {
+        "role": "neutral",
+        "displayName": "Stringing Rule",
+        "canonical": "rgba(217,194,160,.28)",
+        "tonalRamp": [
+          "#30281d",
+          "#58472f",
+          "#84673d",
+          "#b38848",
+          "#c0a275",
+          "#cebca2",
+          "#e0d7ca",
+          "#f5f3f0"
+        ]
+      },
+      "brass": {
+        "role": "primary",
+        "displayName": "Brass",
+        "canonical": "#c49a52",
+        "tonalRamp": [
+          "#31291b",
+          "#5b4a2c",
+          "#896b38",
+          "#bb8e40",
+          "#c6a670",
+          "#d2bf9e",
+          "#e1d8c9",
+          "#f5f3ef"
+        ]
+      },
+      "brass-lit": {
+        "role": "primary",
+        "displayName": "Lit Brass",
+        "canonical": "#d4ab62",
+        "tonalRamp": [
+          "#332a1a",
+          "#5f4b28",
+          "#906e32",
+          "#c59237",
+          "#cda969",
+          "#d6c09a",
+          "#e3d9c7",
+          "#f6f3ef"
+        ]
+      },
+      "run-ink": {
+        "role": "primary",
+        "displayName": "Run Ink",
+        "canonical": "#1d1209",
+        "tonalRamp": [
+          "#32251b",
+          "#5d412a",
+          "#8c5c35",
+          "#bf773c",
+          "#c9966d",
+          "#d3b59d",
+          "#e2d4c8",
+          "#f5f2ef"
+        ]
+      },
+      "pale-blue": {
+        "role": "secondary",
+        "displayName": "Pale Blue",
+        "canonical": "#a8c8d8",
+        "tonalRamp": [
+          "#1e292f",
+          "#314a56",
+          "#416b80",
+          "#4e8ead",
+          "#7aa6bc",
+          "#a4bfcc",
+          "#ccd8df",
+          "#f0f3f4"
+        ]
+      },
+      "cream": {
+        "role": "neutral",
+        "displayName": "Cream",
+        "canonical": "#f0e6d6",
+        "tonalRamp": [
+          "#31291c",
+          "#5a492d",
+          "#87693a",
+          "#b88b44",
+          "#c3a472",
+          "#d0bea0",
+          "#e1d8c9",
+          "#f5f3f0"
+        ]
+      },
+      "fault-red": {
+        "role": "tertiary",
+        "displayName": "Fault Red",
+        "canonical": "#e0705a",
+        "tonalRamp": [
+          "#351c17",
+          "#642d22",
+          "#993b28",
+          "#d34428",
+          "#d7735f",
+          "#dca094",
+          "#e6cac4",
+          "#f6f0ee"
+        ]
+      },
+      "fault-text": {
+        "role": "tertiary",
+        "displayName": "Fault Blush",
+        "canonical": "#f6d2c8",
+        "tonalRamp": [
+          "#361d16",
+          "#663021",
+          "#9c3f25",
+          "#d74b24",
+          "#da775c",
+          "#dda392",
+          "#e7cbc3",
+          "#f6f0ee"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Wordmark",
+        "purpose": "The parble wordmark in the strip only."
+      },
+      "headline": {
+        "displayName": "Section Heading",
+        "purpose": "Panel section headings, led by a small-caps prefix."
+      },
+      "title": {
+        "displayName": "Figure",
+        "purpose": "Level range, marble count, Run label, step numerals."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Base chrome text."
+      },
+      "body-small": {
+        "displayName": "Note",
+        "purpose": "Notes, tool captions, metadata, segment labels."
+      },
+      "label": {
+        "displayName": "Small-Caps Label",
+        "purpose": "Field labels, control labels, heading prefixes, RUNNING status. Never action buttons."
+      },
+      "key-cap": {
+        "displayName": "Key Cap",
+        "purpose": "Key hints in kbd."
+      }
+    },
+    "shadows": [
+      {
+        "name": "panel-float",
+        "value": "0 10px 28px rgba(0,0,0,.45), 0 2px 4px rgba(0,0,0,.4)",
+        "purpose": "Every inlay panel and the reskinned mixer."
+      },
+      {
+        "name": "pin-set",
+        "value": "0 1px 2px rgba(0,0,0,.6)",
+        "purpose": "Brass pins and done-step pins."
+      },
+      {
+        "name": "tile-lift",
+        "value": "0 4px 10px rgba(0,0,0,.4)",
+        "purpose": "The selected piece tile only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "chrome-fade",
+        "value": "opacity .4s ease-out",
+        "purpose": "Panels and hairlines fading to and from the cinematic run frame."
+      },
+      {
+        "name": "pin-travel",
+        "value": "transform .18s ease-out, opacity .18s ease-out",
+        "purpose": "The brass pin traveling to the active tool, tab or tile."
+      },
+      {
+        "name": "build-dim",
+        "value": "opacity .2s",
+        "purpose": "Build controls dim to .45 during a run, restored on hover or focus."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "transition: none",
+        "purpose": "prefers-reduced-motion removes pin travel, fade and dim transitions."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact",
+        "value": "1279px",
+        "purpose": "max-width: run captions drop to icon plus key cap, hint column hides, track name 110px."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Inlay Panel",
+      "kind": "card",
+      "refersTo": "inlay-panel",
+      "description": "Every chrome surface: walnut veil, maple outer rule, inner stringing inset 4px.",
+      "html": "<div class=\"ds-inlay\"><h2 class=\"ds-h\"><span class=\"ds-sc\">Selected:</span>Splitter · 3</h2><p class=\"ds-note\">In S · Out E, W</p></div>",
+      "css": ".ds-inlay{position:relative;padding:16px 18px 14px;width:280px;background:rgba(34,22,15,.9);border:1px solid rgba(217,194,160,.55);border-radius:6px;box-shadow:0 10px 28px rgba(0,0,0,.45),0 2px 4px rgba(0,0,0,.4);color:#f0e6d6;font-family:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.25;font-feature-settings:\"lnum\" 1;}.ds-inlay::before{content:\"\";position:absolute;inset:4px;border:1px solid rgba(217,194,160,.16);border-radius:3px;pointer-events:none}.ds-h{margin:0 0 8px;font-size:17px;font-weight:700;display:flex;gap:8px;align-items:center}.ds-sc{font-variant-caps:all-small-caps;letter-spacing:.07em;color:#d9c2a0;font-weight:500;font-size:15px}.ds-note{margin:0;color:#d9c2a0;font-size:12px;line-height:1.35}"
+    },
+    {
+      "name": "Strip Tool Button",
+      "kind": "button",
+      "refersTo": "tool-button-active",
+      "description": "Icon over label and key cap; active is raised walnut with a brass edge and the brass pin.",
+      "html": "<div class=\"ds-strip\"><button class=\"ds-t\"><svg class=\"ds-i\" viewBox=\"0 0 20 20\" aria-hidden=\"true\"><path d=\"M5 3l10 6-4.5 1.2L8.5 15z\"/></svg><span>Select <kbd class=\"ds-kbd\">1</kbd></span></button><button class=\"ds-t ds-on\"><i class=\"ds-pin\"></i><svg class=\"ds-i\" viewBox=\"0 0 20 20\" aria-hidden=\"true\"><path d=\"M10 2.5l7 4v7l-7 4-7-4v-7z M10 7v6 M7 10h6\"/></svg><span>Place <kbd class=\"ds-kbd\">2</kbd></span></button></div>",
+      "css": ".ds-strip{display:flex;gap:1px;padding:6px;background:rgba(34,22,15,.9);border:1px solid rgba(217,194,160,.55);border-radius:6px;box-shadow:0 10px 28px rgba(0,0,0,.45),0 2px 4px rgba(0,0,0,.4);color:#f0e6d6;font-family:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.25;font-feature-settings:\"lnum\" 1;}.ds-t{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px;min-width:46px;font:inherit;color:inherit;background:none;border:1px solid transparent;border-radius:4px;cursor:pointer}.ds-t span{display:flex;gap:3px;align-items:center;font-size:12px}.ds-t:hover{background:rgba(58,39,27,.9);border-color:rgba(217,194,160,.28)}.ds-t:focus-visible{outline:2px solid #a8c8d8;outline-offset:2px;}.ds-t.ds-on{background:#3a271b;border-color:#c49a52}.ds-pin{position:absolute;left:4px;top:3px;width:7px;height:7px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#e8c985,#c49a52 55%,#7d5f2c);box-shadow:0 1px 2px rgba(0,0,0,.6);}.ds-i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}.ds-kbd{font:500 11px/1 \"Alegreya Sans\",sans-serif;font-variant-numeric:lining-nums tabular-nums;color:#d9c2a0;border:1px solid rgba(217,194,160,.5);border-bottom-width:2px;border-radius:3px;padding:2px 3px;background:rgba(0,0,0,.25)}"
+    },
+    {
+      "name": "Run Button",
+      "kind": "button",
+      "refersTo": "button-run",
+      "description": "The one filled brass action; becomes Stop with an Esc cap during a run.",
+      "html": "<button class=\"ds-run\"><svg class=\"ds-i\" viewBox=\"0 0 20 20\" aria-hidden=\"true\"><path d=\"M6 4l10 6-10 6z\" fill=\"currentColor\"/></svg>Run</button>",
+      "css": ".ds-run{display:flex;align-items:center;gap:8px;background:#c49a52;color:#1d1209;font-family:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;font-weight:700;font-size:15px;padding:8px 14px;border:1px solid #e0bb78;border-radius:4px;cursor:pointer}.ds-run:hover{background:#d4ab62}.ds-run:focus-visible{outline:2px solid #a8c8d8;outline-offset:2px;}.ds-i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}"
+    },
+    {
+      "name": "Quiet and Warn Buttons",
+      "kind": "button",
+      "refersTo": "button-warn",
+      "description": "Stringing-bordered action buttons; warn (fault red) only for destructive confirmation.",
+      "html": "<div class=\"ds-row\"><button class=\"ds-btn ds-warn\"><svg class=\"ds-i\" viewBox=\"0 0 20 20\" aria-hidden=\"true\"><path d=\"M4 6h12 M8 6V4h4v2 M5.5 6l.8 10h7.4l.8-10\"/></svg>Delete 4</button><button class=\"ds-btn\">Keep them</button></div>",
+      "css": ".ds-row{display:flex;gap:6px;padding:12px;background:rgba(34,22,15,.9);border:1px solid rgba(217,194,160,.55);border-radius:6px;box-shadow:0 10px 28px rgba(0,0,0,.45),0 2px 4px rgba(0,0,0,.4);color:#f0e6d6;font-family:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.25;font-feature-settings:\"lnum\" 1;}.ds-btn{display:flex;align-items:center;gap:6px;padding:6px 10px;font:inherit;color:#f0e6d6;background:none;border:1px solid rgba(217,194,160,.28);border-radius:4px;cursor:pointer}.ds-btn:hover{background:rgba(58,39,27,.9)}.ds-btn:focus-visible{outline:2px solid #a8c8d8;outline-offset:2px;}.ds-warn{border-color:#e0705a;color:#f6d2c8}.ds-i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}"
+    },
+    {
+      "name": "Brass Pin",
+      "kind": "custom",
+      "description": "7px set-in sphere marking state; blue and red variants and an off ring.",
+      "html": "<div class=\"ds-pins\"><i class=\"ds-p\"></i><i class=\"ds-p ds-bl\"></i><i class=\"ds-p ds-rd\"></i><i class=\"ds-p ds-off\"></i></div>",
+      "css": ".ds-pins{display:flex;gap:10px;padding:12px;background:rgba(34,22,15,.9);border:1px solid rgba(217,194,160,.55);border-radius:6px;box-shadow:0 10px 28px rgba(0,0,0,.45),0 2px 4px rgba(0,0,0,.4);color:#f0e6d6;font-family:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.25;font-feature-settings:\"lnum\" 1;}.ds-p{display:inline-block;width:7px;height:7px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#e8c985,#c49a52 55%,#7d5f2c);box-shadow:0 1px 2px rgba(0,0,0,.6);}.ds-bl{background:radial-gradient(circle at 35% 30%,#d6ebf5,#a8c8d8 55%,#5f8497)}.ds-rd{background:radial-gradient(circle at 35% 30%,#f2b5a6,#e0705a 55%,#8a3b2c)}.ds-off{background:none;box-shadow:inset 0 0 0 1px rgba(217,194,160,.5)}"
+    },
+    {
+      "name": "Drawer Tabs",
+      "kind": "nav",
+      "refersTo": "drawer-tab-active",
+      "description": "Family tabs on an inlay baseline; the open tab is raised walnut, cream, bold.",
+      "html": "<div class=\"ds-tabs\"><button class=\"ds-tab ds-on\">Blocks</button><button class=\"ds-tab\">Rails</button><button class=\"ds-tab\">Mechanisms</button></div>",
+      "css": ".ds-tabs{display:flex;gap:2px;align-items:flex-end;height:36px;padding:0 14px;background:rgba(34,22,15,.9);border:1px solid rgba(217,194,160,.55);border-radius:6px;box-shadow:0 10px 28px rgba(0,0,0,.45),0 2px 4px rgba(0,0,0,.4);color:#f0e6d6;font-family:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.25;font-feature-settings:\"lnum\" 1;border-radius:6px 6px 0 0;border-bottom:1px solid rgba(217,194,160,.28)}.ds-tab{border:1px solid transparent;border-bottom:0;border-radius:4px 4px 0 0;padding:6px 16px 7px 22px;font:inherit;font-size:14px;color:#d9c2a0;background:none;cursor:pointer}.ds-tab:hover{background:rgba(58,39,27,.9)}.ds-tab:focus-visible{outline:2px solid #a8c8d8;outline-offset:2px;}.ds-tab.ds-on{background:#3a271b;border-color:rgba(217,194,160,.28);color:#f0e6d6;font-weight:700}"
+    },
+    {
+      "name": "Piece Tile",
+      "kind": "card",
+      "refersTo": "piece-tile-active",
+      "description": "96px kit tile; selected adds a brass edge and the tile lift.",
+      "html": "<div class=\"ds-tray\"><div class=\"ds-pc\"><button class=\"ds-tile\"></button><span>Join · 3</span></div><div class=\"ds-pc\"><button class=\"ds-tile ds-on\"></button><span>Straight · 3</span></div></div>",
+      "css": ".ds-tray{display:flex;gap:14px;padding:10px 18px;background:rgba(34,22,15,.9);border:1px solid rgba(217,194,160,.55);border-radius:6px;box-shadow:0 10px 28px rgba(0,0,0,.45),0 2px 4px rgba(0,0,0,.4);color:#f0e6d6;font-family:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.25;font-feature-settings:\"lnum\" 1;}.ds-pc{width:96px;display:flex;flex-direction:column;gap:5px;text-align:center;font-size:12px}.ds-tile{width:96px;height:96px;background:rgba(0,0,0,.22);border:1px solid rgba(217,194,160,.28);border-radius:5px;cursor:pointer}.ds-tile:hover{background:#3a271b}.ds-tile:focus-visible{outline:2px solid #a8c8d8;outline-offset:2px;}.ds-tile.ds-on{background:#3a271b;border-color:#c49a52;box-shadow:0 4px 10px rgba(0,0,0,.4)}"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "chip",
+      "description": "Stringing-boxed segments split by inlay rules; active segment raised walnut.",
+      "html": "<div class=\"ds-wrap\"><div class=\"ds-seg\"><button class=\"ds-on\">Rotate <kbd class=\"ds-kbd\">R</kbd></button><button>Mirror <kbd class=\"ds-kbd\">M</kbd></button><button>Delete</button></div></div>",
+      "css": ".ds-wrap{padding:12px;background:rgba(34,22,15,.9);border:1px solid rgba(217,194,160,.55);border-radius:6px;box-shadow:0 10px 28px rgba(0,0,0,.45),0 2px 4px rgba(0,0,0,.4);color:#f0e6d6;font-family:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.25;font-feature-settings:\"lnum\" 1;}.ds-seg{display:flex;border:1px solid rgba(217,194,160,.28);border-radius:4px;overflow:hidden}.ds-seg button{flex:1;display:flex;gap:5px;align-items:center;justify-content:center;padding:6px;font:inherit;font-size:12px;color:#f0e6d6;background:none;border:0;border-right:1px solid rgba(217,194,160,.28);cursor:pointer}.ds-seg button:last-child{border-right:0}.ds-seg button:hover{background:rgba(58,39,27,.9)}.ds-seg button:focus-visible{outline:2px solid #a8c8d8;outline-offset:2px;}.ds-seg .ds-on{background:#3a271b}.ds-kbd{font:500 11px/1 \"Alegreya Sans\",sans-serif;font-variant-numeric:lining-nums tabular-nums;color:#d9c2a0;border:1px solid rgba(217,194,160,.5);border-bottom-width:2px;border-radius:3px;padding:2px 3px;background:rgba(0,0,0,.25)}"
+    },
+    {
+      "name": "Validation Issue Row",
+      "kind": "custom",
+      "refersTo": "issue-link",
+      "description": "Blue pin, pale-blue cell, description, underlined Show link. Help, not scolding.",
+      "html": "<div class=\"ds-iss-w\"><div class=\"ds-iss\"><i class=\"ds-ip\"></i><i class=\"ds-cell\">[5, 0, −6]</i><button>Show</button><span>Open south port on Straight · 3</span></div></div>",
+      "css": ".ds-iss-w{padding:8px 18px;width:300px;background:rgba(34,22,15,.9);border:1px solid rgba(217,194,160,.55);border-radius:6px;box-shadow:0 10px 28px rgba(0,0,0,.45),0 2px 4px rgba(0,0,0,.4);color:#f0e6d6;font-family:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.25;font-feature-settings:\"lnum\" 1;}.ds-iss{display:grid;grid-template-columns:10px 1fr auto;gap:2px 9px;align-items:start;padding:9px 0}.ds-ip{grid-row:1/3;margin-top:5px;width:7px;height:7px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#d6ebf5,#a8c8d8 55%,#5f8497);box-shadow:0 1px 2px rgba(0,0,0,.6)}.ds-cell{font-style:normal;font-variant-numeric:tabular-nums;color:#a8c8d8;font-weight:500}.ds-iss span{grid-column:2}.ds-iss button{grid-column:3;grid-row:1/3;align-self:center;color:#a8c8d8;text-decoration:underline;text-underline-offset:3px;font:inherit;font-weight:500;background:none;border:1px solid transparent;border-radius:4px;padding:4px;cursor:pointer}.ds-iss button:hover{background:rgba(58,39,27,.9)}.ds-iss button:focus-visible{outline:2px solid #a8c8d8;outline-offset:2px;}"
+    },
+    {
+      "name": "Cell Tooltip",
+      "kind": "custom",
+      "description": "Follows the ghost: pin, cell, level, validity; red border when invalid (shown on hover here).",
+      "html": "<div class=\"ds-tip\"><i class=\"ds-tp\"></i>[6, 0, −4] · L0 · valid</div>",
+      "css": ".ds-tip{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;font-variant-numeric:tabular-nums;background:rgba(34,22,15,.9);border:1px solid rgba(217,194,160,.55);border-radius:6px;box-shadow:0 10px 28px rgba(0,0,0,.45),0 2px 4px rgba(0,0,0,.4);color:#f0e6d6;font-family:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.25;font-feature-settings:\"lnum\" 1;}.ds-tip:hover{border-color:#e0705a}.ds-tp{width:7px;height:7px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#e8c985,#c49a52 55%,#7d5f2c);box-shadow:0 1px 2px rgba(0,0,0,.6);}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Walnut Marquetry",
+    "overview": "This system covers the track editor's chrome: the overlay over the full-screen WebGPU scene, scoped to `#pe` in `web/ui/src/editor/style.ts`. Its surfaces are dark walnut panels with thin maple stringing inlaid in them. Each panel floats 12px in from the viewport edge, so the scene shows on all four sides. The chrome is flat colour with inlay lines. Brass pins mark state, and a single brass pin travels along the inlay to the active tool, tab or tile. The wooden track pieces, both in the scene and in the drawer thumbnails, carry the real wood grain. The chrome never imitates them.\n\nThe chrome frames the run and does not compete with it. During a run it fades to a cinematic frame: thin maple hairlines, plus a small RUNNING capsule centred at the top. Each panel comes back when the pointer nears its edge. Density is that of a working tool. Every tool shows its key cap beside its label, and labels stay visible down to 1280px wide.\n\nThe system rejects the grey engine-editor shell: icon-only toolbars, permanent side docks, and photographic wood on chrome surfaces.",
+    "keyCharacteristics": [
+      "Walnut panels at 90% opacity over the scene, each with a 1px maple outer rule and a fainter inner stringing line inset 4px.",
+      "State is shown by a raised-walnut fill with a brass edge, and the traveling brass pin sits on top of it.",
+      "Every action button carries a label, and every keyed action shows its key cap.",
+      "One typeface, Alegreya Sans, self-hosted at weights 400, 500 and 700. Labels are set in small caps.",
+      "The chrome fades to hairlines during a run and returns when the pointer reaches an edge."
+    ],
+    "rules": [
+      {
+        "name": "The Help Is Blue Rule",
+        "body": "Validation issues are help, not scolding. Their pins, coordinates and Show links are pale blue. Red is reserved for an invalid placement, a broken port, and a destructive confirmation.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Metal Rule",
+        "body": "Brass is the only colour that means \"active\" or \"go\". Do not introduce a second accent for state.",
+        "section": "colors"
+      },
+      {
+        "name": "The Lining Numerals Rule",
+        "body": "Every number in the chrome uses lining figures, and counts, coordinates and timers also use tabular figures. Alegreya's default old-style figures never appear.",
+        "section": "typography"
+      },
+      {
+        "name": "The Small Caps Label Rule",
+        "body": "Small caps name the value or section that follows them. Action buttons are set in sentence case.",
+        "section": "typography"
+      },
+      {
+        "name": "The No Blur Rule",
+        "body": "No backdrop-filter over the canvas. Translucency is plain alpha, and every animated property is opacity or transform, which keeps the frame budget.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** build every new chrome surface as an inlay panel: Walnut Veil ground, a 55% maple outer border, a 16% inner stringing inset 4px, and 6px corners.",
+      "**Do** mark the active state with a raised walnut fill and a brass edge, and let the traveling brass pin move to it.",
+      "**Do** show the key cap beside the label for every keyed action, and keep a mouse path for every action.",
+      "**Do** use pale blue for help and focus, and red only for an invalid placement, a broken port or a destructive confirmation.",
+      "**Do** fade the chrome during a run (.4s ease-out opacity), and restore each panel when the pointer reaches its edge.",
+      "**Do** honour reduced motion by turning off the pin travel, fade and dim transitions."
+    ],
+    "donts": [
+      "**Don't** put photographic wood grain on chrome surfaces. Grain belongs to the kit pieces and their thumbnails.",
+      "**Don't** use backdrop-filter over the canvas, or animate anything other than opacity and transform.",
+      "**Don't** ship icon-only toolbar buttons or a permanent grey side dock.",
+      "**Don't** use red for validation issues.",
+      "**Don't** use old-style figures, or a second typeface."
+    ]
+  }
+}
