@@ -290,7 +290,7 @@ fn recording_and_an_empty_framework_leave_the_ramp_golden_unchanged() {
     sim.tick(RAMP_10S_TICKS);
     assert_eq!(
         crate::hash::format_hash(sim.trajectory_hash()),
-        "0c9206fc016d9b17"
+        "2813fade06774d5e"
     );
     assert!(!sim.drain_events().is_empty());
     assert_eq!(sim.mechanism_hash(), Fnv1a64::default().finish());

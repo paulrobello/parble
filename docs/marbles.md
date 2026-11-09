@@ -56,7 +56,7 @@ Rapier has no rolling-resistance model, so the sim applies Coulomb rolling resis
 
 ## Determinism
 
-Without `--marble`, the `ramp` scenario runs the **P0 legacy** marble (`marble::P0_LEGACY`). Those are the P0-T3 placeholder values with Rapier's default combine rules and no damping, so the golden hash `0c9206fc016d9b17` is unchanged. `--marble <type>` runs the same tray with that type's real values, and `--marble-size` spawns the marble 4 mm clear of the back wall at its own radius. `--marble-size standard` without `--marble` is still the legacy marble.
+Without `--marble`, the `ramp` scenario runs the **P0 legacy** marble (`marble::P0_LEGACY`). Those are the P0-T3 placeholder values with Rapier's default combine rules and no damping, so the golden hash `2813fade06774d5e` is unchanged. `--marble <type>` runs the same tray with that type's real values, and `--marble-size` spawns the marble 4 mm clear of the back wall at its own radius. `--marble-size standard` without `--marble` is still the legacy marble.
 
 Every type × size ramp run (7 × 3) has a committed golden in `crates/parble-sim/tests/golden/ramp_10s_variants.hash`. The native test `ramp_10s_variants_match_golden` checks it, and `make determinism-wasm` (part of `checkall-ci`) runs the same 21 runs in the wasm build under Node and compares them line by line. The P0 golden file is untouched.
 

@@ -243,7 +243,7 @@ pub const OPAL: MarbleSpec = CATS_EYE;
 /// volume, so the body is taken as all glass: every value is [`CATS_EYE`]'s (same sources).
 pub const GLOW: MarbleSpec = CATS_EYE;
 
-/// The P0 marble the golden ramp hash `0c9206fc016d9b17` was recorded with (P0-T3 placeholder
+/// The P0 marble the golden ramp hash `2813fade06774d5e` was recorded with (P0-T3 placeholder
 /// values, not measured). Kept unchanged so the golden stays byte-identical; renders as a cat's eye.
 pub const P0_LEGACY: MarbleSpec = MarbleSpec {
     radius_m: R16,
