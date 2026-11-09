@@ -12,8 +12,10 @@
 //!
 //! - `mech_checkpoint_*`: [`CameraHint::Beat`], a short framing beat on the arch as the marble
 //!   passes (a box over the piece's cells, held [`BEAT_HOLD_MS`] after the marble leaves).
-//! - `blk_redirect_*` and `blk_tower_*`: [`CameraHint::Axis`], a vertical cylinder over the piece's
-//!   cell column whose shot pulls back and frames the column's centre line with the marble.
+//! - `blk_redirect_*`, `blk_tower_*`, `blk_funnel_*` and `blk_catch_*`: [`CameraHint::Axis`], a
+//!   vertical cylinder over the piece's cell column whose shot pulls back and frames the
+//!   column's centre line with the marble (for the 3×3 funnel the cylinder spans its plan extent,
+//!   so the shot frames the whole bowl).
 //!
 //! A future helix (P7) declares its axis zone the same way: add its id prefix to [`piece_hint`] as
 //! [`CameraHint::Axis`]. [`hint_zones`] then builds a cylinder over the helix footprint's column,
@@ -254,7 +256,10 @@ pub const BEAT_HOLD_MS: u32 = 900;
 pub fn piece_hint(id: &str) -> Option<CameraHint> {
     if id.starts_with("mech_checkpoint_") {
         Some(CameraHint::Beat)
-    } else if id.starts_with("blk_redirect_") || id.starts_with("blk_tower_") {
+    } else if ["blk_redirect_", "blk_tower_", "blk_funnel_", "blk_catch_"]
+        .iter()
+        .any(|p| id.starts_with(p))
+    {
         Some(CameraHint::Axis)
     } else {
         None
@@ -434,10 +439,12 @@ mod tests {
     }
 
     #[test]
-    fn hints_cover_checkpoints_redirects_and_towers_only() {
+    fn hints_cover_checkpoints_redirects_towers_and_funnels_only() {
         assert_eq!(piece_hint("mech_checkpoint_l1"), Some(CameraHint::Beat));
         assert_eq!(piece_hint("blk_redirect_l3"), Some(CameraHint::Axis));
         assert_eq!(piece_hint("blk_tower_socket_l1"), Some(CameraHint::Axis));
+        assert_eq!(piece_hint("blk_funnel_3x3_l2"), Some(CameraHint::Axis));
+        assert_eq!(piece_hint("blk_catch_l1"), Some(CameraHint::Axis));
         assert_eq!(piece_hint("blk_straight_l3"), None);
     }
 }

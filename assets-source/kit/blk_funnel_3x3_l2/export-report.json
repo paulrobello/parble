@@ -1,0 +1,95 @@
+{
+  "blender": "5.2.2 LTS",
+  "colliderTris": 2406,
+  "generator": {
+    "path": "blender/kit/generate.py",
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
+  },
+  "generatorDeps": [
+    {
+      "path": "blender/kit/kitgeom.py",
+      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
+    },
+    {
+      "path": "blender/kit/kitblocks.py",
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
+    },
+    {
+      "path": "blender/kit/kitfunnel.py",
+      "sha256": "bf67f8c50333c1872b90df6f7a5e25ee39d2dcbae5585b4e512f21a812806310"
+    }
+  ],
+  "lodParams": {
+    "lod0": {
+      "bevel_segs": 3,
+      "n_fillet": 6,
+      "n_round": 32,
+      "path": {
+        "curve90": 20,
+        "end": 16,
+        "slope_gentle": 16,
+        "straight": 1
+      }
+    },
+    "lod1": {
+      "bevel_segs": 1,
+      "n_fillet": 2,
+      "n_round": 12,
+      "path": {
+        "curve90": 8,
+        "end": 8,
+        "slope_gentle": 6,
+        "straight": 1
+      }
+    },
+    "lod2": {
+      "bevel_segs": 0,
+      "n_fillet": 1,
+      "n_round": 6,
+      "path": {
+        "curve90": 4,
+        "end": 4,
+        "slope_gentle": 3,
+        "straight": 1
+      }
+    }
+  },
+  "lodTris": {
+    "blk_funnel_3x3_l2_lod0": 11376,
+    "blk_funnel_3x3_l2_lod1": 2562,
+    "blk_funnel_3x3_l2_lod2": 752
+  },
+  "mapSize": {
+    "lod0": 2048,
+    "lod1": 2048,
+    "lod2": 1024
+  },
+  "nodes": [
+    "blk_funnel_3x3_l2",
+    "blk_funnel_3x3_l2_collider",
+    "blk_funnel_3x3_l2_lod0",
+    "blk_funnel_3x3_l2_lod1",
+    "blk_funnel_3x3_l2_lod2",
+    "port_0",
+    "port_1",
+    "port_2"
+  ],
+  "pieceId": "blk_funnel_3x3_l2",
+  "texelDensityPxPerM": {
+    "lod0": {
+      "max": 3742.7,
+      "median": 3546.5,
+      "min": 2777.8
+    },
+    "lod1": {
+      "max": 3752.6,
+      "median": 3589.1,
+      "min": 2851.3
+    },
+    "lod2": {
+      "max": 1866.8,
+      "median": 1780.6,
+      "min": 1545.8
+    }
+  }
+}

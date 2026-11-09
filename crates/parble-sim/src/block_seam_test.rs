@@ -95,7 +95,7 @@ fn run_with(
 
 /// `(upward limit, kick limit)` from the seamless channel at `level`: that level's straight
 /// stretched over 20 cells, the window from the first cell face to the last (`seam_test::in_run`).
-fn limits(level: u8) -> (f32, f32) {
+pub(crate) fn limits(level: u8) -> (f32, f32) {
     let kit = parble_kit::builtin();
     let one = place(&format!("blk_straight_l{level}"), 0, 0, 0, 0, false);
     let tris: Vec<[[i64; 3]; 3]> = placed_triangles(kit.piece(&one.piece).unwrap(), &one)

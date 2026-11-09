@@ -322,7 +322,7 @@ Port levels and lateral position (`u = 0`) are unchanged by yaw and mirror.
 4. The footprint is face-connected.
 5. Every side port lies on a footprint face whose neighbouring cell is outside the footprint. Drop ports lie on `Top` or `Bottom` faces with the same rule.
 6. Two placements may not share a cell. The editor's footprint collision check (P3-T1) uses the transformed footprint.
-7. Block pieces are 1 cell, except pieces with an `L0` port, slopes that exit into the layer below, and the redirect drop. Those are 2 cells tall (1 × 1 × 2). The lower cell holds either solid body under the floor or the piece's exit port.
+7. Block pieces are 1 cell, except pieces with an `L0` port, slopes that exit into the layer below, and the redirect drop. Those are 2 cells tall (1 × 1 × 2). The lower cell holds either solid body under the floor or the piece's exit port. The funnel catcher (below the rail table) is the one larger block piece, 3 × 3 × 2.
 8. Rail ends always land on face centres at a port level.
 9. A multi-cell piece belongs to the chunk of its anchor cell. Its collision triangles merge into that chunk's trimesh, so a chunk collider may extend past its 480 mm box.
 10. Plan-view footprint extent is at most 4 × 4 cells. Height is at most 8 cell layers (one chunk).
@@ -336,6 +336,14 @@ MVP multi-cell rails (P2-T4):
 | S-rail 1×3 | 2 × 3 × 1 (lateral offset 1 cell over 3 cells length, see §16, Q7). As built (P2-T4) the length runs along +x: cells x 0..2, z −1..0, entry on the anchor's `−x` face, exit on the `+x` face of cell (2, 0, −1) | Two opposed arcs of radius 150 mm, each turning 36.87°: offset 2 × 150 × (1 − cos 36.87°) = 60 mm, length 2 × 150 × sin 36.87° = 180 mm. Edges stay within 12 to 108 mm laterally. Arc length 193.1 mm. |
 | Rail-to-block joint | 1 × 1 × 1 plus a 10 mm spigot | Straight rail with a `channel` port and a `spigot` port |
 | Helix (P7) | 2 × 2 × N | Defined in P7 against these rules |
+
+Funnel catcher (addition, owner card 2026-11-08; no contract version change). `blk_funnel_3x3_l2` is a 3 × 3 × 2 block (cells x 0..2, y −1..0, z −2..0, chiral) holding a lathed bowl about the centre column, axis at plan (60, −60) mm from the anchor cell's centre (`blender/kit/kitfunnel.py`).
+
+- Ports: index 0, `L2` channel `in` on the anchor's `−x` face; index 1, `L2` channel `in` on the `+x` face of cell (2, 0, −2) (the first rotated 180° about the axis, so the two inlets feed the rim tangentially in the same turning sense); index 2, `Bottom` drop `out` under the centre cell (1, −1, −1). A block channel or a rail butts flush against either inlet (§5.5); the exit mates with any `Top` drop port below.
+- Rim: each inlet runs straight along its cell row onto a rim gutter, the canonical half-round (§5.4) swept about the axis with its floor at the `L2` port floor, `RIM_R` = 60 mm from the axis. The gutter's floor is the bowl's edge.
+- Bowl profile (radius r from the axis, height above the bottom face): a quadratic from the rim, zero slope at r = 60 mm, falling `BOWL_D` = 40 mm to r = 22 mm (slope 2.1 there), then a circular fillet to vertical at r = 16 mm (the §4 drop hole radius), then a straight 16 mm bore down to the bottom face. Collision lathe 48 segments, render 96 / 48 / 24 by LOD.
+- Drop catch: `blk_catch_l1` (1 cell) takes the funnel's drop through a 16 mm bore in its `Top` face onto the tower socket's landing pad (`kitblocks.tower_floor`, `chunk.rs` `ChannelSlope::landing`) and leaves by an `L1` channel `out` on the `−x` face. To exit onto a rail, the funnel's drop goes into `blk_tower_socket_l1` and on to `rail_joint_l1`.
+- Validator: a drop from an open side port into the bowl is a controlled drop (`parble_core::validate`, `FUNNEL_MAX_FALL_UM` = 75 mm source floor to rim floor, `FUNNEL_CATCH_RADIUS_UM` = 66 mm, the 74 mm opening less the marble radius).
 
 ## 10. Piece naming
 
@@ -358,6 +366,7 @@ MVP IDs (P1, P2):
 | Redirect drop | `blk_redirect_l1` … `_l3` (2 tall) |
 | Joiner | `blk_join_l1` … `_l3` |
 | Support pillar, tower block | `blk_pillar`, `blk_tower_socket_l1`, `blk_tower_socket_l2`, `blk_tower_socket_l3` |
+| Funnel catcher, drop catch (addition, owner card 2026-11-08) | `blk_funnel_3x3_l2` (3 × 3 × 2, §9), `blk_catch_l1` |
 | Hopper, finish | `mech_hopper`, `mech_finish` |
 | Splitter, toggle, checkpoint | `mech_splitter_l3`, `mech_toggle_l3`, `mech_checkpoint_l1` (other levels as needed, arches at `L2`/`L3` are 2 tall) |
 | One-way gate, one-way hole | `mech_gate_oneway_l1`, `mech_hole_oneway_l1` (arches at `L2`/`L3` are 2 tall, §16 Q13) |

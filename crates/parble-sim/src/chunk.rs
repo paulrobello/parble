@@ -682,7 +682,9 @@ impl ChannelSlope {
             return None;
         };
         let level = out.level?;
-        let tower = out.class == PortClass::Socket
+        // The drop catch (`blk_catch_*`, blender/kit/kitfunnel.py) is the tower's landing with a
+        // channel port on the face (inset 0) instead of the socket.
+        let tower = matches!(out.class, PortClass::Socket | PortClass::Channel)
             && ports.len() == 2
             && ports.iter().any(|q| q.face == PortFace::Top);
         let redirect = out.class == PortClass::Channel
@@ -2305,6 +2307,8 @@ mod tests {
         for (piece, yaw, mirror) in [
             ("blk_tower_socket_l1", 0, false),
             ("blk_tower_socket_l1", 1, true),
+            ("blk_catch_l1", 0, false),
+            ("blk_catch_l1", 3, true),
             ("blk_redirect_l3", 0, false),
             ("blk_redirect_l2", 3, true),
         ] {

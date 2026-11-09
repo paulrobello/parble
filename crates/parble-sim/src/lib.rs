@@ -34,6 +34,8 @@ pub mod track_run;
 #[cfg(test)]
 mod block_seam_test;
 #[cfg(test)]
+mod funnel_test;
+#[cfg(test)]
 mod kit_pieces_test;
 #[cfg(test)]
 mod rail_test;

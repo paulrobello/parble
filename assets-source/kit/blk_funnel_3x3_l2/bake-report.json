@@ -1,0 +1,53 @@
+{
+  "aoDistanceM": 0.02,
+  "blender": "5.2.2 LTS",
+  "cageExtrusionM": 0.0005,
+  "channels": {
+    "blk_funnel_3x3_l2_lod0_ao": {
+      "colorspace": "Non-Color",
+      "sha256": "c9a634cf4674a21326225465c68edc94a8a8d9582cea3ff24cb41245362b3d92",
+      "size": 2048
+    },
+    "blk_funnel_3x3_l2_lod0_normal": {
+      "colorspace": "Non-Color",
+      "sha256": "ee8aad0dc4a2ef0ed250223ef6a17bb02da5b9474c7bf3e01ec41c78f42929e1",
+      "size": 2048
+    },
+    "blk_funnel_3x3_l2_lod1_ao": {
+      "colorspace": "Non-Color",
+      "sha256": "aa7f7001bd689472da65042cb2694f0aae7902d7ab61a37ae5dbc2badb309c38",
+      "size": 2048
+    },
+    "blk_funnel_3x3_l2_lod1_normal": {
+      "colorspace": "Non-Color",
+      "sha256": "8e41e418e9b55188a3f3c47aa8465f52acbaa46ec6bdb7ae419268c8a45bf2a7",
+      "size": 2048
+    },
+    "blk_funnel_3x3_l2_lod2_ao": {
+      "colorspace": "Non-Color",
+      "sha256": "284f8510989bf87aeac0df09b6dcec6c2dfd674a4eee35065736468382931958",
+      "size": 1024
+    },
+    "blk_funnel_3x3_l2_lod2_normal": {
+      "colorspace": "Non-Color",
+      "sha256": "d4c285af44474edb2350e536b65bfe761b942b194e63c4cf7d9bd19dfb6ea6f9",
+      "size": 1024
+    }
+  },
+  "device": "GPU",
+  "highPoly": {
+    "bevel_segs": 8,
+    "n_fillet": 12,
+    "n_round": 64,
+    "path": {
+      "curve90": 40,
+      "end": 32,
+      "slope_gentle": 32,
+      "straight": 1
+    }
+  },
+  "marginPx": 8,
+  "maxRayDistanceM": 0.002,
+  "samples": 16,
+  "skipped": false
+}

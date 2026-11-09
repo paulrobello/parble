@@ -27,6 +27,7 @@ import kitblocks as B  # noqa: E402
 import kitmech as M  # noqa: E402
 import kitstepper as S  # noqa: E402
 import kitrails as R  # noqa: E402
+import kitfunnel as F  # noqa: E402
 
 SKIP_BAKE = os.environ.get("PARBLE_SKIP_BAKE") == "1"
 DEVICE = os.environ.get("PARBLE_BAKE_DEVICE", "GPU")
@@ -119,7 +120,7 @@ def texel_density(ob, px):
 
 def family(pid):
     """The generator module that owns a piece id (kitgeom pieces go through kitblocks' helpers)."""
-    return R if R.handles(pid) else M if M.handles(pid) else B
+    return R if R.handles(pid) else M if M.handles(pid) else F if F.handles(pid) else B
 
 
 def check_render_bounds(ob, pid):
@@ -228,7 +229,7 @@ def build_piece(pid, out):
     coll.objects.link(root)
 
     lods = {}
-    G = R if R.handles(pid) else M if M.handles(pid) else B if B.handles(pid) else K
+    G = R if R.handles(pid) else M if M.handles(pid) else F if F.handles(pid) else B if B.handles(pid) else K
     ncells = family(pid).cells(pid)
     lod_params, high_params = (R.LODS, R.HIGH) if G is R else (K.LODS, K.HIGH)
     for lod, q in lod_params.items():
@@ -317,7 +318,7 @@ def build_piece(pid, out):
         "mapSize": {f"lod{k}": map_size(pid, k) for k in MAP_SIZE},
         "generator": {"path": rel(__file__), "sha256": sha256(__file__)},
         "generatorDeps": [{"path": rel(m.__file__), "sha256": sha256(m.__file__)}
-                          for m in ((K, B, R) if G is R else (K, B, M, S) if G is M else (K, B))],
+                          for m in ((K, B, R) if G is R else (K, B, M, S) if G is M else (K, B, F) if G is F else (K, B))],
         "blender": bpy.app.version_string,
         "lodParams": {f"lod{k}": v for k, v in lod_params.items()},
     }
@@ -334,7 +335,7 @@ def main():
     if not argv:
         raise SystemExit("usage: generate.py -- <stage_dir> [piece_id ...]")
     stage = pathlib.Path(argv[0]).resolve()
-    for pid in argv[1:] or B.BUILD + M.BUILD + R.BUILD:
+    for pid in argv[1:] or B.BUILD + M.BUILD + R.BUILD + F.BUILD:
         out = stage / pid
         out.mkdir(parents=True, exist_ok=True)
         build_piece(pid, out)

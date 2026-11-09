@@ -26,11 +26,13 @@ pub const SIDECAR_SCHEMA: u32 = 1;
 macro_rules! builtin_piece_ids {
     ($m:ident) => {
         $m!(
+            blk_catch_l1,
             blk_curve90_l2,
             blk_curve90_l3,
             blk_drop_l2,
             blk_drop_l3,
             blk_end_l3,
+            blk_funnel_3x3_l2,
             blk_join_l2,
             blk_join_l3,
             blk_pillar,
@@ -75,11 +77,11 @@ macro_rules! sidecars {
 }
 
 /// Sidecars shipped in `assets/kit/`, in id order.
-const BUILTIN_SIDECARS: [&str; 32] = builtin_piece_ids!(sidecars);
+const BUILTIN_SIDECARS: [&str; 34] = builtin_piece_ids!(sidecars);
 
 /// [`BUILTIN_SIDECARS`] index of `blk_straight_l3`, the tests' reference sidecar.
 #[cfg(test)]
-const STRAIGHT_L3: usize = 15;
+const STRAIGHT_L3: usize = 17;
 
 /// Contact surface of a collision group. Feeds `RollSample` and `ContactEvent` in P2-T1.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
@@ -567,11 +569,13 @@ mod tests {
         assert_eq!(
             ids,
             [
+                "blk_catch_l1",
                 "blk_curve90_l2",
                 "blk_curve90_l3",
                 "blk_drop_l2",
                 "blk_drop_l3",
                 "blk_end_l3",
+                "blk_funnel_3x3_l2",
                 "blk_join_l2",
                 "blk_join_l3",
                 "blk_pillar",
