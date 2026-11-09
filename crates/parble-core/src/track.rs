@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 pub const SCHEMA_VERSION: u32 = 1;
 
 /// Version of the simulation behaviour. Bump whenever a golden trajectory hash changes.
-pub const PHYSICS_VERSION: u32 = 7;
+pub const PHYSICS_VERSION: u32 = 8;
 
 /// Per-placement mechanism settings, keyed by setting name. Integer values only, so a
 /// config never introduces a float into the deterministic track model.

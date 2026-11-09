@@ -919,7 +919,7 @@ fn mech_cases() -> Vec<MechCase> {
             at: l3,
             mechanisms: false,
             windows: vec![fork_inlet],
-            measured_limits: Some(FORK_INLET_LIMITS_MM_S),
+            measured_limits: None,
         });
         cases.push(MechCase {
             id,
@@ -933,16 +933,13 @@ fn mech_cases() -> Vec<MechCase> {
     cases
 }
 
-/// The fork inlet seam's `(upward, kick)` limits, mm/s: the measured values with the port faces
-/// open, rounded up, as the seam thresholds are not met there (see
-/// `mech_seams_stay_under_the_seam_thresholds`).
-const FORK_INLET_LIMITS_MM_S: (f32, f32) = (100.0, 80.0);
-
-/// The toggle's +z outlet seam's `(upward, kick)` limits, mm/s: measured 2026-11-08 at upward
-/// 6.87, kick 5.21, rounded up (6.84, 5.19 with the solved rolling-resistance load). The marble crosses the 16-segment straight channel's facet edges
-/// there, and a bare straight with no toggle shows the same jumps. The exact straight-tube
-/// contact (card 01a1be3d61b6708190352b15b54d6d48) removes this limit.
-const TOGGLE_OUTLET_LIMITS_MM_S: (f32, f32) = (7.0, 5.3);
+/// The toggle's +z outlet seam's `(upward, kick)` limits, mm/s. The marble leaves the fork
+/// swinging across the channel off the blade, as it leaves a bend: upward 3.28, kick 0.16
+/// (measured 2026-11-09 on the exact straight tube and the round fork junction), over the 2.19
+/// upward threshold with no one-tick jump. It was (7.0, 5.3) on the faceted straight, whose facet
+/// edges the swing crossed. Gating it on kick only, as the splitter's -z outlet is, needs the
+/// owner's call.
+const TOGGLE_OUTLET_LIMITS_MM_S: (f32, f32) = (3.5, 1.0);
 
 fn mech_level(id: &str) -> u8 {
     if id.ends_with("_l3") || id == "mech_finish" {
@@ -986,24 +983,19 @@ fn mech_seams_stay_under_the_seam_thresholds() {
     // inlets threw the marble 147.34-158.02 up, the hopper exit 116.35 and the checkpoint exit
     // 128.81.
     //
-    // On the mesh contact the fork inlet did not meet the thresholds: upward 94.72, kick 73.40
-    // (147.34 with the cap), so it is gated at FORK_INLET_LIMITS_MM_S. It is the faceted mesh
-    // contact, not the fork's shape: the two arcs leave the port ring together, and their facets
-    // and the boolean's ridge between them meet the marble at the seam. The forks now take the
-    // exact junction contact on the faceted section (`chunk::ChannelJunction::faceted`), which
-    // reads upward 1.58, kick 1.88 there (measured 2026-11-09); the limit is still the mesh's.
-    // Logged, not gated (`mech_fork_interior_metrics`): the fork interior past the inlet window,
-    // where the blade's tip meets the marble.
+    // The fork inlet meets the L3 thresholds: upward 0.30, kick 0.26 on the round fork junction
+    // (`chunk::ChannelJunction::fork`, measured 2026-11-09). On the mesh contact it read upward
+    // 94.72, kick 73.40 (147.34 with the cap) and was gated at (100, 80): the two arcs leave the
+    // port ring together, and their facets and the boolean's ridge between them met the marble
+    // at the seam. Logged, not gated (`mech_fork_interior_metrics`): the fork interior past the
+    // inlet window, where the blade's tip meets the marble.
     //
     // The splitter's -z outlet is gated on kick only, as a bend inlet is: the marble leaves the
-    // fork swinging 1.7 mm across the channel and its height moves under 0.2 mm (53.01 to 53.21
-    // mm), with no one-tick jump. Measured 2026-11-08: upward 4.45, kick 4.96 with the faceted
-    // junction contact (2.62 / 0.70 while the rolling-resistance load counted stale manifold
-    // impulses, `marble::solved_impulse`), 3.51 / 3.61 on the mesh. A real step there still fails the kick
-    // (`splitter_outlet_step_kicks`).
+    // fork swinging across the channel off the blade, with no one-tick jump. Measured 2026-11-09:
+    // upward 4.77, kick 0.20 (4.45 / 4.96 with the faceted junction and straight, 3.51 / 3.61 on
+    // the mesh). A real step there still fails the kick (`splitter_outlet_step_kicks`).
     //
-    // The toggle's +z outlet is gated at TOGGLE_OUTLET_LIMITS_MM_S, its measured values, until
-    // the exact straight-tube contact lands.
+    // The toggle's +z outlet is gated at TOGGLE_OUTLET_LIMITS_MM_S, the same swing.
     for case in mech_cases() {
         let (p_lim, k_lim) = case
             .measured_limits

@@ -440,29 +440,28 @@ mod tests {
     }
 
     /// P5-T1: every marble type at every size on the track, each with its physics table entry
-    /// (the track's own test and golden run the P0 legacy marble). Each outcome is pinned: only
-    /// steel at the standard size meets the success condition. Swirl, onionskin, opal and glow
-    /// share the cat's eye spec, so they share its outcome at each size. Since the door seam
-    /// correction (`crate::door_seam`, PHYSICS_VERSION 7) every marble that reaches the one-way
-    /// hole rolls over it, so the queue that used to form there is gone. The failures, per
-    /// measurement on 2026-11-09:
+    /// (the track's own test and golden run the P0 legacy marble). Each outcome is pinned: steel
+    /// at the mini size and glazed at the standard size meet the success condition. Swirl,
+    /// onionskin, opal and glow share the cat's eye spec, so they share its outcome at each size.
+    /// Since the door seam correction (`crate::door_seam`, PHYSICS_VERSION 7) every marble that
+    /// reaches the one-way hole rolls over it. The failures, per measurement on 2026-11-09 with
+    /// the exact straight tube and the round fork junction (PHYSICS_VERSION 8):
     ///
     /// - Shooter (every type): stopped by the splitter's rest-pose kinematic part at the entry of
-    ///   `mech_splitter_l3` [4, 5, −6], so the queue backs up into the hopper.
-    /// - Standard cat's eye family: 6 of 10 in the cups when the run ends. The later marbles
-    ///   crawl along the layer-5 `L3` run past the joiner at 0.03–0.05 m/s (marble 5 takes 1,000
-    ///   ticks over [7, 5, −5]), so marbles 8 and 9 are still on [7, 5, −5], and 5 and 7 on the
-    ///   layer-0 toggle and the layer-1 redirect.
-    /// - Standard glazed: the first marble reaches `rail_s_1x3_l2` still bouncing from the
-    ///   transfer-2 landing (0.67 m/s, 0.14 m/s sideways, 0.10 m/s down) and leaves the rails.
-    /// - Mini cat's eye family: marble 5 leaves the hole at 0.10 m/s, lands near the open +X end
-    ///   of [18, 1, −7] (transfer 3), bounces back +X at 0.21 m/s and falls out of that end.
-    /// - Mini glazed: 9 in the cups, marble 9 still on the layer-4 toggle [10, 4, −5].
-    /// - Mini steel: all 10 in the cups (5 and 5), but one marble rolls back through the layer-4
-    ///   toggle, which counts 11 passes.
+    ///   `mech_splitter_l3` [4, 5, −6], so the queue backs up into the hopper. For glazed and
+    ///   steel marble 9 then falls off with the hopper as its last placement (at x 0.01 m,
+    ///   z −0.25 m).
+    /// - Standard cat's eye family: 9 of 10 in the cups when the run ends, marble 9 still on the
+    ///   layer-0 toggle [15, 0, −7].
+    /// - Standard steel: marble 6 leaves the one-way hole and falls at transfer 3 (x 1.15 m).
+    /// - Mini cat's eye family: marble 7 leaves `rail_s_1x3_l2` [18, 3, −4].
+    /// - Mini glazed: all 10 in the cups, but marbles roll back through the splitter, which
+    ///   counts 13 passes.
     ///
     /// The run is chaotic past the hole: a change there (the door seam hook, the shut door as a
-    /// fixed body) moves which marbles collide later, and so these outcomes.
+    /// fixed body) or in the channel contacts moves which marbles collide later, and so these
+    /// outcomes. Before PHYSICS_VERSION 8 steel standard was the one success, and steel mini
+    /// failed on 11 passes of the layer-4 toggle.
     fn every_size_of(kind: MarbleKind, want: [Result<(), Failure>; 3]) {
         let sizes = [MarbleSize::Mini, MarbleSize::Standard, MarbleSize::Shooter];
         for (size, want) in sizes.into_iter().zip(want) {
@@ -478,12 +477,12 @@ mod tests {
             kind,
             [
                 Err(Failure::FellOff {
-                    marble: 5,
-                    last: Some(40),
+                    marble: 7,
+                    last: Some(29),
                 }),
                 Err(Failure::Short {
-                    cups: vec![4, 2],
-                    stuck: vec![(5, Some(43)), (7, Some(41)), (8, Some(13)), (9, Some(13))],
+                    cups: vec![4, 5],
+                    stuck: vec![(9, Some(43))],
                 }),
                 Err(shooter_at_splitter()),
             ],
@@ -501,10 +500,19 @@ mod tests {
                 (4, Some(3)),
                 (5, Some(3)),
                 (6, Some(3)),
-                (7, Some(2)),
+                (7, Some(3)),
                 (8, Some(2)),
-                (9, None),
+                (9, Some(2)),
             ],
+        }
+    }
+
+    /// The shooter queue at the splitter, its last marble falling with the hopper as its last
+    /// placement (fell at x 0.01 m, z −0.25 m, tick 4504 to 4514).
+    fn shooter_falls_last_seen_in_hopper() -> Failure {
+        Failure::FellOff {
+            marble: 9,
+            last: Some(0),
         }
     }
 
@@ -538,29 +546,9 @@ mod tests {
         every_size_of(
             MarbleKind::Glazed,
             [
-                Err(Failure::Short {
-                    cups: vec![4, 5],
-                    stuck: vec![(9, Some(16))],
-                }),
-                Err(Failure::FellOff {
-                    marble: 0,
-                    last: Some(29),
-                }),
-                Err(Failure::Short {
-                    cups: vec![0, 0],
-                    stuck: vec![
-                        (0, Some(4)),
-                        (1, Some(4)),
-                        (2, Some(4)),
-                        (3, Some(3)),
-                        (4, Some(3)),
-                        (5, Some(3)),
-                        (6, Some(3)),
-                        (7, Some(3)),
-                        (8, Some(2)),
-                        (9, Some(2)),
-                    ],
-                }),
+                Err(Failure::Other("placement 5 passes = 13, want 10".into())),
+                Ok(()),
+                Err(shooter_falls_last_seen_in_hopper()),
             ],
         );
     }
@@ -570,9 +558,12 @@ mod tests {
         every_size_of(
             MarbleKind::Steel,
             [
-                Err(Failure::Other("placement 16 passes = 11, want 10".into())),
                 Ok(()),
-                Err(shooter_at_splitter()),
+                Err(Failure::FellOff {
+                    marble: 6,
+                    last: Some(39),
+                }),
+                Err(shooter_falls_last_seen_in_hopper()),
             ],
         );
     }

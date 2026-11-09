@@ -5,7 +5,7 @@
 
 export const FORMAT = "parble";
 export const SCHEMA_VERSION = 1;
-export const PHYSICS_VERSION = 7;
+export const PHYSICS_VERSION = 8;
 /** Every integer in a file fits a JS number exactly. */
 export const MAX_SAFE = Number.MAX_SAFE_INTEGER;
 export const MAX_NAME_CHARS = 120;

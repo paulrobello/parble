@@ -1,13 +1,13 @@
 {
   "about": "Valid and rejected .parble files (schema v1). Checked by crates/parble-core/src/file.rs (cargo test) and web/ui/test/parble.test.ts (Vitest). runHash is the trajectory hash of a runTicks-tick run, checked natively by crates/parble-app/src/persist.rs and in the browser by e2e/tests/persistence.spec.mjs.",
   "schema": 1,
-  "physics": 7,
+  "physics": 8,
   "maxSafeInteger": 9007199254740991,
   "runTicks": 2400,
   "valid": [
     {
       "name": "demo",
-      "runHash": "12a17c84a1e6ca1c",
+      "runHash": "052ec6b3880ad0d5",
       "file": {
         "format": "parble",
         "schema": 1,
