@@ -644,7 +644,8 @@ fn joiner_seams_stay_under_the_seam_thresholds() {
     // trajectories rise the same 1.15 mm (53.0 to 54.15 mm) from the seam at z = -28 mm while x
     // stays at 60-65 mm and z advances. The old peak read 12.12 mm/s only under the rolling
     // sink's -10 to -12 mm/s offset. It reads 27.29 at the inlet and 27.94 in the interior now,
-    // with kicks 0.60 and 0.65.
+    // with kicks 0.60 and 0.65. The outlet seam carries the swing rocking back: both trajectories
+    // rise the same 0.155 mm over x 85-98 mm (53.06 to 53.21 mm), upward 6.26 now.
     for (level, inlet, at, vel) in joiner_runs() {
         let (p_lim, k_lim) = limits(level);
         let tr = joiner_run(level, at, vel, &Control::default());
@@ -658,7 +659,7 @@ fn joiner_seams_stay_under_the_seam_thresholds() {
                 "join_l{level} from {inlet}, {name}: never crossed"
             );
             let (u, k) = (upward(&tr, &sel), kick(&tr, &sel));
-            let swing = inlet == "-z" && name != "outlet seam";
+            let swing = inlet == "-z";
             eprintln!(
                 "join_l{level} from {inlet}, {name}: upward {u:.2} mm/s (limit {p_lim:.2}{}), \
                  kick {k:.2} (limit {k_lim:.2})",
