@@ -440,28 +440,39 @@ mod tests {
     }
 
     /// P5-T1: every marble type at every size on the track, each with its physics table entry
-    /// (the track's own test and golden run the P0 legacy marble). Each outcome is pinned: steel
-    /// at the mini size and glazed at the standard size meet the success condition. Swirl,
-    /// onionskin, opal and glow share the cat's eye spec, so they share its outcome at each size.
-    /// Since the door seam correction (`crate::door_seam`, PHYSICS_VERSION 7) every marble that
-    /// reaches the one-way hole rolls over it. The failures, per measurement on 2026-11-09 with
-    /// the exact straight tube, the round fork junction (PHYSICS_VERSION 8), the forks' flat frog
-    /// and the blade over its end wall (piece_version 4):
+    /// (the track's own test and golden run the P0 legacy marble). Each outcome is pinned: the cat's
+    /// eye family at the standard size meets the success condition. Swirl, onionskin, opal and glow
+    /// share the cat's eye spec, so they share its outcome at each size. The outcomes, per
+    /// measurement on 2026-11-09 with the exact contacts resting a centred marble at the facets'
+    /// height, the CCD sweep leaving out the facets an exact contact replaces, and the tower
+    /// socket's port plane open (blk_tower_socket_l1 piece_version 4):
     ///
-    /// - Shooter (every type): every shooter passes both forks, but each finish cup holds three,
-    ///   so with both cups full four shooters stop in the layer-0 toggle [15, 0, −7] and on its
-    ///   feed (placements 40 to 43). Steel: one of them at rest under the one-way hole (x 1.11 m,
-    ///   in no placement), and marble 8 at rest on the straight after the hopper [1, 6, −6].
-    /// - Standard steel: 9 of 10 in the cups, marble 5 at rest under the one-way hole (x 1.11 m,
-    ///   y 0.11 m, in no placement).
-    /// - Mini glazed: 9 of 10 in the cups, marble 8 at rest in the layer-5 redirect [8, 5, −5].
+    /// - Mini cat's eye family: 9 of 10 in the cups, marble 9 at rest in the layer-4 toggle
+    ///   [10, 4, −5].
+    /// - Shooter cat's eye family: marble 2 falls off the track in the one-way hole's cell (x 1.16
+    ///   m) after the hole.
+    /// - Mini and shooter glazed: marble 9 falls off the track in the one-way hole's cell (x 1.13
+    ///   and 1.15 m) after reaching the straight under it [18, 1, −7].
+    /// - Standard glazed: 8 of 10 in the cups, marble 8 at rest on the one-way hole and marble 9 on
+    ///   the checkpoint [21, 2, −7].
+    /// - Mini steel: marble 7 leaves the `L1` straight after the steep slope [14, 4, −4] without
+    ///   entering the layer-3 straight it should drop into, and falls off the track at
+    ///   (1.128, −0.063, −0.185).
+    /// - Standard steel: 1 of 10 in the cups. Marble 1 left the tower socket's landing at 0.025 m/s
+    ///   after four bounces there and stopped in the rail joint; the next marble knocked it on at
+    ///   0.067 m/s and it stopped on the checkpoint (x 1.2349 m), and the other eight queued
+    ///   behind it back to the socket. The level `L1` run from the socket's port plane to the gate
+    ///   is 25 cm, which at steel's measured rolling deceleration (0.0166 m/s²) takes about 0.09
+    ///   m/s out of the socket.
+    /// - Shooter steel: each finish cup holds three; marble 2 at rest in no placement, three more
+    ///   in the layer-0 toggle and its cup feed (placements 43 and 45).
     ///
-    /// The run is chaotic past the hole: a change there (the door seam hook, the shut door as a
-    /// fixed body) or in the channel contacts moves which marbles collide later, and so these
-    /// outcomes. Before the frog (2026-11-09) no shooter passed the splitter, the standard cat's
-    /// eye family left marble 9 on the layer-0 toggle, standard steel lost marble 6 off the hole's
-    /// transfer, mini cat's eye marble 7 left `rail_s_1x3_l2`, and mini glazed rolled back through
-    /// the splitter (13 passes).
+    /// The run is chaotic past the splitter: a change anywhere (the channel contacts' rest
+    /// height, the CCD sweep, a kit piece's collision) moves which marbles collide later, and so
+    /// these outcomes; opening the tower socket's port plane (placement 34) changed mini steel's
+    /// outcome at placement 25, upstream of it. Before 2026-11-09's rest-height fix the cat's eye
+    /// family passed at the mini size, steel at the mini size, glazed at the standard size, and
+    /// standard steel left one marble under the one-way hole.
     fn every_size_of(kind: MarbleKind, want: [Result<(), Failure>; 3]) {
         let sizes = [MarbleSize::Mini, MarbleSize::Standard, MarbleSize::Shooter];
         for (size, want) in sizes.into_iter().zip(want) {
@@ -476,11 +487,14 @@ mod tests {
         every_size_of(
             kind,
             [
-                Ok(()),
-                Ok(()),
                 Err(Failure::Short {
-                    cups: vec![3, 3],
-                    stuck: vec![(6, Some(43)), (7, Some(43)), (8, Some(42)), (9, Some(40))],
+                    cups: vec![4, 5],
+                    stuck: vec![(9, Some(16))],
+                }),
+                Ok(()),
+                Err(Failure::FellOff {
+                    marble: 2,
+                    last: Some(39),
                 }),
             ],
         );
@@ -516,14 +530,17 @@ mod tests {
         every_size_of(
             MarbleKind::Glazed,
             [
-                Err(Failure::Short {
-                    cups: vec![4, 5],
-                    stuck: vec![(8, Some(14))],
+                Err(Failure::FellOff {
+                    marble: 9,
+                    last: Some(40),
                 }),
-                Ok(()),
                 Err(Failure::Short {
-                    cups: vec![3, 3],
-                    stuck: vec![(6, Some(43)), (7, Some(43)), (8, Some(40)), (9, Some(42))],
+                    cups: vec![4, 4],
+                    stuck: vec![(8, Some(39)), (9, Some(37))],
+                }),
+                Err(Failure::FellOff {
+                    marble: 9,
+                    last: Some(40),
                 }),
             ],
         );
@@ -534,14 +551,27 @@ mod tests {
         every_size_of(
             MarbleKind::Steel,
             [
-                Ok(()),
+                Err(Failure::FellOff {
+                    marble: 7,
+                    last: Some(25),
+                }),
                 Err(Failure::Short {
-                    cups: vec![4, 5],
-                    stuck: vec![(5, None)],
+                    cups: vec![0, 1],
+                    stuck: vec![
+                        (1, Some(37)),
+                        (2, Some(36)),
+                        (3, Some(36)),
+                        (4, Some(36)),
+                        (5, Some(35)),
+                        (6, Some(35)),
+                        (7, Some(35)),
+                        (8, Some(35)),
+                        (9, Some(34)),
+                    ],
                 }),
                 Err(Failure::Short {
                     cups: vec![3, 3],
-                    stuck: vec![(6, Some(43)), (7, None), (8, Some(2)), (9, Some(43))],
+                    stuck: vec![(2, None), (6, Some(45)), (8, Some(43)), (9, Some(43))],
                 }),
             ],
         );
