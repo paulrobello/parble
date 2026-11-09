@@ -4,7 +4,8 @@
 //!   layer up, with scripted launches ([`ten_marbles`]).
 //! - [`track`]: a hopper-to-finish track whose only ways up are the two steppers, every port mated:
 //!   hopper (`L1`) → L1 straight → `mech_stepper_up1_l1` (`L1` in, `L3` out one layer up) → L3
-//!   straight → `mech_stepper_up1_l3` → L3 straight → finish cup, climbing two layers. Its
+//!   straight → `mech_stepper_up1_l3` → L3 straight → toggle → two finish cups, climbing two
+//!   layers. Its
 //!   trajectory hash is the committed golden `tests/golden/lift_track.hash`, checked natively and
 //!   by the wasm parity check (`make determinism-wasm`).
 
@@ -29,10 +30,14 @@ pub const RUN_TICKS: u32 = MARBLES as u32 * INTERVAL_TICKS + 2_400;
 pub const LAUNCH_M_S: f32 = 0.3;
 
 fn place(piece: &str, x: i32, y: i32, z: i32) -> Placement {
+    place_yaw(piece, x, y, z, 0)
+}
+
+fn place_yaw(piece: &str, x: i32, y: i32, z: i32, yaw: u8) -> Placement {
     Placement::new(
         PieceId::new(piece).expect("rig ids follow the id grammar"),
         CellCoord::new(x, y, z),
-        Yaw4::new(0),
+        Yaw4::new(yaw),
         Mirror::Off,
     )
 }
@@ -102,20 +107,24 @@ pub fn ten_marbles() -> Sim {
 }
 
 /// [`track`]'s pieces in marble order: id, anchor cell (row z = −6, behind the tray), no turns.
-pub const TRACK_LAYOUT: [(&str, [i32; 3]); 7] = [
-    (behaviour::HOPPER, [0, 1, -6]),
-    ("blk_straight_l1", [1, 1, -6]),
+pub const TRACK_LAYOUT: [(&str, [i32; 3], u8); 9] = [
+    (behaviour::HOPPER, [0, 1, -6], 0),
+    ("blk_straight_l1", [1, 1, -6], 0),
     // Footprint x 2..3, y 0..2: in at L1 in layer 1, out at L3 in layer 2.
-    (STEPPER_L1, [2, 1, -6]),
-    ("blk_straight_l3", [4, 2, -6]),
+    (STEPPER_L1, [2, 1, -6], 0),
+    ("blk_straight_l3", [4, 2, -6], 0),
     // Footprint x 5..6, y 2..3: in at L3 in layer 2, out at L3 in layer 3.
-    (STEPPER, [5, 2, -6]),
-    ("blk_straight_l3", [7, 3, -6]),
-    (behaviour::FINISH, [8, 3, -6]),
+    (STEPPER, [5, 2, -6], 0),
+    ("blk_straight_l3", [7, 3, -6], 0),
+    // The toggle alternates the marbles between two cups, five each, as the all-pieces track
+    // ends: one cup piles ten too high, and the last two queue at its lip outside the sensor.
+    ("mech_toggle_l3", [8, 3, -6], 0),
+    (behaviour::FINISH, [8, 3, -5], 3),
+    (behaviour::FINISH, [8, 3, -7], 1),
 ];
 /// Track seed.
 pub const TRACK_SEED: u64 = 3;
-/// Marbles in the hopper queue: one finish cup holds and counts 10.
+/// Marbles in the hopper queue: the two finish cups count 5 each.
 pub const TRACK_MARBLES: usize = 10;
 /// Release interval, ticks (2 s).
 pub const TRACK_INTERVAL_TICKS: u32 = 480;
@@ -126,7 +135,7 @@ pub const TRACK_TICKS: u32 = 7_200;
 pub fn track_placements() -> Vec<Placement> {
     TRACK_LAYOUT
         .iter()
-        .map(|&(id, [x, y, z])| place(id, x, y, z))
+        .map(|&(id, [x, y, z], yaw)| place_yaw(id, x, y, z, yaw))
         .collect()
 }
 
@@ -150,13 +159,13 @@ pub fn track_run() -> Result<TrackRun, TrackRunError> {
     TrackRun::new(&track())
 }
 
-/// Marbles the finish cup has counted.
+/// Marbles the finish cups have counted.
 pub fn finished(sim: &Sim) -> usize {
-    let at = CellCoord::new(8, 3, -6);
     sim.mechanisms()
         .iter()
-        .find(|m| m.id.0 == at)
-        .map_or(0, |m| behaviour::Finish::arrivals(&m.state).len())
+        .filter(|m| m.piece.as_str() == behaviour::FINISH)
+        .map(|m| behaviour::Finish::arrivals(&m.state).len())
+        .sum()
 }
 
 /// Run [`track`] for [`TRACK_TICKS`] and return its trajectory hash as 16 hex digits, the format
@@ -188,7 +197,7 @@ mod tests {
         assert!(issues.is_empty(), "{issues:#?}");
     }
 
-    /// All ten hopper marbles climb both steppers, two layers in all, into the finish cup.
+    /// All ten hopper marbles climb both steppers, two layers in all, into the finish cups.
     #[test]
     fn every_hopper_marble_climbs_both_steppers_into_the_finish() {
         let mut run = track_run().unwrap();
@@ -217,7 +226,7 @@ mod tests {
             assert!(s.position[1] > cup_floor, "marble {m} at {:?}", s.position);
         }
         eprintln!(
-            "all {TRACK_MARBLES} marbles in the cup by tick {}",
+            "all {TRACK_MARBLES} marbles in the cups by tick {}",
             done_at.unwrap()
         );
     }
