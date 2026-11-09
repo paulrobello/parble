@@ -287,7 +287,7 @@ playroom-build: fetch-tools
 # --- P1-T2 kit pipeline (blender/kit). Local only: needs Blender 5.2 and Node; not part of checkall.
 # kit-build: headless generator + Cycles bakes -> meshopt GLB + sidecar + maps in assets/kit/<id>/,
 # .blend + build reports in assets-source/kit/<id>/, then the Blender reimport gate and provenance.
-.PHONY: kit-build kit-check kit-determinism kit-tools
+.PHONY: kit-build kit-check kit-determinism kit-tools kit-thumbs kit-thumbs-check
 KIT_BLENDER ?= /Applications/Blender.app/Contents/MacOS/Blender
 KIT_RUN = "$(KIT_BLENDER)" -b --factory-startup --python-exit-code 1
 KIT_TOOLS = blender/kit/tools
@@ -310,6 +310,15 @@ kit-build: $(KIT_STAMP)
 	$(KIT_RUN) -P blender/kit/reimport.py -- assets/kit $(KIT_IDS)
 	node $(KIT_TOOLS)/kit.mjs provenance assets/kit assets-source/kit \
 	  --checks "kit-check contract 14.1-14.10,gltf-validator reimport (meshopt GLB),blender reimport (meshopt GLB)" $(KIT_IDS)
+
+# Editor palette thumbnails (web/ui/thumbs/<id>.png + provenance.json) rendered from the shipped LOD0 GLBs.
+# Local only (Blender 5.2 + Pillow); not part of checkall. THUMB_IDS limits it to those pieces.
+THUMB_IDS ?=
+kit-thumbs:
+	python3 blender/kit/thumbnails.py $(THUMB_IDS)
+
+kit-thumbs-check:
+	python3 blender/kit/thumbnails.py --check
 
 kit-check: $(KIT_STAMP)
 	node $(KIT_TOOLS)/kit.mjs check assets/kit assets-source/kit
