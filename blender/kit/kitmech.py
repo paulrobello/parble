@@ -29,8 +29,11 @@ PIECE_VERSION = 1
 # over the bore, so the floor stays the channel section across the door.
 # 2026-11-08: mech_finish, mech_hopper, mech_splitter_l3, mech_toggle_l3, mech_checkpoint_l1 2,
 # open port faces.
-PIECE_VERSIONS = {"mech_gate_oneway_l1": 3, "mech_hole_oneway_l1": 3, "mech_finish": 2, "mech_hopper": 3,
-                  "mech_splitter_l3": 2, "mech_toggle_l3": 2, "mech_checkpoint_l1": 2}
+# 2026-11-08: mech_hole_oneway_l1 4, mech_splitter_l3 3, mech_toggle_l3 3, mech_arch_rope_l1 2,
+# mech_stepper_up1_l1 2, mech_stepper_up1_l3 2, animated parts baked into the body's atlas.
+PIECE_VERSIONS = {"mech_gate_oneway_l1": 3, "mech_hole_oneway_l1": 4, "mech_finish": 2, "mech_hopper": 3,
+                  "mech_splitter_l3": 3, "mech_toggle_l3": 3, "mech_checkpoint_l1": 2, "mech_arch_rope_l1": 2,
+                  "mech_stepper_up1_l1": 2, "mech_stepper_up1_l3": 2}
 BUILD = ("mech_finish", "mech_hopper", "mech_splitter_l3", "mech_toggle_l3", "mech_checkpoint_l1",
          "mech_gate_oneway_l1", "mech_hole_oneway_l1", "mech_arch_rope_l1") + tuple(S.STEPPERS)
 

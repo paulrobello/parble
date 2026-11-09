@@ -3237,7 +3237,7 @@
   ],
   "id": "mech_stepper_up1_l1",
   "kit_contract": 1,
-  "piece_version": 1,
+  "piece_version": 2,
   "ports": [
     {
       "cell": [

@@ -3,20 +3,20 @@
   "colliderTris": 634,
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "dcf7195a751790e68529e5ffcb2aedbaa27db37b748bb051a145fc6a1468df13"
+    "sha256": "c4f75d639b933f91f7fc6c3da58452becce0efdde9771e13e44b154b38893155"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "b8b818b8ee18e1f14d61bf788758f580d8b5675f2a26b3794ada66416664eecb"
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "71a4736f681c4baba434b0eb483df53ad055afa1176c8f8364ffb21a96486f7b"
+      "sha256": "a730a988db2f5e4242d2a619cff9c4eee0d1c306925f2606a35e786e7c56710e"
     },
     {
       "path": "blender/kit/kitstepper.py",
@@ -95,19 +95,19 @@
   "pieceId": "mech_stepper_up1_l1",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 5493.1,
-      "median": 5407.4,
-      "min": 4252.4
+      "max": 5048.4,
+      "median": 4969.6,
+      "min": 3908.1
     },
     "lod1": {
-      "max": 2787.6,
-      "median": 2755.1,
-      "min": 2118.1
+      "max": 2531.4,
+      "median": 2501.9,
+      "min": 1923.4
     },
     "lod2": {
-      "max": 1388.9,
-      "median": 1378.7,
-      "min": 1213.2
+      "max": 1254.8,
+      "median": 1245.6,
+      "min": 1096.0
     }
   }
 }

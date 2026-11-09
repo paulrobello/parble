@@ -1,35 +1,35 @@
 {
   "schema": "parble-kit-provenance/1",
   "pieceId": "mech_hole_oneway_l1",
-  "pieceVersion": 3,
+  "pieceVersion": 4,
   "route": "scripted",
   "card": "P2-T3",
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "39fe041e4e80786103d749b63906753b979a75a38023afc77b107b342a2bf767",
+    "sha256": "9276cc61ec94c1da6189070705a99329f99a4a56b34a9c678741b00262f63829",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "dcf7195a751790e68529e5ffcb2aedbaa27db37b748bb051a145fc6a1468df13"
+    "sha256": "c4f75d639b933f91f7fc6c3da58452becce0efdde9771e13e44b154b38893155"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "b8b818b8ee18e1f14d61bf788758f580d8b5675f2a26b3794ada66416664eecb"
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "551053b9b4d15ab26a9dd93e7ec09b0804c293050df49fcdfd3d52e3dfef94e3"
+      "sha256": "a730a988db2f5e4242d2a619cff9c4eee0d1c306925f2606a35e786e7c56710e"
     },
     {
       "path": "blender/kit/kitstepper.py",
-      "sha256": "b4f294e5df887af92a9113ffea91b7ee82ed59f9c190f1497bb3ddd696ae4ef9"
+      "sha256": "f88d9ac0af5fe954566a5ca9856529dc2f721164e877e3775901f2cd2a96cc5a"
     }
   ],
   "authoringAgent": {
@@ -54,32 +54,32 @@
     "channels": {
       "mech_hole_oneway_l1_lod0_ao": {
         "colorspace": "Non-Color",
-        "sha256": "b7bf9444fdaf87ccfe21385cab3e040b7ebaa85189c4a157072eff91f8f56d8b",
+        "sha256": "adfda26fbaa7b47c6c0bf15e6e720fea6ce9eff925be2fd89ec5b4524991a360",
         "size": 512
       },
       "mech_hole_oneway_l1_lod0_normal": {
         "colorspace": "Non-Color",
-        "sha256": "c81110536333bc0da11ac99f48177a13a531fccb22c0710f28d0ea1d002ea901",
+        "sha256": "ddd2aa31872ddc410a88c20a27165c12a80bbb35448acab302b8ab43d9c10e81",
         "size": 512
       },
       "mech_hole_oneway_l1_lod1_ao": {
         "colorspace": "Non-Color",
-        "sha256": "0ae30949ae5aaf0af19a6ef286c4ddc2f49bd529abd8d95cb97059560b030b65",
+        "sha256": "087db729f2a00cb8371404ecc038676ab8f234ae66d47966a229d2731acaa9b6",
         "size": 256
       },
       "mech_hole_oneway_l1_lod1_normal": {
         "colorspace": "Non-Color",
-        "sha256": "47189c0e5c77fad53834cc11baa9bb3e24c157851dfafeae5464b5877549b062",
+        "sha256": "248c1840bcb6dfaf2c278299577a96657a73af237e49ee299e676e014dd7a704",
         "size": 256
       },
       "mech_hole_oneway_l1_lod2_ao": {
         "colorspace": "Non-Color",
-        "sha256": "cd9f71bd8ac2cab2016e56f98bd2720e8f7fc37f44087f0f707cbe07f5d6cf9f",
+        "sha256": "702d6f35a214f7e5e7c490f4aaea127ebdfbd9b115109b07b94ee397eb52af8e",
         "size": 128
       },
       "mech_hole_oneway_l1_lod2_normal": {
         "colorspace": "Non-Color",
-        "sha256": "123d3f70a932876a68f095bbf4d5862315879742c669dee949b1b4687b1291f3",
+        "sha256": "94bbdc28348fc719ad52b26b3d3f31708248144bc8e3342e64fcc4dbd05d71a9",
         "size": 128
       }
     }
@@ -105,76 +105,76 @@
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2848.7,
-      "median": 2786.5,
-      "min": 2164.5
+      "max": 2690.7,
+      "median": 2632,
+      "min": 2044.5
     },
     "lod1": {
-      "max": 1417.9,
-      "median": 1393.4,
-      "min": 1077.3
+      "max": 1398.5,
+      "median": 1374.4,
+      "min": 1062.6
     },
     "lod2": {
-      "max": 709,
-      "median": 708.5,
-      "min": 611.6
+      "max": 701.3,
+      "median": 700.8,
+      "min": 604.9
     }
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 70988,
+    "glbBytes": 72064,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/mech_hole_oneway_l1/mech_hole_oneway_l1.glb",
-      "sha256": "b8bdf8b0eb3ba7d6b8315df369d4f3747572bb7865f0ab12d17d02114a5bd965",
-      "bytes": 70988
+      "sha256": "2d5ee098a10bb3d8392bbebebb997f9fb2a1c335b96a79ec68af083c9f66d61d",
+      "bytes": 72064
     },
     {
       "path": "assets/kit/mech_hole_oneway_l1/mech_hole_oneway_l1.kit.json",
-      "sha256": "c126eb6bc93fe9210d9e80637980f773deca311e65866ab891e8115311bf8907",
+      "sha256": "ecb135fe950ee05edee9fb0ddd1c9f472be700f4d9d8775102acf7f59e3ca1bd",
       "bytes": 25637
     },
     {
       "path": "assets/kit/mech_hole_oneway_l1/mech_hole_oneway_l1_lod0_ao.png",
-      "sha256": "b7bf9444fdaf87ccfe21385cab3e040b7ebaa85189c4a157072eff91f8f56d8b",
-      "bytes": 52006
+      "sha256": "adfda26fbaa7b47c6c0bf15e6e720fea6ce9eff925be2fd89ec5b4524991a360",
+      "bytes": 67828
     },
     {
       "path": "assets/kit/mech_hole_oneway_l1/mech_hole_oneway_l1_lod0_normal.png",
-      "sha256": "c81110536333bc0da11ac99f48177a13a531fccb22c0710f28d0ea1d002ea901",
-      "bytes": 52288
+      "sha256": "ddd2aa31872ddc410a88c20a27165c12a80bbb35448acab302b8ab43d9c10e81",
+      "bytes": 51668
     },
     {
       "path": "assets/kit/mech_hole_oneway_l1/mech_hole_oneway_l1_lod1_ao.png",
-      "sha256": "0ae30949ae5aaf0af19a6ef286c4ddc2f49bd529abd8d95cb97059560b030b65",
-      "bytes": 17508
+      "sha256": "087db729f2a00cb8371404ecc038676ab8f234ae66d47966a229d2731acaa9b6",
+      "bytes": 20085
     },
     {
       "path": "assets/kit/mech_hole_oneway_l1/mech_hole_oneway_l1_lod1_normal.png",
-      "sha256": "47189c0e5c77fad53834cc11baa9bb3e24c157851dfafeae5464b5877549b062",
-      "bytes": 18904
+      "sha256": "248c1840bcb6dfaf2c278299577a96657a73af237e49ee299e676e014dd7a704",
+      "bytes": 20807
     },
     {
       "path": "assets/kit/mech_hole_oneway_l1/mech_hole_oneway_l1_lod2_ao.png",
-      "sha256": "cd9f71bd8ac2cab2016e56f98bd2720e8f7fc37f44087f0f707cbe07f5d6cf9f",
-      "bytes": 5457
+      "sha256": "702d6f35a214f7e5e7c490f4aaea127ebdfbd9b115109b07b94ee397eb52af8e",
+      "bytes": 5652
     },
     {
       "path": "assets/kit/mech_hole_oneway_l1/mech_hole_oneway_l1_lod2_normal.png",
-      "sha256": "123d3f70a932876a68f095bbf4d5862315879742c669dee949b1b4687b1291f3",
-      "bytes": 8428
+      "sha256": "94bbdc28348fc719ad52b26b3d3f31708248144bc8e3342e64fcc4dbd05d71a9",
+      "bytes": 8459
     },
     {
       "path": "assets-source/kit/mech_hole_oneway_l1/mech_hole_oneway_l1_high.blend",
-      "sha256": "465fa31b08b89c892f339a7de2a40eab463851f8060bf8a2305c9f82a5d3c8a5",
-      "bytes": 166543
+      "sha256": "5bef9fb0c01ffd339322b9df2e6d1a43f57152138aea4c8198698efffc90273b",
+      "bytes": 164432
     },
     {
       "path": "assets-source/kit/mech_hole_oneway_l1/mech_hole_oneway_l1_low.blend",
-      "sha256": "6bea3f852a1dab2cca730ded2731ed90d6f53f2ebcf2aee605cf5c11b93316c8",
-      "bytes": 133869
+      "sha256": "311ac4d423303e9618fa175d990e04027fdef329b9126fb465badd82c90b27e3",
+      "bytes": 131747
     }
   ],
   "references": [

@@ -31,10 +31,6 @@ import kitrails as R  # noqa: E402
 SKIP_BAKE = os.environ.get("PARBLE_SKIP_BAKE") == "1"
 DEVICE = os.environ.get("PARBLE_BAKE_DEVICE", "GPU")
 MAP_SIZE = {0: 512, 1: 256, 2: 128}  # §12: 2,048 texels/m -> 512² for a 1-cell block at LOD0
-# Pieces whose animated parts are unwrapped and baked into the body's AO/normal atlas, which the
-# engine binds to the parts at their UV0. Other pieces' parts still unwrap to fill 0..1 on their own
-# and sample unrelated body texels.
-ATLAS_PARTS = {"mech_gate_oneway_l1", "mech_hopper"}
 BAKE = {"samples": 16, "cageExtrusionM": 0.0005, "maxRayDistanceM": 0.002, "marginPx": 8, "aoDistanceM": 0.02}
 
 
@@ -63,16 +59,49 @@ def tri_count(ob):
     return sum(len(p.vertices) - 2 for p in ob.data.polygons)
 
 
+def hidden_faces(ob):
+    """Indices of faces lying on an opposite-facing face of the same mesh: the shared walls between a
+    part's touching convex slices (the trapdoor), never seen."""
+    me = ob.data
+    polys = [(p.index, p.normal.copy(), [me.vertices[v].co.copy() for v in p.vertices]) for p in me.polygons]
+
+    def in_tri(pt, a, b, c, eps=1e-6):  # barycentric, with slack: a twin quad split on the other
+        v0, v1, v2 = b - a, c - a, pt - a  # diagonal puts this face's centroid on that diagonal
+        d00, d01, d11, d20, d21 = v0.dot(v0), v0.dot(v1), v1.dot(v1), v2.dot(v0), v2.dot(v1)
+        den = d00 * d11 - d01 * d01
+        if den <= 0:
+            return False
+        v, w = (d11 * d20 - d01 * d21) / den, (d00 * d21 - d01 * d20) / den
+        return v >= -eps and w >= -eps and v + w <= 1 + eps
+
+    out = set()
+    for i, n, vs in polys:
+        c = sum(vs, vs[0] * 0.0) / len(vs)
+        if any(j != i and n.dot(m) < -0.999 and abs((c - ws[0]).dot(m)) < 1e-7 and any(
+                in_tri(c, ws[0], ws[k], ws[k + 1]) for k in range(1, len(ws) - 1)) for j, m, ws in polys):
+            out.add(i)
+    return out
+
+
 def unwrap(ob, *others):
-    """Smart UV Project; with `others`, all of them packed into one shared 0..1 atlas."""
+    """Smart UV Project; with `others`, all of them packed into one shared 0..1 atlas. The others'
+    hidden faces get no atlas area (their UVs collapse to a point, so bakes skip them)."""
+    hidden = {o.name: hidden_faces(o) for o in others}
     for o in (ob, *others):
         o.data.uv_layers.new(name="UVMap")
+        for p in o.data.polygons:
+            p.select = p.index not in hidden.get(o.name, ())
     select_only([ob, *others], ob)
+    bpy.context.scene.tool_settings.mesh_select_mode = (False, False, True)
     bpy.ops.object.mode_set(mode="EDIT")
-    bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.uv.smart_project(angle_limit=math.radians(66.0), island_margin=0.01, area_weight=0.0,
                              correct_aspect=True, scale_to_bounds=False)
     bpy.ops.object.mode_set(mode="OBJECT")
+    for o in others:
+        uvl = o.data.uv_layers["UVMap"]
+        for i in hidden[o.name]:
+            for li in o.data.polygons[i].loop_indices:
+                uvl.data[li].uv = (0.0, 0.0)
 
 
 def texel_density(ob, px):
@@ -228,11 +257,11 @@ def build_piece(pid, out):
             print(f"[kit] {pid} parts LOD{lod}: {total} tris (budget {M.PART_BUDGET[lod]})")
             if total > M.PART_BUDGET[lod]:
                 raise RuntimeError(f"{pid} parts LOD{lod}: {total} tris > {M.PART_BUDGET[lod]}")
-            if pid not in ATLAS_PARTS:
-                for o in obs:
-                    unwrap(o)
+    # The engine binds the piece's one AO/normal atlas to its animated parts at UV0, so each LOD's
+    # body and parts unwrap into one shared atlas and bake together.
+    has_parts = any(part_objs.values())
     for lod, ob in lods.items():
-        unwrap(ob, *(part_objs[lod] if pid in ATLAS_PARTS else ()))
+        unwrap(ob, *(part_objs[lod] if has_parts else ()))
     density = {f"lod{lod}": texel_density(ob, map_size(pid, lod)) for lod, ob in lods.items()}
 
     bake_rep = {"skipped": True}
@@ -248,7 +277,7 @@ def build_piece(pid, out):
                 name = f"{pid}_lod{lod}_{kind.lower()}"
                 img = bpy.data.images.new(name, s, s, alpha=False, float_buffer=False)
                 img.colorspace_settings.name = "Non-Color"
-                if pid in ATLAS_PARTS:
+                if has_parts:
                     proxy, phighs = bake_proxy(ob, part_objs[lod], high, coll)
                     bake(proxy, kind, img, phighs if highs else [])
                     for o in [proxy, *phighs[1:]]:

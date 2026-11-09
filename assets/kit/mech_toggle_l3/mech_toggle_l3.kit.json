@@ -2793,7 +2793,7 @@
   ],
   "id": "mech_toggle_l3",
   "kit_contract": 1,
-  "piece_version": 2,
+  "piece_version": 3,
   "ports": [
     {
       "cell": [

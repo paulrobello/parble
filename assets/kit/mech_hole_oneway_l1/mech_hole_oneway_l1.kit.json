@@ -1644,7 +1644,7 @@
   ],
   "id": "mech_hole_oneway_l1",
   "kit_contract": 1,
-  "piece_version": 3,
+  "piece_version": 4,
   "ports": [
     {
       "cell": [

@@ -3,20 +3,24 @@
   "colliderTris": 505,
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
+    "sha256": "c4f75d639b933f91f7fc6c3da58452becce0efdde9771e13e44b154b38893155"
   },
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "60cfd28b41c64897474e8c0f5a8943a970855f848c9253d2356f3ff062d218e6"
+      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "fe82520ff25b453ef318332b3b462d271b293e5a33b24e98e217add8ea311a52"
+      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "2c48f62102a112f0cf58e01301cf1ae46bcb3319a912dcba4494dd0aac63ad3c"
+      "sha256": "a730a988db2f5e4242d2a619cff9c4eee0d1c306925f2606a35e786e7c56710e"
+    },
+    {
+      "path": "blender/kit/kitstepper.py",
+      "sha256": "f88d9ac0af5fe954566a5ca9856529dc2f721164e877e3775901f2cd2a96cc5a"
     }
   ],
   "lodParams": {
@@ -92,19 +96,19 @@
   "pieceId": "mech_toggle_l3",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2860.0,
-      "median": 2729.1,
-      "min": 2173.1
+      "max": 2852.1,
+      "median": 2721.6,
+      "min": 2167.2
     },
     "lod1": {
-      "max": 1450.4,
-      "median": 1394.2,
-      "min": 1102.1
+      "max": 1446.4,
+      "median": 1390.4,
+      "min": 1099.0
     },
     "lod2": {
-      "max": 710.4,
-      "median": 697.2,
-      "min": 600.6
+      "max": 708.5,
+      "median": 695.3,
+      "min": 598.9
     }
   }
 }
