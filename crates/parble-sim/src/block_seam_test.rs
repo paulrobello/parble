@@ -7,7 +7,7 @@
 //! wall is the geometry, as in `seam_test::curve_and_slope_joins`).
 
 use crate::chunk::{ChunkMesh, placed_triangles};
-use crate::marble::CATS_EYE;
+use crate::marble::{CATS_EYE, MarbleKind};
 use crate::seam_test::{kick, upward};
 use crate::{MarbleState, Sim};
 use parble_core::{CellCoord, PieceId, Placement, Yaw4};
@@ -51,6 +51,8 @@ struct Control {
     no_straight_contact: bool,
     /// Sweeps every facet triangle in the CCD pass (`ChunkColliders::no_ccd_triangle_filter`).
     no_ccd_triangle_filter: bool,
+    /// The marble rolled (a standard cat's eye when unset).
+    marble: Option<crate::marble::MarbleSpec>,
 }
 
 fn run_with(
@@ -79,13 +81,11 @@ fn run_with(
             sim.add_registered(&reg, kit, p, 0).unwrap();
         }
     }
-    let (mut body, collider) = CATS_EYE.build(at);
+    let spec = control.marble.unwrap_or(CATS_EYE);
+    let (mut body, collider) = spec.build(at);
     let speed = vel.length();
     body.set_linvel(vel, true);
-    body.set_angvel(
-        Vector::Y.cross(vel / speed) * (speed / CATS_EYE.radius_m),
-        true,
-    );
+    body.set_angvel(Vector::Y.cross(vel / speed) * (speed / spec.radius_m), true);
     let h = sim.world.bodies.insert(body);
     sim.world
         .colliders
@@ -1294,4 +1294,36 @@ fn a_swinging_marble_on_straights_meets_no_facet_edges() {
             assert!(ck > k_lim, "control kick {ck:.2} not over {k_lim:.2}");
         }
     }
+}
+
+#[test]
+#[ignore = "red on the tip: steel stalls at 0.275 m/s centred, as it does in the 537822f physics"]
+fn tower_drop_stays_on_the_rails_for_glazed_and_steel() {
+    // `tower_drop_stays_on_the_rails` with the glazed and the steel marble (P5-T1: every marble
+    // type runs the track). Measured 2026-11-09 on the tip: glazed 0 of 24 off; steel 1 of 24,
+    // 0.275 m/s centred, which turns about 0.8 m/s of its fall sideways on the landing floor and
+    // stops on the rails at x -0.164 m, short of the -0.21 m the check needs. With the exact
+    // contacts' rest height, the CCD triangle filter and the socket's port-plane cap all as at
+    // 537822f, the same run stops at x -0.033 m and glazed 0.400 m/s 2 mm off stalls too: the
+    // landing's bounce sensitivity predates those changes.
+    let mut off = Vec::new();
+    for kind in [MarbleKind::Glazed, MarbleKind::Steel] {
+        let control = Control {
+            marble: Some(kind.spec()),
+            ..Control::default()
+        };
+        for (v, dz) in tower_sweep() {
+            let (side, on, tr) = tower_run(v, dz, &control);
+            let end = tr.last().map_or(f32::NAN, |m| m.position[0]);
+            eprintln!(
+                "{} tower drop at {v:.3} m/s, {dz:.3} m off: sideways {side:.3} m/s, \
+                 on the rails {on}, end x {end:.3}",
+                kind.name()
+            );
+            if !on {
+                off.push((kind.name(), v, dz, end));
+            }
+        }
+    }
+    assert!(off.is_empty(), "off the rails: {off:?}");
 }

@@ -452,12 +452,16 @@ mod tests {
     /// - Shooter cat's eye family: marble 2 falls off the track in the one-way hole's cell (x 1.16
     ///   m) after the hole.
     /// - Mini and shooter glazed: marble 9 falls off the track in the one-way hole's cell (x 1.13
-    ///   and 1.15 m) after reaching the straight under it [18, 1, −7].
+    ///   and 1.15 m) after reaching the straight under it [18, 1, −7]. It drops from the hole onto
+    ///   an earlier marble at rest there, which knocks it +x out of the straight's unconnected
+    ///   end; the shooter cat's eye falls the same way.
     /// - Standard glazed: 8 of 10 in the cups, marble 8 at rest on the one-way hole and marble 9 on
     ///   the checkpoint [21, 2, −7].
     /// - Mini steel: marble 7 leaves the `L1` straight after the steep slope [14, 4, −4] without
     ///   entering the layer-3 straight it should drop into, and falls off the track at
-    ///   (1.128, −0.063, −0.185).
+    ///   (1.128, −0.063, −0.185). It swings ±8 mm across the channel from the joiner and the steep
+    ///   slope, leaves the `L1` port at 0.23 m/s sideways, meets the `L3` channel's lip 13 mm off
+    ///   its axis and rolls along the block tops off the track.
     /// - Standard steel: 1 of 10 in the cups. Marble 1 left the tower socket's landing at 0.025 m/s
     ///   after four bounces there and stopped in the rail joint; the next marble knocked it on at
     ///   0.067 m/s and it stopped on the checkpoint (x 1.2349 m), and the other eight queued
