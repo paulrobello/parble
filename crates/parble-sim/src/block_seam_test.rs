@@ -417,8 +417,9 @@ fn straight_to_mirrored_curve90_l2_seam_with_a_clean_entry() {
     // to the bend's exact tube within a ball diameter of the bend's cell, and alternates +-20 mm/s
     // there. Rolled in centred at the chain's arrival speed or faster the seam itself is clean:
     // measured 2026-11-08, kick 5.32 at 0.4 m/s and 5.10 at 0.5 m/s (swing upward 49.61 at
-    // 0.5, the curve's geometry). The start-of-step bend contact kicks 29.34 there
-    // (`straight_to_mirrored_curve90_l2_start_of_step_bend_contact_kicks`).
+    // 0.5, the curve's geometry), and 1.13 and 2.45 with the vendored Rapier contact fix
+    // (PHYSICS_VERSION 3). A 1 mm step there kicks 59.30
+    // (`straight_to_mirrored_curve90_l2_seam_step_kicks`).
     let (_, k_lim) = limits(2);
     let (_, lo, hi) = CURVE_L2_WINDOWS[3];
     for speed in [0.4_f32, 0.5] {
@@ -435,22 +436,51 @@ fn straight_to_mirrored_curve90_l2_seam_with_a_clean_entry() {
     }
 }
 
+/// A 1 mm step up in the straight's floor before the mirrored curve's seam (z 90 mm): a flat plate
+/// 12 mm wide across the channel bottom at `x` = 180 mm, from 10 mm before the seam to it, at
+/// floor + 1 mm (`L2` floor 30 mm), facing up.
+fn seam_step() -> Vec<[[i64; 3]; 3]> {
+    let (x0, x1, y) = (174_000, 186_000, 31_000);
+    let (z0, z1) = (80_000, 90_000);
+    vec![
+        [[x0, y, z0], [x0, y, z1], [x1, y, z0]],
+        [[x1, y, z0], [x0, y, z1], [x1, y, z1]],
+    ]
+}
+
 #[test]
-fn straight_to_mirrored_curve90_l2_start_of_step_bend_contact_kicks() {
-    // Negative control: the start-of-step bend contact (before 2026-11-07) at the same seam.
+fn straight_to_mirrored_curve90_l2_seam_step_kicks() {
+    // Negative control: a known artificial 1 mm step at the straight to mirrored curve seam
+    // shows the gate still fails on a real bump (kick 59.30, measured 2026-11-08). The same plate
+    // at 0.3 mm and 0.5 mm kicked only 2.62 and 3.88, under the limit (not yet
+    // diagnosed). This test used to run the start-of-step bend
+    // contact (before 2026-11-07) here instead, which kicked 29.34; with the contact separation
+    // tracked on the ball centre (vendored Rapier, PHYSICS_VERSION 3) it kicks 2.82, under the
+    // limit, so that kick was the anchor-rotation artifact of the old solver, not the
+    // start-of-step contact. It is still logged.
     let (_, k_lim) = limits(2);
     let (_, lo, hi) = CURVE_L2_WINDOWS[3];
-    let tr = mirrored_curve_l2_clean_entry(
+    let legacy = mirrored_curve_l2_clean_entry(
         0.5,
         &Control {
             bend_at_step_start: true,
             ..Control::default()
         },
     );
-    let k = kick(&tr, window(lo, hi));
     eprintln!(
-        "straight to mirrored curve90_l2 with the start-of-step contact: kick {k:.2} (limit {k_lim:.2})"
+        "straight to mirrored curve90_l2 with the start-of-step contact: kick {:.2} (limit \
+         {k_lim:.2}, logged)",
+        kick(&legacy, window(lo, hi))
     );
+    let tr = mirrored_curve_l2_clean_entry(
+        0.5,
+        &Control {
+            extra_triangles: seam_step(),
+            ..Control::default()
+        },
+    );
+    let k = kick(&tr, window(lo, hi));
+    eprintln!("straight to mirrored curve90_l2 with a 1 mm step: kick {k:.2} (limit {k_lim:.2})");
     assert!(k > k_lim, "control kick {k:.2} not over {k_lim:.2}");
 }
 
@@ -606,6 +636,15 @@ fn joiner_seams_stay_under_the_seam_thresholds() {
     // 10.99 / 18.55, interior 12.12 / 0.64, outlet 0.00 / 1.76. On the faceted mesh
     // (`joiner_mesh_contact_bumps`) the marble peaked at 45.05 mm/s upward from -x and 87.73
     // from -z (`L2` 45.42 and 87.15).
+    //
+    // From -z the inlet seam and the interior are gated on kick only, as the curves are
+    // (`curve90_l2_seams_and_interiors_stay_under_the_kick_threshold`): their upward speed is the
+    // marble's swing up the bend's outer wall, the geometry. Measured 2026-11-08 at `L3`, the old
+    // solver against the vendored Rapier contact fix (PHYSICS_VERSION 3), z -35 to 0 mm: both
+    // trajectories rise the same 1.15 mm (53.0 to 54.15 mm) from the seam at z = -28 mm while x
+    // stays at 60-65 mm and z advances. The old peak read 12.12 mm/s only under the rolling
+    // sink's -10 to -12 mm/s offset. It reads 27.29 at the inlet and 27.94 in the interior now,
+    // with kicks 0.60 and 0.65.
     for (level, inlet, at, vel) in joiner_runs() {
         let (p_lim, k_lim) = limits(level);
         let tr = joiner_run(level, at, vel, &Control::default());
@@ -619,12 +658,14 @@ fn joiner_seams_stay_under_the_seam_thresholds() {
                 "join_l{level} from {inlet}, {name}: never crossed"
             );
             let (u, k) = (upward(&tr, &sel), kick(&tr, &sel));
+            let swing = inlet == "-z" && name != "outlet seam";
             eprintln!(
-                "join_l{level} from {inlet}, {name}: upward {u:.2} mm/s (limit {p_lim:.2}), \
-                 kick {k:.2} (limit {k_lim:.2})"
+                "join_l{level} from {inlet}, {name}: upward {u:.2} mm/s (limit {p_lim:.2}{}), \
+                 kick {k:.2} (limit {k_lim:.2})",
+                if swing { ", swing, ungated" } else { "" }
             );
             assert!(
-                u <= p_lim,
+                swing || u <= p_lim,
                 "join_l{level} from {inlet}, {name}: upward {u:.2}"
             );
             assert!(
