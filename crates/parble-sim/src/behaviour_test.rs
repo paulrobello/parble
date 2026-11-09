@@ -231,6 +231,16 @@ fn one_way_at(
     dir: f32,
     speed: f32,
 ) -> (Sim, Vec<Vec<MarbleState>>, Vec<i32>, Vec<SimEvent>) {
+    one_way_for(piece, dir, speed, 600)
+}
+
+/// [`one_way_at`] for `ticks` ticks.
+fn one_way_for(
+    piece: &str,
+    dir: f32,
+    speed: f32,
+    ticks: usize,
+) -> (Sim, Vec<Vec<MarbleState>>, Vec<i32>, Vec<SimEvent>) {
     let layout = [
         place("blk_straight_l1", 0, 0, 0, 0),
         place(piece, 1, 0, 0, 0),
@@ -244,7 +254,7 @@ fn one_way_at(
         Vector::X * speed * dir,
     );
     let (mut tr, mut angles) = (Vec::new(), Vec::new());
-    for _ in 0..600 {
+    for _ in 0..ticks {
         sim.tick(1);
         tr.push(sim.marbles());
         angles.push(sim.mechanisms()[0].part_angles[0]);
@@ -253,24 +263,48 @@ fn one_way_at(
     (sim, tr, angles, ev)
 }
 
-/// Launch speeds of the gate sweeps, m/s: from a marble barely rolling to a fast drop.
-const GATE_SPEEDS: [f32; 6] = [0.06, 0.1, 0.2, 0.3, 0.6, 1.0];
+/// The gate flap's farthest +X reach in world X with the flap swung `mdeg` open about its pivot,
+/// from its collider (piece frame, centred on the cell), and its open limit in mdeg.
+fn flap_reach_and_limit(mdeg: i32) -> (f32, i32) {
+    let kit = parble_kit::builtin();
+    let flap = &kit
+        .piece(&PieceId::new(GATE).unwrap())
+        .unwrap()
+        .animated_parts[0];
+    let (sin, cos) = (mdeg as f32 * 1e-3).to_radians().sin_cos();
+    let py = flap.pivot_um[1];
+    let reach = CELL
+        + flap
+            .collision
+            .iter()
+            .flat_map(|c| c.vertices_um.iter())
+            .map(|v| (v[0] as f32 * cos - (v[1] - py) as f32 * sin) * 1e-6)
+            .fold(f32::MIN, f32::max);
+    (reach, flap.limits_mdeg[1])
+}
+
+/// Launch speeds of the gate sweeps, m/s: from the slowest marble that gets through to a fast drop.
+const GATE_SPEEDS: [f32; 6] = [GATE_MIN_LAUNCH_SPEED_M_S, 0.1, 0.2, 0.3, 0.6, 1.0];
+
+/// Forward gate runs last this long: at [`GATE_MIN_LAUNCH_SPEED_M_S`] the flap falls shut behind
+/// the marble at tick 764, and the run then checks 120 ticks of the flap at rest.
+const GATE_FORWARD_TICKS: usize = 1_200;
 
 #[test]
 fn one_way_gate_flap_is_pushed_open_by_a_forward_marble() {
-    let [_, hi] = parble_kit::builtin()
-        .piece(&PieceId::new(GATE).unwrap())
-        .unwrap()
-        .animated_parts[0]
-        .limits_mdeg;
+    let (far_edge, hi) = flap_reach_and_limit(0);
+    let open_edge = flap_reach_and_limit(GATE_OPEN_MDEG).0;
+    let beyond = |s: &MarbleState, edge: f32| s.position[0] - R > edge;
     for speed in GATE_SPEEDS {
-        let (sim, tr, angles, ev) = one_way_at(GATE, 1.0, speed);
-        let past = first(&tr, 0, |s| s.position[0] > 1.5 * CELL)
+        let (sim, tr, angles, ev) = one_way_for(GATE, 1.0, speed, GATE_FORWARD_TICKS);
+        let past = first(&tr, 0, |s| beyond(s, far_edge))
             .unwrap_or_else(|| panic!("{speed} m/s: the forward marble never passed"));
         assert!(tr[past][0].position[1] > 0.015, "{speed} m/s: marble fell");
+        let end = tr.last().unwrap()[0];
         assert!(
-            tr.last().unwrap()[0].linvel[0] > 0.02,
-            "{speed} m/s: marble stalled"
+            beyond(&end, far_edge),
+            "{speed} m/s: marble ended at x = {} before the flap's far edge {far_edge}",
+            end.position[0]
         );
         // The flap rests shut until the marble touches it, then swings open under the push.
         let touched = first(&tr, 0, |s| s.position[0] > CELL - 0.0015 - R - 0.001).unwrap();
@@ -291,9 +325,11 @@ fn one_way_gate_flap_is_pushed_open_by_a_forward_marble() {
             (1, 1),
             "{speed} m/s: {open:?} {close:?}"
         );
+        // It opens under the push, before the marble is clear of the flap swung to that angle.
+        let cleared = first(&tr, 0, |s| beyond(s, open_edge)).unwrap_or(tr.len());
         assert!(
-            (open[0].0 as usize) < past,
-            "{speed} m/s: opened after the pass"
+            (open[0].0 as usize) < cleared,
+            "{speed} m/s: opened after the marble cleared the flap"
         );
         assert_eq!(signals(&ev, "forward"), [(signals(&ev, "forward")[0].0, 0)]);
         assert!(signals(&ev, "reverse").is_empty());
@@ -330,9 +366,13 @@ fn one_way_gate_flap_stops_a_reverse_marble() {
         assert!(signals(&ev, "open").is_empty(), "{speed} m/s");
         assert_eq!(signals(&ev, "reverse").len(), 1);
         assert_eq!(state(&sim)["blocked"], 1);
+        // Turned back: it rolls away from the flap. Rolling resistance (14 mm/s² on the level)
+        // stops the slow rebounds inside the window (0.06 m/s leaves at 22 mm/s and rests by
+        // tick 532), so the check is the distance it rolled back, not its final speed.
+        let end = tr.last().unwrap()[0].position[0];
         assert!(
-            tr.last().unwrap()[0].linvel[0] > 0.0,
-            "{speed} m/s: reverse marble did not turn back"
+            end > closest + 0.002,
+            "{speed} m/s: reverse marble did not turn back (closest {closest}, end {end})"
         );
     }
 }
@@ -1073,4 +1113,57 @@ fn rope_arch_drag_keeps_the_same_share_for_every_marble_size() {
     assert_eq!(k.sample(0), 0);
     assert_eq!(k.sample(u64::from(ROPE_PUSH_TICKS)), 20_000);
     assert_eq!(k.sample(u64::from(ROPE_SWING_TICKS)), 0);
+}
+
+#[test]
+fn one_way_gate_flap_passes_every_forward_speed() {
+    // A sweep with no stall band, from the gate's minimum speed to 0.2 m/s in 5 mm/s steps.
+    // Passing is the marble's back clearing the shut flap's far face with the flap shut behind it,
+    // and 1,200 ticks leave the slowest marbles time against rolling resistance.
+    let far_edge = flap_reach_and_limit(0).0;
+    let mut stalled = Vec::new();
+    for k in 0..=27 {
+        let speed = GATE_MIN_LAUNCH_SPEED_M_S + 0.005 * k as f32;
+        if !gate_lets_through(speed, 1_200, far_edge) {
+            stalled.push(speed);
+        }
+    }
+    assert!(
+        stalled.is_empty(),
+        "the flap stalled marbles at {stalled:?} m/s"
+    );
+}
+
+#[test]
+fn one_way_gate_flap_holds_marbles_below_its_minimum_speed() {
+    // Below [`GATE_MIN_LAUNCH_SPEED_M_S`] a marble runs out of energy before it clears the flap:
+    // 0.06 m/s stops under it, 0.05 at it (and 0.05 stops there with no flap at all).
+    let far_edge = flap_reach_and_limit(0).0;
+    for speed in [0.05, 0.055, 0.06] {
+        assert!(
+            !gate_lets_through(speed, 2_400, far_edge),
+            "{speed} m/s got through"
+        );
+    }
+}
+
+/// One forward marble at `speed` on the gate test layout: whether within `ticks` its back clears
+/// the shut flap's far face with the flap shut behind it.
+fn gate_lets_through(speed: f32, ticks: usize, far_edge: f32) -> bool {
+    let layout = [
+        place("blk_straight_l1", 0, 0, 0, 0),
+        place(GATE, 1, 0, 0, 0),
+        place("blk_straight_l1", 2, 0, 0, 0),
+    ];
+    let mut sim = rig(&layout, 1);
+    launch(
+        &mut sim,
+        Vector::new(-0.02, rest(1), 0.0),
+        Vector::X * speed,
+    );
+    (0..ticks).any(|_| {
+        sim.tick(1);
+        sim.marbles()[0].position[0] - R > far_edge
+            && sim.mechanisms()[0].part_angles[0] <= GATE_CLOSED_MDEG
+    })
 }

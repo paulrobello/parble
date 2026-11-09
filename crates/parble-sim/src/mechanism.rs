@@ -97,7 +97,16 @@ pub struct PartPhysics {
     pub mass_kg: f32,
     /// Rapier body angular damping, 1/s.
     pub angular_damping: f32,
+    /// Centre of mass this far straight below the pivot at rest, m (a counterweighted part).
+    /// `None` keeps the hull's own centre of mass.
+    pub com_drop_m: Option<f32>,
 }
+
+/// Extra solver iterations for a physical part's island. A marble lifting a light part from
+/// below presses it onto its joint limit at about 18:1 mass ratio, and Rapier's 4 iterations let
+/// the part sink up to 3.3° through the stop (gate flap, 0.05 m/s marble). At 48 it stays within
+/// 0.2° at every speed from 0.05 to 0.2 m/s.
+pub const PART_SOLVER_ITERATIONS: usize = 48;
 
 /// Collision group of physical part colliders. Every static and kinematic collider leaves it out
 /// of its memberships ([`fixed_groups`]) and marbles keep the default (all groups), so a physical
@@ -746,9 +755,22 @@ impl Mechanisms {
                     .map(|&v| um_m(sub3(place_point_um(o, anchor, v), pivot_um)))
                     .collect();
                 let surface = colliders.first().map_or(Surface::Wood, |c| c.1);
-                let hull = ColliderBuilder::convex_hull(&points)
-                    .ok_or(MechanismError::PartMesh { part: pi, group: 0 })?
-                    .mass(ph.mass_kg)
+                // A trimesh of the hull, not the hull itself: Parry's GJK point projection on a
+                // thin hull reports a marble centre outside it as inside, and the far-face normal
+                // drives the marble into the part (`tests/parry_thin_hull_projection.rs`).
+                let hull = SharedShape::convex_hull(&points)
+                    .ok_or(MechanismError::PartMesh { part: pi, group: 0 })?;
+                let mut mass = hull.mass_properties(1.0);
+                mass.set_mass(ph.mass_kg, true);
+                if let Some(drop) = ph.com_drop_m {
+                    mass.local_com = Vector::new(0.0, -drop, 0.0);
+                }
+                let (vertices, indices) = hull.as_convex_polyhedron().unwrap().to_trimesh();
+                // No `FIX_INTERNAL_EDGES` / `ORIENTED`: with them a 0.6 m/s marble reached 1 mm
+                // into the shut flap before its contact was found.
+                let hull = ColliderBuilder::trimesh(vertices, indices)
+                    .map_err(|_| MechanismError::PartMesh { part: pi, group: 0 })?
+                    .mass_properties(mass)
                     .friction(scene::WOOD_FRICTION)
                     .restitution(scene::WOOD_RESTITUTION)
                     .collision_groups(InteractionGroups::new(
@@ -780,7 +802,9 @@ impl Mechanisms {
         let mut parts = Vec::with_capacity(built.len());
         for (pi, (mut runtime, colliders, physics)) in built.into_iter().enumerate() {
             let body = match physics {
-                Some(ph) => RigidBodyBuilder::dynamic().angular_damping(ph.angular_damping),
+                Some(ph) => RigidBodyBuilder::dynamic()
+                    .angular_damping(ph.angular_damping)
+                    .additional_solver_iterations(PART_SOLVER_ITERATIONS),
                 None => RigidBodyBuilder::kinematic_position_based(),
             }
             .pose(runtime.pose_at(tick))

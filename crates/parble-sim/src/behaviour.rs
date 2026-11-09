@@ -534,13 +534,37 @@ pub const GATE_OPEN_MDEG: i32 = 20_000;
 /// and `close` when it falls back below this one.
 pub const GATE_CLOSED_MDEG: i32 = 2_000;
 
-/// The gate flap's physics: a light flap (0.3 g, a 5.4 g cat's eye at 0.06 m/s still swings it
-/// open) hanging from its top edge, returned to its closed stop by gravity alone. The damping
-/// settles it on the stop in a few small bounces.
+/// The gate flap's physics: a counterweighted flap hanging from its top edge, returned to its
+/// closed stop by gravity alone. The damping settles it on the stop in a few small bounces.
 pub const GATE_FLAP: crate::mechanism::PartPhysics = crate::mechanism::PartPhysics {
-    mass_kg: 0.000_3,
+    mass_kg: GATE_FLAP_MASS_KG,
     angular_damping: 2.0,
+    com_drop_m: Some(
+        GATE_CLOSING_TORQUE_NM_AT_20DEG / (GATE_FLAP_MASS_KG * crate::marble::G * SIN_20DEG),
+    ),
 };
+
+/// A 34 × 24 × 2 mm wooden plate with its counterweight.
+pub const GATE_FLAP_MASS_KG: f32 = 0.001;
+
+/// Gravity torque closing the counterweighted flap at 20° open, N·m (centre of mass 0.30 mm below
+/// the pivot). To let a marble out the flap swings about 55°, until its tip clears the marble's
+/// top at 31 mm. Uncounterweighted (0.3 g, centre of mass 17 mm down) that lift costs 2.1e-5 J,
+/// more than a 5.4 g cat's eye carries below about 0.09 m/s, so slow marbles stopped under the
+/// flap. At 1e-6 the lift costs 1.3e-6 J and the flap still falls shut behind every marble from
+/// [`GATE_MIN_LAUNCH_SPEED_M_S`] up (measured 2026-11-08,
+/// `one_way_gate_flap_passes_every_forward_speed`). A tuned value, not a sourced one.
+pub const GATE_CLOSING_TORQUE_NM_AT_20DEG: f32 = 1.0e-6;
+
+const SIN_20DEG: f32 = 0.342_020_15;
+
+/// Slowest launch speed, m/s, at which a cat's eye gets through the gate on the L1 test layout
+/// (launched at x = −20 mm on a level L1 straight, the flap's pivot at 60 mm), on the 5 mm/s
+/// grid. From energy: rolling resistance decelerates it at 14 mm/s² over the 116 mm to where the
+/// open flap's tip clears its back, and the flap's lift takes 1.3e-6 J, so
+/// v² ≥ 2 × 0.014 × 0.116 + 2 × 1.3e-6 / (7/5 × 0.0054), v ≥ 0.060 m/s. At 0.06 it stops under
+/// the flap (x 81 mm) and at 0.05 it stops at the flap even with no flap there (x 61 mm).
+pub const GATE_MIN_LAUNCH_SPEED_M_S: f32 = 0.065;
 
 /// One-way gate: the flap is a dynamic body hinged at its top edge ([`GATE_FLAP`]). A marble from
 /// `approach` (−X, the in port) pushes it open toward +X and rolls under it; a marble from `exit`
