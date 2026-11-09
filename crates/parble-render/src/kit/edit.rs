@@ -160,15 +160,17 @@ fn setup_visuals(
     if *scene != KitScene::Editor {
         return;
     }
-    vis.ghost_ok = tint(&mut materials, Color::srgba(0.35, 0.95, 0.45, 0.45));
-    vis.ghost_bad = tint(&mut materials, Color::srgba(1.0, 0.25, 0.2, 0.45));
+    // The overlay's palette (.impeccable/surfaces/web-ui-src-editor.md): brass for a valid ghost and
+    // an open port, pale blue for a linked port and the selection, fault red only for faults.
+    vis.ghost_ok = tint(&mut materials, Color::srgba(0.769, 0.604, 0.322, 0.42));
+    vis.ghost_bad = tint(&mut materials, Color::srgba(0.878, 0.439, 0.353, 0.45));
     vis.port_mats = [
-        tint(&mut materials, Color::srgba(0.3, 1.0, 0.4, 0.95)),
-        tint(&mut materials, Color::srgba(1.0, 0.8, 0.2, 0.95)),
-        tint(&mut materials, Color::srgba(1.0, 0.2, 0.2, 0.95)),
+        tint(&mut materials, Color::srgba(0.659, 0.784, 0.847, 0.95)),
+        tint(&mut materials, Color::srgba(0.769, 0.604, 0.322, 0.95)),
+        tint(&mut materials, Color::srgba(0.878, 0.439, 0.353, 0.95)),
     ];
-    vis.mark_ok = tint(&mut materials, Color::srgba(0.3, 0.6, 1.0, 0.28));
-    vis.mark_bad = tint(&mut materials, Color::srgba(1.0, 0.25, 0.2, 0.28));
+    vis.mark_ok = tint(&mut materials, Color::srgba(0.659, 0.784, 0.847, 0.28));
+    vis.mark_bad = tint(&mut materials, Color::srgba(0.878, 0.439, 0.353, 0.28));
     let dot = meshes.add(Sphere::new(0.006).mesh().ico(2).expect("ico sphere"));
     vis.ports = (0..MAX_PORTS)
         .map(|_| {

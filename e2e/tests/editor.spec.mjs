@@ -155,7 +155,7 @@ test("editor: ghost, picking, slicing, box select and move drag over 50 placed p
   console.log(`port hints around a straight: ${JSON.stringify(hints)}`);
   expect(hints.flat()).toContain("linked");
   expect(hints.flat()).toContain("open");
-  // The ghost is drawn: green over a valid empty cell, nothing once unhovered.
+  // The ghost is drawn: brass over a valid empty cell (warmer than the navy floor), nothing once unhovered.
   const [ghostPx] = await project(page, box, [[3, 0, -10]]);
   await edit(page, { op: "hoverCell", cell: [3, 0, -10] });
   await frames(page, 3);
@@ -165,7 +165,7 @@ test("editor: ghost, picking, slicing, box select and move drag over 50 placed p
   await frames(page, 3);
   const without = await patch(page, ghostPx.centre);
   console.log(`ghost patch ${withGhost.map(Math.round)} vs empty ${without.map(Math.round)}`);
-  expect(withGhost[1] - withGhost[0]).toBeGreaterThan(without[1] - without[0] + 20);
+  expect(withGhost[0] - withGhost[2]).toBeGreaterThan(without[0] - without[2] + 20);
   await edit(page, { op: "undo" }); // the isolated straight
 
   // Height slicing: level 0 hides the 10 stacked pieces, picking passes to the piece below, and

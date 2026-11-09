@@ -155,7 +155,7 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
  <button class="t rc" data-k="one" title="Release one marble">${icon("r1")}<span>Release one</span></button>
  <button class="t rc" data-k="all" title="Release all marbles">${icon("ra")}<span>Release all</span></button>
  <button class="t rc" data-k="interval" title="Release on an interval" aria-haspopup="menu" aria-expanded="false">${icon("int")}<span>Interval</span></button>
- <button class="t rc" data-k="pause" title="Pause (Space while running)" aria-pressed="false">${icon("pau")}<span>Pause</span></button>
+ <button class="t rc" data-k="pause" title="Pause (Space while running)" aria-pressed="false">${icon("pau")}<span>Pause <kbd class="rk">Space</kbd></span></button>
  <button class="t rc" data-k="reset" title="Reset: marbles back to the hopper, edits kept">${icon("rst")}<span>Reset</span></button>
  <button class="t rc" data-k="follow" title="Follow cam: the director films the run (C)" aria-pressed="false">${icon("cam")}<span>Follow cam</span></button>
 </div><i class="sep"></i>
@@ -216,7 +216,7 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
   // ---- right panel -----------------------------------------------------------------------
   const side = h(doc, "aside", { id: "pe-side", class: "inlay fz", "aria-label": "Selection and validation" });
   side.innerHTML = `
-<button class="spine" data-k="panel" title="Collapse the panel (\\)" aria-expanded="true">${icon("side")}<kbd>\\</kbd></button>
+<button class="spine" data-k="panel" title="Collapse the panel (\\)" aria-label="Collapse the panel" aria-expanded="true"><kbd>\\</kbd></button>
 <section class="sec" data-k="sel"></section>
 <section class="sec" data-k="val"><h2><span class="sc">Validation ·</span><span data-k="vh"></span></h2><div data-k="vl"></div>
 <p class="note">Show moves the camera to the cell and selects the piece.</p></section>`;
@@ -250,6 +250,20 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
   tabs.append(collapse);
   const tabPin = new Pin(doc, tabs, 9, 15);
   const tilePin = new Pin(doc, tiles, 6, 6);
+  const edgeCue = (): void => {
+    tiles.classList.toggle("more-l", tiles.scrollLeft > 2);
+    tiles.classList.toggle("more-r", tiles.scrollLeft + tiles.clientWidth < tiles.scrollWidth - 2);
+  };
+  tiles.addEventListener("scroll", edgeCue, { passive: true });
+  tiles.addEventListener(
+    "wheel",
+    (e) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      tiles.scrollLeft += e.deltaY;
+      e.preventDefault();
+    },
+    { passive: false },
+  );
   let family: Family = "blocks";
   let tileFor = "";
 
@@ -588,6 +602,8 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
         )
         .join("");
       tiles.append(tilePin.el);
+      tiles.scrollLeft = 0;
+      edgeCue();
       tilePin.refresh();
     }
     for (const t of tabs.querySelectorAll<HTMLElement>("[data-f]")) {
@@ -642,6 +658,7 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
           : `<h2><span class="sc">Selection</span></h2><p class="note">Nothing selected. With Select <kbd>1</kbd>, click a piece, Shift-click to add, or Shift-drag a box.</p>`;
       return;
     }
+    const groupActs = `<div class="seg acts-seg"><button data-k="gRotate">${icon("rot")}Rotate <kbd>R</kbd></button><button data-k="gMirror">${icon("mir")}Mirror <kbd>M</kbd></button><button data-k="gDelete">${icon("del")}Delete <kbd>⌫</kbd></button></div>`;
     const levels = info.levels[0] === info.levels[1] ? `L${info.levels[0]}` : `L${info.levels[0]}–L${info.levels[1]}`;
     if (info.single) {
       const p = info.single;
@@ -650,20 +667,25 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
 <span class="sc">Level</span><span>L${p.anchor[1]}</span>
 <span class="sc">Cell</span><span>${cellText(p.anchor)}</span>
 <span class="sc">Turn</span><span>${p.yaw * 90}°${p.mirror ? " · mirrored" : ""}</span></div>
-<div class="acts"><button data-k="gRotate">${icon("rot")}Rotate</button><button data-k="gMirror">${icon("mir")}Mirror</button><button data-k="gDelete">${icon("del")}Delete</button></div>`;
+${groupActs}`;
       return;
     }
     selSec.innerHTML = `<h2><span class="sc">Selected:</span>${info.count} pieces</h2>
 <div class="kv"><span class="sc">Pieces</span><span>${esc(familyText(info.families))}</span><span class="sc">Levels</span><span>${levels}</span></div>
-<div class="acts"><button data-k="gRotate">${icon("rot")}Rotate</button><button data-k="gMirror">${icon("mir")}Mirror</button><button data-k="gDelete">${icon("del")}Delete</button></div>
+${groupActs}
 <p class="note">Arrows nudge a cell, PgUp and PgDn a level. Drag a selected piece to move the group.</p>`;
   };
 
   let valKey = "";
   const renderValidation = (s: EditorDiag): void => {
-    const key = `${s.edits}|${s.issueCount}`;
+    const key = `${s.edits}|${s.issueCount}|${s.pieces === 0}`;
     if (key === valKey) return;
     valKey = key;
+    if (s.pieces === 0) {
+      vHead.textContent = "nothing placed";
+      vList.innerHTML = `<p class="note">Issues appear here as you build: open ports, broken links and pieces no marble reaches.</p>`;
+      return;
+    }
     if (s.issueCount === 0) {
       vHead.innerHTML = "Track is complete";
       vList.innerHTML = `<p class="ok"><i class="pin"></i>No open ports, broken links or unreachable pieces.</p>`;
@@ -716,9 +738,11 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     const follow = q(top, '[data-k="follow"]');
     follow.setAttribute("aria-pressed", String(r.follow));
     followPin.to(r.follow ? follow : null);
-    countEl.textContent = `${r.queue} / ${MAX_MARBLES}`;
+    // While running, the pins count the marbles out of the budget; otherwise they set the budget.
+    const lit = r.active ? Math.min(r.marbles, r.queue) : r.queue;
+    countEl.textContent = `${lit} / ${r.active ? r.queue : MAX_MARBLES}`;
     pinsEl.querySelectorAll("button").forEach((b, i) => {
-      b.querySelector(".pin")?.classList.toggle("off", i >= r.queue);
+      b.querySelector(".pin")?.classList.toggle("off", i >= lit);
       b.setAttribute("aria-pressed", String(i + 1 === r.queue));
     });
     for (const b of menu.querySelectorAll<HTMLElement>("[data-s]")) {
@@ -726,7 +750,7 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
       b.setAttribute("aria-checked", String(Number(b.dataset.s) === intervalS));
     }
     runBtn.classList.toggle("stop", r.active);
-    runBtn.innerHTML = r.active ? `${icon("stop")}Stop` : `${icon("play")}Run`;
+    runBtn.innerHTML = r.active ? `${icon("stop")}Stop <kbd>Esc</kbd>` : `${icon("play")}Run`;
     runBtn.disabled = !r.active && noHopper;
     runBtn.title = r.active
       ? "Stop the run (Esc)"
@@ -805,7 +829,7 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
       const ck = `${s.run.marbles}|${Math.floor(s.run.tick / 24)}|${s.run.paused}`;
       if (ck !== capKey) {
         capKey = ck;
-        cap.innerHTML = `<i class="pin"></i><span>${s.run.marbles} marble${s.run.marbles === 1 ? "" : "s"}</span><span>${runTime(s.run.tick)}</span><span><kbd>Space</kbd> ${s.run.paused ? "resume" : "pause"}</span>`;
+        cap.innerHTML = `<i class="pin"></i><span class="sc">${s.run.paused ? "Paused" : "Running"}</span><b>${s.run.marbles} / ${s.run.queue}</b><span>${runTime(s.run.tick)}</span><span><kbd>Space</kbd> ${s.run.paused ? "resume" : "pause"}</span>`;
       }
     }
   };

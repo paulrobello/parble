@@ -276,8 +276,11 @@ export function familyText(f: Record<string, number>): string {
     .join(" · ");
 }
 
-/** Run time from sim ticks, "12.3 s". */
-export const runTime = (tick: number): string => `${(tick / TICK_HZ).toFixed(1)} s`;
+/** Run time from sim ticks, "0:14". */
+export function runTime(tick: number): string {
+  const s = Math.floor(tick / TICK_HZ);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
 
 /** The orbit that looks at `cell` (its centre) from the current yaw, a little closer. */
 export function focusOrbit(

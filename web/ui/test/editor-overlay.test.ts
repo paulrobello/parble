@@ -327,8 +327,9 @@ describe("editor overlay", () => {
     clock = 1_300;
     ui.update(running);
     expect(ui.root.classList.contains("faded")).toBe(true);
-    expect($("#pe-cap").textContent).toContain("3 marbles");
-    expect($("#pe-cap").textContent).toContain("2.0 s");
+    expect($("#pe-cap").textContent).toContain("Running");
+    expect($("#pe-cap").textContent).toContain("3 / 3");
+    expect($("#pe-cap").textContent).toContain("0:02");
     window.dispatchEvent(new PointerEvent("pointermove", { clientX: 400, clientY: 10 }));
     ui.update(running);
     expect(ui.root.classList.contains("show-top")).toBe(true);

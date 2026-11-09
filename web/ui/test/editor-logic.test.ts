@@ -92,7 +92,8 @@ describe("editor model", () => {
       "[1, 0, 0] · L0 · cell taken",
     );
     expect(ghostText(null)).toBeNull();
-    expect(runTime(600)).toBe("2.5 s");
+    expect(runTime(600)).toBe("0:02");
+    expect(runTime(240 * 75)).toBe("1:15");
   });
 
   it("aims the focus orbit at the cell centre", () => {

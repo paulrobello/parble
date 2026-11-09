@@ -155,7 +155,7 @@ test("editor overlay: drawer place, select, slice, show an issue, run, fade and 
   await page.mouse.move(700, 450);
   await page.waitForFunction(() => document.querySelector("#pe")?.classList.contains("faded"), null, { timeout: 5_000 });
   await page.waitForFunction(() => getComputedStyle(document.querySelector("#pe-top")).opacity === "0");
-  await expect(page.locator("#pe-cap")).toContainText("marble");
+  await expect(page.locator("#pe-cap")).toContainText("Running");
   await shot(page, "run-faded");
   await page.mouse.move(700, 20, { steps: 4 });
   await page.waitForFunction(() => document.querySelector("#pe")?.classList.contains("show-top"));

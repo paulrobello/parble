@@ -75,8 +75,6 @@ export const CSS = `
 #pe .run{display:flex;align-items:center;gap:8px;background:var(--b);color:#1d1209;font-weight:700;font-size:15px;padding:8px 14px;border-color:#e0bb78;flex:none}
 #pe .run:hover:not(:disabled){background:#d4ab62;border-color:#e0bb78}
 #pe .run kbd{color:#3a271b;border-color:rgba(34,22,15,.55);background:rgba(255,255,255,.15)}
-#pe .run.stop{background:var(--r);color:var(--c);border-color:var(--b)}
-#pe .run.stop kbd{color:var(--m);border-color:rgba(217,194,160,.5);background:rgba(0,0,0,.25)}
 #pe .menu{position:absolute;top:58px;display:none;flex-direction:column;gap:2px;padding:8px;min-width:120px}
 #pe .menu.open{display:flex}
 #pe .menu button{display:flex;align-items:center;gap:8px;padding:6px 10px;text-align:left}
@@ -84,8 +82,13 @@ export const CSS = `
 #pe-side{right:12px;top:76px;width:320px;bottom:calc(var(--tray-h) + 72px);display:flex;flex-direction:column;overflow:hidden}
 #pe.side-closed #pe-side{width:28px}
 #pe.side-closed #pe-side .sec{display:none}
-#pe .spine{position:absolute;left:4px;top:8px;z-index:3;padding:4px 3px;display:flex;flex-direction:column;align-items:center;gap:4px}
-#pe .sec{padding:16px 18px 14px 34px;position:relative}
+#pe .spine{position:absolute;right:10px;top:12px;z-index:3;padding:3px 4px;display:flex;align-items:center}
+#pe.side-closed .spine{right:auto;left:2px}
+#pe .rk{display:none}
+#pe.running .rk{display:inline}
+#pe .acts-seg{margin-top:14px}
+#pe .acts-seg button{padding:6px 6px;display:flex;align-items:center;justify-content:center;gap:5px}
+#pe .sec{padding:16px 18px 14px;position:relative}
 #pe .sec+.sec{border-top:1px solid var(--line);flex:1;overflow-y:auto;min-height:0}
 #pe h2{font-size:17px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:12px}
 #pe h2 .sc{font-weight:500;font-size:15px}
@@ -99,10 +102,10 @@ export const CSS = `
 #pe .btn.warn{border-color:var(--f);color:#f6d2c8}
 #pe .steps{list-style:none;padding:0;display:flex;flex-direction:column;gap:10px;counter-reset:s}
 #pe .steps li{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:start;color:var(--c);line-height:1.35}
-#pe .steps li::before{counter-increment:s;content:counter(s);font-weight:700;color:var(--w);background:var(--b);border-radius:50%;
-  width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px}
+#pe .steps li::before{counter-increment:s;content:counter(s) ".";font-weight:700;color:var(--c);font-size:15px;line-height:1.2}
 #pe .steps li.done{color:var(--m)}
-#pe .steps li.done::before{background:none;color:var(--b);box-shadow:inset 0 0 0 1px var(--b)}
+#pe .steps li.done::before{content:"";width:7px;height:7px;margin:6px 0 0 2px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#e8c985,var(--b) 55%,#7d5f2c);box-shadow:0 1px 2px rgba(0,0,0,.6)}
 #pe .iss{display:grid;grid-template-columns:10px 1fr auto;gap:2px 9px;align-items:start;padding:9px 0;border-bottom:1px solid rgba(217,194,160,.14)}
 #pe .iss:last-of-type{border-bottom:0}
 #pe .iss .pin{margin-top:5px;grid-row:1/3}
@@ -118,6 +121,9 @@ export const CSS = `
 #pe .tabs .on{background:var(--r);border-color:var(--line);color:var(--c);font-weight:700}
 #pe .tabs .collapse{margin-left:auto;align-self:center;display:flex;gap:6px;align-items:center;padding:4px 8px;font-size:12px;border-radius:4px}
 #pe .body{display:flex;height:138px;padding:9px 18px 0;gap:14px}
+#pe .tiles.more-r{mask-image:linear-gradient(90deg,#000 calc(100% - 48px),transparent)}
+#pe .tiles.more-l{mask-image:linear-gradient(90deg,transparent,#000 48px)}
+#pe .tiles.more-l.more-r{mask-image:linear-gradient(90deg,transparent,#000 48px,#000 calc(100% - 48px),transparent)}
 #pe .tiles{position:relative;display:flex;gap:14px;overflow-x:auto;overflow-y:hidden;flex:1;min-width:0;padding-bottom:6px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
 #pe .pc{width:96px;flex:none;display:flex;flex-direction:column;gap:5px;text-align:center;font-size:12.5px;color:var(--c)}
 #pe .tile{position:relative;width:96px;height:96px;padding:0;background:rgba(0,0,0,.22);border:1px solid var(--line);border-radius:5px;display:flex;align-items:center;justify-content:center}
@@ -138,6 +144,7 @@ export const CSS = `
 #pe-mlabel{left:0;top:0;display:none;padding:5px 10px;pointer-events:none;color:var(--p);font-variant-numeric:tabular-nums}
 #pe-mlabel.show{display:block}
 
+#pe-cap b{font-weight:700;font-variant-numeric:lining-nums tabular-nums}
 #pe-cap{left:50%;top:12px;transform:translateX(-50%);display:flex;align-items:center;gap:12px;padding:6px 14px;opacity:0;pointer-events:none;font-variant-numeric:tabular-nums}
 #pe .hair{position:absolute;background:var(--m);opacity:0;transition:opacity .4s ease-out;pointer-events:none}
 #pe .hair.h-top{left:12px;right:12px;top:12px;height:1px}
