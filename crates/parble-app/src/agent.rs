@@ -156,6 +156,14 @@ impl Scenario {
                 .take(parble_sim::allpieces::MARBLES)
                 .map(|&k| (k, MarbleSize::Standard.radius_m()))
                 .collect(),
+            // The editor's hopper runs release up to `MAX_MARBLES` legacy standard marbles.
+            Self::Editor => vec![
+                (
+                    MarbleKind::default(),
+                    marble::spec_for(None, MarbleSize::Standard).radius_m,
+                );
+                crate::editor::MAX_MARBLES as usize
+            ],
             _ => vec![(
                 marble.unwrap_or_default(),
                 marble::spec_for(marble, size).radius_m,
@@ -281,7 +289,9 @@ impl CameraChoice {
             (_, Scenario::Kit2000, _) => Cues::kit(),
             (_, Scenario::Playroom, Some(v)) => Cues::playroom(v),
             (_, Scenario::Playroom, None) => Cues::playroom_run(),
-            (_, Scenario::Ramp | Scenario::Editor, _) => Cues::ramp(),
+            (_, Scenario::Ramp, _) => Cues::ramp(),
+            // The editor's runs are on the editor's own track: follow, no ramp set shots.
+            (_, Scenario::Editor, _) => Cues(vec![(0, parble_render::camera::Shot::Follow)]),
             (_, Scenario::Closeup, _) => Cues::closeup(),
             (_, Scenario::Lineup, _) => Cues::lineup(),
             (_, Scenario::Mechanisms, _) => Cues::mechanisms(),

@@ -332,11 +332,17 @@ impl SimClock {
 
     /// Start the live sim over at tick 0 of [`Self::build_run`].
     fn restart(&mut self, frame: &mut MarbleFrame, parts: &mut PartFrame) {
-        self.sim = self.build_run();
-        self.acc = 0.0;
+        let run = self.build_run();
+        self.install(run, frame, parts);
         self.runs = 0;
         self.last_run_hash = None;
         self.restarts += 1;
+    }
+
+    /// Make `run` the live sim, shown from its current tick with no interpolation from the old one.
+    fn install(&mut self, run: TrackRun, frame: &mut MarbleFrame, parts: &mut PartFrame) {
+        self.sim = run;
+        self.acc = 0.0;
         let now = self.sim.marbles();
         frame.prev = now.clone();
         frame.curr = now;

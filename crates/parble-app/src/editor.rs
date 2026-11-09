@@ -21,20 +21,26 @@ use std::sync::Mutex;
 
 use bevy::{platform::time::Instant, prelude::*, window::PrimaryWindow};
 use parble_core::{
-    CellCoord, EditCommand, Editor, Mirror, Orientation, PieceCatalog, PieceId, Placement,
-    PortFace, Selection, Track, Yaw4, link_fault,
+    CellCoord, EditCommand, Editor, HopperConfig, IssueKind, LinkFault, MarbleSize, Mirror,
+    Orientation, PieceCatalog, PieceId, Placement, PortFace, PortFlow, ReleaseMode, Selection,
+    Track, Yaw4, file::ParbleFile, is_finish, is_hopper, link_fault, validate_track,
 };
 use parble_kit::KitCatalog;
 use parble_render::{
+    MarbleFrame,
     camera::{CameraMode, EditorCamera, MainCamera, Orbit},
     kit::{
         self, CELL_M,
         edit::{EditPiece, KitEdits, KitGhost, KitMarks, MAX_MARKS, PortHint, chunk_of_cell},
+        parts::PartFrame,
     },
 };
+use parble_sim::track_run::TrackRun;
 use serde::{Deserialize, Serialize};
 
 use crate::SimClock;
+use crate::bridge::{self, Event};
+use crate::playback::Playback;
 
 /// Largest `fill` (and `--editor-fill`).
 pub const MAX_FILL: u32 = 4_000;
@@ -48,6 +54,16 @@ const FILL_Z0: i32 = -5;
 const MAX_LISTED: usize = 64;
 /// Cursor travel (px) that turns a press into a drag.
 const DRAG_PX: f32 = 4.0;
+/// Most marbles a hopper queue holds (`marbles`), and the queue an empty one runs with.
+pub const MAX_MARBLES: u32 = 10;
+/// Release interval of an `interval` run without `intervalTicks`: 1 s.
+const DEFAULT_INTERVAL_TICKS: u32 = 240;
+/// Issues listed in the diag at most (`issueCount` is always exact).
+const MAX_ISSUES: usize = 32;
+/// The name of a track that was not loaded from a file.
+const UNTITLED: &str = "Untitled track";
+/// Support pieces, counted apart from their `blk` family in `selectionInfo.families`.
+const SUPPORTS: [&str; 2] = ["blk_pillar", "blk_tower_socket_l1"];
 
 /// Editor tool.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -157,6 +173,39 @@ pub enum Action {
     },
     /// Remove every piece (one undoable command).
     Clear {},
+    /// The editor's keyboard shortcuts on or off; the mouse is unaffected.
+    Keys {
+        enabled: bool,
+    },
+    /// Queue `count` standard marbles in the hopper (one undoable command).
+    Marbles {
+        count: u32,
+    },
+    /// Run the track from tick 0: the hopper releases its queue (`one`, `all`, `interval`,
+    /// `sequential`).
+    Run {
+        release: String,
+        #[serde(default)]
+        interval_ticks: Option<u32>,
+    },
+    /// Back to the idle track: no marbles.
+    Stop {},
+    /// The active run again from tick 0, or the idle track.
+    Reset {},
+    /// Pause or resume the sim; no `paused` toggles.
+    Pause {
+        #[serde(default)]
+        paused: Option<bool>,
+    },
+    /// The follow camera (director) on, or the orbit camera.
+    Follow {
+        on: bool,
+    },
+    Rename {
+        name: String,
+    },
+    /// Push a `trackExported` bridge event with the track as `.parble` text.
+    Export {},
 }
 
 fn one() -> u8 {
@@ -426,6 +475,79 @@ pub struct EditorDiag {
     pub last: LastAction,
     pub last_edit: Option<EditTiming>,
     pub stats: EditStats,
+    /// The editor's keyboard shortcuts are on.
+    pub keys: bool,
+    pub name: String,
+    pub run: RunDiag,
+    /// Hopper and finish placements.
+    pub hoppers: usize,
+    pub finishes: usize,
+    /// Validation of the track with its hopper resolved, as of the last edit.
+    pub issue_count: usize,
+    /// The first 32 issues.
+    pub issues: Vec<IssueDiag>,
+    /// The selection's make-up; `null` when nothing is selected.
+    pub selection_info: Option<SelectionDiag>,
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunDiag {
+    /// A run started by `run` (or a loaded track with a hopper queue) is live.
+    pub active: bool,
+    pub release: &'static str,
+    pub interval_ticks: u32,
+    /// Marbles the hopper releases in a run.
+    pub queue: usize,
+    /// Marbles in the sim now.
+    pub marbles: usize,
+    pub tick: u64,
+    pub paused: bool,
+    pub follow: bool,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct IssueDiag {
+    pub kind: &'static str,
+    pub piece: Option<String>,
+    pub anchor: Option<[i32; 3]>,
+    /// The first cell involved.
+    pub cell: Option<[i32; 3]>,
+    pub face: Option<PortFace>,
+    /// `brokenLink` only.
+    pub fault: Option<&'static str>,
+    /// The other placement of an `overlap` or a `brokenLink`.
+    pub other_piece: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SelectionDiag {
+    pub count: usize,
+    /// By id family (`blk`, `rail`, `mech`), with supports as `support`.
+    pub families: BTreeMap<String, usize>,
+    /// Lowest and highest anchor level.
+    pub levels: [i32; 2],
+    pub single: Option<SingleDiag>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SingleDiag {
+    pub piece: String,
+    pub anchor: [i32; 3],
+    pub yaw: u8,
+    pub mirror: bool,
+    pub ports: Vec<SelectedPort>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SelectedPort {
+    pub face: PortFace,
+    pub flow: PortFlow,
+    pub hint: PortHint,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -472,6 +594,24 @@ struct Brush {
     mirror: bool,
 }
 
+/// The run the overlay asked for last.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct RunState {
+    active: bool,
+    release: ReleaseMode,
+    /// The last interval asked for, kept while another mode runs.
+    interval: u32,
+}
+
+impl RunState {
+    fn set_release(&mut self, release: ReleaseMode) {
+        self.release = release;
+        if let ReleaseMode::Interval { ticks } = release {
+            self.interval = ticks;
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 enum Press {
     Box,
@@ -505,6 +645,14 @@ struct EditState {
     marks_key: Option<(u64, usize)>,
     /// [`SimClock::restarts`] this state is synced to.
     restarts: u64,
+    /// The editor's keyboard shortcuts are on (`keys`).
+    keys: bool,
+    name: String,
+    run: RunState,
+    /// Edit count the issues and placement counts were computed at.
+    checked_at: Option<u64>,
+    /// Edit count and selection `selectionInfo` was computed for.
+    selection_at: Option<(u64, Selection)>,
 }
 
 fn palette() -> Vec<&'static str> {
@@ -580,6 +728,15 @@ impl EditState {
             pending_is_fill: false,
             marks_key: None,
             restarts: 0,
+            keys: true,
+            name: UNTITLED.to_owned(),
+            run: RunState {
+                active: false,
+                release: ReleaseMode::default(),
+                interval: DEFAULT_INTERVAL_TICKS,
+            },
+            checked_at: None,
+            selection_at: None,
         }
     }
 
@@ -783,6 +940,10 @@ struct Ctx<'a> {
     diag: &'a mut EditorDiag,
     camera: Option<(&'a Camera, &'a GlobalTransform)>,
     editor_cam: &'a mut EditorCamera,
+    frame: &'a mut MarbleFrame,
+    parts: &'a mut PartFrame,
+    playback: &'a mut Playback,
+    mode: &'a mut CameraMode,
 }
 
 impl Ctx<'_> {
@@ -861,7 +1022,252 @@ fn op_name(a: &Action) -> &'static str {
         Action::Project { .. } => "project",
         Action::Fill { .. } => "fill",
         Action::Clear {} => "clear",
+        Action::Keys { .. } => "keys",
+        Action::Marbles { .. } => "marbles",
+        Action::Run { .. } => "run",
+        Action::Stop {} => "stop",
+        Action::Reset {} => "reset",
+        Action::Pause { .. } => "pause",
+        Action::Follow { .. } => "follow",
+        Action::Rename { .. } => "rename",
+        Action::Export {} => "export",
     }
+}
+
+/// The track as the editor validates, runs and exports it. The hopper is the stored placement when
+/// that is a hopper, else the first hopper placed (placing one never sets it); an empty queue is
+/// [`MAX_MARBLES`] standard marbles.
+pub fn resolve_hopper(track: &Track) -> Track {
+    let mut t = track.clone();
+    let stored = t.hopper.placement.filter(|&i| {
+        t.placements
+            .get(i as usize)
+            .is_some_and(|p| is_hopper(&p.piece))
+    });
+    t.hopper.placement = stored.or_else(|| {
+        t.placements
+            .iter()
+            .position(|p| is_hopper(&p.piece))
+            .and_then(|i| u32::try_from(i).ok())
+    });
+    if t.hopper.queue.is_empty() {
+        t.hopper.queue = vec![MarbleSize::Standard; MAX_MARBLES as usize];
+    }
+    t
+}
+
+/// Marbles a run of `hopper` releases ([`resolve_hopper`]).
+fn queue_len(hopper: &HopperConfig) -> usize {
+    match hopper.queue.len() {
+        0 => MAX_MARBLES as usize,
+        n => n,
+    }
+}
+
+/// The hopper config of a `marbles` op: `count` standard marbles, the release mode kept and the
+/// placement resolved, so a stale stored index never reaches the command.
+fn marbles_hopper(track: &Track, count: u32) -> Result<HopperConfig, String> {
+    if count == 0 || count > MAX_MARBLES {
+        return Err(format!("marbles: expected 1..={MAX_MARBLES}"));
+    }
+    Ok(HopperConfig {
+        placement: resolve_hopper(track).hopper.placement,
+        queue: vec![MarbleSize::Standard; count as usize],
+        release: track.hopper.release,
+    })
+}
+
+/// `track`, hopper resolved, as canonical `.parble` text named `name`.
+fn export_json(track: &Track, name: &str) -> Result<String, String> {
+    let file = ParbleFile::new(resolve_hopper(track), name);
+    file.validate().map_err(|e| format!("export: {e}"))?;
+    Ok(file.to_json())
+}
+
+/// A `run` release mode by name; an interval defaults to [`DEFAULT_INTERVAL_TICKS`].
+fn release_mode(name: &str, interval_ticks: Option<u32>) -> Result<ReleaseMode, String> {
+    Ok(match name {
+        "one" => ReleaseMode::One,
+        "all" => ReleaseMode::All,
+        "sequential" => ReleaseMode::Sequential,
+        "interval" => match interval_ticks.unwrap_or(DEFAULT_INTERVAL_TICKS) {
+            0 => return Err("run: intervalTicks must be at least 1".into()),
+            ticks => ReleaseMode::Interval { ticks },
+        },
+        _ => {
+            return Err(format!(
+                "run: release {name} is not one, all, interval or sequential"
+            ));
+        }
+    })
+}
+
+fn release_name(release: ReleaseMode) -> &'static str {
+    match release {
+        ReleaseMode::One => "one",
+        ReleaseMode::All => "all",
+        ReleaseMode::Interval { .. } => "interval",
+        ReleaseMode::Sequential => "sequential",
+    }
+}
+
+/// A fresh run of `track` at tick 0, recording its events: with `release`, the resolved hopper
+/// releases its queue in that mode; without, the track idles with no marbles.
+fn editor_run(track: &Track, release: Option<ReleaseMode>) -> Result<TrackRun, String> {
+    let run_track = match release {
+        Some(release) => {
+            let mut t = resolve_hopper(track);
+            if t.hopper.placement.is_none() {
+                return Err("no hopper".into());
+            }
+            t.hopper.release = release;
+            t
+        }
+        None => Track {
+            hopper: HopperConfig::default(),
+            ..track.clone()
+        },
+    };
+    TrackRun::new(&run_track)
+        .map(crate::recording)
+        .map_err(|e| e.to_string())
+}
+
+/// Swap the live sim for a fresh run of the editor's track. The run is built whole, so no collider
+/// rebuild is left for the last edit.
+fn start_run(
+    st: &mut EditState,
+    ctx: &mut Ctx,
+    release: Option<ReleaseMode>,
+) -> Result<(), String> {
+    let run = editor_run(st.editor.track(), release)?;
+    ctx.clock.install(run, ctx.frame, ctx.parts);
+    st.pending = None;
+    st.pending_is_fill = false;
+    st.run.active = release.is_some();
+    Ok(())
+}
+
+/// A trimmed track name of 1 to [`parble_core::file::MAX_NAME_CHARS`] characters.
+fn track_name(name: &str) -> Result<String, String> {
+    let name = name.trim();
+    let n = name.chars().count();
+    if n == 0 || n > parble_core::file::MAX_NAME_CHARS {
+        return Err(format!(
+            "rename: expected 1..={} characters",
+            parble_core::file::MAX_NAME_CHARS
+        ));
+    }
+    Ok(name.to_owned())
+}
+
+fn fault_name(fault: &LinkFault) -> &'static str {
+    match fault {
+        LinkFault::NoMatingPort => "noMatingPort",
+        LinkFault::LevelMismatch { .. } => "levelMismatch",
+        LinkFault::ClassMismatch { .. } => "classMismatch",
+        LinkFault::FlowConflict { .. } => "flowConflict",
+    }
+}
+
+/// The issue count and the first [`MAX_ISSUES`] issues of `track`.
+fn issue_diags(track: &Track, kit: &KitCatalog) -> (usize, Vec<IssueDiag>) {
+    let issues = validate_track(track, kit);
+    let placement = |i: usize| track.placements.get(i);
+    let piece = |i: usize| placement(i).map(|p| p.piece.as_str().to_owned());
+    let listed = issues
+        .iter()
+        .take(MAX_ISSUES)
+        .map(|issue| {
+            let (kind, face, fault, other) = match &issue.kind {
+                IssueKind::OpenPort { face, .. } => ("openPort", Some(*face), None, None),
+                IssueKind::BrokenLink {
+                    port, other, fault, ..
+                } => {
+                    let face = issue.placement.and_then(placement).and_then(|p| {
+                        let port = kit.get(&p.piece)?.ports.get(*port)?;
+                        Some(port.transformed(Orientation::new(p.yaw, p.mirror)).face)
+                    });
+                    ("brokenLink", face, Some(fault_name(fault)), Some(*other))
+                }
+                IssueKind::Unreachable => ("unreachable", None, None, None),
+                IssueKind::FinishUnreachable => ("finishUnreachable", None, None, None),
+                IssueKind::MissingHopper => ("missingHopper", None, None, None),
+                IssueKind::MissingFinish => ("missingFinish", None, None, None),
+                IssueKind::Overlap { other } => ("overlap", None, None, Some(*other)),
+                IssueKind::UnknownPiece { .. } => ("unknownPiece", None, None, None),
+                IssueKind::LevelSuffixMismatch { .. } => ("levelSuffixMismatch", None, None, None),
+                IssueKind::HopperConfigInvalid { .. } => ("hopperConfigInvalid", None, None, None),
+            };
+            IssueDiag {
+                kind,
+                piece: issue.placement.and_then(piece),
+                anchor: issue.anchor.map(cell_arr),
+                cell: issue.cells.first().copied().map(cell_arr),
+                face,
+                fault,
+                other_piece: other.and_then(piece),
+            }
+        })
+        .collect();
+    (issues.len(), listed)
+}
+
+fn family_of(id: &PieceId) -> &str {
+    if SUPPORTS.contains(&id.as_str()) {
+        "support"
+    } else {
+        id.family()
+    }
+}
+
+/// The selection's families and levels, and the one selected piece's ports.
+fn selection_diag(st: &EditState) -> Option<SelectionDiag> {
+    let placements = &st.editor.track().placements;
+    let selected: Vec<&Placement> = st
+        .editor
+        .selection
+        .iter()
+        .filter_map(|i| placements.get(i as usize))
+        .collect();
+    let first = *selected.first()?;
+    let mut families = BTreeMap::new();
+    let mut levels = [first.anchor.y; 2];
+    for p in &selected {
+        *families.entry(family_of(&p.piece).to_owned()).or_insert(0) += 1;
+        levels = [levels[0].min(p.anchor.y), levels[1].max(p.anchor.y)];
+    }
+    let single = (selected.len() == 1).then(|| {
+        let o = Orientation::new(first.yaw, first.mirror);
+        let ports = st
+            .kit
+            .get(&first.piece)
+            .map(|def| {
+                def.ports
+                    .iter()
+                    .zip(st.port_hints(first))
+                    .map(|(port, h)| SelectedPort {
+                        face: h.face,
+                        flow: port.transformed(o).flow,
+                        hint: h.hint,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        SingleDiag {
+            piece: first.piece.as_str().to_owned(),
+            anchor: cell_arr(first.anchor),
+            yaw: first.yaw.quarter_turns(),
+            mirror: first.mirror == Mirror::On,
+            ports,
+        }
+    });
+    Some(SelectionDiag {
+        count: selected.len(),
+        families,
+        levels,
+        single,
+    })
 }
 
 /// The selection a move drag from `anchor` acts on: the selection if it holds `anchor`, else
@@ -1089,6 +1495,48 @@ fn apply_action(st: &mut EditState, ctx: &mut Ctx, action: Action) -> Result<Las
             let all: Selection = (0..st.editor.track().placements.len() as u32).collect();
             run_command(st, ctx, "clear", EditCommand::Remove(all))?;
         }
+        Action::Keys { enabled } => st.keys = enabled,
+        Action::Marbles { count } => {
+            let hopper = marbles_hopper(st.editor.track(), count)?;
+            run_command(st, ctx, "marbles", EditCommand::SetHopper(hopper))?;
+        }
+        Action::Run {
+            release,
+            interval_ticks,
+        } => {
+            let release = release_mode(&release, interval_ticks)?;
+            start_run(st, ctx, Some(release))?;
+            st.run.set_release(release);
+            ctx.playback.paused = false;
+            ctx.playback.step = false;
+        }
+        Action::Stop {} => start_run(st, ctx, None)?,
+        Action::Reset {} => {
+            let release = st.run.active.then_some(st.run.release);
+            start_run(st, ctx, release)?;
+        }
+        Action::Pause { paused } => match paused {
+            Some(p) => {
+                ctx.playback.paused = p;
+                ctx.playback.step = false;
+            }
+            None => ctx.playback.toggle_pause(),
+        },
+        Action::Follow { on } => {
+            *ctx.mode = if on {
+                CameraMode::Director
+            } else {
+                CameraMode::Orbit
+            };
+        }
+        Action::Rename { name } => st.name = track_name(&name)?,
+        Action::Export {} => {
+            let json = export_json(st.editor.track(), &st.name)?;
+            bridge::push_event(Event::TrackExported {
+                name: st.name.clone(),
+                json,
+            });
+        }
     }
     out.ok = true;
     Ok(out)
@@ -1185,7 +1633,8 @@ fn mouse_and_keys(
         }
         st.last_cursor = cursor;
     }
-    if *mode != CameraMode::Orbit {
+    // Editing works under the orbit and follow cameras; the fly camera owns the mouse and keys.
+    if *mode == CameraMode::Fly {
         return;
     }
     let mut out: Vec<Action> = Vec::new();
@@ -1230,47 +1679,57 @@ fn mouse_and_keys(
         }
     }
     if let Some(k) = keys {
-        let ctrl = k.any_pressed([
-            KeyCode::ControlLeft,
-            KeyCode::ControlRight,
-            KeyCode::SuperLeft,
-            KeyCode::SuperRight,
-        ]);
-        let max_level = st.by_anchor.keys().map(|a| a.y).max().unwrap_or(0);
-        for key in k.get_just_pressed() {
-            match key {
-                KeyCode::Digit1 => out.push(Action::Tool { tool: Tool::Place }),
-                KeyCode::Digit2 => out.push(Action::Tool { tool: Tool::Select }),
-                KeyCode::Digit3 => out.push(Action::Tool { tool: Tool::Delete }),
-                KeyCode::KeyR => out.push(Action::Rotate { by: 1 }),
-                KeyCode::KeyM => out.push(Action::Mirror {}),
-                KeyCode::Delete | KeyCode::Backspace => out.push(Action::Remove {}),
-                KeyCode::KeyZ if ctrl && shift => out.push(Action::Redo {}),
-                KeyCode::KeyZ if ctrl => out.push(Action::Undo {}),
-                KeyCode::KeyY if ctrl => out.push(Action::Redo {}),
-                KeyCode::BracketLeft => out.push(Action::Slice {
-                    level: Some((st.slice.unwrap_or(max_level + 1) - 1).max(0)),
-                }),
-                KeyCode::BracketRight => out.push(Action::Slice {
-                    level: st.slice.map(|s| s + 1).filter(|&s| s <= max_level),
-                }),
-                KeyCode::KeyX => out.push(Action::Slice { level: None }),
-                KeyCode::Escape => out.push(Action::ClearSelection {}),
-                KeyCode::Tab => {
-                    let next = (st.brush.piece + 1) % kit::PIECES.len();
-                    out.push(Action::Brush {
-                        piece: kit::PIECES[next].0.to_owned(),
-                        yaw: st.brush.yaw,
-                        mirror: false,
-                    });
-                }
-                _ => {}
-            }
-        }
+        out.extend(key_actions(&st, &k, shift));
     }
     if !out.is_empty() {
         inbox().extend(out.into_iter().map(|a| (None, a)));
     }
+}
+
+/// The editor shortcuts pressed this frame; none while `keys` is off.
+fn key_actions(st: &EditState, k: &ButtonInput<KeyCode>, shift: bool) -> Vec<Action> {
+    let mut out = Vec::new();
+    if !st.keys {
+        return out;
+    }
+    let ctrl = k.any_pressed([
+        KeyCode::ControlLeft,
+        KeyCode::ControlRight,
+        KeyCode::SuperLeft,
+        KeyCode::SuperRight,
+    ]);
+    let max_level = st.by_anchor.keys().map(|a| a.y).max().unwrap_or(0);
+    for key in k.get_just_pressed() {
+        match key {
+            KeyCode::Digit1 => out.push(Action::Tool { tool: Tool::Place }),
+            KeyCode::Digit2 => out.push(Action::Tool { tool: Tool::Select }),
+            KeyCode::Digit3 => out.push(Action::Tool { tool: Tool::Delete }),
+            KeyCode::KeyR => out.push(Action::Rotate { by: 1 }),
+            KeyCode::KeyM => out.push(Action::Mirror {}),
+            KeyCode::Delete | KeyCode::Backspace => out.push(Action::Remove {}),
+            KeyCode::KeyZ if ctrl && shift => out.push(Action::Redo {}),
+            KeyCode::KeyZ if ctrl => out.push(Action::Undo {}),
+            KeyCode::KeyY if ctrl => out.push(Action::Redo {}),
+            KeyCode::BracketLeft => out.push(Action::Slice {
+                level: Some((st.slice.unwrap_or(max_level + 1) - 1).max(0)),
+            }),
+            KeyCode::BracketRight => out.push(Action::Slice {
+                level: st.slice.map(|s| s + 1).filter(|&s| s <= max_level),
+            }),
+            KeyCode::KeyX => out.push(Action::Slice { level: None }),
+            KeyCode::Escape => out.push(Action::ClearSelection {}),
+            KeyCode::Tab => {
+                let next = (st.brush.piece + 1) % kit::PIECES.len();
+                out.push(Action::Brush {
+                    piece: kit::PIECES[next].0.to_owned(),
+                    yaw: st.brush.yaw,
+                    mirror: false,
+                });
+            }
+            _ => {}
+        }
+    }
+    out
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1280,15 +1739,24 @@ fn apply_actions(
     mut edits: ResMut<KitEdits>,
     mut diag: ResMut<EditorDiag>,
     mut editor_cam: ResMut<EditorCamera>,
+    mut frame: ResMut<MarbleFrame>,
+    mut parts: ResMut<PartFrame>,
+    mut playback: ResMut<Playback>,
+    mut mode: ResMut<CameraMode>,
     cams: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
 ) {
     if st.restarts != clock.restarts {
         st.restarts = clock.restarts;
-        let track = clock
-            .tracks
-            .loaded
-            .as_ref()
-            .map_or_else(|| Track::new(0), |f| f.track.clone());
+        let file = clock.tracks.loaded.as_ref();
+        let track = file.map_or_else(|| Track::new(0), |f| f.track.clone());
+        st.name = file
+            .map(|f| f.metadata.name.trim())
+            .filter(|n| !n.is_empty())
+            .unwrap_or(UNTITLED)
+            .to_owned();
+        // The restarted sim runs the loaded file's own hopper config.
+        st.run.active = track.hopper.placement.is_some() && !track.hopper.queue.is_empty();
+        st.run.set_release(track.hopper.release);
         st.adopt(track, &mut edits);
         // The ghost and selection marks are keyed on the edit count.
         diag.edits += 1;
@@ -1304,6 +1772,10 @@ fn apply_actions(
         diag: &mut diag,
         camera,
         editor_cam: &mut editor_cam,
+        frame: &mut frame,
+        parts: &mut parts,
+        playback: &mut playback,
+        mode: &mut mode,
     };
     for (id, action) in actions {
         let op = op_name(&action);
@@ -1350,6 +1822,42 @@ fn apply_actions(
         .collect();
     d.can_undo = st.editor.can_undo();
     d.can_redo = st.editor.can_redo();
+    d.keys = st.keys;
+    d.name.clone_from(&st.name);
+    d.run = RunDiag {
+        active: st.run.active,
+        release: release_name(st.run.release),
+        interval_ticks: st.run.interval,
+        queue: queue_len(&st.editor.track().hopper),
+        marbles: ctx.frame.curr.len(),
+        tick: ctx.clock.sim.tick_count(),
+        paused: ctx.playback.paused,
+        follow: *ctx.mode == CameraMode::Director,
+    };
+    // Validation and the selection's make-up only when the track or the selection changes.
+    if st.checked_at != Some(d.edits) {
+        st.checked_at = Some(d.edits);
+        let track = resolve_hopper(st.editor.track());
+        (d.issue_count, d.issues) = issue_diags(&track, st.kit);
+        d.hoppers = track
+            .placements
+            .iter()
+            .filter(|p| is_hopper(&p.piece))
+            .count();
+        d.finishes = track
+            .placements
+            .iter()
+            .filter(|p| is_finish(&p.piece))
+            .count();
+    }
+    if st
+        .selection_at
+        .as_ref()
+        .is_none_or(|(e, s)| *e != d.edits || *s != st.editor.selection)
+    {
+        st.selection_at = Some((d.edits, st.editor.selection.clone()));
+        d.selection_info = selection_diag(st);
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1735,5 +2243,359 @@ mod tests {
         assert_eq!(got.len(), 3);
         assert_eq!(got[0].0, Some(4));
         assert_eq!(got[1].1, Action::Slice { level: None });
+    }
+
+    fn placed(id: &str, cell: CellCoord) -> Placement {
+        Placement::new(
+            pid(piece_index(id).unwrap()),
+            cell,
+            Yaw4::new(0),
+            Mirror::Off,
+        )
+    }
+
+    fn parse(json: &str) -> Action {
+        serde_json::from_str::<Envelope>(json).unwrap().action
+    }
+
+    #[test]
+    fn keys_off_drops_every_shortcut() {
+        let mut st = EditState::new();
+        let mut k = ButtonInput::<KeyCode>::default();
+        k.press(KeyCode::Digit2);
+        assert_eq!(
+            key_actions(&st, &k, false),
+            [Action::Tool { tool: Tool::Select }]
+        );
+        st.keys = false;
+        assert!(key_actions(&st, &k, false).is_empty());
+        assert_eq!(
+            parse(r#"{"op":"keys","enabled":false}"#),
+            Action::Keys { enabled: false }
+        );
+    }
+
+    #[test]
+    fn the_hopper_resolves_to_the_first_hopper_placed() {
+        let mut track = Track::new(0);
+        track.placements = vec![
+            placed("blk_straight_l3", c(0, 0, 0)),
+            placed("mech_hopper", c(5, 0, 5)),
+            placed("mech_hopper", c(10, 0, 10)),
+        ];
+        // Placing a hopper never sets the config: the first hopper is the source.
+        let t = resolve_hopper(&track);
+        assert_eq!(t.hopper.placement, Some(1));
+        assert_eq!(t.hopper.queue, vec![MarbleSize::Standard; 10]);
+        // A stored hopper index is kept; a stale one (not a hopper) is replaced.
+        track.hopper.placement = Some(2);
+        track.hopper.queue = vec![MarbleSize::Standard; 3];
+        let t = resolve_hopper(&track);
+        assert_eq!((t.hopper.placement, t.hopper.queue.len()), (Some(2), 3));
+        track.hopper.placement = Some(0);
+        assert_eq!(resolve_hopper(&track).hopper.placement, Some(1));
+        track.placements.truncate(1);
+        assert_eq!(resolve_hopper(&track).hopper.placement, None);
+        assert_eq!(queue_len(&HopperConfig::default()), 10);
+    }
+
+    #[test]
+    fn a_run_releases_the_resolved_hopper_and_stop_idles() {
+        let mut track = Track::new(0);
+        track.placements = vec![placed("mech_hopper", c(0, 0, 0))];
+        let mut run = editor_run(&track, Some(ReleaseMode::All)).unwrap();
+        run.tick(480);
+        assert_eq!(run.marbles().len(), 10);
+        let mut idle = editor_run(&track, None).unwrap();
+        idle.tick(480);
+        assert!(idle.marbles().is_empty());
+        assert_eq!(
+            editor_run(&Track::new(0), Some(ReleaseMode::One)).err(),
+            Some("no hopper".to_owned())
+        );
+        assert_eq!(release_mode("one", None), Ok(ReleaseMode::One));
+        assert_eq!(
+            release_mode("interval", None),
+            Ok(ReleaseMode::Interval { ticks: 240 })
+        );
+        assert_eq!(
+            release_mode("interval", Some(60)),
+            Ok(ReleaseMode::Interval { ticks: 60 })
+        );
+        assert!(release_mode("interval", Some(0)).is_err());
+        assert!(release_mode("burst", None).is_err());
+        for mode in ["one", "all", "interval", "sequential"] {
+            assert_eq!(release_name(release_mode(mode, None).unwrap()), mode);
+        }
+        let mut rs = EditState::new().run;
+        rs.set_release(ReleaseMode::Interval { ticks: 90 });
+        rs.set_release(ReleaseMode::All);
+        assert_eq!((rs.release, rs.interval), (ReleaseMode::All, 90));
+        assert_eq!(
+            parse(r#"{"op":"run","release":"interval","intervalTicks":120}"#),
+            Action::Run {
+                release: "interval".into(),
+                interval_ticks: Some(120)
+            }
+        );
+        assert_eq!(parse(r#"{"op":"pause"}"#), Action::Pause { paused: None });
+        assert_eq!(
+            parse(r#"{"op":"follow","on":true}"#),
+            Action::Follow { on: true }
+        );
+        assert_eq!(parse(r#"{"op":"reset"}"#), Action::Reset {});
+        assert_eq!(parse(r#"{"op":"stop"}"#), Action::Stop {});
+    }
+
+    #[test]
+    fn marbles_sets_an_undoable_queue_on_the_resolved_hopper() {
+        let mut st = EditState::new();
+        st.editor
+            .apply(
+                st.kit,
+                EditCommand::Place(placed("blk_straight_l3", c(0, 0, 0))),
+            )
+            .unwrap();
+        st.editor
+            .apply(
+                st.kit,
+                EditCommand::Place(placed("mech_hopper", c(5, 0, 5))),
+            )
+            .unwrap();
+        assert!(marbles_hopper(st.editor.track(), 0).is_err());
+        assert!(marbles_hopper(st.editor.track(), 11).is_err());
+        let h = marbles_hopper(st.editor.track(), 4).unwrap();
+        st.editor.apply(st.kit, EditCommand::SetHopper(h)).unwrap();
+        let hopper = &st.editor.track().hopper;
+        assert_eq!(hopper.placement, Some(1));
+        assert_eq!(hopper.queue, vec![MarbleSize::Standard; 4]);
+        assert_eq!(hopper.release, ReleaseMode::default());
+        assert_eq!(queue_len(hopper), 4);
+        assert!(st.editor.undo());
+        assert_eq!(st.editor.track().hopper, HopperConfig::default());
+        assert_eq!(queue_len(&st.editor.track().hopper), 10);
+    }
+
+    #[test]
+    fn issues_name_their_kind_piece_face_and_fault() {
+        let st = EditState::new();
+        let straight = placed("blk_straight_l3", c(0, 0, 0));
+        let def = st.kit.get(&straight.piece).unwrap().clone();
+        let port = def.ports[0];
+        // A straight across the first port, turned a quarter: a broken link between the two.
+        let mut turned = placed("blk_straight_l3", port.cell + port.face.normal());
+        turned.yaw = Yaw4::new(1);
+        let mut track = Track::new(0);
+        track.placements = vec![straight, turned];
+        let (count, issues) = issue_diags(&resolve_hopper(&track), st.kit);
+        assert_eq!(count, issues.len());
+        let kinds: BTreeSet<&str> = issues.iter().map(|i| i.kind).collect();
+        assert!(kinds.contains("missingHopper"), "{kinds:?}");
+        assert!(kinds.contains("missingFinish"), "{kinds:?}");
+        let broken = issues.iter().find(|i| i.kind == "brokenLink").unwrap();
+        assert_eq!(broken.piece.as_deref(), Some("blk_straight_l3"));
+        assert_eq!(broken.other_piece.as_deref(), Some("blk_straight_l3"));
+        assert_eq!(broken.anchor, Some([0, 0, 0]));
+        assert!(broken.cell.is_some() && broken.fault.is_some());
+        assert_eq!(broken.face, Some(port.face));
+        let missing = issues.iter().find(|i| i.kind == "missingHopper").unwrap();
+        assert_eq!((missing.piece.as_ref(), missing.face), (None, None));
+        // Open ports carry their world face; the list stops at 32, the count does not.
+        let (count, issues) = issue_diags(
+            &Track {
+                placements: fill_layout(200),
+                ..Track::new(0)
+            },
+            st.kit,
+        );
+        assert_eq!(issues.len(), MAX_ISSUES);
+        assert!(count > MAX_ISSUES);
+        assert!(
+            issues
+                .iter()
+                .any(|i| i.kind == "openPort" && i.face.is_some())
+        );
+    }
+
+    /// The validator on a 2,000-piece fill with a hopper as its source (every piece then gets the
+    /// reachability pass). A timing note, not a gate: run with `--nocapture` to see it.
+    #[test]
+    fn issues_on_a_2000_piece_fill_time() {
+        let st = EditState::new();
+        let mut track = Track::new(0);
+        track.placements = fill_layout(2_000);
+        track.placements.push(placed("mech_hopper", c(-10, 0, 10)));
+        let track = resolve_hopper(&track);
+        let start = Instant::now();
+        let (count, _) = issue_diags(&track, st.kit);
+        let ms = start.elapsed().as_secs_f32() * 1e3;
+        println!("validate_track: 2,001 pieces, {count} issues, {ms:.1} ms");
+        assert!(count > 0);
+        // `run`, `stop` and `reset` build the whole sim of the same track.
+        let start = Instant::now();
+        let run = editor_run(&track, Some(ReleaseMode::All)).unwrap();
+        let ms = start.elapsed().as_secs_f32() * 1e3;
+        println!(
+            "editor_run: 2,001 pieces, {} chunks, {ms:.0} ms",
+            run.chunk_colliders().chunks().count()
+        );
+    }
+
+    #[test]
+    fn selection_info_counts_families_levels_and_one_piece_ports() {
+        let mut st = EditState::new();
+        let mut track = Track::new(0);
+        track.placements = vec![
+            placed("blk_straight_l3", c(0, 0, 0)),
+            placed("blk_pillar", c(3, 0, 0)),
+            placed("rail_straight_l1", c(6, 2, 0)),
+            placed("mech_finish", c(9, 1, 0)),
+        ];
+        st.adopt(track, &mut KitEdits::default());
+        assert_eq!(selection_diag(&st), None);
+        st.editor.selection = (0..4).collect();
+        let info = selection_diag(&st).unwrap();
+        assert_eq!(info.count, 4);
+        assert_eq!(
+            info.families,
+            [("blk", 1), ("mech", 1), ("rail", 1), ("support", 1)]
+                .map(|(k, v)| (k.to_owned(), v))
+                .into()
+        );
+        assert_eq!(info.levels, [0, 2]);
+        assert!(info.single.is_none());
+        st.editor.selection = [0].into_iter().collect();
+        let one = selection_diag(&st).unwrap().single.unwrap();
+        assert_eq!(
+            (one.piece.as_str(), one.anchor, one.yaw, one.mirror),
+            ("blk_straight_l3", [0, 0, 0], 0, false)
+        );
+        let def = st
+            .kit
+            .get(&pid(piece_index("blk_straight_l3").unwrap()))
+            .unwrap();
+        assert_eq!(one.ports.len(), def.ports.len());
+        for (p, q) in one.ports.iter().zip(&def.ports) {
+            assert_eq!((p.face, p.flow, p.hint), (q.face, q.flow, PortHint::Open));
+        }
+    }
+
+    #[test]
+    fn rename_trims_and_export_writes_the_resolved_track() {
+        assert_eq!(track_name("  Loop de loop "), Ok("Loop de loop".to_owned()));
+        assert!(track_name("   ").is_err());
+        assert!(track_name(&"x".repeat(121)).is_err());
+        assert!(track_name(&"x".repeat(120)).is_ok());
+        assert_eq!(
+            parse(r#"{"op":"rename","name":"A"}"#),
+            Action::Rename { name: "A".into() }
+        );
+        assert_eq!(parse(r#"{"op":"export"}"#), Action::Export {});
+        assert_eq!(
+            parse(r#"{"op":"marbles","count":3}"#),
+            Action::Marbles { count: 3 }
+        );
+        let mut track = Track::new(7);
+        track.placements = vec![
+            placed("blk_straight_l3", c(0, 0, 0)),
+            placed("mech_hopper", c(5, 0, 5)),
+        ];
+        let json = export_json(&track, "Loop de loop").unwrap();
+        let file = parble_core::file::load(&json).unwrap();
+        assert_eq!(file.metadata.name, "Loop de loop");
+        assert_eq!(file.track, resolve_hopper(&track));
+        assert_eq!(file.track.hopper.placement, Some(1));
+    }
+
+    fn act(st: &mut EditState, ctx: &mut Ctx, json: &str) -> Result<LastAction, String> {
+        apply_action(st, ctx, parse(json))
+    }
+
+    #[test]
+    fn run_ops_swap_the_sim_and_keep_the_edits_and_undo() {
+        let mut st = EditState::new();
+        let mut clock = SimClock {
+            sim: TrackRun::from_sim(parble_sim::Sim::tray_scene()),
+            scenario: crate::agent::Scenario::Editor,
+            tracks: Default::default(),
+            marble: None,
+            marble_size: parble_sim::marble::MarbleSize::Standard,
+            acc: 0.0,
+            runs: 0,
+            last_run_hash: None,
+            restarts: 0,
+        };
+        let (mut edits, mut diag, mut editor_cam) = Default::default();
+        let (mut frame, mut parts, mut playback) = Default::default();
+        let mut mode = CameraMode::Orbit;
+        let ctx = &mut Ctx {
+            clock: &mut clock,
+            edits: &mut edits,
+            diag: &mut diag,
+            camera: None,
+            editor_cam: &mut editor_cam,
+            frame: &mut frame,
+            parts: &mut parts,
+            playback: &mut playback,
+            mode: &mut mode,
+        };
+        let st = &mut st;
+        assert_eq!(
+            act(st, ctx, r#"{"op":"run","release":"all"}"#).err(),
+            Some("no hopper".to_owned())
+        );
+        act(
+            st,
+            ctx,
+            r#"{"op":"place","piece":"mech_hopper","cell":[0,0,0]}"#,
+        )
+        .unwrap();
+        act(
+            st,
+            ctx,
+            r#"{"op":"place","piece":"blk_straight_l3","cell":[5,0,5]}"#,
+        )
+        .unwrap();
+        act(st, ctx, r#"{"op":"marbles","count":4}"#).unwrap();
+        act(st, ctx, r#"{"op":"pause","paused":true}"#).unwrap();
+        act(st, ctx, r#"{"op":"run","release":"all"}"#).unwrap();
+        // The swap keeps the edits and their history, and never looks like a bridge restart.
+        assert!(st.editor.can_undo());
+        assert_eq!(st.editor.track().placements.len(), 2);
+        assert_eq!(ctx.clock.restarts, 0);
+        assert!(st.pending.is_none() && st.run.active);
+        assert!(!ctx.playback.paused);
+        assert_eq!(ctx.clock.sim.tick_count(), 0);
+        assert_eq!(ctx.frame.curr.len(), ctx.clock.sim.marbles().len());
+        ctx.clock.sim.tick(480);
+        assert_eq!(ctx.clock.sim.marbles().len(), 4);
+        // An edit mid-run reaches the run's colliders.
+        act(
+            st,
+            ctx,
+            r#"{"op":"place","piece":"blk_straight_l3","cell":[8,0,8]}"#,
+        )
+        .unwrap();
+        assert!(ctx.clock.sim.chunk_colliders().dirty_chunks().count() > 0);
+        act(st, ctx, r#"{"op":"reset"}"#).unwrap();
+        assert_eq!(ctx.clock.sim.tick_count(), 0);
+        assert_eq!(ctx.clock.sim.chunk_colliders().dirty_chunks().count(), 0);
+        assert!(st.run.active && st.editor.can_undo());
+        ctx.clock.sim.tick(480);
+        assert_eq!(ctx.clock.sim.marbles().len(), 4);
+        act(st, ctx, r#"{"op":"stop"}"#).unwrap();
+        assert!(!st.run.active);
+        ctx.clock.sim.tick(480);
+        assert!(ctx.clock.sim.marbles().is_empty());
+        act(st, ctx, r#"{"op":"reset"}"#).unwrap();
+        assert!(!st.run.active && ctx.frame.curr.is_empty());
+        assert_eq!(st.editor.track().placements.len(), 3);
+        act(st, ctx, r#"{"op":"follow","on":true}"#).unwrap();
+        assert_eq!(*ctx.mode, CameraMode::Director);
+        act(st, ctx, r#"{"op":"follow","on":false}"#).unwrap();
+        assert_eq!(*ctx.mode, CameraMode::Orbit);
+        act(st, ctx, r#"{"op":"pause"}"#).unwrap();
+        assert!(ctx.playback.paused);
+        assert_eq!(ctx.clock.restarts, 0);
     }
 }
