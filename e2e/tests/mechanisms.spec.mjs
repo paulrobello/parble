@@ -21,7 +21,8 @@ test("mechanism parts interpolate between physics ticks and sweep smoothly", asy
   page.on("console", (m) => { if (m.type() === "error" || BAD_TEXT(m.text())) errors.push(m.text()); });
   page.on("pageerror", (e) => errors.push(String(e)));
   page.on("requestfailed", (r) => errors.push(`request failed: ${r.url()}`));
-  await page.goto("/?mute=1&scenario=mechanisms&quality=medium");
+  // `camera=director`: the cued shots, not the fly-only default, so the screenshot is framed.
+  await page.goto("/?mute=1&scenario=mechanisms&camera=director&quality=medium");
   await page.waitForFunction(() => window.__parble?.ready === true && window.__parble.kit?.parts?.length === 11, null, {
     timeout: 60_000,
   });

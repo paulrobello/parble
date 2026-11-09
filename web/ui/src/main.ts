@@ -1,7 +1,7 @@
 import { startAudio } from "./audio/boot";
 import { Bridge, type WasmBindings } from "./bridge";
 import { mountFiles } from "./files";
-import { applyEvents, emptyHud, formatHud, mountControlsHint, mountHud } from "./hud";
+import { applyEvents, controlsHint, emptyHud, formatHud, mountControlsHint, mountHud } from "./hud";
 import { Library } from "./library";
 import { mountFlyPointerLock } from "./pointer-lock";
 
@@ -11,14 +11,15 @@ declare global {
   }
 }
 
+type CameraState = { mode?: string; flyOnly?: boolean };
+const cameraState = (): CameraState | undefined =>
+  (window as unknown as { __parble?: { camera?: CameraState } }).__parble?.camera;
+
 function start(bindings: WasmBindings): void {
   const bridge = new Bridge(new bindings.Bridge());
   const el = mountHud(document);
-  mountControlsHint(document);
-  mountFlyPointerLock(document, () => {
-    const p = (window as unknown as { __parble?: { camera?: { mode?: string } } }).__parble;
-    return p?.camera?.mode ?? null;
-  });
+  const hint = mountControlsHint(document);
+  mountFlyPointerLock(document, () => cameraState()?.mode ?? null);
   const library = "indexedDB" in window ? Library.open({ indexedDB: window.indexedDB }) : null;
   library?.catch((err) => console.warn("track library unavailable", err));
   const files = mountFiles(document, (cmd) => bridge.post(cmd), library);
@@ -32,6 +33,8 @@ function start(bindings: WasmBindings): void {
     for (const e of events) if (e.type === "audioFrame") audio.consume(e);
     const text = formatHud(state);
     if (text !== shown) el.textContent = shown = text;
+    const hintText = controlsHint(cameraState()?.flyOnly === true);
+    if (hint.textContent !== hintText) hint.textContent = hintText;
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

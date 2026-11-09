@@ -208,6 +208,10 @@ pub enum CameraChoice {
     /// A fixed set shot on the mechanism showcase's checkpoint arch (its entry face and side), for
     /// judging its glow inlay.
     Checkpoint,
+    /// Fly only, from the opening shot of the scenario's cues: no director, and no key leaves fly
+    /// ([`parble_render::camera::FlyOnly`]). The mechanism showcase's default when `--camera` is not
+    /// given; not a `--camera` value.
+    FlyOnly,
 }
 
 impl CameraChoice {
@@ -225,6 +229,16 @@ impl CameraChoice {
         match self {
             Self::Orbit => CameraMode::Orbit,
             Self::Director | Self::Overview | Self::Checkpoint => CameraMode::Director,
+            Self::FlyOnly => CameraMode::Fly,
+        }
+    }
+
+    /// The camera when `--camera` is not given: fly only on the mechanism showcase (owner direction
+    /// 2026-11-08: the director's cuts between its lanes jump around), the director elsewhere.
+    pub fn default_for(scenario: Scenario) -> Self {
+        match scenario {
+            Scenario::Mechanisms => Self::FlyOnly,
+            _ => Self::Director,
         }
     }
 
@@ -356,6 +370,7 @@ impl AgentOpts {
         strict: bool,
     ) -> Result<Self, String> {
         let mut o = Self::default();
+        let mut camera_given = false;
         for (key, value) in pairs {
             let need = |v: Option<String>| v.ok_or_else(|| format!("{key}: missing value"));
             match key.as_str() {
@@ -380,6 +395,7 @@ impl AgentOpts {
                         .ok_or_else(|| format!("quality: unknown {v:?} (low|medium|high|ultra)"))?;
                 }
                 "camera" => {
+                    camera_given = true;
                     let v = need(value)?;
                     o.camera = CameraChoice::parse(&v).ok_or_else(|| {
                         format!("camera: unknown {v:?} (director|orbit|overview|checkpoint)")
@@ -467,6 +483,9 @@ impl AgentOpts {
                 _ if strict => return Err(format!("unknown flag --{key}")),
                 _ => {}
             }
+        }
+        if !camera_given {
+            o.camera = CameraChoice::default_for(o.scenario);
         }
         if o.post.dof.is_none()
             && matches!(
@@ -1062,6 +1081,45 @@ mod tests {
         assert_eq!(q.quality, Quality::Ultra);
         assert_eq!(q.camera, CameraChoice::Overview);
         assert_eq!(q.post.taa, Some(false));
+    }
+
+    #[test]
+    fn mechanisms_defaults_to_fly_only_and_camera_director_restores_the_director() {
+        let o = args("--scenario mechanisms").unwrap();
+        assert_eq!(o.camera, CameraChoice::FlyOnly);
+        assert_eq!(o.camera.mode(), CameraMode::Fly);
+        assert_eq!(o.camera.cues(o.scenario, None), Cues::mechanisms());
+        let q = AgentOpts::from_query("?scenario=mechanisms&mute=1", str::to_owned).unwrap();
+        assert_eq!(q.camera, CameraChoice::FlyOnly);
+        // `--camera director` before or after `--scenario`, and on the web.
+        for o in [
+            args("--scenario mechanisms --camera director").unwrap(),
+            args("--camera director --scenario mechanisms").unwrap(),
+            AgentOpts::from_query("?camera=director&scenario=mechanisms", str::to_owned).unwrap(),
+        ] {
+            assert_eq!(o.camera, CameraChoice::Director);
+            assert_eq!(o.camera.mode(), CameraMode::Director);
+            assert_eq!(o.camera.cues(o.scenario, None), Cues::mechanisms());
+        }
+        assert!(args("--camera flyonly").is_err());
+    }
+
+    #[test]
+    fn other_scenarios_keep_the_director_by_default() {
+        for name in [
+            "ramp",
+            "closeup",
+            "playroom",
+            "kit2000",
+            "lineup",
+            "editor",
+            "allpieces",
+        ] {
+            let o = args(&format!("--scenario {name}")).unwrap();
+            assert_eq!(o.camera, CameraChoice::Director, "{name}");
+            assert_eq!(o.camera.mode(), CameraMode::Director, "{name}");
+        }
+        assert_eq!(AgentOpts::default().camera, CameraChoice::Director);
     }
 
     #[test]

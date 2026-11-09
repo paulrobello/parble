@@ -96,6 +96,7 @@ fn main() {
         .add_plugins(DirectorPlugin {
             mode: opts.camera.mode(),
             cues: opts.camera.cues(opts.scenario, opts.view),
+            fly_only: opts.camera == agent::CameraChoice::FlyOnly,
         })
         .add_plugins(SensorOverlayPlugin { on: opts.sensors })
         .add_plugins(ZoneOverlayPlugin { on: opts.zones })

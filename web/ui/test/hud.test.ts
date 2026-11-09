@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { CONTROLS_HINT, MAX_SPLITS, applyEvents, emptyHud, formatHud } from "../src/hud";
+import {
+  CONTROLS_HINT,
+  FLY_ONLY_CONTROLS_HINT,
+  MAX_SPLITS,
+  applyEvents,
+  controlsHint,
+  emptyHud,
+  formatHud,
+} from "../src/hud";
 
 describe("HUD", () => {
   it("shows placeholders before the first frame", () => {
@@ -67,5 +75,12 @@ describe("HUD", () => {
   it("names the fly camera's enter and exit keys", () => {
     expect(CONTROLS_HINT).toMatch(/F: fly camera/);
     expect(CONTROLS_HINT).toMatch(/F\/Esc back/);
+  });
+
+  it("drops the director's keys from the fly-only controls line", () => {
+    expect(controlsHint(false)).toBe(CONTROLS_HINT);
+    expect(controlsHint(true)).toBe(FLY_ONLY_CONTROLS_HINT);
+    expect(FLY_ONLY_CONTROLS_HINT).toMatch(/WASD move {2}Q\/E down\/up {2}drag look/);
+    expect(FLY_ONLY_CONTROLS_HINT).not.toMatch(/Esc|back|\bC\b|orbit|director/i);
   });
 });

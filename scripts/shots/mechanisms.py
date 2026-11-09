@@ -51,6 +51,8 @@ def capture(binary: Path, out: Path, quality: str, tick: int) -> dict:
     cmd = [
         str(binary),
         "--scenario", "mechanisms",
+        # The scripted director cues, not the fly-only default: each shot is framed at its tick.
+        "--camera", "director",
         "--quality", quality,
         "--screenshot", str(out),
         "--lockstep-after", str(LOCKSTEP_AFTER_S),

@@ -10,6 +10,9 @@
 //! `F` switches to a free-fly camera from the current view ([`Fly`], `docs/agent-operability.md`)
 //! and `F` or `Esc` hands back to the camera it replaced. It moves only on input, so agent runs with
 //! no input frame exactly as before.
+//!
+//! With [`FlyOnly`] (the mechanism showcase's default) the camera starts in fly at the scenario's
+//! opening shot and stays there: `C`, `F` and `Esc` never hand it to the director or the orbit.
 
 use std::collections::VecDeque;
 
@@ -299,7 +302,8 @@ pub struct DirectorClock {
     pub dt: f32,
 }
 
-/// Director (cued shots) or orbit (editor). `C` toggles. `F` enters fly, and `F` or `Esc` leaves it.
+/// Director (cued shots) or orbit (editor). `C` toggles. `F` enters fly, and `F` or `Esc` leaves it,
+/// except under [`FlyOnly`].
 #[derive(Resource, Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum CameraMode {
@@ -309,6 +313,11 @@ pub enum CameraMode {
     /// Free-fly ([`Fly`]).
     Fly,
 }
+
+/// Fly-only camera: the camera starts in [`CameraMode::Fly`] and no key leaves it. The mechanism
+/// showcase uses it by default; `--camera director` turns it off.
+#[derive(Resource, Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct FlyOnly(pub bool);
 
 /// Free-fly speed at entry (m/s), its wheel range, and the factor per wheel line.
 pub const FLY_SPEED_M_S: f32 = 0.3;
@@ -351,6 +360,21 @@ impl Fly {
             back,
             ..default()
         }
+    }
+
+    /// A fly camera at the eye of `cues`' opening shot, looking at its look point, or at the default
+    /// orbit view when the opening shot follows the marble.
+    pub fn from_opening(cues: &Cues, back: CameraMode) -> Self {
+        let (eye, look) = match cues.at(0).map(|(_, s)| s) {
+            Some(Shot::Fixed { eye, look } | Shot::Set { eye, look, .. }) => {
+                (Vec3::from_array(eye), Vec3::from_array(look))
+            }
+            _ => {
+                let o = Orbit::default();
+                (o.eye(), o.target)
+            }
+        };
+        Self::from_view(eye, look - eye, back)
     }
 
     pub fn rotation(&self) -> Quat {
@@ -459,6 +483,8 @@ pub struct CameraDiag {
     pub forward: [f32; 3],
     /// Free-fly speed (m/s); it applies once `mode` is `fly`.
     pub fly_speed: f32,
+    /// [`FlyOnly`]: the camera stays in fly, and `C`, `F` and `Esc` do not leave it.
+    pub fly_only: bool,
     /// Marble centre in physical pixels, newest first, up to [`TRAIL_FRAMES`].
     pub marble_px: Vec<[f32; 2]>,
     /// Marble radius in physical pixels.
@@ -486,14 +512,24 @@ pub fn spawn_main_camera(commands: &mut Commands, quality: Quality, o: &post::Po
 pub struct DirectorPlugin {
     pub mode: CameraMode,
     pub cues: Cues,
+    /// Start in fly at the cues' opening shot and stay there ([`FlyOnly`]); `mode` is then ignored.
+    pub fly_only: bool,
 }
 
 impl Plugin for DirectorPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(self.mode)
+        let mut state = DirectorState::default();
+        let mode = if self.fly_only {
+            state.fly = Fly::from_opening(&self.cues, CameraMode::Fly);
+            CameraMode::Fly
+        } else {
+            self.mode
+        };
+        app.insert_resource(mode)
+            .insert_resource(FlyOnly(self.fly_only))
             .insert_resource(self.cues.clone())
             .init_resource::<DirectorClock>()
-            .init_resource::<DirectorState>()
+            .insert_resource(state)
             .init_resource::<CameraDiag>()
             .init_resource::<EditorCamera>()
             .init_resource::<CameraZones>()
@@ -507,8 +543,12 @@ impl Plugin for DirectorPlugin {
     }
 }
 
-fn toggle_mode(keys: Option<Res<ButtonInput<KeyCode>>>, mut mode: ResMut<CameraMode>) {
-    if keys.is_some_and(|k| k.just_pressed(KeyCode::KeyC)) {
+fn toggle_mode(
+    keys: Option<Res<ButtonInput<KeyCode>>>,
+    fly_only: Res<FlyOnly>,
+    mut mode: ResMut<CameraMode>,
+) {
+    if !fly_only.0 && keys.is_some_and(|k| k.just_pressed(KeyCode::KeyC)) {
         *mode = match *mode {
             CameraMode::Director => CameraMode::Orbit,
             CameraMode::Orbit => CameraMode::Director,
@@ -518,15 +558,16 @@ fn toggle_mode(keys: Option<Res<ButtonInput<KeyCode>>>, mut mode: ResMut<CameraM
 }
 
 /// `F` enters fly from the current view and locks the cursor; `F` or `Esc` returns to the mode it
-/// replaced and releases it.
+/// replaced and releases it. Under [`FlyOnly`] neither key does anything: the mouse looks by drag.
 fn fly_toggle(
     keys: Option<Res<ButtonInput<KeyCode>>>,
+    fly_only: Res<FlyOnly>,
     mut mode: ResMut<CameraMode>,
     mut st: ResMut<DirectorState>,
     cams: Query<&Transform, With<MainCamera>>,
     mut cursors: Query<&mut CursorOptions, With<PrimaryWindow>>,
 ) {
-    let Some(keys) = keys else {
+    let Some(keys) = keys.filter(|_| !fly_only.0) else {
         return;
     };
     let mut lock = |locked: bool| {
@@ -694,6 +735,7 @@ fn orbit_input(
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
 fn direct(
     mode: Res<CameraMode>,
+    fly_only: Res<FlyOnly>,
     cues: Res<Cues>,
     zones: Res<CameraZones>,
     interest: Res<CameraInterest>,
@@ -840,6 +882,7 @@ fn direct(
     diag.eye = pose.eye.to_array();
     diag.forward = forward.to_array();
     diag.fly_speed = st.fly.speed;
+    diag.fly_only = fly_only.0;
     diag.orbit = OrbitDiag {
         target: st.orbit.target.to_array(),
         yaw: st.orbit.yaw,
@@ -898,6 +941,104 @@ mod tests {
         assert!(f.speed > FLY_SPEED_M_S);
         f.wheel(-100.0);
         assert_eq!(f.speed, FLY_SPEED_RANGE.0);
+    }
+
+    /// The key handling systems in a bare app, as [`DirectorPlugin`] sets their resources up.
+    fn key_app(fly_only: bool) -> App {
+        let mut app = App::new();
+        let plugin = DirectorPlugin {
+            mode: CameraMode::Director,
+            cues: Cues::mechanisms(),
+            fly_only,
+        };
+        let mut state = DirectorState::default();
+        let mode = if fly_only {
+            state.fly = Fly::from_opening(&plugin.cues, CameraMode::Fly);
+            CameraMode::Fly
+        } else {
+            plugin.mode
+        };
+        app.insert_resource(mode)
+            .insert_resource(FlyOnly(fly_only))
+            .insert_resource(state)
+            .init_resource::<ButtonInput<KeyCode>>()
+            .add_systems(Update, (toggle_mode, fly_toggle).chain());
+        app.world_mut().spawn((MainCamera, Transform::default()));
+        app
+    }
+
+    fn press(app: &mut App, key: KeyCode) -> CameraMode {
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(key);
+        app.update();
+        let mut k = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+        k.release(key);
+        k.clear();
+        *app.world().resource::<CameraMode>()
+    }
+
+    #[test]
+    fn fly_only_starts_in_fly_at_the_opening_shot() {
+        let mut app = App::new();
+        app.add_plugins(DirectorPlugin {
+            mode: CameraMode::Director,
+            cues: Cues::mechanisms(),
+            fly_only: true,
+        });
+        assert_eq!(*app.world().resource::<CameraMode>(), CameraMode::Fly);
+        assert_eq!(*app.world().resource::<FlyOnly>(), FlyOnly(true));
+        let Some((0, Shot::Set { eye, look, .. })) = Cues::mechanisms().at(0) else {
+            panic!("mechanisms opens on a set shot");
+        };
+        let (eye, look) = (Vec3::from_array(eye), Vec3::from_array(look));
+        let fly = app.world().resource::<DirectorState>().fly;
+        assert_eq!(fly.eye, eye);
+        assert!((fly.rotation() * Vec3::NEG_Z).distance((look - eye).normalize()) < 1e-5);
+        assert_eq!(fly.back, CameraMode::Fly);
+    }
+
+    #[test]
+    fn fly_only_keys_never_reach_the_director() {
+        let mut app = key_app(true);
+        for key in [
+            KeyCode::KeyC,
+            KeyCode::KeyF,
+            KeyCode::Escape,
+            KeyCode::KeyF,
+            KeyCode::KeyF,
+            KeyCode::KeyC,
+            KeyCode::Escape,
+        ] {
+            assert_eq!(press(&mut app, key), CameraMode::Fly, "{key:?}");
+        }
+    }
+
+    #[test]
+    fn without_fly_only_c_f_and_esc_switch_as_before() {
+        let mut app = key_app(false);
+        assert_eq!(*app.world().resource::<CameraMode>(), CameraMode::Director);
+        assert_eq!(press(&mut app, KeyCode::KeyC), CameraMode::Orbit);
+        assert_eq!(press(&mut app, KeyCode::KeyC), CameraMode::Director);
+        assert_eq!(press(&mut app, KeyCode::KeyF), CameraMode::Fly);
+        assert_eq!(press(&mut app, KeyCode::Escape), CameraMode::Director);
+        assert_eq!(press(&mut app, KeyCode::KeyF), CameraMode::Fly);
+        assert_eq!(press(&mut app, KeyCode::KeyF), CameraMode::Director);
+        // The plugin keeps the requested mode when fly-only is off.
+        let mut app = App::new();
+        app.add_plugins(DirectorPlugin {
+            mode: CameraMode::Orbit,
+            cues: Cues::mechanisms(),
+            fly_only: false,
+        });
+        assert_eq!(*app.world().resource::<CameraMode>(), CameraMode::Orbit);
+        assert_eq!(*app.world().resource::<FlyOnly>(), FlyOnly(false));
+    }
+
+    #[test]
+    fn fly_from_a_follow_opening_starts_at_the_orbit_view() {
+        let f = Fly::from_opening(&Cues::allpieces(), CameraMode::Fly);
+        assert_eq!(f.eye, Orbit::default().eye());
     }
 
     #[test]

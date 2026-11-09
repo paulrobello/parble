@@ -101,6 +101,16 @@ export const CONTROLS_HINT =
   "click the scene, then F: fly camera  WASD move  Q/E down/up  drag look  wheel speed  F/Esc back  G sensors\n" +
   "P pause  , slower  . faster  N step (paused)";
 
+/** The controls line under the fly-only camera (`camera.flyOnly`, the mechanism showcase): always flying, no director to return to. */
+export const FLY_ONLY_CONTROLS_HINT =
+  "click the scene, then fly: WASD move  Q/E down/up  drag look  wheel speed  G sensors\n" +
+  "P pause  , slower  . faster  N step (paused)";
+
+/** The controls line for the app's camera: the fly-only line when it reports `flyOnly`. */
+export function controlsHint(flyOnly: boolean): string {
+  return flyOnly ? FLY_ONLY_CONTROLS_HINT : CONTROLS_HINT;
+}
+
 /** A fixed, non-interactive controls line in the bottom-left corner, apart from the readout. */
 export function mountControlsHint(doc: Document): HTMLElement {
   const el = doc.createElement("div");
