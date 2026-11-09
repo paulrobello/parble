@@ -25,9 +25,11 @@ PIECE_VERSION = 1
 # Pieces whose geometry changed since version 1 (contract §10: the id stays, the version bumps).
 # 2026-11-08: mech_hole_oneway_l1 2, bore-filling 90° trapdoor and open port faces;
 # mech_gate_oneway_l1 2, open port faces.
+# 2026-11-08: mech_hole_oneway_l1 3, trapdoor top dished to the channel's half-round and no bowl
+# over the bore, so the floor stays the channel section across the door.
 # 2026-11-08: mech_finish, mech_hopper, mech_splitter_l3, mech_toggle_l3, mech_checkpoint_l1 2,
 # open port faces.
-PIECE_VERSIONS = {"mech_gate_oneway_l1": 3, "mech_hole_oneway_l1": 2, "mech_finish": 2, "mech_hopper": 3,
+PIECE_VERSIONS = {"mech_gate_oneway_l1": 3, "mech_hole_oneway_l1": 3, "mech_finish": 2, "mech_hopper": 3,
                   "mech_splitter_l3": 2, "mech_toggle_l3": 2, "mech_checkpoint_l1": 2}
 BUILD = ("mech_finish", "mech_hopper", "mech_splitter_l3", "mech_toggle_l3", "mech_checkpoint_l1",
          "mech_gate_oneway_l1", "mech_hole_oneway_l1", "mech_arch_rope_l1") + tuple(S.STEPPERS)
@@ -46,13 +48,16 @@ BRIDGE_X = 4.0         # one-way gate bridge half-length; its underside stays ab
 BRIDGE_Y = 53.0
 FINISH_X = 6.0
 FINISH_CUP = [(20.0, TOP + K.CUT_ABOVE), (20.0, 20.0), (14.0, 12.0)]
-HOLE_BOWL_R = 18.0     # §4, as blk_drop
 HOLE_R = 16.0
 # Trapdoor: fills the 32 mm bore, so a marble rolling over it meets no gap at the bore edge, and
 # opens to 90 degrees, hanging along the bore's +x wall with 30.5 mm clear for a falling marble
 # (a 60 degree door left 16 mm between its tip and the far wall, and the marble wedged there).
 TRAP_R = HOLE_R
 TRAP_T = 3.0
+# The bore's top above the floor. The door's top follows the half-round up to it, and the
+# half-round is 21.4 mm wide there, so a 16 mm marble drops through the open door (1 mm, where it
+# is 10.4 mm wide, held the marble up on the walls).
+TRAP_CAP = 5.0
 TRAP_OPEN_MDEG = 90000
 # Rope-curtain arch (PRD P2 item 18): a bridge over the middle 2 * ARCH_X mm of the cell's length,
 # its underside 35 mm above the L1 floor (the §5.1 overhead rule asks 34), so the piece stays 1 cell
@@ -204,10 +209,14 @@ def ops(piece_id, q, collision):
         cut(lambda bm: B.sweep(bm, B.extend(sts, True, True), oprof))
         out.append(("UNION", _box_builder((-ARCH_X, ARCH_Y, -K.R - 2.0), (ARCH_X, top, K.R + 2.0))))
     elif shape == "hole_oneway":
+        # No bowl over the bore: the channel's half-round runs on across the cell and the trapdoor
+        # fills the floor the bore cuts out of it. With a flat 18 mm bowl floor and a flat door, a
+        # marble rolled over from +x 3.6-3.8 mm off centre drifted across the door and struck the
+        # bowl's rim where the half-round wall resumed (vx -311 to -45 mm/s), and stalled
+        # (2 of 120 crossings, measured 2026-11-08).
         sts = B.straight_x(-30.0, 30.0, lambda x: f0, 1, extra_x=ins)
         cut(lambda bm: B.sweep(bm, B.extend(sts, True, True), oprof))
-        cut(lambda bm: B.lathe(bm, [(HOLE_BOWL_R, TOP + K.CUT_ABOVE), (HOLE_BOWL_R, f0)], circ))
-        cut(lambda bm: B.lathe(bm, [(HOLE_R, f0 + 1.0), (HOLE_R, -K.EXT)], circ))
+        cut(lambda bm: B.lathe(bm, [(HOLE_R, f0 + TRAP_CAP), (HOLE_R, -K.EXT)], circ))
     return out
 
 
@@ -440,6 +449,67 @@ def _switch_blade(shape, f0, segs):
              "rest_mdeg": rest, "limits_mdeg": [-FORK_LIMIT, FORK_LIMIT]}, [blade, hub])
 
 
+def _trapdoor(f0, n):
+    """The trapdoor: the `n`-gon disc of TRAP_R from TRAP_T under the floor up to the channel's
+    canonical half-round section (the collision ring, contract §5.4), capped at the bore's top
+    TRAP_CAP above the floor. Convex slices between the breakpoints across z (the disc's vertices,
+    the ring's vertices under the cap and the ring's crossings of the cap), so each slice's top and
+    sides are planar."""
+    disc = [(TRAP_R * math.cos(2 * math.pi * k / n), TRAP_R * math.sin(2 * math.pi * k / n)) for k in range(n)]
+    ring = [(u / 1000.0, v / 1000.0 - f0) for u, v in K.canonical_ring(B.um(f0))[1:-1]]
+    if n < 16:  # render LODs under the collision's 16-gon: every other ring vertex, for the budget
+        ring = ring[::2]
+
+    def top(z):  # height of the dished top over the floor at z
+        for (z0, y0), (z1, y1) in zip(ring, ring[1:]):
+            if z0 <= z <= z1:
+                y = y0 if z1 == z0 else y0 + (y1 - y0) * (z - z0) / (z1 - z0)
+                return min(y, TRAP_CAP)
+        return TRAP_CAP
+
+    def half(z):  # the disc's half-width along x at z
+        best = 0.0
+        for (x0, z0), (x1, z1) in zip(disc, disc[1:] + disc[:1]):
+            if min(z0, z1) <= z <= max(z0, z1) and z0 != z1:
+                best = max(best, abs(x0 + (x1 - x0) * (z - z0) / (z1 - z0)))
+        return best
+
+    cuts = {round(z, 6) for _, z in disc}
+    cuts |= {round(z, 6) for z, y in ring if y < TRAP_CAP}
+    for (z0, y0), (z1, y1) in zip(ring, ring[1:]):
+        if (y0 - TRAP_CAP) * (y1 - TRAP_CAP) < 0:
+            cuts.add(round(z0 + (z1 - z0) * (TRAP_CAP - y0) / (y1 - y0), 6))
+    zs = sorted(z for z in cuts if -TRAP_R <= z <= TRAP_R)
+    solids = []
+    for za, zb in zip(zs, zs[1:]):
+        v, index = [], {}
+
+        def at(x, y, z):
+            key = (round(x, 6), round(y, 6), round(z, 6))
+            if key not in index:
+                index[key] = len(v)
+                v.append(key)
+            return index[key]
+
+        sec = []
+        for z in (za, zb):
+            w, t, b = half(z), f0 + top(z), f0 - TRAP_T
+            sec.append([at(-w, b, z), at(w, b, z), at(w, t, z), at(-w, t, z)])
+        a, c = sec
+        faces = [tuple(a), tuple(reversed(c)), (a[0], a[1], c[1], c[0]), (a[3], a[2], c[2], c[3]),
+                 (a[1], a[2], c[2], c[1]), (a[0], a[3], c[3], c[0])]
+        clean = []
+        for f in faces:
+            g = []
+            for i in f:
+                if i not in g:
+                    g.append(i)
+            if len(g) >= 3:
+                clean.append(tuple(g))
+        solids.append((v, clean))
+    return solids
+
+
 def parts(piece_id, segs=None):
     """[(part dict without collision, [convex solids])], sorted by name. `segs` sets the curved
     outlines' segment count (collision: 8)."""
@@ -474,11 +544,8 @@ def parts(piece_id, segs=None):
                          "limits_mdeg": [-ROPE_LIMIT_MDEG, ROPE_LIMIT_MDEG]}, solids))
         return out
     if shape == "hole_oneway":  # trapdoor over the bore, hinged at its +x edge; drops the -x edge
-        n = max(8, 2 * s)
-        disc = [(TRAP_R * math.cos(2 * math.pi * k / n), TRAP_R * math.sin(2 * math.pi * k / n)) for k in range(n)]
-        door = _solid_prism(disc, "y", f0 - TRAP_T, f0)
         return [({"name": "anim_trapdoor", "pivot_um": [B.um(TRAP_R), B.um(f0 - TRAP_T / 2), 0], "axis": [0, 0, 1],
-                  "rest_mdeg": 0, "limits_mdeg": [0, TRAP_OPEN_MDEG]}, [door])]
+                  "rest_mdeg": 0, "limits_mdeg": [0, TRAP_OPEN_MDEG]}, _trapdoor(f0, max(8, 2 * s)))]
     return []
 
 

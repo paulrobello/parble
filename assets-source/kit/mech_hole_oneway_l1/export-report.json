@@ -1,9 +1,9 @@
 {
   "blender": "5.2.2 LTS",
-  "colliderTris": 243,
+  "colliderTris": 154,
   "generator": {
     "path": "blender/kit/generate.py",
-    "sha256": "12c775d5b2487ad0f67db4c560ee6c5eee3a4d0deab6370c6f694789e6ec01dc"
+    "sha256": "dcf7195a751790e68529e5ffcb2aedbaa27db37b748bb051a145fc6a1468df13"
   },
   "generatorDeps": [
     {
@@ -12,11 +12,15 @@
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "fe82520ff25b453ef318332b3b462d271b293e5a33b24e98e217add8ea311a52"
+      "sha256": "b8b818b8ee18e1f14d61bf788758f580d8b5675f2a26b3794ada66416664eecb"
     },
     {
       "path": "blender/kit/kitmech.py",
-      "sha256": "114b72b4406994b4011397c2eca373ea1ad3ec4e5948ab2292ab17336c4db644"
+      "sha256": "551053b9b4d15ab26a9dd93e7ec09b0804c293050df49fcdfd3d52e3dfef94e3"
+    },
+    {
+      "path": "blender/kit/kitstepper.py",
+      "sha256": "b4f294e5df887af92a9113ffea91b7ee82ed59f9c190f1497bb3ddd696ae4ef9"
     }
   ],
   "lodParams": {
@@ -55,9 +59,9 @@
     }
   },
   "lodTris": {
-    "mech_hole_oneway_l1_lod0": 829,
-    "mech_hole_oneway_l1_lod1": 297,
-    "mech_hole_oneway_l1_lod2": 157
+    "mech_hole_oneway_l1_lod0": 596,
+    "mech_hole_oneway_l1_lod1": 216,
+    "mech_hole_oneway_l1_lod2": 108
   },
   "mapSize": {
     "lod0": 512,
@@ -80,31 +84,31 @@
   ],
   "partTris": {
     "lod0": {
-      "anim_trapdoor_lod0": 124
+      "anim_trapdoor_lod0": 304
     },
     "lod1": {
-      "anim_trapdoor_lod1": 44
+      "anim_trapdoor_lod1": 136
     },
     "lod2": {
-      "anim_trapdoor_lod2": 28
+      "anim_trapdoor_lod2": 112
     }
   },
   "pieceId": "mech_hole_oneway_l1",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2844.7,
-      "median": 2781.3,
-      "min": 2161.5
+      "max": 2848.7,
+      "median": 2786.5,
+      "min": 2164.5
     },
     "lod1": {
-      "max": 1368.7,
-      "median": 1345.2,
-      "min": 1040.0
+      "max": 1417.9,
+      "median": 1393.4,
+      "min": 1077.3
     },
     "lod2": {
-      "max": 708.3,
-      "median": 701.3,
-      "min": 613.4
+      "max": 709.0,
+      "median": 708.5,
+      "min": 611.6
     }
   }
 }
