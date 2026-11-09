@@ -31,9 +31,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use parble_core::contract::{
-    CELL_UM, CHANNEL_RADIUS_UM, CHUNK_CELLS, CHUNK_UM, HALF_CELL_UM, LEVEL_STEP_UM,
-};
+use parble_core::contract::{CELL_UM, CHANNEL_RADIUS_UM, CHUNK_CELLS, CHUNK_UM, HALF_CELL_UM};
 use parble_core::{
     CellCoord, Mirror, Orientation, PieceId, Placement, PortClass, PortFace, PortFlow,
 };
