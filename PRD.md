@@ -244,6 +244,7 @@ Scope:
 - Palette, place, rotate (yaw), mirror, delete.
 - Undo/redo, multi-select, copy/paste, move groups.
 - Live validation overlay (open ports, broken links, unreachable pieces).
+- Marble check (owner request 2026-11-09): on demand from the validation panel, the editor runs the exact release the Run button would make once per marble type in a headless sim, off the render frame, and reports where each type falls off or stalls, as placement-anchored warnings with click-to-focus. They are warnings, never errors: Paul accepted that not every type completes every track, and in the later drivable-marble mode the player can push and hop a marble past a weak spot. A result goes stale on any edit.
 - Height slicing and the orbit camera.
 - Run controls: hopper settings, release, pause, reset.
 - IndexedDB library and `.parble` export/import with a versioned schema and migrations.
