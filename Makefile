@@ -173,6 +173,12 @@ shots-test:
 web-editor-perf: $(E2E_STAMP)
 	cd e2e && PARBLE_PERF=1 ./node_modules/.bin/playwright test tests/editor-perf.spec.mjs
 
+# P4-T6: audio main-thread ms per frame on stress2000 (10 marbles) at 1440p High, load-guarded, against
+# an existing target/web-dist (make build-web first). Writes target/perf/p4t6-audio.json.
+.PHONY: web-audio-perf
+web-audio-perf: $(E2E_STAMP)
+	cd e2e && PARBLE_PERF=1 ./node_modules/.bin/playwright test tests/audio-perf.spec.mjs
+
 # P1-T8 perf gate (local only, never CI): paced p95 over 600 frames after READY at 1440p High, showcase
 # and stress2000, in GPU Chromium and Safari (safaridriver), under the host-load guard (1-min load
 # <= 15 before and after each sample). Serves target/web-dist on its own port 5313. Writes

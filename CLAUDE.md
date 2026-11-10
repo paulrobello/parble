@@ -33,6 +33,7 @@ make run-diag       # native: run 3 s, print the state JSON, exit
 make web-e2e        # build-web + Playwright smoke in GPU Chromium on the 5311 preview (local only)
 make shots-test     # native lockstep look-dev shots, checked against the drawn state (local only)
 make web-editor-perf # opt-in editor perf trace: 2,000 pieces, load-guarded, writes target/perf/p3t4-editor.json
+make web-audio-perf  # opt-in audio main-thread trace on stress2000, load-guarded, writes target/perf/p4t6-audio.json
 make music-loops     # rebuild the Suno music loop derivatives into audition/music-loops (+ provenance record)
 make music-soak      # manual 10-minute muted music loop soak in GPU Chromium (local only)
 make perf-gate      # P1-T8 gate: p95 at 1440p High, showcase + stress2000, GPU Chromium + Safari, load-guarded (local only; docs/perf/README.md)
