@@ -39,7 +39,8 @@ const ALLPIECES_LOOKS: [MarbleKind; 5] = [
 ];
 
 /// `window.__parble.ready` turns true once the sim has ticked, this many frames have run and the
-/// loading warm-up is done ([`Warmup`]: textures loaded, no pipeline left to create).
+/// loading warm-up is done ([`Warmup`]: textures loaded and no pipeline left to create, or the
+/// warm-up's stuck-pipeline bound and frame ceiling, so READY cannot wait forever).
 const READY_FRAMES: u64 = 3;
 /// How long past `--exit-after` the app waits for a requested screenshot before failing.
 const SHOT_GRACE_S: f64 = 10.0;

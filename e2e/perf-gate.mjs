@@ -30,7 +30,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import gpu from "./gpu-args.cjs";
-import { LOAD_MAX, load1, stats, waitForLoad } from "./perf-helpers.mjs";
+import { LOAD_MAX, diagSummary, load1, pageDiag, stats, waitForLoad } from "./perf-helpers.mjs";
 
 // The criterion is p95 ≤ 16.7 ms. A rAF delta is a whole number of display refreshes plus the
 // browser's timestamp quantum: Chromium coarsens rAF times to 0.1 ms (a frame on every 60 Hz vsync
@@ -58,13 +58,14 @@ const BASE = `http://127.0.0.1:${PORT}`;
 const url = (scene) => `${BASE}/?mute=1&quality=high&scenario=${scene}`;
 
 // Runs in the page: waits for READY, skips `settle` frames, then calls `done` with `frames` rAF
-// deltas and the page state. ES5 so Safari's execute/async takes its source as is.
-function sampler(frames, settle, done) {
+// deltas and the page state. ES5 so Safari's execute/async takes its source as is. `diag` is
+// `pageDiag` (perf-helpers.mjs), passed in as source: on a READY timeout its result is returned.
+function sampler(frames, settle, done, diag) {
   var t0 = performance.now();
   function waitReady() {
     var p = window.__parble;
     if (!(p && p.ready)) {
-      if (performance.now() - t0 > 180000) return done({ error: "READY never came" });
+      if (performance.now() - t0 > 180000) return done({ error: "READY never came", diag: diag() });
       return setTimeout(waitReady, 100);
     }
     var readyMs = performance.now() - t0, n = 0, last = 0, out = [];
@@ -87,13 +88,15 @@ function sampler(frames, settle, done) {
           kitPieces: s.kit ? s.kit.pieces : null, kitChunks: s.kit ? s.kit.chunks : null,
           errors: window.__parbleErrors || null,
         },
+        warmup: s.warmup || null,
+        pipelines: s.pipelines || null,
       });
     }
     requestAnimationFrame(loop);
   }
   waitReady();
 }
-const SAMPLER = `(${sampler.toString()})(arguments[0], arguments[1], arguments[arguments.length - 1]);`;
+const SAMPLER = `(${sampler.toString()})(arguments[0], arguments[1], arguments[arguments.length - 1], ${pageDiag.toString()});`;
 
 const ADAPTER = `
   var done = arguments[arguments.length - 1];
@@ -138,7 +141,7 @@ async function chromiumSample(scene) {
     const problems = gpu.gpuProblems(probe);
     if (problems.length) throw new Error(`GPU check failed: ${problems.join("; ")}`);
     // A string expression goes through CDP's evaluate, which the page's CSP (no unsafe-eval) allows.
-    const r = await page.evaluate(`new Promise((done) => (${sampler.toString()})(${FRAMES}, ${SETTLE}, done))`);
+    const r = await page.evaluate(`new Promise((done) => (${sampler.toString()})(${FRAMES}, ${SETTLE}, done, ${pageDiag.toString()}))`);
     return { ...r, adapter: probe.adapter, renderer: probe.renderer, mode: HEADED ? "headed" : "headless", errors };
   } finally {
     await browser.close();
@@ -199,7 +202,11 @@ async function sample(browser, scene) {
     }
     const r = browser === "safari" ? await safariSample(scene) : await chromiumSample(scene);
     const loadAfter = load1();
-    if (r.error) throw new Error(`${browser} ${scene}: ${r.error}`);
+    if (r.error) {
+      // Keep the loading state READY waited on (warm-up, pipelines, textures, page log) in the JSON.
+      console.error(`${browser} ${scene}: ${r.error}\n  ${diagSummary(r.diag)}`);
+      return { browser, scene, taken: false, error: r.error, diag: r.diag, adapter: r.adapter, mode: r.mode, errors: r.errors, discarded };
+    }
     const st = stats(r.deltas);
     const res = {
       browser, scene, attempt,
@@ -208,6 +215,7 @@ async function sample(browser, scene) {
       mode: r.mode, adapter: r.adapter, renderer: r.renderer, userAgent: r.userAgent,
       canvas: r.canvas, dpr: r.dpr, inner: r.inner, readyMs: Math.round(r.readyMs),
       state: r.state, errors: r.errors,
+      warmup: r.warmup, pipelines: r.pipelines,
       frameTimes: st,
       longFrames: r.deltas.flatMap((d, i) => (d > 50 ? [[i, +d.toFixed(1)]] : [])),
       passP95Ms: passMs(browser),

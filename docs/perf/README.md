@@ -107,3 +107,67 @@ The stall was a render pipeline created mid-run. Bevy creates a material's pipel
 `window.__parble.pipelines` now lists the pipelines each render frame creates, and READY waits for a loading warm-up: every unreleased marble is drawn 50 m under the floor (with `NoFrustumCulling`, so the main, prepass and shadow views all specialize it) until the kit textures have loaded and the pipeline cache has been quiet for 10 render frames. The READY that the gate waits for now arrives after the last pipeline is created. On a cold GPU Chromium load the last pipeline is created on render frame 4. Over the 1,500 frames after READY, with all 10 marbles released, none is created in `showcase` or in `stress2000`. Before the change, the post-processing and atmosphere pipelines were created on the first frames after READY (frames of 150 to 180 ms that the 60 settle frames hid), and the opal's variants 107 to 183 frames after READY (when the opal came into the camera's view).
 
 Headed Chromium on a Retina screen ignores the page's `deviceScaleFactor: 1` and draws a 5120 × 2880 canvas, so a headed run passes `--force-device-scale-factor=1`. The first headed run, before that flag, was rejected by the canvas check.
+
+### Safari never reached READY (2026-11-09)
+
+The gpu-host-b run at 11:52 PM PST on 2026-11-09 (Safari 27.2, 2560 × 1440 High, load 1.9 to 4.3) never saw READY on either scene within the sampler's 180 s, while Chromium read READY at 1722 ms (showcase) and 1021 ms (stress2000). Before the warm-up above, Safari reached READY. So in Safari the warm-up never ended: a texture stayed loading, or the pipeline cache never went quiet.
+
+What the code showed, without Safari:
+
+- The pending count was wrong for the case that matters. On wasm Bevy creates a pipeline synchronously, so `Creating` never happens. A pipeline whose shader or shader import has not loaded fails with a retryable error (`ShaderNotLoaded`, `ShaderImportNotYetAvailable`) and is reset to `Queued` on the next frame. It alternates between the two states every frame, and the old count called the error frames `failed`. One such pipeline let `pending` reach 0 on every other frame. Two that started waiting on frames of different parity kept it at 1 or more forever. The retryable errors now count as pending.
+- Nothing bounded the warm-up. A pipeline waiting for a shader that never loads (in one browser only, through a shader def or import that browser's device selects), or a texture that never finishes, held READY forever.
+
+The warm-up now has two bounds (`crates/parble-render/src/pipelines.rs`), counted in render frames so a native lockstep run ends it on the same frame whatever the host load:
+
+- `STUCK_FRAMES` = 120. A pipeline still waiting after 120 render frames (2 s at 60 Hz) is marked `stuck`, logged with its shader error, and no longer holds the warm-up. A cold GPU Chromium load creates its last pipeline on render frame 4 or 5.
+- `WARMUP_MAX_FRAMES` = 600, the hard ceiling. The warm-up ends on render frame 600 (10 s at 60 Hz) whatever is still loading or pending, with `warmup.endedBy: "ceiling"` and a warning naming what it waited on. A normal load ends quietly on render frame 13 to 17, so the ceiling is about 40 times that, and above `STUCK_FRAMES` + `QUIET_FRAMES` for a pipeline first queued late. The opal hitch the warm-up exists to prevent is still covered on any load that ends quietly.
+
+READY and the parked warm-up marbles were the only things waiting on the warm-up: marble release, the sim and the UI's bridge `ready` event do not read it. A player in Safari was therefore never stuck. The cost was the hopper's unreleased marbles drawn 50 m under the floor, in every view and shadow view, for the whole session.
+
+After the fix, on gpu-host-a (M4 Max) in GPU Chromium, non-gating smoke at load 27 to 42: READY at 1340 ms (showcase) and 788 ms (stress2000), warm-up `endedBy: "quiet"` on render frames 15 and 17, p95 16.8 ms on both, and no pipeline created after READY (`createdTotal` equals `total`). Native `make run-diag`: `doneFrame` 13, `endedBy: "quiet"`.
+
+#### Diagnosing it in Safari
+
+`e2e/safari-diag.mjs` opens Safari (safaridriver, sized like the gate), loads `?scenario=<scene>&quality=high&mute=1` for `showcase` and `stress2000`, polls `window.__parble` once a second for 60 s, and writes the time series to `target/perf/safari-diag.json`, with a screenshot per scene next to it. Each poll records `ready`, `tick`, `frame`, `warmup` (`waitingOn`, `endedBy`, `stuck`), the pipeline counts with `waiting` (each pending pipeline's name, state, shader error and `sinceFrame`) and `failures`, the kit textures that are not loaded, and the page-side error count. `last` keeps the full final state with `recentCreated`. Safari's WebDriver has no console or log endpoint, so `window.__parbleErrors` (console.error, Bevy ERROR lines, uncaught errors, CSP blocks) is the only console output it can read; the warm-up's own warnings reach the JSON through `warmup` and `pipelines`, not the console. `PARBLE_DIAG_BROWSER=chromium` runs the same script in GPU Chromium. `e2e/perf-gate.mjs` now also writes this state (`diag`) for a sample whose READY times out, and records `warmup` and `pipelines` for every sample that reaches READY, so a Safari READY that came from the ceiling shows `endedBy: "ceiling"`.
+
+Run on gpu-host-b in the booked window. Ship the build from gpu-host-a, from a checkout with this fix, exactly as above (`make build-web`, then the `tar` and `rsync`), then on gpu-host-b:
+
+```bash
+ssh -i <ssh-key> <user>@gpu-host-b.local
+rm -rf ~/Repos/parble-perf && mkdir -p ~/Repos/parble-perf && tar xzf /tmp/parble-perf.tgz -C ~/Repos/parble-perf
+osascript -e 'quit app "Safari"'
+cat > /tmp/parble-diag.command <<'CMD'
+#!/bin/bash
+cd ~/Repos/parble-perf && export PATH=/opt/homebrew/bin:$PATH
+{ npm ci --prefix e2e --no-audit --no-fund && node e2e/safari-diag.mjs; } > /tmp/parble-diag.log 2>&1
+echo EXIT=$? >> /tmp/parble-diag.log
+CMD
+chmod +x /tmp/parble-diag.command && rm -f /tmp/parble-diag.log && open -g /tmp/parble-diag.command
+for i in $(seq 1 120); do grep -q '^EXIT=' /tmp/parble-diag.log 2>/dev/null && break; sleep 5; done; cat /tmp/parble-diag.log
+```
+
+The diag takes about 2.5 minutes after `npm ci`. Then the gate, Safari only, into its own file so it never overwrites the gating `p1-gate.json`:
+
+```bash
+cat > /tmp/parble-perf.command <<'CMD'
+#!/bin/bash
+cd ~/Repos/parble-perf && export PATH=/opt/homebrew/bin:$PATH
+PARBLE_PERF_BROWSERS=safari PARBLE_PERF_OUT=docs/perf/p1-gate-safari.json node e2e/perf-gate.mjs > /tmp/parble-perf.log 2>&1
+echo EXIT=$? >> /tmp/parble-perf.log
+CMD
+chmod +x /tmp/parble-perf.command && rm -f /tmp/parble-perf.log && open -g /tmp/parble-perf.command
+for i in $(seq 1 480); do grep -q '^EXIT=' /tmp/parble-perf.log 2>/dev/null && break; sleep 5; done; cat /tmp/parble-perf.log
+exit
+```
+
+Back on gpu-host-a, copy the results and clean up:
+
+```bash
+mkdir -p target/perf
+scp -i <ssh-key> '<user>@gpu-host-b.local:Repos/parble-perf/target/perf/safari-diag*' target/perf/
+scp -i <ssh-key> <user>@gpu-host-b.local:Repos/parble-perf/docs/perf/p1-gate-safari.json docs/perf/p1-gate-safari.json
+scp -i <ssh-key> <user>@gpu-host-b.local:/tmp/parble-diag.log <user>@gpu-host-b.local:/tmp/parble-perf.log target/perf/
+ssh -i <ssh-key> <user>@gpu-host-b.local 'rm -rf ~/Repos/parble-perf /tmp/parble-perf.tgz /tmp/parble-perf.log /tmp/parble-perf.command /tmp/parble-diag.log /tmp/parble-diag.command'
+```
+
+Read `scenes[].last.warmup` in `safari-diag.json` first. `endedBy: "quiet"` with an empty `stuck` means nothing waited 120 frames in that run, so the hang did not reproduce. A non-empty `stuck`, or `waitingOn: "pending"` at the ceiling, names the pipeline and its shader error. `waitingOn: "textures"` with `texturesNotLoaded` names the texture. A `pipelines.createdTotal` still climbing between polls means pipelines keep being recreated.

@@ -47,7 +47,7 @@ function recorder(after) {
       tick: p ? p.tick : null,
       ready: !!(p && p.ready),
       marbles: p?.marbles ? p.marbles.length : null,
-      pipelines: p?.pipelines ? { ...p.pipelines, created: undefined } : null,
+      pipelines: p?.pipelines ? { ...p.pipelines, created: undefined, recentCreated: undefined } : null,
       created: p?.pipelines?.created ?? null,
       warm: p?.warmup ? p.warmup.done : null,
       // Kit textures loaded (or failed) of all requested.

@@ -35,3 +35,44 @@ export function stats(ms) {
     dropped: s.filter((v) => v > 1.5 * BUDGET_MS).length,
   };
 }
+
+/// Runs in the page (ES5, passed to it as source): the loading state READY waits for, from
+/// `window.__parble` and the page-side error log. `warmup.waitingOn` names what held the warm-up on
+/// its last frame (`textures`, `pending`, `recentCreation`, `noPipelines`), `pipelines.waiting`
+/// lists the pipelines not created yet with their shader error and the frame they started waiting,
+/// `texturesNotLoaded` the kit textures that are not `loaded`. Safari's WebDriver has no console or
+/// log endpoint, so `errors` (index.html's `window.__parbleErrors`: console.error, Bevy ERROR lines,
+/// uncaught errors, CSP blocks) is all of the console it can return.
+export function pageDiag() {
+  var s = window.__parble;
+  var errors = window.__parbleErrors || null;
+  if (!s) return { parble: null, href: location.href, errors: errors };
+  var tex = s.kit && s.kit.textures ? s.kit.textures : [];
+  return {
+    ready: s.ready, tick: s.tick, run: s.run, frame: s.frame, fps: s.fps,
+    scenario: s.scenario, quality: s.quality,
+    warmup: s.warmup || null,
+    pipelines: s.pipelines || null,
+    kit: s.kit ? { family: s.kit.family, deviceBc: s.kit.deviceBc, deviceAstc: s.kit.deviceAstc, textures: tex.length } : null,
+    texturesNotLoaded: tex.filter(function (t) { return t.state !== "loaded"; }),
+    errors: errors,
+  };
+}
+
+/// One line on what held the warm-up, from a `pageDiag()` result.
+export function diagSummary(d) {
+  if (!d) return "no diag";
+  if (d.parble === null) return `window.__parble missing at ${d.href}`;
+  const w = d.warmup ?? {};
+  const p = d.pipelines ?? {};
+  const waiting = (p.waiting ?? []).map((x) => `${x.name} ${x.state}${x.error ? ` (${x.error})` : ""}${x.stuck ? " STUCK" : ""}`);
+  return [
+    `ready ${d.ready} tick ${d.tick} frame ${d.frame}`,
+    `warmup done ${w.done} endedBy ${w.endedBy} waitingOn ${w.waitingOn} texturesLoading ${w.texturesLoading}`,
+    `pipelines renderFrame ${p.renderFrame} total ${p.total} ok ${p.ok} pending ${p.pending} stuck ${p.stuck} failed ${p.failed} lastCreated ${p.lastCreatedFrame} createdTotal ${p.createdTotal}`,
+    ...(waiting.length ? [`waiting: ${waiting.join(" | ")}`] : []),
+    ...((p.failures ?? []).length ? [`failures: ${p.failures.join(" | ")}`] : []),
+    ...(d.texturesNotLoaded?.length ? [`textures not loaded: ${d.texturesNotLoaded.map((t) => `${t.path} ${t.state}${t.error ? ` (${t.error})` : ""}`).join(" | ")}`] : []),
+    ...(d.errors?.length ? [`page errors: ${d.errors.slice(0, 5).join(" | ")}`] : []),
+  ].join("\n  ");
+}
