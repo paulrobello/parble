@@ -72,6 +72,12 @@ export interface RunDiag {
   tick: number;
   paused: boolean;
   follow: boolean;
+  /** A run, stop or reset is building its sim over frames; the live sim holds still. */
+  building?: boolean;
+  /** The build's share done, 0 to 1. */
+  buildProgress?: number;
+  /** The op building: run, stop or reset. */
+  buildOp?: string | null;
 }
 
 export interface EditorDiag {
@@ -102,8 +108,15 @@ export interface EditorDiag {
   /** Placed pieces by id. */
   pieceCounts?: Record<string, number>;
   stroke?: StrokeDiag | null;
-  /** The last run, stop or reset: the engine's build and install time. */
-  lastRun?: { op: string; buildMs: number; pieces: number } | null;
+  /** The last run, stop or reset: the engine's build work (summed over its frames) and install. */
+  lastRun?: {
+    op: string;
+    buildMs: number;
+    pieces: number;
+    frames?: number;
+    frameMsMax?: number;
+    wallMs?: number;
+  } | null;
 }
 
 export type Action =

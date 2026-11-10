@@ -206,7 +206,7 @@ test("Run on a 2,000-piece track builds the run inside one frame", async ({ page
       return window.__ft.splice(0);
     });
     const lastRun = await page.evaluate(() => window.__parble.editor.lastRun ?? null);
-    return { op: action.op, worstFrameMs: Math.max(...ft), roundTripMs, buildMs: lastRun?.buildMs ?? null };
+    return { op: action.op, worstFrameMs: Math.max(...ft), roundTripMs, buildMs: lastRun?.buildMs ?? null, lastRun };
   };
   const samples = [];
   for (let i = 0; i < RUN_SAMPLES; i++) {

@@ -8,6 +8,11 @@
 //!   the renderer the new content of only the chunks those anchors sit in. Dirty colliders are
 //!   rebuilt in stages (a dense chunk is about 17 ms of work natively, more in wasm), as many as
 //!   fit a per-frame budget ([`COLLIDER_BUDGET_MS`]), so one chunk spreads over a few frames.
+//! - Run, Stop and Reset build the new sim with a [`TrackRunBuild`] spread over frames
+//!   ([`RUN_BUILD_BUDGET_MS`] per frame, in place of the collider budget) while the live sim holds
+//!   still, then install it; an edit meanwhile starts the build over on the edited track. On a sim
+//!   built that way, an edit also adds and removes the changed placements' mechanism instances,
+//!   so a mechanism moved mid-run works at its new cell (P3-T5).
 //! - Picking: a voxel walk of the camera ray through the occupied cells (pieces above the height
 //!   slice are skipped), else the ground plane at the slice level ([`pick`]).
 //! - Ghost: the brush at the picked cell, valid or invalid by [`Editor::check`], with one hint per
@@ -35,7 +40,10 @@ use parble_render::{
         parts::PartFrame,
     },
 };
+use parble_sim::mechanism::MechanismRegistry;
+#[cfg(test)]
 use parble_sim::track_run::TrackRun;
+use parble_sim::track_run::{BuildStage, TrackRunBuild};
 use serde::{Deserialize, Serialize};
 
 use crate::SimClock;
@@ -47,6 +55,9 @@ pub const MAX_FILL: u32 = 4_000;
 /// Collider rebuild time per frame. A rebuild stage that starts inside it always finishes, so a
 /// frame's rebuild is at most this plus one stage (gather, simplify, tag or install of one chunk).
 pub const COLLIDER_BUDGET_MS: f32 = 4.0;
+/// Run build time per frame ([`TrackRunBuild`]). A unit starts only when the longest unit so far
+/// still fits, so a frame's build stays near this; the collider rebuild waits while a build runs.
+pub const RUN_BUILD_BUDGET_MS: f32 = 6.0;
 /// Fill grid: columns along +x from cell x 0, rows along −z from cell z −5.
 const FILL_COLS: i32 = 50;
 const FILL_Z0: i32 = -5;
@@ -465,13 +476,29 @@ pub struct StrokeDiag {
     pub outlines: Vec<Vec<[f32; 2]>>,
 }
 
-/// The last `run`, `stop` or `reset`: building the run and installing it as the live sim, ms.
-#[derive(Debug, Clone, Serialize, PartialEq)]
+/// The last `run`, `stop` or `reset`: building the run over frames and installing it as the live
+/// sim, ms.
+#[derive(Debug, Clone, Default, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RunTiming {
     pub op: &'static str,
+    /// Build work summed over its frames, with the install.
     pub build_ms: f32,
     pub pieces: usize,
+    /// Frames the build spread over.
+    pub frames: usize,
+    /// Longest frame of build work (the last one includes the install).
+    pub frame_ms_max: f32,
+    /// Work by stage: binding and placing pieces, chunk colliders, mechanism instances.
+    pub place_ms: f32,
+    pub collider_ms: f32,
+    pub mechanism_ms: f32,
+    /// Longest single build unit.
+    pub unit_ms_max: f32,
+    /// Builds started over by an edit while building.
+    pub restarts: usize,
+    /// Press to install, wall time.
+    pub wall_ms: f32,
 }
 
 /// A piece option the inspector offers: its value and its choices.
@@ -587,6 +614,12 @@ pub struct RunDiag {
     pub tick: u64,
     pub paused: bool,
     pub follow: bool,
+    /// A `run`, `stop` or `reset` is building its sim; the live sim holds still until it is in.
+    pub building: bool,
+    /// The build's share done, 0 to 1 ([`TrackRunBuild::progress`]).
+    pub build_progress: f32,
+    /// The op building (`run`, `stop` or `reset`).
+    pub build_op: Option<&'static str>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -716,10 +749,27 @@ enum Press {
     Move { anchor: CellCoord },
 }
 
+/// A `run`, `stop` or `reset` building its sim over frames.
+struct RunBuild {
+    build: TrackRunBuild<'static>,
+    op: &'static str,
+    release: Option<ReleaseMode>,
+    /// [`EditorDiag::edits`] the build's track is from; an edit since starts it over.
+    edits: u64,
+    started: Instant,
+    timing: RunTiming,
+}
+
 #[derive(Resource)]
 struct EditState {
     editor: Editor,
     kit: &'static KitCatalog,
+    /// The behaviours runs and live mechanism edits use ([`parble_sim::behaviour::registry`]).
+    registry: MechanismRegistry,
+    /// The run, stop or reset being built.
+    build: Option<RunBuild>,
+    /// The live sim was built by a run, stop or reset, so its mechanism instances follow edits.
+    live_mechanisms: bool,
     tool: Tool,
     brush: Brush,
     slice: Option<i32>,
@@ -809,6 +859,9 @@ impl EditState {
         Self {
             editor: Editor::new(Track::new(0)),
             kit: parble_kit::builtin(),
+            registry: parble_sim::behaviour::registry(),
+            build: None,
+            live_mechanisms: false,
             tool: Tool::Place,
             brush: Brush {
                 piece: kit::showcase_piece(0),
@@ -997,6 +1050,9 @@ impl EditState {
             if let Err(e) = clock.sim.remove_piece(*a) {
                 error!("editor: collider remove {a:?}: {e}");
             }
+            if self.live_mechanisms {
+                clock.sim.remove_mechanism(*a);
+            }
         }
         for p in &added {
             if let Some(def) = self.kit.get(&p.piece) {
@@ -1009,6 +1065,11 @@ impl EditState {
             dirty.insert(ch);
             if let Err(e) = clock.sim.place_piece(self.kit, p.clone()) {
                 error!("editor: collider place {:?}: {e}", p.anchor);
+            }
+            if self.live_mechanisms
+                && let Err(e) = clock.sim.add_mechanism(self.kit, &self.registry, p)
+            {
+                error!("editor: mechanism add {:?}: {e}", p.anchor);
             }
             self.by_anchor.insert(p.anchor, p.clone());
         }
@@ -1045,7 +1106,6 @@ struct Ctx<'a> {
     camera: Option<(&'a Camera, &'a GlobalTransform)>,
     editor_cam: &'a mut EditorCamera,
     frame: &'a mut MarbleFrame,
-    parts: &'a mut PartFrame,
     playback: &'a mut Playback,
     mode: &'a mut CameraMode,
 }
@@ -1218,10 +1278,10 @@ fn release_name(release: ReleaseMode) -> &'static str {
     }
 }
 
-/// A fresh run of `track` at tick 0, recording its events: with `release`, the resolved hopper
-/// releases its queue in that mode; without, the track idles with no marbles.
-fn editor_run(track: &Track, release: Option<ReleaseMode>) -> Result<TrackRun, String> {
-    let run_track = match release {
+/// The track a run of `track` builds: with `release`, the resolved hopper releases its queue in
+/// that mode; without, the track idles with no marbles.
+fn editor_track(track: &Track, release: Option<ReleaseMode>) -> Result<Track, String> {
+    Ok(match release {
         Some(release) => {
             let mut t = resolve_hopper(track);
             if t.hopper.placement.is_none() {
@@ -1234,32 +1294,147 @@ fn editor_run(track: &Track, release: Option<ReleaseMode>) -> Result<TrackRun, S
             hopper: HopperConfig::default(),
             ..track.clone()
         },
-    };
-    TrackRun::new(&run_track)
+    })
+}
+
+/// A fresh run of [`editor_track`] at tick 0, recording its events, built in one go.
+#[cfg(test)]
+fn editor_run(track: &Track, release: Option<ReleaseMode>) -> Result<TrackRun, String> {
+    TrackRun::new(&editor_track(track, release)?)
         .map(crate::recording)
         .map_err(|e| e.to_string())
 }
 
-/// Swap the live sim for a fresh run of the editor's track. The run is built whole, so no collider
-/// rebuild is left for the last edit.
+/// Start building a fresh run of the editor's track to replace the live sim, which holds still
+/// until [`step_build`] installs it. A build already under way is dropped.
 fn start_run(
     st: &mut EditState,
     ctx: &mut Ctx,
     op: &'static str,
     release: Option<ReleaseMode>,
 ) -> Result<(), String> {
-    let start = Instant::now();
-    let run = editor_run(st.editor.track(), release)?;
-    ctx.clock.install(run, ctx.frame, ctx.parts);
-    ctx.diag.last_run = Some(RunTiming {
+    let track = editor_track(st.editor.track(), release)?;
+    st.build = Some(RunBuild {
+        build: TrackRunBuild::new(&track),
         op,
-        build_ms: start.elapsed().as_secs_f32() * 1e3,
-        pieces: st.editor.track().placements.len(),
+        release,
+        edits: ctx.diag.edits,
+        started: Instant::now(),
+        timing: RunTiming {
+            op,
+            pieces: track.placements.len(),
+            ..default()
+        },
     });
+    ctx.clock.hold = true;
     st.pending = None;
     st.pending_is_fill = false;
-    st.run.active = release.is_some();
     Ok(())
+}
+
+/// Advance the run build by up to `budget_ms` of work (all of it with `None`), then install it once
+/// done. A unit starts only while the longest unit so far still fits the budget. An edit since the
+/// build started starts it over on the edited track.
+fn step_build(
+    st: &mut EditState,
+    clock: &mut SimClock,
+    diag: &mut EditorDiag,
+    frame: &mut MarbleFrame,
+    parts: &mut PartFrame,
+    budget_ms: Option<f32>,
+) {
+    let Some(b) = st.build.as_mut() else {
+        return;
+    };
+    if b.edits != diag.edits {
+        match editor_track(st.editor.track(), b.release) {
+            Ok(track) => {
+                b.build = TrackRunBuild::new(&track);
+                b.edits = diag.edits;
+                b.timing.pieces = track.placements.len();
+                b.timing.restarts += 1;
+            }
+            Err(e) => {
+                error!("editor: {}: {e}", b.op);
+                st.build = None;
+                clock.hold = false;
+                return;
+            }
+        }
+    }
+    let start = Instant::now();
+    let ms = |t: Instant| t.elapsed().as_secs_f32() * 1e3;
+    let mut done = b.build.is_done();
+    let mut units = 0;
+    while !done {
+        if units > 0 && budget_ms.is_some_and(|budget| ms(start) + b.timing.unit_ms_max > budget) {
+            break;
+        }
+        units += 1;
+        let stage = b.build.stage();
+        let one = Instant::now();
+        match b.build.step() {
+            Ok(d) => done = d,
+            Err(e) => {
+                error!("editor: {} build: {e}", b.op);
+                st.build = None;
+                clock.hold = false;
+                return;
+            }
+        }
+        let unit = ms(one);
+        b.timing.unit_ms_max = b.timing.unit_ms_max.max(unit);
+        match stage {
+            BuildStage::Place(_) => b.timing.place_ms += unit,
+            BuildStage::Colliders => b.timing.collider_ms += unit,
+            BuildStage::Mechanisms(_) | BuildStage::Done => b.timing.mechanism_ms += unit,
+        }
+    }
+    b.timing.frames += 1;
+    if done {
+        let b = st.build.take().expect("the build is under way");
+        let mut timing = b.timing;
+        match b.build.finish() {
+            Ok(run) => {
+                clock.install(crate::recording(run), frame, parts);
+                st.run.active = b.release.is_some();
+                st.live_mechanisms = true;
+            }
+            Err(e) => error!("editor: {} build: {e}", b.op),
+        }
+        clock.hold = false;
+        let work = ms(start);
+        timing.build_ms += work;
+        timing.frame_ms_max = timing.frame_ms_max.max(work);
+        timing.wall_ms = ms(b.started);
+        diag.last_run = Some(timing);
+    } else {
+        let work = ms(start);
+        b.timing.build_ms += work;
+        b.timing.frame_ms_max = b.timing.frame_ms_max.max(work);
+    }
+}
+
+/// [`step_build`] inside [`RUN_BUILD_BUDGET_MS`], once a frame.
+fn build_run(
+    mut st: ResMut<EditState>,
+    mut clock: ResMut<SimClock>,
+    mut diag: ResMut<EditorDiag>,
+    mut frame: ResMut<MarbleFrame>,
+    mut parts: ResMut<PartFrame>,
+) {
+    step_build(
+        &mut st,
+        &mut clock,
+        &mut diag,
+        &mut frame,
+        &mut parts,
+        Some(RUN_BUILD_BUDGET_MS),
+    );
+    let b = st.build.as_ref();
+    diag.run.building = b.is_some();
+    diag.run.build_progress = b.map_or(0.0, |b| b.build.progress());
+    diag.run.build_op = b.map(|b| b.op);
 }
 
 /// A trimmed track name of 1 to [`parble_core::file::MAX_NAME_CHARS`] characters.
@@ -1628,7 +1803,10 @@ fn apply_action(st: &mut EditState, ctx: &mut Ctx, action: Action) -> Result<Las
         }
         Action::Stop {} => start_run(st, ctx, "stop", None)?,
         Action::Reset {} => {
-            let release = st.run.active.then_some(st.run.release);
+            let release = match &st.build {
+                Some(b) => b.release,
+                None => st.run.active.then_some(st.run.release),
+            };
             start_run(st, ctx, "reset", release)?;
         }
         Action::Pause { paused } => match paused {
@@ -1973,6 +2151,7 @@ impl Plugin for EditorPlugin {
                 (
                     mouse_and_keys,
                     apply_actions,
+                    build_run,
                     update_hover,
                     rebuild_colliders,
                 )
@@ -2113,7 +2292,6 @@ fn apply_actions(
     mut diag: ResMut<EditorDiag>,
     mut editor_cam: ResMut<EditorCamera>,
     mut frame: ResMut<MarbleFrame>,
-    mut parts: ResMut<PartFrame>,
     mut playback: ResMut<Playback>,
     mut mode: ResMut<CameraMode>,
     cams: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
@@ -2132,6 +2310,11 @@ fn apply_actions(
         st.run.active = track.hopper.placement.is_some() && !track.hopper.queue.is_empty();
         st.run.set_release(track.hopper.release);
         st.adopt(track, &mut edits);
+        // The bridge's restart replaced the sim: a build under way is moot, and the restarted
+        // sim's mechanisms are the loaded track's, not the editor's.
+        st.build = None;
+        st.live_mechanisms = false;
+        clock.hold = false;
         // The ghost and selection marks are keyed on the edit count.
         diag.edits += 1;
     }
@@ -2147,7 +2330,6 @@ fn apply_actions(
         camera,
         editor_cam: &mut editor_cam,
         frame: &mut frame,
-        parts: &mut parts,
         playback: &mut playback,
         mode: &mut mode,
     };
@@ -2215,6 +2397,9 @@ fn apply_actions(
         tick: ctx.clock.sim.tick_count(),
         paused: ctx.playback.paused,
         follow: *ctx.mode == CameraMode::Director,
+        building: st.build.is_some(),
+        build_progress: st.build.as_ref().map_or(0.0, |b| b.build.progress()),
+        build_op: st.build.as_ref().map(|b| b.op),
     };
     // Validation and the selection's make-up only when the track or the selection changes.
     if st.checked_at != Some(d.edits) {
@@ -2419,7 +2604,8 @@ fn rebuild_colliders(
     let frame = Instant::now();
     let mut chunks = 0;
     let mut steps = 0;
-    loop {
+    // A run build has the frame's budget, and replaces this sim when it is in.
+    while st.build.is_none() {
         if frame.elapsed().as_secs_f32() * 1e3 >= COLLIDER_BUDGET_MS {
             break;
         }
@@ -2928,6 +3114,19 @@ mod tests {
         apply_action(st, ctx, parse(json))
     }
 
+    /// Finish the run build under way, if any, and install it ([`step_build`] with no budget).
+    fn finish_build(st: &mut EditState, ctx: &mut Ctx) {
+        step_build(
+            st,
+            ctx.clock,
+            ctx.diag,
+            ctx.frame,
+            &mut PartFrame::default(),
+            None,
+        );
+        assert!(st.build.is_none());
+    }
+
     #[test]
     fn run_ops_swap_the_sim_and_keep_the_edits_and_undo() {
         let mut st = EditState::new();
@@ -2941,9 +3140,10 @@ mod tests {
             runs: 0,
             last_run_hash: None,
             restarts: 0,
+            hold: false,
         };
         let (mut edits, mut diag, mut editor_cam) = Default::default();
-        let (mut frame, mut parts, mut playback) = Default::default();
+        let (mut frame, mut playback) = Default::default();
         let mut mode = CameraMode::Orbit;
         let ctx = &mut Ctx {
             clock: &mut clock,
@@ -2952,7 +3152,6 @@ mod tests {
             camera: None,
             editor_cam: &mut editor_cam,
             frame: &mut frame,
-            parts: &mut parts,
             playback: &mut playback,
             mode: &mut mode,
         };
@@ -2976,6 +3175,10 @@ mod tests {
         act(st, ctx, r#"{"op":"marbles","count":4}"#).unwrap();
         act(st, ctx, r#"{"op":"pause","paused":true}"#).unwrap();
         act(st, ctx, r#"{"op":"run","release":"all"}"#).unwrap();
+        // The run builds over frames while the live sim holds still.
+        assert!(st.build.is_some() && ctx.clock.hold && !st.run.active);
+        finish_build(st, ctx);
+        assert!(!ctx.clock.hold);
         // The swap keeps the edits and their history, and never looks like a bridge restart.
         assert!(st.editor.can_undo());
         assert_eq!(st.editor.track().placements.len(), 2);
@@ -2995,16 +3198,19 @@ mod tests {
         .unwrap();
         assert!(ctx.clock.sim.chunk_colliders().dirty_chunks().count() > 0);
         act(st, ctx, r#"{"op":"reset"}"#).unwrap();
+        finish_build(st, ctx);
         assert_eq!(ctx.clock.sim.tick_count(), 0);
         assert_eq!(ctx.clock.sim.chunk_colliders().dirty_chunks().count(), 0);
         assert!(st.run.active && st.editor.can_undo());
         ctx.clock.sim.tick(480);
         assert_eq!(ctx.clock.sim.marbles().len(), 4);
         act(st, ctx, r#"{"op":"stop"}"#).unwrap();
+        finish_build(st, ctx);
         assert!(!st.run.active);
         ctx.clock.sim.tick(480);
         assert!(ctx.clock.sim.marbles().is_empty());
         act(st, ctx, r#"{"op":"reset"}"#).unwrap();
+        finish_build(st, ctx);
         assert!(!st.run.active && ctx.frame.curr.is_empty());
         assert_eq!(st.editor.track().placements.len(), 3);
         act(st, ctx, r#"{"op":"follow","on":true}"#).unwrap();
@@ -3023,7 +3229,6 @@ mod tests {
         diag: EditorDiag,
         editor_cam: EditorCamera,
         frame: MarbleFrame,
-        parts: PartFrame,
         playback: Playback,
         mode: CameraMode,
     }
@@ -3031,7 +3236,7 @@ mod tests {
     impl Rig {
         fn new() -> Self {
             let (edits, diag, editor_cam) = Default::default();
-            let (frame, parts, playback) = Default::default();
+            let (frame, playback) = Default::default();
             Self {
                 clock: SimClock {
                     sim: TrackRun::from_sim(parble_sim::Sim::tray_scene()),
@@ -3043,12 +3248,12 @@ mod tests {
                     runs: 0,
                     last_run_hash: None,
                     restarts: 0,
+                    hold: false,
                 },
                 edits,
                 diag,
                 editor_cam,
                 frame,
-                parts,
                 playback,
                 mode: CameraMode::Orbit,
             }
@@ -3062,7 +3267,6 @@ mod tests {
                 camera: None,
                 editor_cam: &mut self.editor_cam,
                 frame: &mut self.frame,
-                parts: &mut self.parts,
                 playback: &mut self.playback,
                 mode: &mut self.mode,
             }
@@ -3264,11 +3468,172 @@ mod tests {
         )
         .unwrap();
         act(st, ctx, r#"{"op":"run","release":"all"}"#).unwrap();
+        finish_build(st, ctx);
         let t = ctx.diag.last_run.clone().unwrap();
         assert_eq!((t.op, t.pieces), ("run", 1));
         assert!(t.build_ms >= 0.0);
         act(st, ctx, r#"{"op":"pulse","anchor":[0,0,0]}"#).unwrap();
         assert_eq!(st.pulse.map(|(a, _)| a), Some(c(0, 0, 0)));
+    }
+
+    /// P3-T5: a mechanism moved during a run takes effect at its new cell at once: the instance,
+    /// its sensors and its part bodies leave the old cell and come up at the new one, the moved
+    /// hopper releases the rest of its queue from where it is now, and undoing the move puts the
+    /// instance back. A Run builds over frames and an edit while it builds starts it over.
+    #[test]
+    fn a_mechanism_moved_mid_run_takes_effect_at_its_new_cell() {
+        let mut rig = Rig::new();
+        let mut st = EditState::new();
+        let ctx = &mut rig.ctx();
+        let st = &mut st;
+        act(
+            st,
+            ctx,
+            r#"{"op":"place","piece":"mech_hopper","cell":[0,0,0]}"#,
+        )
+        .unwrap();
+        act(
+            st,
+            ctx,
+            r#"{"op":"place","piece":"mech_toggle_l3","cell":[6,0,4]}"#,
+        )
+        .unwrap();
+        // Edit mode never grows mechanism instances on the editor's own world.
+        assert!(ctx.clock.sim.mechanisms().is_empty());
+        act(st, ctx, r#"{"op":"marbles","count":3}"#).unwrap();
+        act(
+            st,
+            ctx,
+            r#"{"op":"run","release":"interval","intervalTicks":120}"#,
+        )
+        .unwrap();
+        // An edit while the run builds starts it over on the edited track.
+        act(
+            st,
+            ctx,
+            r#"{"op":"place","piece":"blk_straight_l3","cell":[3,0,4]}"#,
+        )
+        .unwrap();
+        finish_build(st, ctx);
+        let t = ctx.diag.last_run.clone().unwrap();
+        assert_eq!((t.op, t.pieces, t.restarts), ("run", 3, 1));
+        assert!(st.run.active);
+        let at = |ctx: &Ctx, piece: &str| -> Vec<CellCoord> {
+            ctx.clock
+                .sim
+                .mechanisms()
+                .into_iter()
+                .filter(|m| m.piece.as_str() == piece)
+                .map(|m| m.id.0)
+                .collect()
+        };
+        assert_eq!(at(ctx, "mech_toggle_l3"), [c(6, 0, 4)]);
+        ctx.clock.sim.tick(60);
+        assert_eq!(ctx.clock.sim.marbles().len(), 1);
+        let sensors = |ctx: &Ctx, cell: CellCoord| {
+            ctx.clock
+                .sim
+                .sensors()
+                .iter()
+                .filter(|s| s.id.0 == cell)
+                .count()
+        };
+        let toggle_sensors = sensors(ctx, c(6, 0, 4));
+        assert!(toggle_sensors > 0);
+
+        // Move the toggle two cells along z.
+        act(st, ctx, r#"{"op":"boxSelect","a":[6,0,4],"b":[6,0,4]}"#).unwrap();
+        act(st, ctx, r#"{"op":"move","offset":[0,0,2]}"#).unwrap();
+        assert_eq!(at(ctx, "mech_toggle_l3"), [c(6, 0, 6)]);
+        assert_eq!(sensors(ctx, c(6, 0, 4)), 0);
+        assert_eq!(sensors(ctx, c(6, 0, 6)), toggle_sensors);
+
+        // Move the hopper: the next marbles come out of its new bowl and none repeats.
+        act(st, ctx, r#"{"op":"boxSelect","a":[0,0,0],"b":[0,0,0]}"#).unwrap();
+        act(st, ctx, r#"{"op":"move","offset":[-4,0,6]}"#).unwrap();
+        assert_eq!(at(ctx, "mech_hopper"), [c(-4, 0, 6)]);
+        while ctx
+            .clock
+            .sim
+            .chunk_colliders()
+            .dirty_chunks()
+            .next()
+            .is_some()
+        {
+            ctx.clock.sim.rebuild_next_chunk(st.kit).unwrap();
+        }
+        ctx.clock.sim.tick(120);
+        let marbles = ctx.clock.sim.marbles();
+        assert_eq!(marbles.len(), 2);
+        let bowl = c(-4, 0, 6);
+        let d = |v: f32, cell: i32| (v - cell as f32 * CELL_M).abs();
+        assert!(
+            d(marbles[1].position[0], bowl.x) < 2.0 * CELL_M
+                && d(marbles[1].position[2], bowl.z) < 2.0 * CELL_M,
+            "second marble at {:?}, hopper at {bowl:?}",
+            marbles[1].position
+        );
+        let hopper = ctx
+            .clock
+            .sim
+            .mechanisms()
+            .into_iter()
+            .find(|m| m.piece.as_str() == "mech_hopper")
+            .unwrap();
+        assert_eq!(hopper.state["released"], 2);
+
+        // Undo puts the hopper back where it was.
+        act(st, ctx, r#"{"op":"undo"}"#).unwrap();
+        assert_eq!(at(ctx, "mech_hopper"), [c(0, 0, 0)]);
+        // Stop builds the idle sim: the instances follow edits there too.
+        act(st, ctx, r#"{"op":"stop"}"#).unwrap();
+        finish_build(st, ctx);
+        assert!(!st.run.active);
+        act(st, ctx, r#"{"op":"boxSelect","a":[0,0,0],"b":[0,0,0]}"#).unwrap();
+        act(st, ctx, r#"{"op":"remove"}"#).unwrap();
+        assert!(at(ctx, "mech_hopper").is_empty());
+        assert_eq!(at(ctx, "mech_toggle_l3"), [c(6, 0, 6)]);
+    }
+
+    /// P3-T5 timing note, not a gate: a Run on the 2,000-piece fill built inside
+    /// [`RUN_BUILD_BUDGET_MS`] frames, with its stage breakdown. Run with `--nocapture`.
+    #[test]
+    fn a_run_on_a_2000_piece_fill_builds_over_frames_time() {
+        let mut rig = Rig::new();
+        let mut st = EditState::new();
+        let ctx = &mut rig.ctx();
+        let st = &mut st;
+        act(st, ctx, r#"{"op":"fill","count":2000}"#).unwrap();
+        act(
+            st,
+            ctx,
+            r#"{"op":"place","piece":"mech_hopper","cell":[0,0,0]}"#,
+        )
+        .unwrap();
+        act(st, ctx, r#"{"op":"run","release":"all"}"#).unwrap();
+        while st.build.is_some() {
+            step_build(
+                st,
+                ctx.clock,
+                ctx.diag,
+                ctx.frame,
+                &mut PartFrame::default(),
+                Some(RUN_BUILD_BUDGET_MS),
+            );
+        }
+        let t = ctx.diag.last_run.clone().unwrap();
+        assert!(st.run.active && t.frames > 1);
+        println!(
+            "run build: {} pieces, {} frames, worst frame {:.2} ms, worst unit {:.2} ms, work {:.0} ms (place {:.1}, colliders {:.0}, mechanisms {:.2})",
+            t.pieces,
+            t.frames,
+            t.frame_ms_max,
+            t.unit_ms_max,
+            t.build_ms,
+            t.place_ms,
+            t.collider_ms,
+            t.mechanism_ms
+        );
     }
 
     #[test]

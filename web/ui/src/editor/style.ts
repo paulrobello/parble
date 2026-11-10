@@ -155,6 +155,7 @@ export const CSS = `
 #pe.faded .inlay.fz{opacity:0;pointer-events:none}
 #pe.faded.show-top #pe-top,#pe.faded.show-bottom #pe-tray,#pe.faded.show-bottom #pe-snd,#pe.faded.show-right #pe-side{opacity:1;pointer-events:auto}
 #pe.faded.show-top #pe-cap{opacity:0}
+#pe.building #pe-cap,#pe.building.faded.show-top #pe-cap{opacity:1}
 
 #pe-sheet{right:12px;top:76px;bottom:12px;width:min(640px,calc(50vw - 12px));display:none;flex-direction:column;z-index:5}
 #pe-sheet.open{display:flex}

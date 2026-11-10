@@ -940,6 +940,16 @@ ${groupActs}
   let fadeKey = "";
   const renderRun = (s: EditorDiag): void => {
     const t = now();
+    const building = s.run.building === true;
+    root.classList.toggle("building", building);
+    if (building) {
+      const ck = `b|${s.run.buildOp}|${Math.floor((s.run.buildProgress ?? 0) * 100)}`;
+      if (ck !== capKey) {
+        capKey = ck;
+        const label = s.run.buildOp === "run" ? "Building run" : "Building";
+        cap.innerHTML = `<i class="pin"></i><span class="sc">${label}</span><b>${Math.floor((s.run.buildProgress ?? 0) * 100)}%</b><span>${s.pieces} pieces</span>`;
+      }
+    }
     fade.setRunning(s.run.active, t);
     const v = fade.view(t);
     const fk = `${v.faded}|${[...v.shown].join()}`;
@@ -952,7 +962,7 @@ ${groupActs}
         doc.body.classList.toggle(`pe-show-${e}`, v.shown.has(e));
       }
     }
-    if (v.faded) {
+    if (v.faded && !building) {
       const ck = `${s.run.marbles}|${Math.floor(s.run.tick / 24)}|${s.run.paused}`;
       if (ck !== capKey) {
         capKey = ck;

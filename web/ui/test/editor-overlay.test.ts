@@ -342,6 +342,21 @@ describe("editor overlay", () => {
     expect(ui.root.classList.contains("faded")).toBe(false);
   });
 
+  it("a building run shows the Building capsule with its progress until the run is in", () => {
+    ui.update(diag({ run: { ...diag().run, building: true, buildProgress: 0.42, buildOp: "run" } }));
+    expect(ui.root.classList.contains("building")).toBe(true);
+    expect($("#pe-cap").textContent).toContain("Building run");
+    expect($("#pe-cap").textContent).toContain("42%");
+    ui.update(diag({ run: { ...diag().run, building: true, buildProgress: 0.9, buildOp: "run" } }));
+    expect($("#pe-cap").textContent).toContain("90%");
+    const running = diag({ run: { ...diag().run, active: true, marbles: 1, tick: 24 } });
+    ui.update(running);
+    expect(ui.root.classList.contains("building")).toBe(false);
+    clock = 1_300;
+    ui.update(running);
+    expect($("#pe-cap").textContent).toContain("Running");
+  });
+
   it("Esc stops a run, drops the brush, then clears the selection; Space pauses a run", () => {
     ui.update(diag({ run: { ...diag().run, active: true } }));
     press("Escape");

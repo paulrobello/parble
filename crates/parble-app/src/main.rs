@@ -59,6 +59,8 @@ struct SimClock {
     /// Bridge restarts ([`SimClock::restart`]) so far. The editor resyncs to the restarted sim's
     /// track when it changes.
     restarts: u64,
+    /// The live sim holds still: the editor is building the run that replaces it.
+    hold: bool,
 }
 
 fn main() {
@@ -114,6 +116,7 @@ fn main() {
             runs: 0,
             last_run_hash: None,
             restarts: 0,
+            hold: false,
         })
         .insert_resource(Playback::new(opts.time_scale, opts.paused))
         .add_systems(Startup, (spawn_camera, publish_initial, announce_bridge))
@@ -221,6 +224,7 @@ fn advance_sim(
         None => playback::frame_ticks(&mut playback, clock.acc, time.delta_secs_f64()),
     };
     clock.acc = rest;
+    let ticks = if clock.hold { 0 } else { ticks };
     if ticks > 0 {
         let run_ticks = clock.run_ticks();
         if clock.sim.tick_count() >= u64::from(run_ticks) {
@@ -502,6 +506,7 @@ mod tests {
             runs: 0,
             last_run_hash: None,
             restarts: 0,
+            hold: false,
         };
         assert_eq!(clock(Scenario::Ramp).run_ticks(), RAMP_10S_TICKS);
         assert_eq!(clock(Scenario::Editor).run_ticks(), u32::MAX);
