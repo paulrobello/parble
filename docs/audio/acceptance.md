@@ -6,7 +6,7 @@ Evidence for the PRD §6 P4 acceptance boxes. Measured 2026-11-09 on gpu-host-a 
 |---|---|---|
 | Each marble type sounds distinct on each surface (owner listening approval) | Open: needs Paul | [Listening review](#listening-review) below |
 | No clipping or voice starvation with 10 marbles on the stress track | Measured, passes | [C1](#c1-no-clipping-and-no-voice-starvation) |
-| Audio CPU stays within the frame budget | Measured (p95 0.2 ms against 2 ms). No load-guarded sample yet | [C2](#c2-audio-main-thread-time) |
+| Audio CPU stays within the frame budget | Measured, passes (p95 0.2 ms against 2 ms, load-guarded on gpu-host-b) | [C2](#c2-audio-main-thread-time) |
 | Music loops seamlessly | Automated checks pass (P4-T5), owner listen open | `e2e/tests/music.spec.mjs`, `make music-soak`, listening review item L3 |
 
 ## C1: no clipping and no voice starvation
@@ -58,10 +58,11 @@ Result, 2026-11-09 (Pacific time; the JSON stamps are UTC). No sample passed the
 | 21:44, guarded | 14.88 / 16.46 | no (after > 15) | 3,610 | 0.052 ms | 0.2 ms | 0.2 ms | 0.3 ms | 0 | 16.8 ms |
 | 22:03, guarded | 14.34 / 15.55 | no (after > 15) | 3,609 | 0.056 ms | 0.2 ms | 0.2 ms | 0.5 ms | 0 | 16.7 ms |
 | 22:24, guarded | 26.5 at the end of the 20 min wait | no (never started) | | | | | | | |
+| 2026-11-10 02:31, guarded, gpu-host-b (Apple M4) | 4.76 / 4.51 | **yes** | 3,613 | 0.059 ms | 0.2 ms | 0.2 ms | 0.3 ms | 0 | 16.7 ms |
 
 In every run the stress track had 10 marbles, up to 7 roll voices and 23 voices at once, and about 724 one-shots and 810 contacts in 60 s. The page and engine recorded no errors. The p95 of 0.2 ms is 10 % of the 2 ms budget and about 1.2 % of the 16.7 ms frame. The worst frame (0.5 ms) is a quarter of the budget, measured even at load 238. The rAF frame times held vsync, with 1 to 4 frames over 25 ms in 3,600.
 
-Status: the measured numbers are far inside the budget, but the house rule requires a sample taken at load ≤ 15 before and after. Until one is taken, this box is measured and not yet confirmed. To record one, run `make build-web && make web-audio-perf` on a quiet host. The spec waits for the load, and `taken: true` in `target/perf/p4t6-audio.json` is the confirming record.
+Status: passes. The 2026-11-10 02:31 PST run on gpu-host-b (Apple M4, booked window, release `make build-web` of main) passed the load guard at both ends and recorded `taken: true`: p95 0.2 ms against the 2 ms budget, max 0.3 ms, no frame over 1 ms, rAF p95 16.7 ms with 2 dropped frames in 3,612. The record is [`p4t6-audio-gpu-host-b.json`](p4t6-audio-gpu-host-b.json).
 
 ## Listening review
 

@@ -1,0 +1,51 @@
+{
+  "taken": true,
+  "when": "2026-11-10T10:31:17.946Z",
+  "loadBefore": 4.76,
+  "loadAfter": 4.51,
+  "loadMax": 15,
+  "diagRun": false,
+  "host": "Apple M4",
+  "traceS": 60,
+  "budgetMs": {
+    "audioP95": 2,
+    "frame": 16.666666666666668
+  },
+  "crossOriginIsolated": false,
+  "state": {
+    "scenario": "stress2000",
+    "quality": "high",
+    "fps": 60.103664,
+    "canvas": [
+      2560,
+      1440
+    ]
+  },
+  "maxMarbles": 10,
+  "maxRolls": 7,
+  "maxVoices": 23,
+  "audio": {
+    "frames": 3613,
+    "meanMs": 0.0585662881786263,
+    "p50Ms": 0.09999990463256836,
+    "p95Ms": 0.19999992847442627,
+    "p99Ms": 0.20000004768371582,
+    "maxMs": 0.30000007152557373,
+    "dropped": 0,
+    "over1Ms": 0,
+    "over2Ms": 0
+  },
+  "frameTimes": {
+    "frames": 3612,
+    "meanMs": 16.67522148394156,
+    "p50Ms": 16.69999999999709,
+    "p95Ms": 16.700000000004366,
+    "p99Ms": 16.80000000000291,
+    "maxMs": 33.299999999995634,
+    "dropped": 2
+  },
+  "oneShotsStarted": 724,
+  "contacts": 809,
+  "audioErrors": 0,
+  "errors": []
+}
