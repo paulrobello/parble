@@ -71,7 +71,7 @@ State is a brass pin, never a fill. When the active tool, family tab, tile or se
 
 ### Nudge zones
 - A nudge zone is an invisible box that keeps slow marbles moving: a marble inside, slower than the zone's minimum speed along its arrow, is pushed up to it, never harder than the zone's push cap (defaults 0.2 m/s and 1 m/s², at most 2 of each).
-- The Nudge zones block sits under the marble check: a count, Add zone, and one row per zone with its cell, heading and speed, and Select. Add zone covers the selected pieces' cells, or the cell at the camera's centre with nothing selected.
+- The Nudge zones block sits under the marble check: a count, Add zone, and one row per zone with its cell, heading and speed, and Select. Add zone covers the selected pieces' cells, or the cell at the camera's centre with nothing selected. Add zone and Select switch to the Select tool, so `R` turns the zone.
 - In the scene each zone is a dotted pale-blue box with a solid arrow; the selected one is brass. They are drawn only while editing, never during a run or its build.
 - With the Select tool, a click that hits no piece selects the zone it passes through; the Delete tool deletes it.
 - The selected zone's inspector (Selection) shows its box, heading, minimum speed and push, with segmented rows: Size (X, Y, Z one cell smaller or larger), Move (a cell west, east, north, south, a level up or down), Aim (45° either way, tilt 15° up or down), Speed (0.05 m/s) and Push (0.25 m/s²), and Delete zone. Arrows and `PgUp` `PgDn` move it, `R` turns it a quarter, `⌫` deletes it. Every change is one undo step.

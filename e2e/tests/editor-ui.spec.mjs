@@ -356,10 +356,20 @@ test("nudge zones: add, size, aim, move, undo and redo from the panel, export th
     page.evaluate((c) => [...document.querySelectorAll("#pe-nz path")].find((p) => p.getAttribute("class") === c)?.getAttribute("d") ?? "", cls);
   await expect(nz).toBeVisible();
   await expect(nz.locator('[data-k="nzh"]')).toHaveText("none");
+  // From the Place tool, as on a first run with the hopper picked.
+  await edit(page, { op: "tool", tool: "place" });
+  const brushYaw = (await state(page)).brush.yaw;
 
   // Add zone over the two selected pieces: it becomes the selection, with the inspector and a brass outline.
   await nz.locator('[data-k="nzAdd"]').click();
   await page.waitForFunction(() => window.__parble.editor.nudges?.count === 1 && window.__parble.editor.nudges.selected === 0);
+  // Add zone leaves the Select tool on, so R turns the zone a quarter, not the brush; Shift-R turns it back.
+  await page.waitForFunction(() => window.__parble.editor.tool === "select", null, { timeout: 5_000 });
+  await page.keyboard.press("r");
+  await page.waitForFunction(() => window.__parble.editor.nudges.zones[0].yawMdeg === 90_000, null, { timeout: 5_000 });
+  expect((await state(page)).brush.yaw).toBe(brushYaw);
+  await page.keyboard.press("Shift+R");
+  await page.waitForFunction(() => window.__parble.editor.nudges.zones[0].yawMdeg === 0, null, { timeout: 5_000 });
   let n = await zones();
   expect(n.zones[0]).toMatchObject({
     minUm: [150_000, 0, -390_000],

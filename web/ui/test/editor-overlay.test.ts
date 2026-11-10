@@ -769,17 +769,21 @@ describe("editor overlay", () => {
     expect($('[data-k="nzh"]').textContent).toBe("none");
     orbit = { target: [0.36, 0.07, -0.37], yaw: 0, pitch: 0.9, radius: 2 };
     click('[data-k="nzAdd"]');
-    expect(sent.at(-1)).toEqual({
-      op: "nudgeAdd",
-      cells: [
-        [6, 1, -6],
-        [6, 1, -6],
-      ],
-    });
+    // Then the Select tool, where R turns the zone rather than the brush.
+    expect(sent.slice(-2)).toEqual([
+      {
+        op: "nudgeAdd",
+        cells: [
+          [6, 1, -6],
+          [6, 1, -6],
+        ],
+      },
+      { op: "tool", tool: "select" },
+    ]);
     // With pieces selected it covers them.
     ui.update(diag({ selection: 2, nudges: { count: 0, selected: null, zones: [] } }));
     click('[data-k="nzAdd"]');
-    expect(sent.at(-1)).toEqual({ op: "nudgeAdd" });
+    expect(sent.slice(-2)).toEqual([{ op: "nudgeAdd" }, { op: "tool", tool: "select" }]);
     // One zone, not selected: listed with Select, drawn pale blue.
     ui.update(diag({ nudges: { count: 1, selected: null, zones: [zone] } }));
     expect($('[data-k="nzh"]').textContent).toBe("1");
@@ -787,7 +791,10 @@ describe("editor overlay", () => {
     expect(d("nza").match(/M/g)?.length).toBe(3);
     expect(d("nz sel")).toBe("");
     click('[data-nzsel="0"]');
-    expect(sent.at(-1)).toEqual({ op: "nudgeSelect", index: 0 });
+    expect(sent.slice(-2)).toEqual([
+      { op: "nudgeSelect", index: 0 },
+      { op: "tool", tool: "select" },
+    ]);
     // Selected: the inspector, the outline in brass.
     ui.update(diag({ nudges: { count: 1, selected: 0, zones: [zone] } }));
     expect(d("nz")).toBe("");

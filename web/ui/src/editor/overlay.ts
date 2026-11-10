@@ -678,8 +678,10 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
       const [k, v] = b.dataset.opt.split(":");
       if (k && v !== undefined) act({ op: "mechConfig", key: k, value: Number(v) });
     } else if (b.dataset.nz) nudgeButton(b.dataset.nz);
-    else if (b.dataset.nzsel) act({ op: "nudgeSelect", index: Number(b.dataset.nzsel) });
-    else if (b.dataset.nzmove) act({ op: "move", offset: b.dataset.nzmove.split(",").map(Number) as Vec3i });
+    else if (b.dataset.nzsel) {
+      act({ op: "nudgeSelect", index: Number(b.dataset.nzsel) });
+      act({ op: "tool", tool: "select" });
+    } else if (b.dataset.nzmove) act({ op: "move", offset: b.dataset.nzmove.split(",").map(Number) as Vec3i });
     else if (b.dataset.show) {
       const [x, y, z, ax, ay, az] = b.dataset.show.split(",").map(Number) as number[];
       show([x, y, z] as Vec3i, Number.isFinite(ax) ? ([ax, ay, az] as Vec3i) : null);
@@ -693,15 +695,16 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     if (!s || !n || n.selected === null || s.selection > 0) return null;
     return n.zones.find((z) => z.index === n.selected) ?? null;
   };
-  /** Add zone: over the selected pieces' cells, else over the cell at the camera's centre. */
+  /** Add zone: over the selected pieces' cells, else over the cell at the camera's centre. Then the
+   * Select tool, where R turns the zone (the Place tool's R turns the brush). */
   const addZone = (): void => {
     if (!d) return;
-    if (d.selection > 0) {
-      act({ op: "nudgeAdd" });
-      return;
+    if (d.selection > 0) act({ op: "nudgeAdd" });
+    else {
+      const c = cellAt(deps.orbit?.()?.target ?? [0, 0, 0]);
+      act({ op: "nudgeAdd", cells: [c, c] });
     }
-    const c = cellAt(deps.orbit?.()?.target ?? [0, 0, 0]);
-    act({ op: "nudgeAdd", cells: [c, c] });
+    act({ op: "tool", tool: "select" });
   };
   /** An inspector button, `size:<axis>:<±1>` or `<yaw|pitch|speed|accel>:<±1>`: one nudgeSet. */
   const nudgeButton = (spec: string): void => {
