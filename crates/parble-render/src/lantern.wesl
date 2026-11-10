@@ -14,8 +14,9 @@ struct Lantern {
     edge: f32,
     // Falloff exponent on N.V.
     power: f32,
-    pad0: f32,
-    pad1: f32,
+    // Inner glow seen through the paper: hot * (N.V)^hot_power on top of the falloff.
+    hot: f32,
+    hot_power: f32,
 }
 
 @group(constants::MATERIAL_BIND_GROUP) @binding(100) var<uniform> lantern: Lantern;
@@ -25,7 +26,7 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> Fragment
     var pbr_input = pbr_input_from_standard_material(in, is_front);
 
     let n_dot_v = saturate(dot(normalize(in.world_normal), pbr_input.V));
-    let k = mix(lantern.edge, 1.0, pow(n_dot_v, lantern.power));
+    let k = mix(lantern.edge, 1.0, pow(n_dot_v, lantern.power)) + lantern.hot * pow(n_dot_v, lantern.hot_power);
     pbr_input.material.emissive = vec4(pbr_input.material.emissive.rgb * k, pbr_input.material.emissive.a);
 
     pbr_input.material.base_color = alpha_discard(pbr_input.material.flags, pbr_input.material.alpha_cutoff, pbr_input.material.base_color);

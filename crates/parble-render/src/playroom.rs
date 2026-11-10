@@ -293,15 +293,16 @@ const ENV_DIFFUSE: &[u8] = include_bytes!("../../../assets/playroom/env_diffuse.
 /// Must match blender/playroom/probe.py (SPEC_SIZE, DIFF_SIZE).
 const ENV_SPECULAR_SIZE: u32 = 64;
 const ENV_DIFFUSE_SIZE: u32 = 16;
-/// Scales the probe's relative radiance to cd/m².
-const ENV_INTENSITY: f32 = 15.0;
+/// Scales the probe's relative radiance to cd/m². Raised from 15 with the ambient, moon, rim and
+/// lamp when the lantern lights were dimmed (ref-12 floor pool, 2026-11-10).
+const ENV_INTENSITY: f32 = 22.5;
 /// Backdrop plate luminance scale, cd/m² at texel value 1.
 const BACKDROP_NITS: f32 = 5.0;
 
 /// Night sky behind everything (the room shell normally hides it).
 pub const NIGHT: Color = Color::srgb(0.012, 0.018, 0.045);
 /// Pale blue window rim from behind the set (the backdrop side), lux. No shadows.
-pub const RIM_LUX: f32 = 1_500.0;
+pub const RIM_LUX: f32 = 1_800.0;
 /// Where the rim comes from: high over the backdrop, left of the window.
 const RIM_FROM: Vec3 = Vec3::new(-0.8, 1.6, -2.0);
 
@@ -325,12 +326,22 @@ impl Plugin for PlayroomPlugin {
 const LANTERN_SHADER: &str = "embedded://parble_render/lantern.wesl";
 
 /// Paper shade emissive face on, cd/m² per unit of [`LANTERN_PAPER`] (ref-12, 2026-11-10).
-pub const LANTERN_PAPER_NITS: f32 = 2.2;
+pub const LANTERN_PAPER_NITS: f32 = 1.2;
 /// Bamboo rib emissive, cd/m² per unit of warm amber: darker lines on the lit paper.
-pub const LANTERN_RIB_NITS: f32 = 0.8;
+pub const LANTERN_RIB_NITS: f32 = 0.45;
 /// Shade emissive scale at the silhouette, and the falloff exponent on N.V towards it.
-pub const LANTERN_EDGE: f32 = 0.0;
-pub const LANTERN_FALLOFF_POWER: f32 = 2.0;
+pub const LANTERN_EDGE: f32 = 0.15;
+pub const LANTERN_FALLOFF_POWER: f32 = 1.0;
+/// The inner glow seen through the paper, added on top: `LANTERN_HOT * (N.V)^LANTERN_HOT_POWER`.
+pub const LANTERN_HOT: f32 = 1.6;
+pub const LANTERN_HOT_POWER: f32 = 5.0;
+/// Lantern point lights against `layout.json`'s lumens, which stay as the probe bake's values
+/// (`blender/playroom/probe.py`): a modest pool on the rug, as in ref-12.
+pub const LANTERN_LIGHT_SCALE: f32 = 0.25;
+/// Moon and lamp against `layout.json`, raised to hold the room's light level with the lanterns
+/// dimmed.
+pub const MOON_LUX_SCALE: f32 = 2.2;
+pub const LAMP_LUMENS_SCALE: f32 = 3.0;
 
 /// Shade falloff for `lantern.wesl` (binding 100).
 #[derive(ShaderType, Reflect, Debug, Clone, Copy, Default)]
@@ -339,8 +350,9 @@ pub struct LanternParams {
     pub edge: f32,
     /// Falloff exponent on N.V.
     pub power: f32,
-    pub pad0: f32,
-    pub pad1: f32,
+    /// Inner glow added on top, and its exponent on N.V.
+    pub hot: f32,
+    pub hot_power: f32,
 }
 
 /// Paper lantern shade and ribs: the emissive dims from face on towards the silhouette.
@@ -373,13 +385,13 @@ pub fn spawn_playroom_lights(mut commands: Commands, quality: Res<Quality>) {
     commands.insert_resource(ClearColor(NIGHT));
     commands.insert_resource(GlobalAmbientLight {
         color: NIGHT_BLUE,
-        brightness: 2.0,
+        brightness: 6.0,
         ..default()
     });
     commands.spawn((
         DirectionalLight {
             color: PALE_BLUE,
-            illuminance: lay.moon.lux,
+            illuminance: lay.moon.lux * MOON_LUX_SCALE,
             shadow_maps_enabled: shadows && lay.moon.shadows,
             shadow_depth_bias: 0.0004,
             shadow_normal_bias: 0.6,
@@ -409,7 +421,7 @@ pub fn spawn_playroom_lights(mut commands: Commands, quality: Res<Quality>) {
         commands.spawn((
             PointLight {
                 color: WARM,
-                intensity: lan.lumens,
+                intensity: lan.lumens * LANTERN_LIGHT_SCALE,
                 range: 4.0,
                 radius: lan.radius * 0.6,
                 shadow_maps_enabled: shadows && lan.shadows,
@@ -425,7 +437,7 @@ pub fn spawn_playroom_lights(mut commands: Commands, quality: Res<Quality>) {
     commands.spawn((
         PointLight {
             color: WARM,
-            intensity: lamp.lumens,
+            intensity: lamp.lumens * LAMP_LUMENS_SCALE,
             range: 6.0,
             radius: lamp.shade_radius * 0.5,
             shadow_maps_enabled: shadows && lamp.shadows,
@@ -596,18 +608,20 @@ fn spawn_playroom_set(
     ));
 
     // Paper lanterns: an emissive shade with darker bamboo ribs. The light is spawned separately.
-    // The emissive stays below ACES's shoulder so the paper is not clipped and the ribs show, and
-    // it fades towards the silhouette (ref-12).
+    // The emissive stays below ACES's shoulder so the paper is not clipped and the ribs show. It
+    // fades towards the silhouette with an inner glow at the centre, and the paper reflects little
+    // and takes no shadows, so it reads as lit from inside rather than by the room (ref-12).
     let falloff = LanternExt {
         params: LanternParams {
             edge: LANTERN_EDGE,
             power: LANTERN_FALLOFF_POWER,
-            ..default()
+            hot: LANTERN_HOT,
+            hot_power: LANTERN_HOT_POWER,
         },
     };
     let paper = lantern_materials.add(LanternMaterial {
         base: StandardMaterial {
-            base_color: Color::srgb(0.95, 0.9, 0.82),
+            base_color: Color::linear_rgb(0.312, 0.276, 0.223),
             emissive: LinearRgba::from(LANTERN_PAPER) * LANTERN_PAPER_NITS,
             perceptual_roughness: 0.9,
             ..default()
@@ -616,7 +630,7 @@ fn spawn_playroom_set(
     });
     let rib = lantern_materials.add(LanternMaterial {
         base: StandardMaterial {
-            base_color: Color::srgb(0.5, 0.42, 0.33),
+            base_color: Color::linear_rgb(0.086, 0.059, 0.036),
             emissive: LinearRgba::from(WARM) * LANTERN_RIB_NITS,
             perceptual_roughness: 0.9,
             ..default()
@@ -632,6 +646,7 @@ fn spawn_playroom_set(
             MeshMaterial3d(paper.clone()),
             Transform::from_translation(c).with_scale(Vec3::new(r, r * 0.94, r)),
             NotShadowCaster,
+            NotShadowReceiver,
         ));
         for k in -3i32..=3 {
             let lat = k as f32 * 0.38;
