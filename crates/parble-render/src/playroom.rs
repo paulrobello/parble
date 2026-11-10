@@ -293,16 +293,15 @@ const ENV_DIFFUSE: &[u8] = include_bytes!("../../../assets/playroom/env_diffuse.
 /// Must match blender/playroom/probe.py (SPEC_SIZE, DIFF_SIZE).
 const ENV_SPECULAR_SIZE: u32 = 64;
 const ENV_DIFFUSE_SIZE: u32 = 16;
-/// Scales the probe's relative radiance to cd/m². Raised from 15 with the ambient, moon, rim and
-/// lamp when the lantern lights were dimmed (ref-12 floor pool, 2026-11-10).
-const ENV_INTENSITY: f32 = 22.5;
+/// Scales the probe's relative radiance to cd/m².
+const ENV_INTENSITY: f32 = 15.0;
 /// Backdrop plate luminance scale, cd/m² at texel value 1.
 const BACKDROP_NITS: f32 = 5.0;
 
 /// Night sky behind everything (the room shell normally hides it).
 pub const NIGHT: Color = Color::srgb(0.012, 0.018, 0.045);
 /// Pale blue window rim from behind the set (the backdrop side), lux. No shadows.
-pub const RIM_LUX: f32 = 1_800.0;
+pub const RIM_LUX: f32 = 1_500.0;
 /// Where the rim comes from: high over the backdrop, left of the window.
 const RIM_FROM: Vec3 = Vec3::new(-0.8, 1.6, -2.0);
 
@@ -335,13 +334,16 @@ pub const LANTERN_FALLOFF_POWER: f32 = 1.0;
 /// The inner glow seen through the paper, added on top: `LANTERN_HOT * (N.V)^LANTERN_HOT_POWER`.
 pub const LANTERN_HOT: f32 = 1.6;
 pub const LANTERN_HOT_POWER: f32 = 5.0;
+/// Rice-paper texture on the transmitted glow (`lantern.wesl`): grain at 120 cycles per metre
+/// (about 8 mm, with three finer octaves), fibres and puckers between the ribs, as fractions of the
+/// glow. Matches ref-12's local luminance variation (`docs/design/lantern/`).
+pub const LANTERN_GRAIN_FREQ: f32 = 120.0;
+pub const LANTERN_GRAIN: f32 = 0.8;
+pub const LANTERN_FIBRE: f32 = 0.3;
+pub const LANTERN_PUCKER: f32 = 0.5;
 /// Lantern point lights against `layout.json`'s lumens, which stay as the probe bake's values
-/// (`blender/playroom/probe.py`): a modest pool on the rug, as in ref-12.
-pub const LANTERN_LIGHT_SCALE: f32 = 0.25;
-/// Moon and lamp against `layout.json`, raised to hold the room's light level with the lanterns
-/// dimmed.
-pub const MOON_LUX_SCALE: f32 = 2.2;
-pub const LAMP_LUMENS_SCALE: f32 = 3.0;
+/// (`blender/playroom/probe.py`): a milder pool on the rug, as in ref-12.
+pub const LANTERN_LIGHT_SCALE: f32 = 0.5;
 
 /// Shade falloff for `lantern.wesl` (binding 100).
 #[derive(ShaderType, Reflect, Debug, Clone, Copy, Default)]
@@ -353,6 +355,12 @@ pub struct LanternParams {
     /// Inner glow added on top, and its exponent on N.V.
     pub hot: f32,
     pub hot_power: f32,
+    /// Paper texture (`lantern.wesl`): base grain frequency in cycles per metre, then the grain,
+    /// fibre and pucker amplitudes as fractions of the transmitted glow. All 0 on the ribs.
+    pub grain_freq: f32,
+    pub grain: f32,
+    pub fibre: f32,
+    pub pucker: f32,
 }
 
 /// Paper lantern shade and ribs: the emissive dims from face on towards the silhouette.
@@ -385,13 +393,13 @@ pub fn spawn_playroom_lights(mut commands: Commands, quality: Res<Quality>) {
     commands.insert_resource(ClearColor(NIGHT));
     commands.insert_resource(GlobalAmbientLight {
         color: NIGHT_BLUE,
-        brightness: 6.0,
+        brightness: 2.0,
         ..default()
     });
     commands.spawn((
         DirectionalLight {
             color: PALE_BLUE,
-            illuminance: lay.moon.lux * MOON_LUX_SCALE,
+            illuminance: lay.moon.lux,
             shadow_maps_enabled: shadows && lay.moon.shadows,
             shadow_depth_bias: 0.0004,
             shadow_normal_bias: 0.6,
@@ -437,7 +445,7 @@ pub fn spawn_playroom_lights(mut commands: Commands, quality: Res<Quality>) {
     commands.spawn((
         PointLight {
             color: WARM,
-            intensity: lamp.lumens * LAMP_LUMENS_SCALE,
+            intensity: lamp.lumens,
             range: 6.0,
             radius: lamp.shade_radius * 0.5,
             shadow_maps_enabled: shadows && lamp.shadows,
@@ -617,6 +625,16 @@ fn spawn_playroom_set(
             power: LANTERN_FALLOFF_POWER,
             hot: LANTERN_HOT,
             hot_power: LANTERN_HOT_POWER,
+            ..default()
+        },
+    };
+    let textured = LanternExt {
+        params: LanternParams {
+            grain_freq: LANTERN_GRAIN_FREQ,
+            grain: LANTERN_GRAIN,
+            fibre: LANTERN_FIBRE,
+            pucker: LANTERN_PUCKER,
+            ..falloff.params
         },
     };
     let paper = lantern_materials.add(LanternMaterial {
@@ -626,7 +644,7 @@ fn spawn_playroom_set(
             perceptual_roughness: 0.9,
             ..default()
         },
-        extension: falloff.clone(),
+        extension: textured,
     });
     let rib = lantern_materials.add(LanternMaterial {
         base: StandardMaterial {
