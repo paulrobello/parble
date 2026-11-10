@@ -109,8 +109,13 @@ pub(crate) struct Touch {
 }
 
 pub(crate) fn touches(sim: &Sim) -> Vec<Touch> {
+    touches_of(sim, 0)
+}
+
+/// [`touches`] of marble `marble`.
+pub(crate) fn touches_of(sim: &Sim, marble: usize) -> Vec<Touch> {
     let w = &sim.world;
-    let h = sim.marbles[0];
+    let h = sim.marbles[marble];
     let mc = w.bodies[h].colliders()[0];
     let centre = w.bodies[h].translation();
     let mut out = Vec::new();

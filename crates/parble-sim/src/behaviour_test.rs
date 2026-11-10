@@ -997,6 +997,172 @@ fn fork_blade_sweep() {
     }
 }
 
+/// One toggle run of [`toggle_swing_kicks`]: the highest speed the moving blade pushed the marble
+/// to (its speed after a tick in which the moving blade touched it and it sped up), m/s, the
+/// marble's peak speed on the toggle's cell, m/s, and, if it left the cell by a branch, whether
+/// that was its commanded branch and whether the blade was then at the next side's limit.
+fn toggle_swing_kick(
+    spec: &MarbleSpec,
+    first_side: Side,
+    at: Vector,
+    vel: Vector,
+) -> (f32, f32, Option<(bool, bool)>) {
+    let mut t = place(TOGGLE, 1, 0, 0, 0);
+    t.config.insert("first".into(), first_side);
+    let mut sim = rig(&[place("blk_straight_l3", 0, 0, 0, 0), t], 3);
+    launch_spec(&mut sim, spec, at, vel);
+    let speed = |s: &MarbleState| {
+        let v = s.linvel;
+        (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt()
+    };
+    let (mut kick, mut peak) = (0.0f32, 0.0f32);
+    let mut angle = sim.mechanisms()[0].part_angles[0];
+    let mut before = speed(&sim.marbles()[0]);
+    let mut left = None;
+    for _ in 0..1440 {
+        sim.tick(1);
+        let now = sim.mechanisms()[0].part_angles[0];
+        let s = sim.marbles()[0];
+        let after = speed(&s);
+        // Only while the marble is on the toggle's cell: past it the open branch drops it.
+        let on = (0.5 * CELL..1.5 * CELL).contains(&s.position[0])
+            && libm::fabsf(s.position[2]) < 0.5 * CELL;
+        let touched = crate::fork_contact_test::touches(&sim)
+            .iter()
+            .any(|c| c.kind == "part" && c.impulse > 0.0);
+        if on && now != angle && touched && after > before {
+            kick = kick.max(after);
+        }
+        if on {
+            peak = peak.max(after);
+        }
+        if left.is_none() && libm::fabsf(s.position[2]) > 0.5 * CELL {
+            left = Some(if s.position[2] > 0.0 { 0 } else { 1 });
+        }
+        angle = now;
+        before = after;
+    }
+    let next = if first_side == 0 { 32_000 } else { -32_000 };
+    (
+        kick,
+        peak,
+        left.map(|side| (side == first_side, angle == next)),
+    )
+}
+
+/// A failed run of [`toggle_swing_kicks`]: spec, size, commanded side, speed, lateral offset
+/// (mm), the blade's largest kick and the peak speed (m/s), and how it left
+/// ([`toggle_swing_kick`]).
+type SwingMiss = (
+    &'static str,
+    &'static str,
+    Side,
+    f32,
+    f32,
+    f32,
+    f32,
+    Option<(bool, bool)>,
+);
+
+/// The runs of [`toggle_blade_never_swings_into_a_marble`] in which the moving blade pushed the
+/// marble faster than `limit`, a marble left with the blade not then set for the next one, or a
+/// marble fed at 0.2 m/s or faster did not leave by its commanded branch.
+fn toggle_swing_kicks(limit: f32) -> Vec<SwingMiss> {
+    let mut bad = Vec::new();
+    for kind in [MarbleKind::CatsEye, MarbleKind::Glazed, MarbleKind::Steel] {
+        for size in crate::marble::MarbleSize::ALL {
+            let spec = kind.spec_sized(size);
+            let side_room = 0.014 - spec.radius_m - 0.0005;
+            for first_side in [0, 1] {
+                for i in 1..=12 {
+                    let v = 0.05 * i as f32;
+                    for k in [-1.0, -0.5, 0.0, 0.5, 1.0] {
+                        let dz = k * side_room;
+                        let at = Vector::new(-0.02, 0.045 + spec.radius_m, dz);
+                        let (kick, peak, left) =
+                            toggle_swing_kick(&spec, first_side, at, Vector::X * v);
+                        let routed = left.is_some_and(|(side, _)| side);
+                        let set = left.is_none_or(|(_, set)| set);
+                        if kick > limit || !set || (v >= 0.2 && !routed) {
+                            bad.push((
+                                kind.name(),
+                                size.name(),
+                                first_side,
+                                v,
+                                dz * 1e3,
+                                kick,
+                                peak,
+                                left,
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    bad
+}
+
+/// The toggle's blade never throws a marble: a marble of every spec (cat's eye, glazed, steel;
+/// swirl, onionskin, opal and glow share the cat's eye spec) at every size, fed at 0.05-0.6 m/s
+/// across the feed channel's width, is never pushed faster than 0.2 m/s (the slowest entry speed
+/// the fork routing tests use) by the moving blade. Every marble fed at 0.2 m/s or faster leaves
+/// by its commanded branch, and whenever a marble leaves, the blade is then set for the next
+/// marble: one pass per marble, even for one rocking across the sensor's edge. Below 0.2 m/s a
+/// marble may stop on the frog clear of the blade, or take either branch.
+///
+/// The blade used to swing at full speed [`FORK_SETTLE_TICKS`] after the marble left the entry
+/// sensor, which ends 5 mm short of the blade's tip, so a marble at 0.2 m/s or less was still in
+/// the blade's sweep: 100 of these 1,080 runs took a kick of up to 0.87 m/s in one tick (glazed
+/// mini at 0.05 m/s, 4.25 mm off centre). On the all-pieces track at seeds 6 and 7 the layer-0
+/// toggle at [15, 0, -8] threw a steel mini rocking on its frog at 0.14 m/s out of the cell at
+/// 1.2 m/s (2026-11-10). The blade now swings over [`FORK_NUDGE_TICKS`] when a marble is in its
+/// sweep ([`blade_sweep_occupied`]).
+#[test]
+fn toggle_blade_never_swings_into_a_marble() {
+    for k in MarbleKind::ALL {
+        assert!(
+            [MarbleKind::CatsEye, MarbleKind::Glazed, MarbleKind::Steel]
+                .iter()
+                .any(|s| s.spec() == k.spec()),
+            "{} has a spec of its own",
+            k.name()
+        );
+    }
+    let bad = toggle_swing_kicks(0.2);
+    assert!(bad.is_empty(), "{} runs failed: {bad:?}", bad.len());
+}
+
+/// The blade constants of [`blade_sweep_occupied`] cover both forks' blade colliders.
+#[test]
+fn fork_blade_constants_cover_the_blade_colliders() {
+    let kit = parble_kit::builtin();
+    for id in [TOGGLE, SPLITTER] {
+        let part = &kit
+            .piece(&PieceId::new(id).unwrap())
+            .unwrap()
+            .animated_parts[0];
+        let pivot = part.pivot_um;
+        for g in &part.collision {
+            for v in &g.vertices_um {
+                let d = [0, 1, 2].map(|k| (v[k] - pivot[k]) as f32 * 1e-6);
+                let reach = libm::sqrtf(d[0] * d[0] + d[2] * d[2]);
+                assert!(reach <= FORK_BLADE_REACH_M, "{id}: reach {reach}");
+                assert!(
+                    libm::fabsf(d[2]) <= FORK_BLADE_HALF_M + 1e-7,
+                    "{id}: {}",
+                    d[2]
+                );
+                assert!(
+                    (FORK_BLADE_SPAN_M[0] - 1e-7..=FORK_BLADE_SPAN_M[1] + 1e-7).contains(&d[1]),
+                    "{id}: height {}",
+                    d[1]
+                );
+            }
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------------------------
 // Capacity and throughput (defects found building the P2-T7 all-pieces track)
 // ---------------------------------------------------------------------------------------------

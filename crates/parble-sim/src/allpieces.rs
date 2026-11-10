@@ -444,13 +444,30 @@ mod tests {
         // entered[i][m]: marble m's centre was inside placement i.
         let mut entered = vec![vec![false; MARBLES]; LAYOUT.len()];
         let mut done_at = None;
+        // The placement each marble's centre entered last.
+        let mut last_in: Vec<Option<usize>> = vec![None; MARBLES];
         for t in 1..=RUN_TICKS {
             run.tick(1);
             watch.observe(&run);
             for (m, s) in run.marbles().iter().enumerate() {
                 if let Some(i) = watch.owner(cell_of(s.position)) {
                     entered[i][m] = true;
+                    last_in[m] = Some(i);
                 }
+            }
+            // A cup counts a marble its sensor saw, and the watch then stops watching it; a
+            // marble thrown through a cup's sensor and over its rim still falls off the track.
+            if let Some(m) = run
+                .marbles()
+                .iter()
+                .position(|s| s.position[1] <= crate::marble_check::FELL_Y_M)
+            {
+                let f = Failure::FellOff {
+                    marble: m,
+                    last: last_in[m],
+                };
+                eprintln!("{f:?} at tick {t}");
+                return Err(f);
             }
             let report = watch.report(&run, MarbleKind::CatsEye);
             if let Some(m) = report.problems().find_map(|m| match m.outcome {
@@ -539,14 +556,20 @@ mod tests {
     /// (`chunk::ChannelStraight::end_of`):
     ///
     /// - Mini and standard of every spec: all 10 in the cups, through every piece.
-    /// - Shooter cat's eye family: 8 of 10 in the cups. Marble 4 is at rest in the end stop
+    /// - Shooter cat's eye family: 7 of 10 in the cups. Marble 4 is at rest in the end stop
     ///   [19, 1, −7]: it falls from the gate's port with little `−x` speed onto the level transfer
-    ///   3 straight and rolls back against the stop. Marble 9 is on the gate [19, 2, −7], still
-    ///   rolling at 0.112 m/s when the run ends.
-    /// - Shooter glazed: 8 of 10 in the cups, marble 4 at rest in the end stop, marble 9 on the
-    ///   hole still rolling at 0.127 m/s.
-    /// - Shooter steel: 8 of 10 in the cups. Marble 8 is in the toggle [15, 0, −7] at
-    ///   0.013 m/s and marble 9 at rest on the transfer 1 straight [0, 6, −6].
+    ///   3 straight and rolls back against the stop. Marble 7 is on the layer-0 straight [16, 0, −7]
+    ///   and marble 9 on the gate [19, 2, −7].
+    /// - Shooter glazed: 2 of 10 in the cups. Marble 3 stops in the layer-4 toggle's `+z` branch
+    ///   [9, 4, −4] and marbles 4–9 queue behind it back to the redirect [7, 5, −5]; marble 2 is on
+    ///   the transfer 3 straight [18, 1, −7].
+    /// - Shooter steel: 8 of 10 in the cups, marble 8 in the layer-4 toggle's `−z` branch
+    ///   [9, 4, −6] and marble 9 in the toggle [9, 4, −5].
+    ///
+    /// Since the fork blade eases a marble in its sweep off the frog instead of swinging into it
+    /// at full speed (`behaviour::FORK_NUDGE_TICKS`, PHYSICS_VERSION 10, 2026-11-10), shooters
+    /// leave the layer-4 toggle slower than the swing threw them, and a glazed shooter stops in
+    /// its branch. Before, the shooters were 8 of 10 in the cups for every spec.
     ///
     /// Before the dead pad (measured 2026-11-09) standard glazed had 4 of 10 in the cups, the
     /// other six at rest in a queue on the level `L1` run from the gate's flap back to the
@@ -585,8 +608,17 @@ mod tests {
                 Ok(()),
                 Ok(()),
                 Err(Failure::Short {
-                    cups: vec![2, 2, 2, 2],
-                    stuck: vec![(4, Some(51)), (9, Some(39))],
+                    cups: vec![1, 0, 1, 0],
+                    stuck: vec![
+                        (2, Some(41)),
+                        (3, Some(17)),
+                        (4, Some(16)),
+                        (5, Some(16)),
+                        (6, Some(15)),
+                        (7, Some(15)),
+                        (8, Some(14)),
+                        (9, Some(14)),
+                    ],
                 }),
             ]
         } else if kind.spec() == MarbleKind::Steel.spec() {
@@ -595,7 +627,7 @@ mod tests {
                 Ok(()),
                 Err(Failure::Short {
                     cups: vec![2, 1, 2, 3],
-                    stuck: vec![(8, Some(44)), (9, Some(2))],
+                    stuck: vec![(8, Some(19)), (9, Some(16))],
                 }),
             ]
         } else {
@@ -604,8 +636,8 @@ mod tests {
                 Ok(()),
                 Ok(()),
                 Err(Failure::Short {
-                    cups: vec![2, 2, 2, 2],
-                    stuck: vec![(4, Some(51)), (9, Some(40))],
+                    cups: vec![1, 1, 3, 2],
+                    stuck: vec![(4, Some(51)), (7, Some(43)), (9, Some(40))],
                 }),
             ]
         }
@@ -833,6 +865,74 @@ mod tests {
             );
         }
         println!("cups {:?}", finish_counts(&run));
+    }
+
+    /// Diagnostic, not a gate: one marble's state, the four toggles' blade angles and the
+    /// marble's contacts, every tick in a window
+    /// (`PARBLE_TRACE_CONTACTS=seed,kind,size,marble,from,to cargo test -p parble-sim --release
+    /// trace_contacts -- --ignored --nocapture`).
+    #[test]
+    #[ignore]
+    fn trace_contacts() {
+        let Ok(spec) = std::env::var("PARBLE_TRACE_CONTACTS") else {
+            return;
+        };
+        let f: Vec<&str> = spec.split(',').collect();
+        let kind = *MarbleKind::ALL.iter().find(|m| m.name() == f[1]).unwrap();
+        let size = *[MarbleSize::Mini, MarbleSize::Standard, MarbleSize::Shooter]
+            .iter()
+            .find(|m| format!("{m:?}").to_lowercase() == f[2])
+            .unwrap();
+        let (marble, from, to): (usize, u32, u32) = (
+            f[3].parse().unwrap(),
+            f[4].parse().unwrap(),
+            f[5].parse().unwrap(),
+        );
+        let mut t = track_sized(size);
+        t.seed = f[0].parse().unwrap();
+        let mut run = TrackRun::with_marble(&t, kind).unwrap();
+        let toggles: Vec<CellCoord> = [16usize, 44, 45, 48]
+            .iter()
+            .map(|&i| placements()[i].anchor)
+            .collect();
+        for tick in 1..=to {
+            run.tick(1);
+            if tick < from {
+                continue;
+            }
+            let Some(s) = run.marbles().get(marble).copied() else {
+                continue;
+            };
+            let ms = run.mechanisms();
+            let blades: Vec<String> = toggles
+                .iter()
+                .map(|a| {
+                    let m = ms.iter().find(|m| m.id.0 == *a).unwrap();
+                    format!(
+                        "{}:{} side {} move_at {}",
+                        m.part_angles[0], m.state["passes"], m.state["side"], m.state["move_at"]
+                    )
+                })
+                .collect();
+            let v = s.linvel;
+            println!(
+                "T {tick} p [{:.4} {:.4} {:.4}] v [{:.3} {:.3} {:.3}] |v| {:.3} blades {blades:?}",
+                s.position[0],
+                s.position[1],
+                s.position[2],
+                v[0],
+                v[1],
+                v[2],
+                (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt()
+            );
+            for c in crate::fork_contact_test::touches_of(&run, marble) {
+                println!(
+                    "    {} tri {} n [{:.2} {:.2} {:.2}] imp {:.2e} dist {:.2e}",
+                    c.kind, c.tri, c.normal.x, c.normal.y, c.normal.z, c.impulse, c.dist
+                );
+            }
+        }
+        println!("cups at tick {to}: {:?}", finish_counts(&run));
     }
 
     #[test]

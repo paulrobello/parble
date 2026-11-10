@@ -517,6 +517,11 @@ impl MechContext<'_> {
         self.sensors.get(index).map(|s| &s.status)
     }
 
+    /// The world-aligned bounds `(min, max)` of sensor `index`, m.
+    pub fn sensor_bounds(&self, index: usize) -> Option<(Vector, Vector)> {
+        self.sensors.get(index).map(|s| s.shape.bounds())
+    }
+
     /// Whether `marble` touches the world-aligned box spanning sensors `a` and `b`: in either of
     /// them or anywhere between them.
     pub fn between_sensors(&self, a: usize, b: usize, marble: usize) -> bool {
