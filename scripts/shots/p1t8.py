@@ -9,7 +9,7 @@ and the same camera on every run: the showcase's director following the lead mar
 rug, and the stress scene's one set shot of the track and the tower. Every shot must be lit (the
 app's own check), log no ERROR, and report its scenario, tier, the marbles the hopper has released
 by then (one every 480 ticks: 2 in the showcase shot, all 10 in the stress shot; the lineup's 9
-resting marbles) and its kit pieces (46, 2,000, and none in the lineup). Then two comparisons on a
+resting marbles) and its kit pieces (52, 2,000, and none in the lineup). Then two comparisons on a
 160x90 box-filtered copy, mean absolute difference over RGB in 0..1:
 
 - against its committed reference, docs/shots/<ref>-<tier>.png (640x360), at most
@@ -38,7 +38,7 @@ LOCKSTEP_AFTER_S = 8
 # Lineup: every marble type at rest in a row under its fixed shot, depth of field off as in
 # `make marble-shots` (the reviewed full-size High frame is docs/shots/p5-t1-lineup.png).
 SCENES = {
-    "showcase": {"tick": 800, "pieces": 46, "marbles": 2, "ref": "p1-t8-showcase", "args": []},
+    "showcase": {"tick": 800, "pieces": 52, "marbles": 2, "ref": "p1-t8-showcase", "args": []},
     "stress2000": {"tick": 4400, "pieces": 2000, "marbles": 10, "ref": "p1-t8-stress2000", "args": []},
     "lineup": {"tick": 400, "pieces": None, "marbles": 9, "ref": "p5-t1-lineup", "args": ["--dof", "0"]},
 }

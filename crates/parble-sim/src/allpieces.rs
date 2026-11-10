@@ -1,17 +1,19 @@
-//! The all-pieces test track (P2-T7): one run through all 16 PRD §6 P2 kit items, with
-//! [`MARBLES`] standard marbles released from the hopper, all of them ending in a finish cup.
+//! The all-pieces test track (P2-T7): one run through all 16 PRD §6 P2 kit items, plus the
+//! rope-curtain arch (PRD P2 item 18) and the end stop, with [`MARBLES`] standard marbles released
+//! from the hopper, all of them ending in a finish cup.
 //!
 //! The track runs through [`TrackRun`] like a loaded `.parble` track: the P0 tray (the track stands
-//! behind it, rows z = −4…−7) plus the placements as chunk colliders and the kit behaviours, rooted
+//! behind it, rows z = −4…−8) plus the placements as chunk colliders and the kit behaviours, rooted
 //! at [`SEED`].
 //!
 //! # Route
 //!
 //! Hopper (layer 7) → L3 straight → redirect → splitter (both branches rejoin at a joiner) →
-//! redirect → toggle (rejoined) → steep slope → L1 straight → L3 straight → gentle slope → L2 rail
-//! straight → S-rail → rail curve → L2 block curve → drop hole → tower socket → rail joint → L1 rail
-//! straight → checkpoint → one-way gate → one-way hole (rolled over) → L3 straight → redirect →
-//! toggle → one of two finish cups (layer 0). The support pillar stands under the hopper.
+//! redirect → toggle (rejoined) → steep slope → L1 straight → rope-curtain arch → L3 straight →
+//! gentle slope → L2 rail straight → S-rail → rail curve → L2 block curve → drop hole → tower
+//! socket → rail joint → L1 rail straight → checkpoint → one-way hole (rolled over) → one-way gate
+//! → L3 straight (closed at its `+x` end by the end stop) → redirect → toggle → one of two
+//! toggles → one of four finish cups (layer 0). The support pillar stands under the hopper.
 //!
 //! # Free-fall transfers
 //!
@@ -24,7 +26,26 @@
 //! validator links it ([`parble_core::controlled_drops`]) and reports none of its ports. The track
 //! validates with no issues: the support pillar is structural (no marble enters it, so its unlinked
 //! ports and its unreachability are not issues), and the one-way hole's drop port is reached only
-//! by its trap-side route, whose `-X` entry nothing feeds (that port is the drop's source).
+//! by its trap-side route, whose `-X` entry nothing feeds.
+//!
+//! # Layout changes for every marble type and size (P5-T1, 2026-11-09)
+//!
+//! Every type and size at [`SEED`] fell off the track somewhere (`p5t1-outcome-bisection` in the
+//! session notes): the v8 physics is sound, but three places let a marble off.
+//!
+//! - Transfer 2 swing. A marble rejoining from the layer-4 toggle swings across the channel and
+//!   left the `L1` port at up to 0.23 m/s sideways, landing on the `L3` lip 13 mm off its axis,
+//!   and the swing it kept on landing threw it off the S-rail's first arc. The rope-curtain arch
+//!   now stands on the `L1` run before the port: the curtain halves the marble's speed and damps
+//!   the swing, so no marble left the rails at [`SEED`] or at seeds 3–9 (measured 2026-11-09).
+//!   The hopper-to-joiner run moved one cell along −X to make room.
+//! - Open end under transfer 3. The `L3` straight the marbles drop into had an unconnected `+x`
+//!   end under the one-way hole, and a falling marble knocked a resting one out of it. The cell
+//!   under the hole has to take the hole's drop port, so the gate and the hole swapped places: the
+//!   marbles roll over the hole, through the gate and drop from the gate's `−X` port, and the end
+//!   stop under the gate closes the straight's `+x` end.
+//! - Cup capacity. Two cups hold 3 shooters each, so 4 shooters were left in the last toggle and
+//!   one fell off a full cup. The last toggle now feeds two toggles and four cups.
 //!
 //! # Measured limits that shaped the layout
 //!
@@ -33,7 +54,7 @@
 //!   fine), so the hopper's exit is a transfer: the marble falls clear of the gate at once.
 //! - Finish cup capacity: one cup holds and counts 10 standard marbles (the top ones stack with
 //!   their centres 47–53 mm above the cup's cell floor, inside the `cup` sensor, which reaches the
-//!   cell top). The last toggle still sends the marbles to two cups, 5 each.
+//!   cell top), and 2–3 shooters.
 //! - One-way hole from the trap side: the version 1 door (60°) hung about 11 mm into the cell
 //!   below and wedged marbles against the bore. The version 2 door fills the bore, opens to 90°
 //!   and delivers trap-side marbles into a drop port directly below (tower socket, or pillar then
@@ -72,37 +93,39 @@ use crate::track_run::{TrackRun, TrackRunError};
 use crate::{Sim, behaviour, hash};
 
 /// The track's pieces in marble order: id, anchor cell, yaw in quarter turns (no mirrors).
-pub const LAYOUT: [(&str, [i32; 3], u8); 46] = [
+pub const LAYOUT: [(&str, [i32; 3], u8); 52] = [
     // Layer 7: hopper. Its L1 exit is transfer 1, onto layer 6.
-    ("mech_hopper", [0, 7, -6], 0),
-    ("blk_pillar", [0, 6, -6], 0),
-    ("blk_straight_l3", [1, 6, -6], 0),
-    ("blk_redirect_l3", [2, 6, -6], 0),
+    ("mech_hopper", [-1, 7, -6], 0),
+    ("blk_pillar", [-1, 6, -6], 0),
+    ("blk_straight_l3", [0, 6, -6], 0),
+    ("blk_redirect_l3", [1, 6, -6], 0),
     // Layer 5: splitter, +Z branch (curve, straight) and −Z branch (curve, straight, curve,
     // straight) into the joiner's −X and −Z inlets.
-    ("blk_straight_l3", [3, 5, -6], 0),
-    ("mech_splitter_l3", [4, 5, -6], 0),
-    ("blk_curve90_l3", [4, 5, -5], 3),
-    ("blk_straight_l3", [5, 5, -5], 0),
-    ("blk_curve90_l3", [4, 5, -7], 2),
-    ("blk_straight_l3", [5, 5, -7], 0),
-    ("blk_curve90_l3", [6, 5, -7], 1),
-    ("blk_straight_l3", [6, 5, -6], 1),
-    ("blk_join_l3", [6, 5, -5], 0),
-    ("blk_straight_l3", [7, 5, -5], 0),
-    ("blk_redirect_l3", [8, 5, -5], 0),
-    // Layer 4: toggle, rejoined the same way; steep slope to L1, then transfer 2.
-    ("blk_straight_l3", [9, 4, -5], 0),
-    ("mech_toggle_l3", [10, 4, -5], 0),
-    ("blk_curve90_l3", [10, 4, -4], 3),
-    ("blk_straight_l3", [11, 4, -4], 0),
-    ("blk_curve90_l3", [10, 4, -6], 2),
-    ("blk_straight_l3", [11, 4, -6], 0),
-    ("blk_curve90_l3", [12, 4, -6], 1),
-    ("blk_straight_l3", [12, 4, -5], 1),
-    ("blk_join_l3", [12, 4, -4], 0),
-    ("blk_slope_steep_l3", [13, 4, -4], 0),
-    ("blk_straight_l1", [14, 4, -4], 0),
+    ("blk_straight_l3", [2, 5, -6], 0),
+    ("mech_splitter_l3", [3, 5, -6], 0),
+    ("blk_curve90_l3", [3, 5, -5], 3),
+    ("blk_straight_l3", [4, 5, -5], 0),
+    ("blk_curve90_l3", [3, 5, -7], 2),
+    ("blk_straight_l3", [4, 5, -7], 0),
+    ("blk_curve90_l3", [5, 5, -7], 1),
+    ("blk_straight_l3", [5, 5, -6], 1),
+    ("blk_join_l3", [5, 5, -5], 0),
+    ("blk_straight_l3", [6, 5, -5], 0),
+    ("blk_redirect_l3", [7, 5, -5], 0),
+    // Layer 4: toggle, rejoined the same way; steep slope to L1, the rope-curtain arch, then
+    // transfer 2.
+    ("blk_straight_l3", [8, 4, -5], 0),
+    ("mech_toggle_l3", [9, 4, -5], 0),
+    ("blk_curve90_l3", [9, 4, -4], 3),
+    ("blk_straight_l3", [10, 4, -4], 0),
+    ("blk_curve90_l3", [9, 4, -6], 2),
+    ("blk_straight_l3", [10, 4, -6], 0),
+    ("blk_curve90_l3", [11, 4, -6], 1),
+    ("blk_straight_l3", [11, 4, -5], 1),
+    ("blk_join_l3", [11, 4, -4], 0),
+    ("blk_slope_steep_l3", [12, 4, -4], 0),
+    ("blk_straight_l1", [13, 4, -4], 0),
+    ("mech_arch_rope_l1", [14, 4, -4], 0),
     // Layer 3: gentle slope to L2, the rail family, an L2 curve, the drop hole.
     ("blk_straight_l3", [15, 3, -4], 0),
     ("blk_slope_gentle_l3", [16, 3, -4], 0),
@@ -112,32 +135,43 @@ pub const LAYOUT: [(&str, [i32; 3], u8); 46] = [
     ("blk_curve90_l2", [22, 3, -7], 2),
     ("blk_straight_l2", [23, 3, -7], 0),
     ("blk_drop_l2", [24, 3, -7], 0),
-    // Layer 2: tower socket, rail joint and an L1 run back along −X. The hole's −X port is
-    // transfer 3.
+    // Layer 2: tower socket, rail joint and an L1 run back along −X over the hole and through
+    // the gate. The gate's −X port is transfer 3.
     ("blk_tower_socket_l1", [24, 2, -7], 0),
     ("rail_joint_l1", [23, 2, -7], 0),
     ("rail_straight_l1", [22, 2, -7], 0),
     ("mech_checkpoint_l1", [21, 2, -7], 0),
-    ("mech_gate_oneway_l1", [20, 2, -7], 2),
-    ("mech_hole_oneway_l1", [19, 2, -7], 0),
-    // Layers 1 and 0: redirect, toggle, two finish cups.
+    ("mech_hole_oneway_l1", [20, 2, -7], 0),
+    ("mech_gate_oneway_l1", [19, 2, -7], 2),
+    // Layers 1 and 0: redirect, toggle, two toggles, four finish cups.
     ("blk_straight_l3", [18, 1, -7], 0),
     ("blk_redirect_l3", [17, 1, -7], 2),
     ("blk_straight_l3", [16, 0, -7], 0),
     ("mech_toggle_l3", [15, 0, -7], 2),
-    ("mech_finish", [15, 0, -6], 3),
-    ("mech_finish", [15, 0, -8], 1),
+    ("mech_toggle_l3", [15, 0, -6], 3),
+    ("mech_finish", [14, 0, -6], 2),
+    ("mech_finish", [16, 0, -6], 0),
+    ("mech_toggle_l3", [15, 0, -8], 1),
+    ("mech_finish", [16, 0, -8], 0),
+    ("mech_finish", [14, 0, -8], 2),
+    // The end stop under the gate closes the transfer 3 straight's +x end.
+    ("blk_end_l3", [19, 1, -7], 0),
 ];
 
-/// [`LAYOUT`] index of the support pillar, the one placement no marble enters.
+/// [`LAYOUT`] index of the support pillar, which no marble enters.
 pub const SUPPORT: usize = 1;
+
+/// [`LAYOUT`] index of the end stop under the gate. It closes the straight a marble drops into
+/// at transfer 3, so a marble entering it is knocked there.
+pub const END_STOP: usize = 51;
 
 /// The free-fall transfers: (index of the placement the marble leaves by an open `L1` port,
 /// index of the placement whose open `L3` channel it lands in, one layer down).
-pub const TRANSFERS: [(usize, usize); 3] = [(0, 2), (25, 26), (39, 40)];
+pub const TRANSFERS: [(usize, usize); 3] = [(0, 2), (26, 27), (40, 41)];
 
-/// Each PRD §6 P2 kit item and the kit ids that stand for it in [`LAYOUT`].
-pub const PRD_ITEMS: [(&str, &[&str]); 16] = [
+/// Each PRD §6 P2 kit item (with the end stop of the kit contract's MVP table and PRD P2 item
+/// 18) and the kit ids that stand for it in [`LAYOUT`].
+pub const PRD_ITEMS: [(&str, &[&str]); 18] = [
     ("start hopper", &["mech_hopper"]),
     ("finish collector cup", &["mech_finish"]),
     (
@@ -169,6 +203,8 @@ pub const PRD_ITEMS: [(&str, &[&str]); 16] = [
             "rail_joint_l1",
         ],
     ),
+    ("end stop", &["blk_end_l3"]),
+    ("rope-curtain arch", &["mech_arch_rope_l1"]),
 ];
 
 /// Track seed (the splitter's stream root).
@@ -276,7 +312,7 @@ mod tests {
     }
 
     /// The validator's view: every transfer is a controlled drop, so the port chain runs from
-    /// the hopper to both cups, and the track has no issues (P3-T2). The support pillar is
+    /// the hopper to every cup, and the track has no issues (P3-T2). The support pillar is
     /// structural and no marble enters it; the one-way hole's drop port is reached only from its
     /// trap side, which nothing feeds.
     #[test]
@@ -330,9 +366,77 @@ mod tests {
         Other(String),
     }
 
+    /// The single-line pieces, which every marble passes: [`LAYOUT`] index and id.
+    const SINGLE_LINE: [(usize, &str); 15] = [
+        (0, "mech_hopper"),
+        (3, "blk_redirect_l3"),
+        (5, "mech_splitter_l3"),
+        (14, "blk_redirect_l3"),
+        (16, "mech_toggle_l3"),
+        (24, "blk_slope_steep_l3"),
+        (26, "mech_arch_rope_l1"),
+        (30, "rail_s_1x3_l2"),
+        (34, "blk_drop_l2"),
+        (35, "blk_tower_socket_l1"),
+        (38, "mech_checkpoint_l1"),
+        (39, "mech_hole_oneway_l1"),
+        (40, "mech_gate_oneway_l1"),
+        (42, "blk_redirect_l3"),
+        (44, "mech_toggle_l3"),
+    ];
+
+    /// The first piece of each fork branch, and the four cups: each is entered by some marble.
+    const BRANCHES: [(usize, &str); 10] = [
+        (6, "blk_curve90_l3"),
+        (8, "blk_curve90_l3"),
+        (17, "blk_curve90_l3"),
+        (19, "blk_curve90_l3"),
+        (45, "mech_toggle_l3"),
+        (46, "mech_finish"),
+        (47, "mech_finish"),
+        (48, "mech_toggle_l3"),
+        (49, "mech_finish"),
+        (50, "mech_finish"),
+    ];
+
+    /// The mechanisms that count every marble: index, id and state key.
+    const COUNTERS: [(usize, &str, &str); 7] = [
+        (0, "mech_hopper", "released"),
+        (5, "mech_splitter_l3", "passes"),
+        (16, "mech_toggle_l3", "passes"),
+        (38, "mech_checkpoint_l1", "passes"),
+        (39, "mech_hole_oneway_l1", "overs"),
+        (40, "mech_gate_oneway_l1", "passes"),
+        (44, "mech_toggle_l3", "passes"),
+    ];
+
+    #[test]
+    fn the_checked_indices_name_their_pieces() {
+        for (i, id) in SINGLE_LINE.into_iter().chain(BRANCHES) {
+            assert_eq!(LAYOUT[i].0, id, "placement {i}");
+        }
+        for (i, id, _) in COUNTERS {
+            assert_eq!(LAYOUT[i].0, id, "placement {i}");
+        }
+        assert_eq!(LAYOUT[SUPPORT].0, "blk_pillar");
+        assert_eq!(LAYOUT[END_STOP].0, "blk_end_l3");
+        let ids: Vec<(&str, &str)> = TRANSFERS
+            .iter()
+            .map(|&(from, to)| (LAYOUT[from].0, LAYOUT[to].0))
+            .collect();
+        assert_eq!(
+            ids,
+            [
+                ("mech_hopper", "blk_straight_l3"),
+                ("mech_arch_rope_l1", "blk_straight_l3"),
+                ("mech_gate_oneway_l1", "blk_straight_l3"),
+            ]
+        );
+    }
+
     /// Runs `run` for [`RUN_TICKS`] and checks the track's success condition: no marble falls off,
-    /// the hopper releases all [`MARBLES`], every one ends in a finish cup with both cups used,
-    /// every placement but the support is entered, the single-line pieces carry every marble,
+    /// the hopper releases all [`MARBLES`], every one ends in a finish cup with all four cups
+    /// used, every placement but the support and the end stop is entered, the single-line pieces carry every marble,
     /// each fork sends marbles both ways and the mechanisms count every pass. On success returns
     /// the tick all marbles were in a cup and the cup counts.
     fn check_run(mut run: TrackRun) -> Result<(u32, Vec<usize>), Failure> {
@@ -386,6 +490,9 @@ mod tests {
         }
         for (i, (id, cell, _)) in LAYOUT.iter().enumerate() {
             let n = entered[i].iter().filter(|&&e| e).count();
+            if i == END_STOP {
+                continue;
+            }
             if i == SUPPORT {
                 if n != 0 {
                     return other("a marble entered the support pillar".into());
@@ -397,12 +504,12 @@ mod tests {
             }
         }
         // The single-line pieces carry every marble, and each fork sent marbles both ways.
-        for i in [0, 3, 5, 14, 16, 24, 29, 33, 34, 37, 38, 39, 41, 43] {
+        for (i, _) in SINGLE_LINE {
             if !entered[i].iter().all(|&e| e) {
                 return other(format!("placement {i} ({}) missed a marble", LAYOUT[i].0));
             }
         }
-        for i in [6, 8, 17, 19, 44, 45] {
+        for (i, _) in BRANCHES {
             if !entered[i].iter().any(|&e| e) {
                 return other(format!("branch {i} unused"));
             }
@@ -418,14 +525,7 @@ mod tests {
                 .clone()
         };
         let n = MARBLES as i64;
-        for (i, key) in [
-            (0, "released"),
-            (5, "passes"),
-            (16, "passes"),
-            (37, "passes"),
-            (38, "passes"),
-            (39, "overs"),
-        ] {
+        for (i, _, key) in COUNTERS {
             if state(i)[key] != n {
                 return other(format!("placement {i} {key} = {}, want {n}", state(i)[key]));
             }
@@ -440,43 +540,30 @@ mod tests {
     }
 
     /// P5-T1: every marble type at every size on the track, each with its physics table entry
-    /// (the track's own test and golden run the P0 legacy marble). Each outcome is pinned: the cat's
-    /// eye family at the standard size meets the success condition. Swirl, onionskin, opal and glow
-    /// share the cat's eye spec, so they share its outcome at each size. The outcomes, per
-    /// measurement on 2026-11-09 with the exact contacts resting a centred marble at the facets'
-    /// height, the CCD sweep leaving out the facets an exact contact replaces, and the tower
-    /// socket's port plane open (blk_tower_socket_l1 piece_version 4):
+    /// (the track's own test and golden run the P0 legacy marble). Each outcome is pinned. Swirl,
+    /// onionskin, opal and glow share the cat's eye spec, so they share its outcome at each size.
+    /// No marble of any type or size falls off the track. The outcomes, per measurement on
+    /// 2026-11-09 with the layout changes in the module docs (rope-curtain arch before transfer 2,
+    /// gate and hole swapped with the end stop under the gate, four cups):
     ///
-    /// - Mini cat's eye family: 9 of 10 in the cups, marble 9 at rest in the layer-4 toggle
-    ///   [10, 4, −5].
-    /// - Shooter cat's eye family: marble 2 falls off the track in the one-way hole's cell (x 1.16
-    ///   m) after the hole.
-    /// - Mini and shooter glazed: marble 9 falls off the track in the one-way hole's cell (x 1.13
-    ///   and 1.15 m) after reaching the straight under it [18, 1, −7]. It drops from the hole onto
-    ///   an earlier marble at rest there, which knocks it +x out of the straight's unconnected
-    ///   end; the shooter cat's eye falls the same way.
-    /// - Standard glazed: 8 of 10 in the cups, marble 8 at rest on the one-way hole and marble 9 on
-    ///   the checkpoint [21, 2, −7].
-    /// - Mini steel: marble 7 leaves the `L1` straight after the steep slope [14, 4, −4] without
-    ///   entering the layer-3 straight it should drop into, and falls off the track at
-    ///   (1.128, −0.063, −0.185). It swings ±8 mm across the channel from the joiner and the steep
-    ///   slope, leaves the `L1` port at 0.23 m/s sideways, meets the `L3` channel's lip 13 mm off
-    ///   its axis and rolls along the block tops off the track.
-    /// - Standard steel: 1 of 10 in the cups. Marble 1 left the tower socket's landing at 0.025 m/s
-    ///   after four bounces there and stopped in the rail joint; the next marble knocked it on at
-    ///   0.067 m/s and it stopped on the checkpoint (x 1.2349 m), and the other eight queued
-    ///   behind it back to the socket. The level `L1` run from the socket's port plane to the gate
-    ///   is 25 cm, which at steel's measured rolling deceleration (0.0166 m/s²) takes about 0.09
-    ///   m/s out of the socket.
-    /// - Shooter steel: each finish cup holds three; marble 2 at rest in no placement, three more
-    ///   in the layer-0 toggle and its cup feed (placements 43 and 45).
+    /// - Mini and standard cat's eye family, mini glazed, mini and standard steel: all 10 in the
+    ///   cups, through every piece.
+    /// - Shooter cat's eye family: 6 of 10 in the cups. Marbles 4 and 6 are at rest in the end stop
+    ///   [19, 1, −7], marble 8 in the transfer 3 straight [18, 1, −7] and marble 9 on the one-way
+    ///   hole [20, 2, −7], short of the gate.
+    /// - Standard glazed: 4 of 10 in the cups. The other six queue at rest from the `L1` rail
+    ///   straight to the hole (placements 37–39): the tower landing sends them out slowly
+    ///   (`block_seam_test::tower_drop_stays_on_the_rails_for_glazed_and_steel`) and the level
+    ///   `L1` run stops them.
+    /// - Shooter glazed: 8 of 10 in the cups, marble 8 at rest in the end stop, marble 9 on the
+    ///   hole.
+    /// - Shooter steel: 9 of 10 in the cups, marble 9 at rest on the hole.
     ///
     /// The run is chaotic past the splitter: a change anywhere (the channel contacts' rest
-    /// height, the CCD sweep, a kit piece's collision) moves which marbles collide later, and so
-    /// these outcomes; opening the tower socket's port plane (placement 34) changed mini steel's
-    /// outcome at placement 25, upstream of it. Before 2026-11-09's rest-height fix the cat's eye
-    /// family passed at the mini size, steel at the mini size, glazed at the standard size, and
-    /// standard steel left one marble under the one-way hole.
+    /// height, the CCD sweep, a kit piece's collision, a placement) moves which marbles collide
+    /// later, and so these outcomes. Before the 2026-11-09 layout changes the same physics left
+    /// mini steel off the track at transfer 2, mini and shooter glazed and shooter cat's eye off
+    /// the open end under the hole, and standard steel with 1 of 10 in the cups.
     fn every_size_of(kind: MarbleKind, want: [Result<(), Failure>; 3]) {
         let sizes = [MarbleSize::Mini, MarbleSize::Standard, MarbleSize::Shooter];
         for (size, want) in sizes.into_iter().zip(want) {
@@ -491,14 +578,11 @@ mod tests {
         every_size_of(
             kind,
             [
-                Err(Failure::Short {
-                    cups: vec![4, 5],
-                    stuck: vec![(9, Some(16))],
-                }),
                 Ok(()),
-                Err(Failure::FellOff {
-                    marble: 2,
-                    last: Some(39),
+                Ok(()),
+                Err(Failure::Short {
+                    cups: vec![2, 1, 2, 1],
+                    stuck: vec![(4, Some(51)), (6, Some(51)), (8, Some(41)), (9, Some(39))],
                 }),
             ],
         );
@@ -534,17 +618,21 @@ mod tests {
         every_size_of(
             MarbleKind::Glazed,
             [
-                Err(Failure::FellOff {
-                    marble: 9,
-                    last: Some(40),
+                Ok(()),
+                Err(Failure::Short {
+                    cups: vec![1, 1, 1, 1],
+                    stuck: vec![
+                        (4, Some(39)),
+                        (5, Some(39)),
+                        (6, Some(39)),
+                        (7, Some(39)),
+                        (8, Some(38)),
+                        (9, Some(37)),
+                    ],
                 }),
                 Err(Failure::Short {
-                    cups: vec![4, 4],
-                    stuck: vec![(8, Some(39)), (9, Some(37))],
-                }),
-                Err(Failure::FellOff {
-                    marble: 9,
-                    last: Some(40),
+                    cups: vec![2, 2, 2, 2],
+                    stuck: vec![(8, Some(51)), (9, Some(39))],
                 }),
             ],
         );
@@ -555,27 +643,11 @@ mod tests {
         every_size_of(
             MarbleKind::Steel,
             [
-                Err(Failure::FellOff {
-                    marble: 7,
-                    last: Some(25),
-                }),
+                Ok(()),
+                Ok(()),
                 Err(Failure::Short {
-                    cups: vec![0, 1],
-                    stuck: vec![
-                        (1, Some(37)),
-                        (2, Some(36)),
-                        (3, Some(36)),
-                        (4, Some(36)),
-                        (5, Some(35)),
-                        (6, Some(35)),
-                        (7, Some(35)),
-                        (8, Some(35)),
-                        (9, Some(34)),
-                    ],
-                }),
-                Err(Failure::Short {
-                    cups: vec![3, 3],
-                    stuck: vec![(2, None), (6, Some(45)), (8, Some(43)), (9, Some(43))],
+                    cups: vec![2, 2, 3, 2],
+                    stuck: vec![(9, Some(39))],
                 }),
             ],
         );

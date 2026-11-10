@@ -71,10 +71,10 @@ pub enum Scenario {
     /// eye each, the parts drawn at the sim's angles ([`parble_sim::mech_showcase`]).
     Mechanisms,
     /// All-pieces test track (P2-T7): every PRD P2 kit item behind the tray, 10 marbles released
-    /// from the hopper into two finish cups ([`parble_sim::allpieces`]), with its own committed
+    /// from the hopper into four finish cups ([`parble_sim::allpieces`]), with its own committed
     /// hash. Ignores `--marble`.
     AllPieces,
-    /// The P1-T8 showcase: the all-pieces run (46 hand-placed pieces, 10 marbles, its own golden)
+    /// The P1-T8 showcase: the all-pieces run (52 hand-placed pieces, 10 marbles, its own golden)
     /// standing on the night playroom's rug, followed by the director. The toy blocks the track
     /// would go through are left out ([`parble_render::playroom::block_clear_of`]).
     Showcase,
