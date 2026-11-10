@@ -27,8 +27,8 @@ use std::sync::Mutex;
 use bevy::{platform::time::Instant, prelude::*, window::PrimaryWindow};
 use parble_core::{
     CellCoord, EditCommand, Editor, HopperConfig, IssueKind, LinkFault, MarbleSize, Mirror,
-    Orientation, PieceCatalog, PieceId, Placement, PortFace, PortFlow, ReleaseMode, Selection,
-    Track, Yaw4, file::ParbleFile, is_finish, is_hopper, link_fault, validate_track,
+    NudgeZone, Orientation, PieceCatalog, PieceId, Placement, PortFace, PortFlow, ReleaseMode,
+    Selection, Track, Yaw4, file::ParbleFile, is_finish, is_hopper, link_fault, validate_track,
 };
 use parble_kit::KitCatalog;
 use parble_render::{
@@ -51,7 +51,9 @@ use crate::bridge::{self, Event};
 use crate::playback::Playback;
 
 mod check;
+mod nudge;
 pub use check::CheckDiag;
+pub use nudge::NudgeDiag;
 
 /// Largest `fill` (and `--editor-fill`).
 pub const MAX_FILL: u32 = 4_000;
@@ -254,6 +256,30 @@ pub enum Action {
         interval_ticks: Option<u32>,
         #[serde(default)]
         all_sizes: bool,
+    },
+    /// Add a nudge zone ([`nudge`]) over the cell box from `cells[0]` to `cells[1]`, else over the
+    /// selected pieces' cells, heading `yawMdeg` (0, +X, by default). It becomes the selection.
+    NudgeAdd {
+        #[serde(default)]
+        cells: Option<[[i32; 3]; 2]>,
+        #[serde(default)]
+        yaw_mdeg: Option<i32>,
+    },
+    /// Select nudge zone `index` (the placement selection clears), or none with `null`.
+    NudgeSelect {
+        index: Option<u32>,
+    },
+    /// Replace nudge zone `index` (the selected one by default) with `zone`, in its `.parble`
+    /// shape (snake_case fields). One undoable command.
+    NudgeSet {
+        #[serde(default)]
+        index: Option<u32>,
+        zone: NudgeZone,
+    },
+    /// Delete nudge zone `index` (the selected one by default).
+    NudgeRemove {
+        #[serde(default)]
+        index: Option<u32>,
     },
 }
 
@@ -615,6 +641,8 @@ pub struct EditorDiag {
     pub last_run: Option<RunTiming>,
     /// The marble check (`check`): warnings parallel to `issues`, never errors.
     pub check: CheckDiag,
+    /// Nudge zones ([`nudge`]): the count, the selected one and each one projected, every frame.
+    pub nudges: NudgeDiag,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -1157,6 +1185,10 @@ fn run_command(
 
 fn finish_edit(st: &mut EditState, ctx: &mut Ctx, op: &'static str, start: Instant) {
     let (changed, render_chunks) = st.sync(ctx.clock, ctx.edits);
+    // The live sim pushes with the edited zones from its next tick, as pieces edited mid-run apply.
+    ctx.clock
+        .sim
+        .set_nudge_zones(&st.editor.track().nudge_zones);
     let edit_ms = start.elapsed().as_secs_f32() * 1e3;
     ctx.diag.edits += 1;
     let is_fill = op == "fill";
@@ -1219,6 +1251,10 @@ fn op_name(a: &Action) -> &'static str {
         Action::Pulse { .. } => "pulse",
         Action::MechConfig { .. } => "mechConfig",
         Action::Check { .. } => "check",
+        Action::NudgeAdd { .. } => "nudgeAdd",
+        Action::NudgeSelect { .. } => "nudgeSelect",
+        Action::NudgeSet { .. } => "nudgeSet",
+        Action::NudgeRemove { .. } => "nudgeRemove",
     }
 }
 
@@ -1708,6 +1744,10 @@ fn apply_action(st: &mut EditState, ctx: &mut Ctx, action: Action) -> Result<Las
                 EditCommand::MoveGroup { selection, offset },
             )?;
         }
+        Action::Move { offset } if nudge::sole(st).is_some() => {
+            let i = nudge::sole(st).expect("guarded");
+            nudge::shift(st, ctx, i, arr_cell(offset))?;
+        }
         Action::Move { offset } => {
             let selection = st.editor.selection.clone();
             run_command(
@@ -1719,6 +1759,10 @@ fn apply_action(st: &mut EditState, ctx: &mut Ctx, action: Action) -> Result<Las
                     offset: arr_cell(offset),
                 },
             )?;
+        }
+        Action::Rotate { by } if st.tool != Tool::Place && nudge::sole(st).is_some() => {
+            let i = nudge::sole(st).expect("guarded");
+            nudge::turn(st, ctx, i, by)?;
         }
         Action::Rotate { by } => {
             if st.tool == Tool::Place {
@@ -1748,11 +1792,15 @@ fn apply_action(st: &mut EditState, ctx: &mut Ctx, action: Action) -> Result<Las
                 run_command(st, ctx, "mirror", EditCommand::Mirror(selection))?;
             }
         }
+        Action::Remove {} if nudge::sole(st).is_some() => nudge::remove(st, ctx, None)?,
         Action::Remove {} => {
             let selection = st.editor.selection.clone();
             run_command(st, ctx, "remove", EditCommand::Remove(selection))?;
         }
-        Action::ClearSelection {} => st.editor.selection.clear(),
+        Action::ClearSelection {} => {
+            st.editor.selection.clear();
+            st.editor.nudge = None;
+        }
         Action::Undo {} => {
             let start = Instant::now();
             if !st.editor.undo() {
@@ -1903,6 +1951,10 @@ fn apply_action(st: &mut EditState, ctx: &mut Ctx, action: Action) -> Result<Las
                 EditCommand::SetMechConfig { index, config },
             )?;
         }
+        Action::NudgeAdd { cells, yaw_mdeg } => nudge::add(st, ctx, cells, yaw_mdeg)?,
+        Action::NudgeSelect { index } => nudge::select(st, index)?,
+        Action::NudgeSet { index, zone } => nudge::set(st, ctx, index, zone)?,
+        Action::NudgeRemove { index } => nudge::remove(st, ctx, index)?,
     }
     out.ok = true;
     Ok(out)
@@ -2117,10 +2169,20 @@ fn project_box(b: (Vec3, Vec3), project: impl Fn(Vec3) -> Option<Vec2>) -> Optio
 }
 
 fn click(st: &mut EditState, ctx: &mut Ctx, px: Vec2, shift: bool) -> Result<(), String> {
-    let hit = ctx
-        .ray(px)
-        .and_then(|r| st.pick_ray(r))
-        .ok_or("click: the ray hits nothing")?;
+    let ray = ctx.ray(px);
+    let hit = ray.and_then(|r| st.pick_ray(r));
+    // A click that hits no piece selects (or deletes) the nudge zone it passes through.
+    if matches!(st.tool, Tool::Select | Tool::Delete)
+        && !matches!(hit, Some(Hit::Piece { .. }))
+        && let Some(i) = ray.and_then(|r| nudge::pick(st, r))
+    {
+        return if st.tool == Tool::Select {
+            nudge::select(st, Some(i))
+        } else {
+            nudge::remove(st, ctx, Some(i))
+        };
+    }
+    let hit = hit.ok_or("click: the ray hits nothing")?;
     match st.tool {
         Tool::Place => {
             let target = hit.target().ok_or("click: no cell in front of the hit")?;
@@ -2137,7 +2199,10 @@ fn click(st: &mut EditState, ctx: &mut Ctx, px: Vec2, shift: bool) -> Result<(),
                         st.editor.selection = [i].into_iter().collect();
                     }
                 }
-                Hit::Ground { .. } if !shift => st.editor.selection.clear(),
+                Hit::Ground { .. } if !shift => {
+                    st.editor.selection.clear();
+                    st.editor.nudge = None;
+                }
                 Hit::Ground { .. } => {}
             }
             Ok(())
@@ -2399,6 +2464,10 @@ fn apply_actions(
     {
         st.press = Some((p0, Press::Move { anchor }));
     }
+    // A zone and pieces are never selected together: selecting pieces drops the zone.
+    if !st.editor.selection.is_empty() {
+        st.editor.nudge = None;
+    }
     let d = &mut *ctx.diag;
     d.tool = st.tool;
     d.brush = BrushDiag {
@@ -2559,6 +2628,7 @@ fn update_hover(
             .and_then(|t| footprint_box(st.kit, &st.placement_at(t)))
             .and_then(|b| project_box(b, project));
     }
+    diag.nudges = nudge::diag(&st, project);
     diag.stroke = st.stroke.as_ref().map(|s| StrokeDiag {
         placed: s.placed.len(),
         level: s.level,
@@ -3226,6 +3296,137 @@ mod tests {
         assert_eq!(c.runs.len(), 9);
         let r = c.release.as_ref().unwrap();
         assert_eq!((r.release, r.interval_ticks), ("interval", 480));
+    }
+
+    fn run_check(st: &mut EditState, ctx: &mut Ctx) -> usize {
+        act(
+            st,
+            ctx,
+            r#"{"op":"check","release":"interval","intervalTicks":480}"#,
+        )
+        .unwrap();
+        check::step(st, ctx.diag, None);
+        assert_eq!(ctx.diag.check.state, "done", "{:?}", ctx.diag.check.error);
+        ctx.diag.check.warning_count
+    }
+
+    /// Nudge zones place, move, aim, change and delete with undo and redo; the live sim gets
+    /// them on every edit; export writes them; and the marble check runs with them, so a zone over
+    /// the rope arches of the nudge track clears its stall warnings.
+    #[test]
+    fn nudge_zones_edit_with_undo_reach_the_sim_and_clear_the_check() {
+        let mut rig = Rig::new();
+        let mut st = EditState::new();
+        let ctx = &mut rig.ctx();
+        let st = &mut st;
+        let track = parble_sim::nudge::flat_track();
+        for p in &track.placements {
+            act(
+                st,
+                ctx,
+                &format!(
+                    r#"{{"op":"place","piece":"{}","cell":[{},{},{}]}}"#,
+                    p.piece.as_str(),
+                    p.anchor.x,
+                    p.anchor.y,
+                    p.anchor.z
+                ),
+            )
+            .unwrap();
+        }
+        let bare = run_check(st, ctx);
+        assert!(bare >= 3, "every checked type stalls in the arches: {bare}");
+        assert!(
+            ctx.diag.check.warnings.iter().all(|w| w.kind == "stalled"),
+            "{:?}",
+            ctx.diag.check.warnings
+        );
+
+        // No selection and no cells: refused. Over the selected run: added and selected.
+        act(st, ctx, r#"{"op":"clearSelection"}"#).unwrap();
+        assert!(act(st, ctx, r#"{"op":"nudgeAdd"}"#).is_err());
+        act(st, ctx, r#"{"op":"boxSelect","a":[1,1,-6],"b":[12,1,-6]}"#).unwrap();
+        assert_eq!(st.editor.selection.len(), 12);
+        act(st, ctx, r#"{"op":"nudgeAdd"}"#).unwrap();
+        let zones = |st: &EditState| st.editor.track().nudge_zones.clone();
+        assert_eq!(st.editor.selection.len(), 0, "the zone is the selection");
+        assert_eq!(st.editor.nudge, Some(0));
+        let z = st.editor.track().nudge_zones[0].clone();
+        assert_eq!(z, NudgeZone::over_cells(c(1, 1, -6), c(12, 1, -6), 0));
+        assert_eq!(ctx.clock.sim.nudge_count(), 1, "the live sim has it");
+        assert_eq!(run_check(st, ctx), 0, "the zone clears every stall");
+
+        // Move, aim and set, one undo step each.
+        act(st, ctx, r#"{"op":"move","offset":[0,0,1]}"#).unwrap();
+        // The place tool's rotate turns the brush; the select tool's turns the zone.
+        act(st, ctx, r#"{"op":"rotate","by":1}"#).unwrap();
+        assert_eq!(st.editor.track().nudge_zones[0].yaw_mdeg, 0);
+        act(st, ctx, r#"{"op":"tool","tool":"select"}"#).unwrap();
+        act(st, ctx, r#"{"op":"rotate","by":3}"#).unwrap();
+        let moved = &st.editor.track().nudge_zones[0];
+        assert_eq!(moved.min_um[2], z.min_um[2] + 60_000);
+        assert_eq!(moved.yaw_mdeg, 270_000);
+        let mut fast = moved.clone();
+        fast.min_speed_um_s = 300_000;
+        fast.pitch_mdeg = 5_000;
+        act(
+            st,
+            ctx,
+            &format!(
+                r#"{{"op":"nudgeSet","zone":{}}}"#,
+                serde_json::to_string(&fast).unwrap()
+            ),
+        )
+        .unwrap();
+        assert_eq!(zones(st), vec![fast.clone()]);
+        let mut bad = fast.clone();
+        bad.max_accel_um_s2 = 3_000_000;
+        assert!(
+            act(
+                st,
+                ctx,
+                &format!(
+                    r#"{{"op":"nudgeSet","zone":{}}}"#,
+                    serde_json::to_string(&bad).unwrap()
+                ),
+            )
+            .is_err()
+        );
+        assert_eq!(zones(st), vec![fast.clone()]);
+        let json = export_json(st.editor.track(), "nudged").unwrap();
+        let file = parble_core::file::load(&json).unwrap();
+        assert_eq!(file.track.nudge_zones, vec![fast.clone()]);
+
+        // Undo walks back set, turn, move; redo replays them.
+        for _ in 0..3 {
+            act(st, ctx, r#"{"op":"undo"}"#).unwrap();
+        }
+        assert_eq!(zones(st), vec![z.clone()]);
+        assert_eq!(st.editor.nudge, None, "undo clears the zone selection");
+        for _ in 0..3 {
+            act(st, ctx, r#"{"op":"redo"}"#).unwrap();
+        }
+        assert_eq!(zones(st), vec![fast.clone()]);
+
+        // Selecting pieces drops the zone; selecting the zone drops the pieces; remove deletes it.
+        act(st, ctx, r#"{"op":"nudgeSelect","index":0}"#).unwrap();
+        assert!(act(st, ctx, r#"{"op":"nudgeSelect","index":1}"#).is_err());
+        act(st, ctx, r#"{"op":"remove"}"#).unwrap();
+        assert!(zones(st).is_empty());
+        assert_eq!(ctx.clock.sim.nudge_count(), 0);
+        act(st, ctx, r#"{"op":"undo"}"#).unwrap();
+        assert_eq!(zones(st), vec![fast]);
+        assert_eq!(ctx.clock.sim.nudge_count(), 1);
+        act(
+            st,
+            ctx,
+            r#"{"op":"nudgeAdd","cells":[[0,2,0],[1,2,0]],"yawMdeg":-90000}"#,
+        )
+        .unwrap();
+        assert_eq!(st.editor.track().nudge_zones[1].yaw_mdeg, 270_000);
+        act(st, ctx, r#"{"op":"nudgeRemove","index":0}"#).unwrap();
+        assert_eq!(zones(st).len(), 1);
+        assert_eq!(ctx.clock.sim.nudge_count(), 1);
     }
 
     /// Finish the run build under way, if any, and install it ([`step_build`] with no budget).
