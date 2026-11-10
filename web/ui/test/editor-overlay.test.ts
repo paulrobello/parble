@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { BridgeCommand } from "../src/bridge";
-import type { Action, EditorDiag, PieceOption } from "../src/editor/model";
+import type { Action, EditorDiag, NudgeZoneDiag, PieceOption } from "../src/editor/model";
 import { CONFIRM_DELETE, type EditorOverlay, FLY_MS, mountEditor } from "../src/editor/overlay";
 
 const PALETTE = [
@@ -730,5 +730,112 @@ describe("editor overlay", () => {
     } finally {
       window.matchMedia = mm;
     }
+  });
+  it("nudge zones: Add over the selection or the camera's cell, select, edit, delete; drawn only while editing", () => {
+    const box: [number, number][] = [
+      [100, 100],
+      [140, 100],
+      [100, 80],
+      [140, 80],
+      [110, 110],
+      [150, 110],
+      [110, 90],
+      [150, 90],
+    ];
+    const zone: NudgeZoneDiag = {
+      index: 0,
+      name: "",
+      minUm: [30_000, 60_000, -390_000],
+      maxUm: [750_000, 120_000, -330_000],
+      yawMdeg: 0,
+      pitchMdeg: 0,
+      minSpeedUmS: 200_000,
+      maxAccelUmS2: 1_000_000,
+      cell: [6, 1, -6],
+      outline: box,
+      arrow: [
+        [110, 95],
+        [140, 95],
+      ],
+    };
+    const paths = (): SVGPathElement[] => [...document.querySelectorAll<SVGPathElement>("#pe-nz path")];
+    const d = (cls: string): string =>
+      paths()
+        .find((p) => p.getAttribute("class") === cls)
+        ?.getAttribute("d") ?? "";
+    // No zones yet: the section says what they are; Add with nothing selected goes at the camera's cell.
+    ui.update(diag({ nudges: { count: 0, selected: null, zones: [] } }));
+    expect($('[data-k="nz"]').hidden).toBe(false);
+    expect($('[data-k="nzh"]').textContent).toBe("none");
+    orbit = { target: [0.36, 0.07, -0.37], yaw: 0, pitch: 0.9, radius: 2 };
+    click('[data-k="nzAdd"]');
+    expect(sent.at(-1)).toEqual({
+      op: "nudgeAdd",
+      cells: [
+        [6, 1, -6],
+        [6, 1, -6],
+      ],
+    });
+    // With pieces selected it covers them.
+    ui.update(diag({ selection: 2, nudges: { count: 0, selected: null, zones: [] } }));
+    click('[data-k="nzAdd"]');
+    expect(sent.at(-1)).toEqual({ op: "nudgeAdd" });
+    // One zone, not selected: listed with Select, drawn pale blue.
+    ui.update(diag({ nudges: { count: 1, selected: null, zones: [zone] } }));
+    expect($('[data-k="nzh"]').textContent).toBe("1");
+    expect(d("nz").match(/M/g)?.length).toBe(12);
+    expect(d("nza").match(/M/g)?.length).toBe(3);
+    expect(d("nz sel")).toBe("");
+    click('[data-nzsel="0"]');
+    expect(sent.at(-1)).toEqual({ op: "nudgeSelect", index: 0 });
+    // Selected: the inspector, the outline in brass.
+    ui.update(diag({ nudges: { count: 1, selected: 0, zones: [zone] } }));
+    expect(d("nz")).toBe("");
+    expect(d("nz sel").match(/M/g)?.length).toBe(12);
+    expect(d("nza sel").match(/M/g)?.length).toBe(3);
+    const sel = $('[data-k="sel"]').textContent ?? "";
+    expect(sel).toContain("Zone 1");
+    expect(sel).toContain("12 × 1 × 1 cells");
+    expect(sel).toContain("east");
+    expect(sel).toContain("0.20 m/s");
+    expect(sel).toContain("1.00 m/s²");
+    const base = {
+      min_um: zone.minUm,
+      max_um: zone.maxUm,
+      yaw_mdeg: 0,
+      min_speed_um_s: 200_000,
+      max_accel_um_s2: 1_000_000,
+    };
+    click('[data-nz="size:0:1"]');
+    expect(sent.at(-1)).toEqual({ op: "nudgeSet", index: 0, zone: { ...base, max_um: [810_000, 120_000, -330_000] } });
+    click('[data-nz="yaw:1"]');
+    expect(sent.at(-1)).toEqual({ op: "nudgeSet", index: 0, zone: { ...base, yaw_mdeg: 45_000 } });
+    click('[data-nz="pitch:-1"]');
+    expect(sent.at(-1)).toEqual({ op: "nudgeSet", index: 0, zone: { ...base, pitch_mdeg: -15_000 } });
+    click('[data-nz="speed:1"]');
+    expect(sent.at(-1)).toEqual({ op: "nudgeSet", index: 0, zone: { ...base, min_speed_um_s: 250_000 } });
+    click('[data-nz="accel:1"]');
+    expect(sent.at(-1)).toEqual({ op: "nudgeSet", index: 0, zone: { ...base, max_accel_um_s2: 1_250_000 } });
+    // A shrink below one cell sends nothing.
+    const n = sent.length;
+    click('[data-nz="size:1:-1"]');
+    expect(sent.length).toBe(n);
+    click('[data-nzmove="0,1,0"]');
+    expect(sent.at(-1)).toEqual({ op: "move", offset: [0, 1, 0] });
+    // Delete, the button and the key, removes the selected zone.
+    click('[data-k="sel"] [data-k="gDelete"]');
+    expect(sent.at(-1)).toEqual({ op: "remove" });
+    sent = [];
+    press("Backspace");
+    expect(sent).toEqual([{ op: "remove" }]);
+    // Never drawn during a run, or while one builds.
+    ui.update(diag({ nudges: { count: 1, selected: 0, zones: [zone] }, run: { ...diag().run, active: true } }));
+    expect(paths().every((p) => !p.getAttribute("class")?.startsWith("nz") || (p.getAttribute("d") ?? "") === "")).toBe(
+      true,
+    );
+    ui.update(diag({ nudges: { count: 1, selected: 0, zones: [zone] }, run: { ...diag().run, building: true } }));
+    expect(d("nz sel")).toBe("");
+    ui.update(diag({ nudges: { count: 1, selected: 0, zones: [zone] } }));
+    expect(d("nz sel")).not.toBe("");
   });
 });

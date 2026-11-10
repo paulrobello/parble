@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { EDGE_PX, IDLE_MS, RunFade } from "../src/editor/fade";
 import { ENGINE_KEYS, type KeyLike, keyResult, ownsKeys } from "../src/editor/keys";
 import {
+  arrowPath,
+  cellAt,
   familyOf,
   familyText,
   boxPath,
@@ -13,6 +15,13 @@ import {
   ghostText,
   issueText,
   levelLabel,
+  type NudgeZoneDiag,
+  nudgeAccelText,
+  nudgeEdit,
+  nudgeHeadingText,
+  nudgeName,
+  nudgeSizeText,
+  nudgeSpeedText,
   pieceName,
   piecesOf,
   planThumb,
@@ -21,6 +30,7 @@ import {
   sliceDown,
   sliceUp,
   strokeText,
+  zoneOf,
 } from "../src/editor/model";
 
 const key = (code: string, mods: Partial<KeyLike> = {}): KeyLike => ({
@@ -268,5 +278,80 @@ describe("run fade", () => {
     const f = new RunFade();
     f.move(0, 0, 100, 100, 0);
     expect(f.view(10_000).faded).toBe(false);
+  });
+});
+
+describe("nudge zones", () => {
+  const listed: NudgeZoneDiag = {
+    index: 2,
+    name: "",
+    minUm: [30_000, 60_000, -390_000],
+    maxUm: [750_000, 120_000, -330_000],
+    yawMdeg: 0,
+    pitchMdeg: 0,
+    minSpeedUmS: 200_000,
+    maxAccelUmS2: 1_000_000,
+    cell: [6, 1, -6],
+    outline: null,
+    arrow: null,
+  };
+  const zone = zoneOf(listed);
+
+  it("a listed zone goes back to its file shape, omitting the empty name and zero pitch", () => {
+    expect(zone).toEqual({
+      min_um: [30_000, 60_000, -390_000],
+      max_um: [750_000, 120_000, -330_000],
+      yaw_mdeg: 0,
+      min_speed_um_s: 200_000,
+      max_accel_um_s2: 1_000_000,
+    });
+    expect(zoneOf({ ...listed, name: "lift", pitchMdeg: 15_000 })).toMatchObject({ name: "lift", pitch_mdeg: 15_000 });
+  });
+
+  it("each inspector edit steps one field and stops at the file's limits", () => {
+    expect(nudgeEdit(zone, { kind: "size", axis: 0, by: 1 })?.max_um).toEqual([810_000, 120_000, -330_000]);
+    expect(nudgeEdit(zone, { kind: "size", axis: 1, by: -1 })).toBeNull();
+    expect(nudgeEdit(zone, { kind: "size", axis: 0, by: -1 })?.max_um[0]).toBe(690_000);
+    expect(nudgeEdit(zone, { kind: "yaw", by: -1 })?.yaw_mdeg).toBe(315_000);
+    expect(nudgeEdit(zone, { kind: "yaw", by: 1 })?.yaw_mdeg).toBe(45_000);
+    expect(nudgeEdit(zone, { kind: "pitch", by: 1 })?.pitch_mdeg).toBe(15_000);
+    expect(nudgeEdit({ ...zone, pitch_mdeg: 90_000 }, { kind: "pitch", by: 1 })).toBeNull();
+    expect(nudgeEdit({ ...zone, pitch_mdeg: 15_000 }, { kind: "pitch", by: -1 })).not.toHaveProperty("pitch_mdeg");
+    expect(nudgeEdit(zone, { kind: "speed", by: 1 })?.min_speed_um_s).toBe(250_000);
+    expect(nudgeEdit({ ...zone, min_speed_um_s: 50_000 }, { kind: "speed", by: -1 })).toBeNull();
+    expect(nudgeEdit(zone, { kind: "accel", by: 1 })?.max_accel_um_s2).toBe(1_250_000);
+    expect(nudgeEdit({ ...zone, max_accel_um_s2: 2_000_000 }, { kind: "accel", by: 1 })).toBeNull();
+    // The edit never touches the zone it was given.
+    expect(zone.max_um).toEqual([750_000, 120_000, -330_000]);
+  });
+
+  it("labels a zone's box, heading and rates in plain units", () => {
+    expect(nudgeSizeText(listed)).toBe("12 × 1 × 1 cells");
+    expect(nudgeHeadingText(0)).toBe("east");
+    expect(nudgeHeadingText(90_000)).toBe("north");
+    expect(nudgeHeadingText(315_000, -15_000)).toBe("south-east, down 15°");
+    expect(nudgeHeadingText(12_500)).toBe("12.5°");
+    expect(nudgeSpeedText(200_000)).toBe("0.20 m/s");
+    expect(nudgeAccelText(1_000_000)).toBe("1.00 m/s²");
+    expect(nudgeName(listed)).toBe("Zone 3");
+    expect(nudgeName({ index: 0, name: "lift" })).toBe("lift");
+  });
+
+  it("finds the cell under the orbit target and draws an arrow with a head", () => {
+    expect(cellAt([0.36, 0.07, -0.37])).toEqual([6, 1, -6]);
+    expect(cellAt([0, -0.2, 0])).toEqual([0, 0, 0]);
+    const d = arrowPath([
+      [10, 50],
+      [110, 50],
+    ]);
+    expect(d.match(/M/g)?.length).toBe(3);
+    expect(d.startsWith("M10 50L110 50M110 50L101 ")).toBe(true);
+    expect(arrowPath(null)).toBe("");
+    expect(
+      arrowPath([
+        [5, 5],
+        [5.2, 5],
+      ]),
+    ).toBe("");
   });
 });

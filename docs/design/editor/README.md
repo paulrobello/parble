@@ -69,6 +69,14 @@ State is a brass pin, never a fill. When the active tool, family tab, tile or se
 - The section header shows the count. Zero issues reads "Track is complete" with a brass pin.
 - Marble check sits under the issues: a Queue size / All sizes segmented choice and Check. It runs the release Run would make once per marble type, off the scene and over frames, and lists where marbles fall off or stall as pale-blue rows with the same Show. They are warnings, not issues, and never change the header. The release it checked is named under the rows. An edit, or a different Run release, marks the result out of date and dims the rows until Check again.
 
+### Nudge zones
+- A nudge zone is an invisible box that keeps slow marbles moving: a marble inside, slower than the zone's minimum speed along its arrow, is pushed up to it, never harder than the zone's push cap (defaults 0.2 m/s and 1 m/s², at most 2 of each).
+- The Nudge zones block sits under the marble check: a count, Add zone, and one row per zone with its cell, heading and speed, and Select. Add zone covers the selected pieces' cells, or the cell at the camera's centre with nothing selected.
+- In the scene each zone is a dotted pale-blue box with a solid arrow; the selected one is brass. They are drawn only while editing, never during a run or its build.
+- With the Select tool, a click that hits no piece selects the zone it passes through; the Delete tool deletes it.
+- The selected zone's inspector (Selection) shows its box, heading, minimum speed and push, with segmented rows: Size (X, Y, Z one cell smaller or larger), Move (a cell west, east, north, south, a level up or down), Aim (45° either way, tilt 15° up or down), Speed (0.05 m/s) and Push (0.25 m/s²), and Delete zone. Arrows and `PgUp` `PgDn` move it, `R` turns it a quarter, `⌫` deletes it. Every change is one undo step.
+- A zone and pieces are never selected together.
+
 ### Run
 - Run, or `Space` when nothing has focus, releases the hopper's marbles and starts the sim.
 - During a run, after 1.2 s without pointer movement, the chrome fades to cinematic over 400 ms. Hairline maple edges stay at 35%, and a small top capsule shows the marble count, the elapsed time and `Space` pause.

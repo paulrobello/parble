@@ -2,6 +2,8 @@
 // `parbleEdit` actions the overlay sends, kept by hand like bridge.ts. Pure helpers only: names,
 // families, issue sentences and labels, so Vitest can check every string the panel shows.
 
+import type { NudgeZone } from "../parble";
+
 export type Vec3i = [number, number, number];
 export type Tool = "place" | "select" | "delete";
 export type Release = "one" | "all" | "interval" | "sequential";
@@ -170,6 +172,32 @@ export interface EditorDiag {
   } | null;
   /** The marble check; absent from builds before it. */
   check?: CheckDiag;
+  /** Nudge zones; absent from builds before them. */
+  nudges?: NudgeDiag;
+}
+
+/** One nudge zone as `editor.nudges` lists it: its track fields in camelCase and where it is on screen. */
+export interface NudgeZoneDiag {
+  index: number;
+  name: string;
+  minUm: Vec3i;
+  maxUm: Vec3i;
+  yawMdeg: number;
+  pitchMdeg: number;
+  minSpeedUmS: number;
+  maxAccelUmS2: number;
+  /** The cell holding the box's centre. */
+  cell: Vec3i;
+  /** The box's 8 projected corners (CSS px), or null off screen. */
+  outline: [number, number][] | null;
+  /** The direction arrow's projected tail and head, or null off screen. */
+  arrow: [[number, number], [number, number]] | null;
+}
+
+export interface NudgeDiag {
+  count: number;
+  selected: number | null;
+  zones: NudgeZoneDiag[];
 }
 
 export type Action =
@@ -197,7 +225,11 @@ export type Action =
   | { op: "stroke"; phase: "start" | "end" | "cancel" }
   | { op: "pulse"; anchor: Vec3i }
   | { op: "mechConfig"; key: string; value: number }
-  | { op: "check"; release: Release; intervalTicks?: number; allSizes?: boolean };
+  | { op: "check"; release: Release; intervalTicks?: number; allSizes?: boolean }
+  | { op: "nudgeAdd"; cells?: [Vec3i, Vec3i]; yawMdeg?: number }
+  | { op: "nudgeSelect"; index: number | null }
+  | { op: "nudgeSet"; index?: number; zone: NudgeZone }
+  | { op: "nudgeRemove"; index?: number };
 
 export type Send = (a: Action) => void;
 
@@ -518,4 +550,128 @@ export function planThumb(
     })
     .join("");
   return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true">${cells}</svg>`;
+}
+
+// ---- nudge zones (crates/parble-core/src/nudge_zone.rs) ---------------------------------------
+
+/** Micrometres per cell. */
+export const CELL_UM = 60_000;
+/** Steps of the zone inspector's buttons. */
+export const NUDGE_YAW_STEP = 45_000;
+export const NUDGE_PITCH_STEP = 15_000;
+export const NUDGE_SPEED_STEP = 50_000;
+export const NUDGE_ACCEL_STEP = 250_000;
+/** The file's limits: speed and acceleration at most 2 m/s and 2 m/s², pitch within ±90°. */
+export const NUDGE_MAX = 2_000_000;
+export const NUDGE_PITCH_MAX = 90_000;
+
+/** One inspector edit: grow or shrink an axis by a cell (on its high side), or step an aim or rate. */
+export type NudgeEdit =
+  | { kind: "size"; axis: 0 | 1 | 2; by: 1 | -1 }
+  | { kind: "yaw" | "pitch" | "speed" | "accel"; by: 1 | -1 };
+
+/** A listed zone back in its `.parble` shape (snake_case, the empty name and zero pitch omitted). */
+export function zoneOf(z: NudgeZoneDiag): NudgeZone {
+  const out: NudgeZone = {
+    min_um: [...z.minUm],
+    max_um: [...z.maxUm],
+    yaw_mdeg: z.yawMdeg,
+    min_speed_um_s: z.minSpeedUmS,
+    max_accel_um_s2: z.maxAccelUmS2,
+  };
+  if (z.name) out.name = z.name;
+  if (z.pitchMdeg) out.pitch_mdeg = z.pitchMdeg;
+  return out;
+}
+
+const clamp = (v: number, lo: number, hi: number): number => Math.min(Math.max(v, lo), hi);
+
+/** The zone after one inspector edit, or null when the edit changes nothing (at a limit). */
+export function nudgeEdit(z: NudgeZone, e: NudgeEdit): NudgeZone | null {
+  const next: NudgeZone = { ...z, min_um: [...z.min_um], max_um: [...z.max_um] };
+  switch (e.kind) {
+    case "size": {
+      const span = z.max_um[e.axis] - z.min_um[e.axis];
+      if (e.by < 0 && span <= CELL_UM) return null;
+      next.max_um[e.axis] = z.max_um[e.axis] + e.by * CELL_UM;
+      return next;
+    }
+    case "yaw":
+      next.yaw_mdeg = (((z.yaw_mdeg + e.by * NUDGE_YAW_STEP) % 360_000) + 360_000) % 360_000;
+      return next;
+    case "pitch": {
+      const p = clamp((z.pitch_mdeg ?? 0) + e.by * NUDGE_PITCH_STEP, -NUDGE_PITCH_MAX, NUDGE_PITCH_MAX);
+      if (p === (z.pitch_mdeg ?? 0)) return null;
+      if (p) next.pitch_mdeg = p;
+      else delete next.pitch_mdeg;
+      return next;
+    }
+    case "speed": {
+      const v = clamp(z.min_speed_um_s + e.by * NUDGE_SPEED_STEP, NUDGE_SPEED_STEP, NUDGE_MAX);
+      if (v === z.min_speed_um_s) return null;
+      next.min_speed_um_s = v;
+      return next;
+    }
+    case "accel": {
+      const v = clamp(z.max_accel_um_s2 + e.by * NUDGE_ACCEL_STEP, NUDGE_ACCEL_STEP, NUDGE_MAX);
+      if (v === z.max_accel_um_s2) return null;
+      next.max_accel_um_s2 = v;
+      return next;
+    }
+  }
+}
+
+const HEADING: Record<number, string> = {
+  0: "east",
+  45000: "north-east",
+  90000: "north",
+  135000: "north-west",
+  180000: "west",
+  225000: "south-west",
+  270000: "south",
+  315000: "south-east",
+};
+
+const deg = (mdeg: number): string => `${(mdeg / 1000).toFixed(1).replace(/\.0$/, "")}°`;
+
+/** The zone's size in cells along x, y and z: "12 × 1 × 1 cells". */
+export function nudgeSizeText(z: Pick<NudgeZoneDiag, "minUm" | "maxUm">): string {
+  const n = [0, 1, 2].map((i) => Math.round(((z.maxUm[i] ?? 0) - (z.minUm[i] ?? 0)) / CELL_UM));
+  return `${n.join(" × ")} cells`;
+}
+
+/** The push direction: "north-east" (the ports line's compass, +x east, −z north), then any tilt. */
+export function nudgeHeadingText(yawMdeg: number, pitchMdeg = 0): string {
+  const yaw = HEADING[yawMdeg] ?? deg(yawMdeg);
+  if (!pitchMdeg) return yaw;
+  return `${yaw}, ${pitchMdeg > 0 ? "up" : "down"} ${deg(Math.abs(pitchMdeg))}`;
+}
+
+/** A speed (µm/s) or acceleration (µm/s²) in metres: "0.20 m/s", "1.00 m/s²". */
+export const nudgeSpeedText = (umS: number): string => `${(umS / 1e6).toFixed(2)} m/s`;
+export const nudgeAccelText = (umS2: number): string => `${(umS2 / 1e6).toFixed(2)} m/s²`;
+
+/** A listed zone's label: its name, else "Zone 3" (one-based). */
+export const nudgeName = (z: Pick<NudgeZoneDiag, "index" | "name">): string => z.name || `Zone ${z.index + 1}`;
+
+/** The cell holding a point in metres (the orbit target): where Add zone goes with nothing selected. */
+export function cellAt(p: readonly [number, number, number]): Vec3i {
+  return [Math.round(p[0] / CELL_M), Math.max(Math.floor(p[1] / CELL_M), 0), Math.round(p[2] / CELL_M)];
+}
+
+/** SVG path data for a projected direction arrow: the shaft, then a two-stroke head at the tip. */
+export function arrowPath(arrow: readonly (readonly [number, number])[] | null | undefined): string {
+  if (arrow?.length !== 2) return "";
+  const [t, hd] = arrow as [readonly [number, number], readonly [number, number]];
+  const dx = hd[0] - t[0];
+  const dy = hd[1] - t[1];
+  const len = Math.hypot(dx, dy);
+  if (len < 1) return "";
+  const r = (v: number): string => (Math.round(v * 10) / 10).toString();
+  const ux = dx / len;
+  const uy = dy / len;
+  const head = Math.min(9, len * 0.4);
+  const wing = (s: number): string =>
+    `M${r(hd[0])} ${r(hd[1])}L${r(hd[0] - ux * head - uy * head * 0.55 * s)} ${r(hd[1] - uy * head + ux * head * 0.55 * s)}`;
+  return `M${r(t[0])} ${r(t[1])}L${r(hd[0])} ${r(hd[1])}${wing(1)}${wing(-1)}`;
 }

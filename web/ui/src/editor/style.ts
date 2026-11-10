@@ -198,6 +198,14 @@ body.parble-editor #parble-hud,body.parble-editor #parble-controls{display:none}
 #pe-ghost path{fill:none;stroke:var(--b);stroke-width:1.4;stroke-dasharray:5 4;stroke-linecap:round}
 #pe-ghost path.bad{stroke:var(--f)}
 #pe-ghost path.run{stroke:rgba(196,154,82,.7);stroke-width:1;stroke-dasharray:3 4}
+#pe-nz{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+#pe-nz path{fill:none;stroke-linecap:round}
+#pe-nz path.nz{stroke:var(--p);stroke-width:1;stroke-dasharray:2 4;opacity:.75}
+#pe-nz path.nza{stroke:var(--p);stroke-width:1.6;opacity:.85}
+#pe-nz path.sel{stroke:var(--b);opacity:1}
+#pe-nz path.nz.sel{stroke-width:1.4;stroke-dasharray:6 3}
+#pe .kv .seg.nzs button{padding:5px 2px;text-align:center}
+#pe .nz .iss.on i{color:var(--b)}
 #pe .tile .ct{position:absolute;top:5px;right:6px;font:500 11px/1 "Alegreya Sans",sans-serif;font-variant-numeric:lining-nums tabular-nums;color:var(--m)}
 #pe .kv .seg.opt button{display:flex;align-items:center;justify-content:center;gap:6px;padding:5px 8px}
 #pe .kv .seg.opt button .pin{margin-left:-2px}

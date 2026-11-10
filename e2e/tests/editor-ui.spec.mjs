@@ -334,6 +334,138 @@ test("drag-to-lay: press a drawer tile, drag over the board, release, and undo t
   expect(errors).toEqual([]);
 });
 
+test("nudge zones: add, size, aim, move, undo and redo from the panel, export them, hide them in a run, delete", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  const errors = [];
+  await openEditor(page, errors);
+  const placed = [
+    ["mech_hopper", [2, 1, -6]],
+    ["blk_pillar", [2, 0, -6]],
+    ["blk_straight_l3", [3, 0, -6]],
+    ["blk_end_l3", [4, 0, -6]],
+  ];
+  for (const [piece, cell] of placed) await edit(page, { op: "place", piece, cell });
+  await edit(page, { op: "tool", tool: "select" });
+  await edit(page, { op: "boxSelect", a: [3, 0, -6], b: [4, 0, -6] });
+  const nz = page.locator('#pe-side [data-k="nz"]');
+  const sel = page.locator('#pe-side [data-k="sel"]');
+  const zones = () => page.evaluate(() => window.__parble.editor.nudges);
+  const ghostD = (cls) =>
+    page.evaluate((c) => [...document.querySelectorAll("#pe-nz path")].find((p) => p.getAttribute("class") === c)?.getAttribute("d") ?? "", cls);
+  await expect(nz).toBeVisible();
+  await expect(nz.locator('[data-k="nzh"]')).toHaveText("none");
+
+  // Add zone over the two selected pieces: it becomes the selection, with the inspector and a brass outline.
+  await nz.locator('[data-k="nzAdd"]').click();
+  await page.waitForFunction(() => window.__parble.editor.nudges?.count === 1 && window.__parble.editor.nudges.selected === 0);
+  let n = await zones();
+  expect(n.zones[0]).toMatchObject({
+    minUm: [150_000, 0, -390_000],
+    maxUm: [270_000, 60_000, -330_000],
+    yawMdeg: 0,
+    pitchMdeg: 0,
+    minSpeedUmS: 200_000,
+    maxAccelUmS2: 1_000_000,
+  });
+  expect(n.zones[0].outline).toHaveLength(8);
+  expect(n.zones[0].arrow).toHaveLength(2);
+  await expect(sel).toContainText("Nudge zone:");
+  await expect(sel).toContainText("2 × 1 × 1 cells");
+  await frames(page, 2);
+  expect((await ghostD("nz sel")).match(/M/g)?.length).toBe(12);
+  expect((await ghostD("nza sel")).match(/M/g)?.length).toBe(3);
+
+  // Size, aim, speed and move from the inspector, one undo step each.
+  const wait = (f, arg) => page.waitForFunction(f, arg, { timeout: 5_000 });
+  await sel.locator('[data-nz="size:1:1"]').click();
+  await wait(() => window.__parble.editor.nudges.zones[0].maxUm[1] === 120_000);
+  await sel.locator('[data-nz="yaw:1"]').click();
+  await wait(() => window.__parble.editor.nudges.zones[0].yawMdeg === 45_000);
+  await expect(sel).toContainText("north-east");
+  await sel.locator('[data-nz="speed:1"]').click();
+  await wait(() => window.__parble.editor.nudges.zones[0].minSpeedUmS === 250_000);
+  await sel.locator('[data-nz="accel:1"]').click();
+  await wait(() => window.__parble.editor.nudges.zones[0].maxAccelUmS2 === 1_250_000);
+  await sel.locator('[data-nzmove="0,0,1"]').click();
+  await wait(() => window.__parble.editor.nudges.zones[0].minUm[2] === -330_000);
+  await page.mouse.move(700, 480);
+  await shot(page, "nudge-zone");
+  await page.locator('#pe-top [data-k="undo"]').click();
+  await wait(() => window.__parble.editor.nudges.zones[0].minUm[2] === -390_000);
+  await page.locator('#pe-top [data-k="undo"]').click();
+  await wait(() => window.__parble.editor.nudges.zones[0].maxAccelUmS2 === 1_000_000);
+  await page.locator('#pe-top [data-k="redo"]').click();
+  await page.locator('#pe-top [data-k="redo"]').click();
+  await wait(() => window.__parble.editor.nudges.zones[0].minUm[2] === -330_000 && window.__parble.editor.nudges.zones[0].maxAccelUmS2 === 1_250_000);
+  // Undo and redo clear the selection, as for pieces; the list's Select picks the zone again.
+  expect((await zones()).selected).toBeNull();
+  await nz.locator('[data-nzsel="0"]').click();
+  await wait(() => window.__parble.editor.nudges.selected === 0);
+  await expect(sel).toContainText("north-east");
+
+  // Export writes the zone into the .parble file.
+  await page.locator('[data-k="library"]').click();
+  const [download] = await Promise.all([page.waitForEvent("download"), page.locator('#pe-sheet [data-k="export"]').click()]);
+  const chunks = [];
+  for await (const c of await download.createReadStream()) chunks.push(c);
+  const file = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  expect(file.nudge_zones).toEqual([
+    {
+      min_um: [150_000, 0, -330_000],
+      max_um: [270_000, 120_000, -270_000],
+      yaw_mdeg: 45_000,
+      min_speed_um_s: 250_000,
+      max_accel_um_s2: 1_250_000,
+    },
+  ]);
+  await page.keyboard.press("Escape");
+
+  // A run never shows a zone; Stop brings it back.
+  await page.locator('#pe-top [data-k="run"]').click();
+  await page.waitForFunction(() => window.__parble.editor.run.active === true, null, { timeout: 30_000 });
+  await frames(page, 3);
+  for (const c of ["nz", "nza", "nz sel", "nza sel"]) expect(await ghostD(c)).toBe("");
+  await page.locator('#pe-top [data-k="run"]').click();
+  await page.waitForFunction(() => window.__parble.editor.run.active === false, null, { timeout: 30_000 });
+  // The run may have moved the camera; look at the zone again.
+  await edit(page, { op: "camera", target: [0.36, 0.03, -0.36], yaw: -0.5, pitch: 0.85, radius: 1.25 });
+  await frames(page, 3);
+  const after = await zones();
+  expect(after.selected).toBe(0);
+  expect(after.zones[0].outline).toHaveLength(8);
+  expect(await ghostD("nz sel")).not.toBe("");
+
+  // With nothing selected, Add zone goes at the camera's centre cell; a Select click through it selects it.
+  await edit(page, { op: "clearSelection" });
+  // Look down from above, so the click on the new zone's cell passes through no other zone.
+  await edit(page, { op: "camera", target: [0.36, 0.03, -0.36], yaw: -0.5, pitch: 1.3, radius: 1.25 });
+  await frames(page, 3);
+  expect(await ghostD("nz")).not.toBe("");
+  await nz.locator('[data-k="nzAdd"]').click();
+  await page.waitForFunction(() => window.__parble.editor.nudges?.count === 2);
+  n = await zones();
+  expect(n.zones[1]).toMatchObject({ minUm: [330_000, 0, -390_000], maxUm: [390_000, 60_000, -330_000] });
+  await nz.locator('[data-nzsel="0"]').click();
+  await wait(() => window.__parble.editor.nudges.selected === 0);
+  const zc = await cellPx(page, [6, 0, -6]);
+  await page.mouse.click(...zc.centre);
+  await wait(() => window.__parble.editor.nudges.selected === 1);
+
+  // Delete from the inspector, then the key; undo brings one back.
+  await sel.locator('[data-k="gDelete"]').click();
+  await wait(() => window.__parble.editor.nudges.count === 1);
+  await nz.locator('[data-nzsel="0"]').click();
+  await wait(() => window.__parble.editor.nudges.selected === 0);
+  await page.keyboard.press("Backspace");
+  await wait(() => window.__parble.editor.nudges.count === 0);
+  await expect(nz.locator('[data-k="nzh"]')).toHaveText("none");
+  await page.locator('#pe-top [data-k="undo"]').click();
+  await wait(() => window.__parble.editor.nudges.count === 1);
+  expect(errors).toEqual([]);
+});
+
 test.describe("below 1280 px", () => {
   test.use({ viewport: { width: 1180, height: 800 } });
 

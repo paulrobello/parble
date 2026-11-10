@@ -11,7 +11,9 @@ import { icon, iconSprite } from "./icons";
 import { ENGINE_KEYS, keyResult, ownsKeys } from "./keys";
 import {
   type Action,
+  arrowPath,
   boxPath,
+  cellAt,
   type CheckDiag,
   checkReleaseText,
   checkText,
@@ -29,6 +31,14 @@ import {
   issueText,
   levelLabel,
   MAX_MARBLES,
+  type NudgeEdit,
+  type NudgeZoneDiag,
+  nudgeAccelText,
+  nudgeEdit,
+  nudgeHeadingText,
+  nudgeName,
+  nudgeSizeText,
+  nudgeSpeedText,
   pieceName,
   type PieceOption,
   piecesOf,
@@ -42,6 +52,7 @@ import {
   strokeText,
   TICK_HZ,
   type Vec3i,
+  zoneOf,
 } from "./model";
 import { CSS, fontFaces, THUMB_DIR, versioned } from "./style";
 
@@ -247,6 +258,9 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
 <div class="ckb"><div class="seg" role="radiogroup" aria-label="Marble sizes" data-k="cks"></div>
 <button class="btn" data-k="check" title="Run the release Run makes once per marble type, off the scene, and list where marbles fall off or stall">Check</button></div>
 <div data-k="ckl"></div></div>
+<div class="ck nz" data-k="nz" hidden><h3><span class="sc">Nudge zones ·</span><span data-k="nzh"></span></h3>
+<div class="ckb"><button class="btn" data-k="nzAdd">Add zone</button><span class="note" data-k="nzw"></span></div>
+<div data-k="nzl"></div></div>
 <p class="note">Show moves the camera to the cell and selects the piece.</p></section>`;
   const selSec = q(side, '[data-k="sel"]');
   const vHead = q(side, '[data-k="vh"]');
@@ -255,6 +269,11 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
   const ckBtn = q<HTMLButtonElement>(side, '[data-k="check"]');
   const ckSizes = q(side, '[data-k="cks"]');
   const ckList = q(side, '[data-k="ckl"]');
+  const nzSec = q(side, '[data-k="nz"]');
+  const nzHead = q(side, '[data-k="nzh"]');
+  const nzAddBtn = q<HTMLButtonElement>(side, '[data-k="nzAdd"]');
+  const nzWhere = q(side, '[data-k="nzw"]');
+  const nzList = q(side, '[data-k="nzl"]');
   let confirmDelete = false;
   let deletedNote: string | null = null;
 
@@ -333,10 +352,25 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
   ghostRun.setAttribute("class", "run");
   const ghostBox = doc.createElementNS(SVG_NS, "path");
   ghost.append(ghostRun, ghostBox);
+  // Nudge zones (editor only, never in a run or its build), in their own layer under the ghost:
+  // pale-blue outlines and arrows, the selected zone in brass.
+  const nzLayer = doc.createElementNS(SVG_NS, "svg");
+  nzLayer.setAttribute("id", "pe-nz");
+  nzLayer.setAttribute("aria-hidden", "true");
+  const nzPath = (cls: string): SVGPathElement => {
+    const el = doc.createElementNS(SVG_NS, "path");
+    el.setAttribute("class", cls);
+    return el;
+  };
+  const nzBoxes = nzPath("nz");
+  const nzArrows = nzPath("nza");
+  const nzSelBox = nzPath("nz sel");
+  const nzSelArrow = nzPath("nza sel");
+  nzLayer.append(nzBoxes, nzArrows, nzSelBox, nzSelArrow);
   // Folded run controls (below 1280 px) show their label and key cap in this inlay tooltip.
   const tt = h(doc, "div", { id: "pe-tt", class: "inlay", role: "tooltip" });
 
-  root.append(ghost, top, side, tray, tip, marq, mlabel, cap, ...hairs, sheet, tt);
+  root.append(nzLayer, ghost, top, side, tray, tip, marq, mlabel, cap, ...hairs, sheet, tt);
   doc.body.append(root);
 
   const narrow = (): boolean => win.matchMedia?.("(max-width: 1279px)").matches ?? false;
@@ -614,6 +648,7 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     gRotate: () => act({ op: "rotate", by: 1 }),
     gMirror: () => act({ op: "mirror" }),
     gDelete: () => remove(),
+    nzAdd: () => addZone(),
     yesDelete: () => {
       confirmDelete = false;
       deletedNote = `Deleted ${d?.selection ?? 0} pieces.`;
@@ -642,14 +677,50 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     else if (b.dataset.opt) {
       const [k, v] = b.dataset.opt.split(":");
       if (k && v !== undefined) act({ op: "mechConfig", key: k, value: Number(v) });
-    } else if (b.dataset.show) {
+    } else if (b.dataset.nz) nudgeButton(b.dataset.nz);
+    else if (b.dataset.nzsel) act({ op: "nudgeSelect", index: Number(b.dataset.nzsel) });
+    else if (b.dataset.nzmove) act({ op: "move", offset: b.dataset.nzmove.split(",").map(Number) as Vec3i });
+    else if (b.dataset.show) {
       const [x, y, z, ax, ay, az] = b.dataset.show.split(",").map(Number) as number[];
       show([x, y, z] as Vec3i, Number.isFinite(ax) ? ([ax, ay, az] as Vec3i) : null);
     } else if (b.dataset.k && commands[b.dataset.k]) commands[b.dataset.k]?.();
     if (b.dataset.k !== "interval" && !b.dataset.s) setMenu(false);
   });
 
+  /** The selected nudge zone, when no piece is selected (the two are never selected together). */
+  const selectedZone = (s: EditorDiag | null): NudgeZoneDiag | null => {
+    const n = s?.nudges;
+    if (!s || !n || n.selected === null || s.selection > 0) return null;
+    return n.zones.find((z) => z.index === n.selected) ?? null;
+  };
+  /** Add zone: over the selected pieces' cells, else over the cell at the camera's centre. */
+  const addZone = (): void => {
+    if (!d) return;
+    if (d.selection > 0) {
+      act({ op: "nudgeAdd" });
+      return;
+    }
+    const c = cellAt(deps.orbit?.()?.target ?? [0, 0, 0]);
+    act({ op: "nudgeAdd", cells: [c, c] });
+  };
+  /** An inspector button, `size:<axis>:<±1>` or `<yaw|pitch|speed|accel>:<±1>`: one nudgeSet. */
+  const nudgeButton = (spec: string): void => {
+    const z = selectedZone(d);
+    if (!z) return;
+    const [kind, a, b] = spec.split(":");
+    const e: NudgeEdit =
+      kind === "size"
+        ? { kind, axis: Number(a) as 0 | 1 | 2, by: Number(b) as 1 | -1 }
+        : { kind: kind as "yaw" | "pitch" | "speed" | "accel", by: Number(a) as 1 | -1 };
+    const next = nudgeEdit(zoneOf(z), e);
+    if (next) act({ op: "nudgeSet", index: z.index, zone: next });
+  };
+
   const remove = (): void => {
+    if (d && d.selection === 0 && selectedZone(d)) {
+      act({ op: "remove" });
+      return;
+    }
     if (!d || d.selection === 0) return;
     if (d.selection > CONFIRM_DELETE) {
       confirmDelete = true;
@@ -753,12 +824,89 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
       )
       .join("");
 
+  /** A row of inspector buttons: [label, data attribute, aria-label]. */
+  const nzRow = (label: string, buttons: [string, string, string][]): string =>
+    `<span class="sc">${label}</span><div class="seg nzs">${buttons
+      .map(([text, attr, aria]) => `<button ${attr} aria-label="${esc(aria)}">${text}</button>`)
+      .join("")}</div>`;
+  const zoneInspector = (z: NudgeZoneDiag): string => `<h2><span class="sc">Nudge zone:</span>${esc(nudgeName(z))}</h2>
+<div class="kv"><span class="sc">Box</span><span>${nudgeSizeText(z)} · ${cellText(z.cell)}</span>
+<span class="sc">Heading</span><span>${esc(nudgeHeadingText(z.yawMdeg, z.pitchMdeg))}</span>
+<span class="sc">Min speed</span><span>${nudgeSpeedText(z.minSpeedUmS)}</span>
+<span class="sc">Max push</span><span>${nudgeAccelText(z.maxAccelUmS2)}</span>
+${nzRow("Size", [
+  ["X−", 'data-nz="size:0:-1"', "Shrink along x"],
+  ["X+", 'data-nz="size:0:1"', "Grow along x"],
+  ["Y−", 'data-nz="size:1:-1"', "Shrink in height"],
+  ["Y+", 'data-nz="size:1:1"', "Grow in height"],
+  ["Z−", 'data-nz="size:2:-1"', "Shrink along z"],
+  ["Z+", 'data-nz="size:2:1"', "Grow along z"],
+])}
+${nzRow("Move", [
+  ["W", 'data-nzmove="-1,0,0"', "Move west a cell"],
+  ["E", 'data-nzmove="1,0,0"', "Move east a cell"],
+  ["N", 'data-nzmove="0,0,-1"', "Move north a cell"],
+  ["S", 'data-nzmove="0,0,1"', "Move south a cell"],
+  ["Up", 'data-nzmove="0,1,0"', "Move up a level"],
+  ["Dn", 'data-nzmove="0,-1,0"', "Move down a level"],
+])}
+${nzRow("Aim", [
+  ["↺ 45°", 'data-nz="yaw:1"', "Turn the heading 45° anticlockwise"],
+  ["↻ 45°", 'data-nz="yaw:-1"', "Turn the heading 45° clockwise"],
+  ["Tilt up", 'data-nz="pitch:1"', "Tilt the heading up 15°"],
+  ["Tilt dn", 'data-nz="pitch:-1"', "Tilt the heading down 15°"],
+])}
+${nzRow("Speed", [
+  ["Slower", 'data-nz="speed:-1"', "Lower the minimum speed 0.05 m/s"],
+  ["Faster", 'data-nz="speed:1"', "Raise the minimum speed 0.05 m/s"],
+])}
+${nzRow("Push", [
+  ["Softer", 'data-nz="accel:-1"', "Lower the push 0.25 m/s²"],
+  ["Stronger", 'data-nz="accel:1"', "Raise the push 0.25 m/s², at most 2 m/s²"],
+])}</div>
+<div class="acts"><button class="btn" data-k="gDelete">${icon("del")}Delete zone <kbd>⌫</kbd></button></div>
+<p class="note">Invisible in a run. A marble inside moving slower than the min speed along the arrow is pushed up to it, never harder than the max push. Arrows and PgUp/PgDn move it, R turns it.</p>`;
+
+  let nzKey = "";
+  const renderNudges = (s: EditorDiag): void => {
+    const n = s.nudges;
+    const key = n
+      ? `${s.edits}|${n.count}|${n.selected}|${s.selection}|${n.zones.map((z) => `${z.cell}|${z.yawMdeg}|${z.minSpeedUmS}`).join(";")}`
+      : "none";
+    if (key === nzKey) return;
+    nzKey = key;
+    nzSec.hidden = !n;
+    if (!n) return;
+    nzHead.textContent = n.count === 0 ? "none" : String(n.count);
+    nzAddBtn.title =
+      s.selection > 0
+        ? "Add a zone over the selected pieces' cells"
+        : "Add a one-cell zone at the camera's centre (select pieces first to cover them)";
+    nzWhere.textContent = s.selection > 0 ? "over the selection" : "at the camera's centre";
+    if (n.count === 0) {
+      nzList.innerHTML = `<p class="note">Invisible boxes that push slow marbles along an arrow, to carry them past a weak spot. Drawn here only while editing, never in a run.</p>`;
+      return;
+    }
+    nzList.innerHTML =
+      n.zones
+        .map((z) => {
+          const on = z.index === n.selected && s.selection === 0;
+          return `<div class="iss${on ? " on" : ""}"><i class="pin${on ? "" : " bl"}"></i><i>${cellText(z.cell)}</i><button data-nzsel="${z.index}" aria-label="Select ${esc(nudgeName(z))}">${on ? "Selected" : "Select"}</button><span>${esc(nudgeName(z))} · ${esc(nudgeHeadingText(z.yawMdeg, z.pitchMdeg))} · ${nudgeSpeedText(z.minSpeedUmS)}</span></div>`;
+        })
+        .join("") + (n.count > n.zones.length ? `<p class="note">and ${n.count - n.zones.length} more</p>` : "");
+  };
+
   let selKey = "";
   const renderSelection = (s: EditorDiag): void => {
-    const key = `${s.edits}|${s.selection}|${s.selected.join(";")}|${s.pieces}|${s.hoppers}|${s.finishes}|${s.tool}|${s.brush.piece}|${s.brush.yaw}|${s.brush.mirror}|${confirmDelete}|${deletedNote}`;
+    const zone = selectedZone(s);
+    const key = `${s.edits}|${s.selection}|${s.selected.join(";")}|${s.pieces}|${s.hoppers}|${s.finishes}|${s.tool}|${s.brush.piece}|${s.brush.yaw}|${s.brush.mirror}|${confirmDelete}|${deletedNote}|${zone ? JSON.stringify(zoneOf(zone)) + zone.index : ""}`;
     if (key === selKey) return;
     selKey = key;
     const info = s.selectionInfo;
+    if (zone && !confirmDelete) {
+      selSec.innerHTML = zoneInspector(zone);
+      return;
+    }
     if (s.pieces === 0 && !deletedNote) {
       selSec.innerHTML = `<h2><span class="sc">Start here</span></h2>
 <ol class="steps"><li${s.hoppers ? ' class="done"' : ""}><span>Place a <b>Hopper</b>: Mechanisms, first tile. It holds the marbles.</span></li>
@@ -1025,6 +1173,28 @@ ${groupActs}
     ghostRun.setAttribute("d", run);
   };
 
+  let nzGhostKey = "";
+  const renderNudgeGhost = (s: EditorDiag): void => {
+    const zones = s.run.active || s.run.building === true ? [] : (s.nudges?.zones ?? []);
+    const sel = selectedZone(s)?.index ?? null;
+    const part = (pick: boolean, f: (z: NudgeZoneDiag) => string): string =>
+      zones
+        .filter((z) => (z.index === sel) === pick)
+        .map(f)
+        .join("");
+    const boxes = part(false, (z) => boxPath(z.outline));
+    const arrows = part(false, (z) => arrowPath(z.arrow));
+    const selBox = part(true, (z) => boxPath(z.outline));
+    const selArrow = part(true, (z) => arrowPath(z.arrow));
+    const k = `${boxes}|${arrows}|${selBox}|${selArrow}`;
+    if (k === nzGhostKey) return;
+    nzGhostKey = k;
+    nzBoxes.setAttribute("d", boxes);
+    nzArrows.setAttribute("d", arrows);
+    nzSelBox.setAttribute("d", selBox);
+    nzSelArrow.setAttribute("d", selArrow);
+  };
+
   let capKey = "";
   let fadeKey = "";
   const renderRun = (s: EditorDiag): void => {
@@ -1123,9 +1293,11 @@ ${groupActs}
     renderSelection(next);
     renderValidation(next);
     renderCheck(next);
+    renderNudges(next);
     renderHint(next);
     renderTip(next);
     renderGhost(next);
+    renderNudgeGhost(next);
     renderRun(next);
     renderMarqueeLabel(next);
   };
