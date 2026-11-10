@@ -108,7 +108,7 @@ parble-sim-wasm ──► parble-procgen, parble-sim   (wasm-bindgen worker buil
 
 - Fixed 240 Hz step. Rapier's length unit is tuned to the cell. Marbles use CCD.
 - Pieces in a chunk merge into one trimesh with `FIX_INTERNAL_EDGES` so marbles never bump at seams. A chunk rebuilds when the track is edited.
-- Mechanisms (toggle, splitter, one-way gate, one-way hole, checkpoint, hopper) are **kinematic**: sensors detect the marble, a state machine decides the outcome (the splitter uses the seeded RNG), and an animated flap with a kinematic collider routes the marble.
+- Mechanisms (toggle, splitter, one-way gate, one-way hole, checkpoint, hopper) are **kinematic**: sensors detect the marble, a state machine decides the outcome (the splitter uses the seeded RNG in Random mode and alternates in Alternate mode), and an animated flap with a kinematic collider routes the marble.
 - The redirect drop uses real internal tunnel geometry. The marble never teleports.
 - Controlled free falls are allowed (owner ruling 2026-11-08): a marble may leave a port and fall a short way if its landing is controlled, for example into a catcher, funnel, cup or channel entry below. The validator treats such a drop as a link, not an open port, when the landing piece is within the allowed fall height and horizontal tolerance of the predicted trajectory. A launcher or catapult piece is planned later.
 - Channel floors that a marble rolls or lands on (bends, slopes, joiners, redirect and tower landings) use exact analytic contacts instead of the faceted trimesh, so seams stay under the seam bump limits.
@@ -217,7 +217,7 @@ Scope: the full MVP piece set from Blender generators, with collision sidecars a
 6. Steep slope
 7. Drop hole (vertical port down)
 8. Redirect drop (internal tunnel, exits sideways one level lower)
-9. Random splitter (seeded)
+9. Splitter with a per-piece mode the player switches in the editor: Random (seeded, the default) or Alternate (left/right in turn, like the toggle)
 10. Joiner
 11. L/R toggle (flip-flop)
 12. Checkpoint arch (sensor, split timer, camera cue)
@@ -235,7 +235,7 @@ Look: every moving part of a mechanism (flaps, blades, trapdoors, gates, slats) 
 
 Acceptance:
 - [ ] Every piece passes kit-check: ports match the contract, collider and LODs are present, provenance is recorded.
-- [ ] A scripted sim test per mechanism proves the routing behaviour (toggle alternates, splitter matches the seeded sequence, one-way pieces block reverse travel).
+- [ ] A scripted sim test per mechanism proves the routing behaviour (toggle alternates, splitter matches the seeded sequence in Random mode and alternates in Alternate mode, one-way pieces block reverse travel).
 - [ ] A test track using every piece runs 10 marbles to the finish deterministically.
 
 ### P3 — Editor and persistence
