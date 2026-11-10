@@ -355,10 +355,11 @@ pub fn fork_angle(side: Side) -> i32 {
 pub const FORK_SETTLE_TICKS: i64 = 24;
 /// Fork part travel time, ticks.
 pub const FORK_MOVE_TICKS: u32 = 24;
-/// Fork part travel time when a marble is in the blade's sweep ([`blade_sweep_occupied`]),
-/// ticks: the blade's tip moves at 0.05 m/s and eases the marble off the frog into the branch it
-/// was sent to, where the [`FORK_MOVE_TICKS`] swing threw it.
-pub const FORK_NUDGE_TICKS: u32 = 120;
+/// Fork blade speed while a marble is in the sector it still has to sweep
+/// ([`blade_sweep_occupied`]), millidegrees per tick: the tip moves at 0.05 m/s and eases the
+/// marble off the frog into the branch it was sent to, where the [`FORK_MOVE_TICKS`] swing threw
+/// it.
+pub const FORK_NUDGE_MDEG_PER_TICK: i32 = 533;
 
 /// The fork blade's reach from its hinge axis, m: the farthest vertex of either fork's blade
 /// collider is 24.02 mm from the pivot.
@@ -367,57 +368,67 @@ pub const FORK_BLADE_REACH_M: f32 = 0.0241;
 pub const FORK_BLADE_HALF_M: f32 = 0.002;
 /// The fork blade's height band above its pivot, m.
 pub const FORK_BLADE_SPAN_M: [f32; 2] = [0.0005, 0.014];
-/// Clearance kept between a marble and the blade's sweep, m: the contact reaches a marble before
-/// the shapes touch (a steel mini 0.1 mm beyond the tip's arc, rolling at 0.012 m/s, took a
-/// 0.58 m/s kick from the full-speed swing).
+/// Clearance kept between a marble and the blade's sweep when a move starts and while the blade
+/// eases, m: the contact reaches a marble before the shapes touch (a steel mini 0.1 mm beyond
+/// the tip's arc, rolling at 0.012 m/s, took a 0.58 m/s kick from the full-speed swing). A swing
+/// already under way slows only for a marble it would touch: the tip passes a glazed shooter
+/// arriving at 0.39 m/s 1.1 mm clear, where an easing blade stops in its path and throws it back
+/// up the entry (all-pieces track, seed 2).
 pub const FORK_BLADE_CLEAR_M: f32 = 0.002;
 
-/// Whether a marble is in, or during a [`FORK_MOVE_TICKS`] swing rolls into, the sector the fork
-/// blade (part 0) sweeps between its limits. The entry sensor (sensor 0) lies upstream of the
-/// hinge, where the blade's tip points.
+/// Whether a marble overlaps the sector the fork blade (part 0) still has to sweep, between
+/// angles `from` and `to` (millidegrees), with `clear` to spare. The entry sensor (sensor 0)
+/// lies upstream of the hinge, where the blade's tip points.
 ///
 /// The entry sensor ends 5 mm short of the blade tip, so a marble that leaves it is over the
 /// blade, and a slow one is still there [`FORK_SETTLE_TICKS`] later. The kinematic blade's full
 /// speed swing into a steel mini rocking on the frog at 0.14 m/s threw it out of the cell at
-/// 1.2 m/s (all-pieces track, seeds 6 and 7, 2026-11-10).
-fn blade_sweep_occupied(ctx: &MechContext<'_>) -> bool {
-    (0..ctx.marble_count()).any(|m| in_blade_sweep(ctx, m))
+/// 1.2 m/s (all-pieces track, seeds 6 and 7, 2026-11-10). Only marbles there now count: easing
+/// for one still rolling in parks the blade in its path (a following marble bounced off a toggle
+/// and rolled back up through the one above it, which counted it twice; seeds 3, 4 and 9).
+fn blade_sweep_occupied(ctx: &MechContext<'_>, from: i32, to: i32, clear: f32) -> bool {
+    (0..ctx.marble_count()).any(|m| blade_covers(ctx, m, from.min(to), from.max(to), clear))
 }
 
-/// Whether marble `m` is in the fork blade's sweep now or on its present course during a
-/// [`FORK_MOVE_TICKS`] swing ([`blade_sweep_occupied`]).
-fn in_blade_sweep(ctx: &MechContext<'_>, m: usize) -> bool {
-    let (Some((pivot, axis, _)), Some([lo, hi]), Some((smin, smax)), Some((p, v, r))) = (
-        ctx.part_hinge(0),
-        ctx.part_limits(0),
-        ctx.sensor_bounds(0),
-        ctx.marble_body(m),
-    ) else {
+/// Whether marble `m` overlaps the sector the fork blade (part 0) covers between angles `lo` and
+/// `hi` (millidegrees), with `clear` to spare. The blade is a capsule of [`FORK_BLADE_HALF_M`]
+/// radius from the hinge axis out to [`FORK_BLADE_REACH_M`], within [`FORK_BLADE_SPAN_M`].
+fn blade_covers(ctx: &MechContext<'_>, m: usize, lo: i32, hi: i32, clear: f32) -> bool {
+    let (Some((pivot, axis, _)), Some((smin, smax)), Some((p, _, r))) =
+        (ctx.part_hinge(0), ctx.sensor_bounds(0), ctx.marble_body(m))
+    else {
         return false;
     };
-    let limit = lo.abs().max(hi.abs()) as f32 * (core::f32::consts::PI / 180_000.0);
+    let rad = core::f32::consts::PI / 180_000.0;
     let to_entry = (smin + smax) * 0.5 - pivot;
     let up = (to_entry - axis * to_entry.dot(axis)).normalize();
     let side = axis.cross(up);
-    let r = r + FORK_BLADE_CLEAR_M;
-    let swing = FORK_MOVE_TICKS as f32 * crate::DT;
-    (0..=4).any(|k| {
-        let d = p + v * (swing * k as f32 / 4.0) - pivot;
-        let dy = d.dot(axis);
-        if dy < FORK_BLADE_SPAN_M[0] - r || dy > FORK_BLADE_SPAN_M[1] + r {
-            return false;
-        }
-        let (along, across) = (d.dot(up), d.dot(side));
-        let rho = libm::sqrtf(along * along + across * across);
-        let near = r + FORK_BLADE_HALF_M;
-        if rho <= near {
-            return true;
-        }
-        if rho > FORK_BLADE_REACH_M + r {
-            return false;
-        }
-        libm::atan2f(libm::fabsf(across), along) <= limit + libm::asinf(near / rho)
-    })
+    let r = r + clear;
+    let d = p - pivot;
+    let dy = d.dot(axis);
+    if dy < FORK_BLADE_SPAN_M[0] - r || dy > FORK_BLADE_SPAN_M[1] + r {
+        return false;
+    }
+    let (along, across) = (d.dot(up), d.dot(side));
+    let (near, length) = (
+        r + FORK_BLADE_HALF_M,
+        FORK_BLADE_REACH_M - FORK_BLADE_HALF_M,
+    );
+    let phi = libm::atan2f(across, along);
+    let (lo, hi) = (lo as f32 * rad, hi as f32 * rad);
+    if phi >= lo && phi <= hi {
+        return libm::sqrtf(along * along + across * across) <= length + near;
+    }
+    // Outside the swept angles the nearest blade pose is the one at the closer end.
+    let edge = if libm::fabsf(phi - lo) < libm::fabsf(phi - hi) {
+        lo
+    } else {
+        hi
+    };
+    let (u, w) = (libm::cosf(edge), libm::sinf(edge));
+    let t = (along * u + across * w).clamp(0.0, length);
+    let (ex, ey) = (along - t * u, across - t * w);
+    ex * ex + ey * ey <= near * near
 }
 
 /// Shared fork state: the side set for the next marble and a pending move.
@@ -432,6 +443,9 @@ struct Fork {
     /// sweep: a marble rocking across the sensor's edge leaves it again, and is not counted
     /// twice.
     held: Option<usize>,
+    /// The blade's goal while it moves there, and whether it is easing past a marble.
+    target: Option<i32>,
+    slow: bool,
 }
 
 impl Fork {
@@ -442,6 +456,8 @@ impl Fork {
             ("passes".to_owned(), self.passes),
             ("move_at".to_owned(), self.move_at),
             ("held".to_owned(), self.held.map_or(-1, |m| m as i64)),
+            ("target".to_owned(), self.target.map_or(i64::MIN, i64::from)),
+            ("slow".to_owned(), i64::from(self.slow)),
         ])
     }
 
@@ -451,6 +467,8 @@ impl Fork {
         self.passes = get(state, "passes");
         self.move_at = state.get("move_at").copied().unwrap_or(-1);
         self.held = state.get("held").and_then(|&m| usize::try_from(m).ok());
+        self.target = state.get("target").and_then(|&a| i32::try_from(a).ok());
+        self.slow = get(state, "slow") != 0;
     }
 
     /// One tick: `next` picks the side for the coming marble; `angle` maps a side to the part.
@@ -479,23 +497,52 @@ impl Fork {
             self.side = next(ctx, self.side);
             self.move_at = t + FORK_SETTLE_TICKS;
         }
-        if self.move_at >= 0 && t >= self.move_at {
+        let starting = self.move_at >= 0 && t >= self.move_at;
+        if starting {
             self.move_at = -1;
             let to = angle(self.side);
-            if blade_sweep_occupied(ctx) {
-                // The full-speed command overshoots the limit; aim at it so the ramp is even.
-                let [lo, hi] = ctx.part_limits(0).unwrap_or([to, to]);
-                ctx.move_part(0, to.clamp(lo, hi), FORK_NUDGE_TICKS);
-            } else {
-                ctx.move_part(0, to, FORK_MOVE_TICKS);
-            }
+            let [lo, hi] = ctx.part_limits(0).unwrap_or([to, to]);
+            self.target = Some(to.clamp(lo, hi));
+            self.slow = false;
+            ctx.move_part(0, to, FORK_MOVE_TICKS);
             ctx.emit("set", self.side);
         }
+        self.drive(ctx, angle(self.side), starting);
         if let Some(m) = self.held
             && !ctx.sensor(0).is_some_and(|s| s.occupants.contains(&m))
-            && !in_blade_sweep(ctx, m)
+            && !ctx
+                .part_limits(0)
+                .is_some_and(|[lo, hi]| blade_covers(ctx, m, lo, hi, FORK_BLADE_CLEAR_M))
         {
             self.held = None;
+        }
+    }
+
+    /// Re-check the blade's move to `target` each tick: it eases at [`FORK_NUDGE_MDEG_PER_TICK`]
+    /// while a marble is in the sector it still has to sweep ([`blade_sweep_occupied`]), and
+    /// swings at full speed toward `command` otherwise.
+    fn drive(&mut self, ctx: &mut MechContext<'_>, command: i32, starting: bool) {
+        let (Some(target), Some(at)) = (self.target, ctx.part_angle(0)) else {
+            return;
+        };
+        if at == target {
+            self.target = None;
+            self.slow = false;
+            return;
+        }
+        let clear = if starting || self.slow {
+            FORK_BLADE_CLEAR_M
+        } else {
+            0.0
+        };
+        let occupied = blade_sweep_occupied(ctx, at, target, clear);
+        if occupied && !self.slow {
+            self.slow = true;
+            let left = (target - at).unsigned_abs();
+            ctx.move_part(0, target, left.div_ceil(FORK_NUDGE_MDEG_PER_TICK as u32));
+        } else if !occupied && self.slow {
+            self.slow = false;
+            ctx.move_part(0, command, FORK_MOVE_TICKS);
         }
     }
 }

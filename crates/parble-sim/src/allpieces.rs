@@ -556,20 +556,20 @@ mod tests {
     /// (`chunk::ChannelStraight::end_of`):
     ///
     /// - Mini and standard of every spec: all 10 in the cups, through every piece.
-    /// - Shooter cat's eye family: 7 of 10 in the cups. Marble 4 is at rest in the end stop
+    /// - Shooter cat's eye family: 8 of 10 in the cups. Marble 4 is at rest in the end stop
     ///   [19, 1, −7]: it falls from the gate's port with little `−x` speed onto the level transfer
-    ///   3 straight and rolls back against the stop. Marble 7 is on the layer-0 straight [16, 0, −7]
-    ///   and marble 9 on the gate [19, 2, −7].
-    /// - Shooter glazed: 2 of 10 in the cups. Marble 3 stops in the layer-4 toggle's `+z` branch
-    ///   [9, 4, −4] and marbles 4–9 queue behind it back to the redirect [7, 5, −5]; marble 2 is on
-    ///   the transfer 3 straight [18, 1, −7].
-    /// - Shooter steel: 8 of 10 in the cups, marble 8 in the layer-4 toggle's `−z` branch
-    ///   [9, 4, −6] and marble 9 in the toggle [9, 4, −5].
+    ///   3 straight and rolls back against the stop. Marble 9 is on the gate [19, 2, −7], still
+    ///   rolling at 0.112 m/s when the run ends.
+    /// - Shooter glazed: 8 of 10 in the cups, marble 4 at rest in the end stop, marble 9 on the
+    ///   hole still rolling at 0.127 m/s.
+    /// - Shooter steel: 8 of 10 in the cups, marble 7 at rest in the end stop, marble 9 on the
+    ///   hole still rolling at 0.111 m/s.
     ///
-    /// Since the fork blade eases a marble in its sweep off the frog instead of swinging into it
-    /// at full speed (`behaviour::FORK_NUDGE_TICKS`, PHYSICS_VERSION 10, 2026-11-10), shooters
-    /// leave the layer-4 toggle slower than the swing threw them, and a glazed shooter stops in
-    /// its branch. Before, the shooters were 8 of 10 in the cups for every spec.
+    /// Since the fork blade eases past a marble in the sector it still has to sweep instead of
+    /// swinging into it at full speed (`behaviour::FORK_NUDGE_MDEG_PER_TICK`, PHYSICS_VERSION 10,
+    /// 2026-11-10), steel's marble 8 reaches a cup and marble 7 stops in the end stop; before,
+    /// marble 8 was in the toggle [15, 0, −7] at 0.013 m/s and marble 9 at rest on the transfer 1
+    /// straight [0, 6, −6]. Cat's eye and glazed are unchanged.
     ///
     /// Before the dead pad (measured 2026-11-09) standard glazed had 4 of 10 in the cups, the
     /// other six at rest in a queue on the level `L1` run from the gate's flap back to the
@@ -608,17 +608,8 @@ mod tests {
                 Ok(()),
                 Ok(()),
                 Err(Failure::Short {
-                    cups: vec![1, 0, 1, 0],
-                    stuck: vec![
-                        (2, Some(41)),
-                        (3, Some(17)),
-                        (4, Some(16)),
-                        (5, Some(16)),
-                        (6, Some(15)),
-                        (7, Some(15)),
-                        (8, Some(14)),
-                        (9, Some(14)),
-                    ],
+                    cups: vec![2, 2, 2, 2],
+                    stuck: vec![(4, Some(51)), (9, Some(39))],
                 }),
             ]
         } else if kind.spec() == MarbleKind::Steel.spec() {
@@ -627,7 +618,7 @@ mod tests {
                 Ok(()),
                 Err(Failure::Short {
                     cups: vec![2, 1, 2, 3],
-                    stuck: vec![(8, Some(19)), (9, Some(16))],
+                    stuck: vec![(7, Some(51)), (9, Some(39))],
                 }),
             ]
         } else {
@@ -636,8 +627,8 @@ mod tests {
                 Ok(()),
                 Ok(()),
                 Err(Failure::Short {
-                    cups: vec![1, 1, 3, 2],
-                    stuck: vec![(4, Some(51)), (7, Some(43)), (9, Some(40))],
+                    cups: vec![2, 2, 2, 2],
+                    stuck: vec![(4, Some(51)), (9, Some(40))],
                 }),
             ]
         }

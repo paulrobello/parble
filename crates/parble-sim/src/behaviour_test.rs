@@ -1116,8 +1116,8 @@ fn toggle_swing_kicks(limit: f32) -> Vec<SwingMiss> {
 /// the blade's sweep: 100 of these 1,080 runs took a kick of up to 0.87 m/s in one tick (glazed
 /// mini at 0.05 m/s, 4.25 mm off centre). On the all-pieces track at seeds 6 and 7 the layer-0
 /// toggle at [15, 0, -8] threw a steel mini rocking on its frog at 0.14 m/s out of the cell at
-/// 1.2 m/s (2026-11-10). The blade now swings over [`FORK_NUDGE_TICKS`] when a marble is in its
-/// sweep ([`blade_sweep_occupied`]).
+/// 1.2 m/s (2026-11-10). The blade now eases at [`FORK_NUDGE_MDEG_PER_TICK`] while a marble is
+/// in the sector it still has to sweep ([`blade_sweep_occupied`]).
 #[test]
 fn toggle_blade_never_swings_into_a_marble() {
     for k in MarbleKind::ALL {
