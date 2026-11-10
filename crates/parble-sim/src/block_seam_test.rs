@@ -1306,6 +1306,16 @@ fn tower_drop_stays_on_the_rails_for_glazed_and_steel() {
     // contacts' rest height, the CCD triangle filter and the socket's port-plane cap all as at
     // 537822f, the same run stops at x -0.033 m and glazed 0.400 m/s 2 mm off stalls too: the
     // landing's bounce sensitivity predates those changes.
+    //
+    // The run needs about 0.085 m/s at the joint to pass -0.21 m (rolling resistance 14 mm/s^2).
+    // Exit speed at the joint over the sweep (`tower_exit_speeds`, measured 2026-11-09): min
+    // 0.083 cat's eye, 0.118 glazed, 0.078 steel. A marble landing d mm off the channel axis
+    // meets the floor tilted asin(d / 6 mm), so even 1 mm turns 1.2 m/s of fall into about
+    // 0.3 m/s sideways. Two prototypes changed only the exact contact (the mesh stayed round):
+    // a 3 mm flat floor under the shaft raised the minimum to 0.124-0.131 m/s with none
+    // off the rails, and a 6 % pad to 0.099-0.103, but both made the all-pieces sweep worse
+    // (32 of 72 runs Ok to 15 and 13), so neither shipped. A flat landing floor needs the
+    // generator and the exact contact changed together.
     let mut off = Vec::new();
     for kind in [MarbleKind::Glazed, MarbleKind::Steel] {
         let control = Control {
@@ -1326,4 +1336,40 @@ fn tower_drop_stays_on_the_rails_for_glazed_and_steel() {
         }
     }
     assert!(off.is_empty(), "off the rails: {off:?}");
+}
+
+/// Speed crossing the rail joint's centre (x = 0) in a [`tower_run`] trace, m/s.
+fn tower_exit_speed(tr: &[MarbleState]) -> f32 {
+    tr.windows(2)
+        .find(|w| w[0].position[0] > 0.0 && w[1].position[0] <= 0.0 && w[1].position[1] < 0.06)
+        .map_or(0.0, |w| w[1].linvel[0].hypot(w[1].linvel[2]))
+}
+
+/// Diagnostic, not a gate: the tower sweep's exit speed at the rail joint's centre and peak
+/// sideways speed per marble spec
+/// (`cargo test -p parble-sim --release tower_exit_speeds -- --ignored --nocapture`).
+#[test]
+#[ignore]
+fn tower_exit_speeds() {
+    for kind in [MarbleKind::CatsEye, MarbleKind::Glazed, MarbleKind::Steel] {
+        let control = Control {
+            marble: Some(kind.spec()),
+            ..Control::default()
+        };
+        let (mut lo, mut side, mut off) = (f32::MAX, 0.0f32, 0);
+        let mut all = Vec::new();
+        for (v, dz) in tower_sweep() {
+            let (s, on, tr) = tower_run(v, dz, &control);
+            let e = tower_exit_speed(&tr);
+            all.push(format!("{e:.3}"));
+            lo = lo.min(e);
+            side = side.max(s);
+            off += usize::from(!on);
+        }
+        println!(
+            "TOWER {}: exit min {lo:.3} m/s, peak sideways {side:.3}, off {off}; exits {}",
+            kind.name(),
+            all.join(" ")
+        );
+    }
 }

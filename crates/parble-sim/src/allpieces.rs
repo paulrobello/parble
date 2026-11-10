@@ -554,17 +554,24 @@ mod tests {
     /// - Mini and standard cat's eye family, mini glazed, mini and standard steel: all 10 in the
     ///   cups, through every piece.
     /// - Shooter cat's eye family: 6 of 10 in the cups. Marbles 4 and 6 are at rest in the end stop
-    ///   [19, 1, −7], marble 8 in the transfer 3 straight [18, 1, −7] and marble 9 on the one-way
-    ///   hole [20, 2, −7], short of the gate.
+    ///   [19, 1, −7] and marble 8 in the transfer 3 straight [18, 1, −7]: they fall from the gate's
+    ///   port with little `−x` speed onto that level straight and stop on it, about 70 mm short of
+    ///   the redirect's bowl, or roll back against the end stop. Marble 9 is on the one-way hole
+    ///   [20, 2, −7] but still rolling at 0.114 m/s when the run ends: the last shooter has not
+    ///   finished in 30 s, which is run length, not a fault on the hole.
     /// - Standard glazed: 4 of 10 in the cups. The other six are at rest in a queue on the level
     ///   `L1` run: the first, marble 4, against the gate's flap (its centre at x = 1.172 m, inside
     ///   the gate's cell, 1.14–1.20 m), four more touching behind it on the hole and marble 9 on
-    ///   the checkpoint. The tower landing sends glazed marbles out slowly
-    ///   (`block_seam_test::tower_drop_stays_on_the_rails_for_glazed_and_steel`), and the first
-    ///   one reaches the gate, now the last piece of that run, too slowly to push its flap open.
+    ///   the checkpoint. The cause is the tower landing, not the flap: marble 4 crossed the joint
+    ///   at 0.077 m/s and the hole at 0.024 m/s, where the marbles that passed crossed the joint at
+    ///   0.13–0.17 m/s, and halving the flap's closing torque left glazed standard queued at every
+    ///   seed it queued at before (measured 2026-11-09). A marble landing off centre on the
+    ///   round landing floor turns its fall sideways (up to 0.76 m/s in the socket's cell on this
+    ///   run), rattles across the pad and the descent and can leave the descent at 0.017 m/s
+    ///   (seed 6, marble 0, which stopped 18 mm past the socket face).
     /// - Shooter glazed: 8 of 10 in the cups, marble 8 at rest in the end stop, marble 9 on the
-    ///   hole.
-    /// - Shooter steel: 9 of 10 in the cups, marble 9 at rest on the hole.
+    ///   hole still rolling at 0.110 m/s.
+    /// - Shooter steel: 9 of 10 in the cups, marble 9 on the hole still rolling at 0.108 m/s.
     ///
     /// The run is chaotic past the splitter: a change anywhere (the channel contacts' rest
     /// height, the CCD sweep, a kit piece's collision, a placement) moves which marbles collide
@@ -658,6 +665,141 @@ mod tests {
                 }),
             ],
         );
+    }
+
+    /// Diagnostic, not a gate: the outcome of every marble spec at every size at seeds 2–9
+    /// (`cargo test -p parble-sim --release seed_sweep -- --ignored --nocapture`;
+    /// `PARBLE_SWEEP_SEEDS=2,4` narrows the seeds, `PARBLE_SWEEP_KINDS=glazed` the specs).
+    #[test]
+    #[ignore]
+    fn seed_sweep() {
+        let seeds: Vec<u64> = std::env::var("PARBLE_SWEEP_SEEDS").map_or((2..=9).collect(), |s| {
+            s.split(',').map(|x| x.parse().unwrap()).collect()
+        });
+        let kinds = std::env::var("PARBLE_SWEEP_KINDS").unwrap_or_default();
+        let mut tally: BTreeMap<String, usize> = BTreeMap::new();
+        for seed in seeds {
+            for kind in [MarbleKind::CatsEye, MarbleKind::Glazed, MarbleKind::Steel] {
+                if !kinds.is_empty() && !kinds.split(',').any(|k| k == kind.name()) {
+                    continue;
+                }
+                for size in [MarbleSize::Mini, MarbleSize::Standard, MarbleSize::Shooter] {
+                    let mut t = track_sized(size);
+                    t.seed = seed;
+                    let got = check_run(TrackRun::with_marble(&t, kind).unwrap());
+                    let class = match &got {
+                        Ok(_) => "Ok",
+                        Err(Failure::FellOff { .. }) => "FellOff",
+                        Err(Failure::Short { .. }) => "Short",
+                        Err(Failure::Other(_)) => "Other",
+                    };
+                    *tally.entry(class.into()).or_default() += 1;
+                    println!("SWEEP seed {seed} {} {size:?}: {got:?}", kind.name());
+                    if class != "Ok" {
+                        // Final speed of each stuck marble, and any entry into the support pillar.
+                        let owners = cell_owners();
+                        let mut run = TrackRun::with_marble(&t, kind).unwrap();
+                        let mut pillar = BTreeSet::new();
+                        for _ in 0..RUN_TICKS {
+                            run.tick(1);
+                            for (m, st) in run.marbles().iter().enumerate() {
+                                if owners.get(&cell_of(st.position)) == Some(&SUPPORT) {
+                                    pillar.insert(m);
+                                }
+                            }
+                        }
+                        let speeds: Vec<String> = match &got {
+                            Err(Failure::Short { stuck, .. }) => stuck
+                                .iter()
+                                .map(|&(m, _)| {
+                                    let v = run.marbles()[m].linvel;
+                                    format!(
+                                        "{m}:{:.4}",
+                                        (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt()
+                                    )
+                                })
+                                .collect(),
+                            _ => Vec::new(),
+                        };
+                        println!("SWEEP   final speeds {speeds:?}, pillar entries {pillar:?}");
+                    }
+                }
+            }
+        }
+        println!("SWEEP tally {tally:?}");
+    }
+
+    /// Diagnostic, not a gate: per marble on the layer-2 `L1` run, the peak sideways speed in the
+    /// tower socket's cell and the speed crossing the joint, checkpoint, hole and gate centres
+    /// (`PARBLE_L1_KIND=glazed PARBLE_L1_SIZE=standard cargo test -p parble-sim --release
+    /// l1_run_speeds -- --ignored --nocapture`).
+    #[test]
+    #[ignore]
+    fn l1_run_speeds() {
+        let kind = std::env::var("PARBLE_L1_KIND").map_or(MarbleKind::Glazed, |k| {
+            *MarbleKind::ALL.iter().find(|m| m.name() == k).unwrap()
+        });
+        let size = std::env::var("PARBLE_L1_SIZE").map_or(MarbleSize::Standard, |k| {
+            *[MarbleSize::Mini, MarbleSize::Standard, MarbleSize::Shooter]
+                .iter()
+                .find(|m| format!("{m:?}").to_lowercase() == k)
+                .unwrap()
+        });
+        let mut t = track_sized(size);
+        t.seed = std::env::var("PARBLE_L1_SEED").map_or(SEED, |s| s.parse().unwrap());
+        let trace: Option<usize> = std::env::var("PARBLE_L1_TRACE")
+            .ok()
+            .map(|s| s.parse().unwrap());
+        let mut run = TrackRun::with_marble(&t, kind).unwrap();
+        let mut tick = 0u32;
+        let cell = crate::scene::cell_m();
+        let marks = [23.0, 21.0, 20.0, 19.0].map(|c: f32| c * cell);
+        let mut side = [0.0f32; MARBLES];
+        let mut seen = [[f32::NAN; 4]; MARBLES];
+        let mut prev: Vec<[f32; 3]> = Vec::new();
+        for _ in 0..RUN_TICKS {
+            run.tick(1);
+            tick += 1;
+            let ms = run.marbles();
+            if let Some(tm) = trace
+                && let Some(s) = ms.get(tm)
+                && tick.is_multiple_of(12)
+                && (1.0..1.5).contains(&s.position[0])
+                && s.position[1] > 0.1
+                && s.position[1] < 0.2
+            {
+                println!("TRACE {tick} {:?} {:?}", s.position, s.linvel);
+            }
+            for (m, s) in ms.iter().enumerate() {
+                let [x, y, _] = s.position;
+                let on2 = (2.0 * cell..3.0 * cell).contains(&y);
+                if on2 && (x - 24.0 * cell).abs() < 0.5 * cell {
+                    side[m] = side[m].max(s.linvel[2].abs());
+                }
+                if let Some(p) = prev.get(m) {
+                    for (k, &mx) in marks.iter().enumerate() {
+                        if on2 && p[0] > mx && x <= mx && seen[m][k].is_nan() {
+                            seen[m][k] = (s.linvel[0].powi(2) + s.linvel[2].powi(2)).sqrt();
+                        }
+                    }
+                }
+            }
+            prev = ms.iter().map(|s| s.position).collect();
+        }
+        for m in 0..MARBLES {
+            println!(
+                "L1 {} {size:?} marble {m}: socket sideways {:.3}, joint {:.3}, checkpoint {:.3}, \
+                 hole {:.3}, gate {:.3}, end {:?}",
+                kind.name(),
+                side[m],
+                seen[m][0],
+                seen[m][1],
+                seen[m][2],
+                seen[m][3],
+                run.marbles().get(m).map(|s| s.position)
+            );
+        }
+        println!("cups {:?}", finish_counts(&run));
     }
 
     #[test]
