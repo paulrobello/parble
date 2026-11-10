@@ -136,6 +136,10 @@ function storageOf(win: Window): Storage | null {
 
 export interface AudioHandle {
   consume(frame: AudioFrame): void;
+  /** Apply mixer settings live (the title's Settings; the caller stores them). */
+  setMixer(s: MixerSettings): void;
+  /** Hold the music on one state (the title), or `null` to follow the director again. */
+  musicForce(state: MusicState | "off" | null): void;
 }
 
 export function startAudio(win: Window): AudioHandle {
@@ -366,6 +370,11 @@ export function startAudio(win: Window): AudioHandle {
     if (running) readMeter();
   };
 
+  const musicForce = (state: MusicState | "off" | null): void => {
+    forced = diag.music.forced = state;
+    if (state) player?.setState(state);
+  };
+
   win.__parbleAudio = {
     stats: () => ({
       ...diag,
@@ -375,10 +384,7 @@ export function startAudio(win: Window): AudioHandle {
       ...(ctx ? { sampleRate: ctx.sampleRate } : {}),
     }),
     musicSeek: (s) => player?.seek(s) ?? false,
-    musicForce: (state) => {
-      forced = diag.music.forced = state;
-      if (state) player?.setState(state);
-    },
+    musicForce: (state) => musicForce(state),
     musicLevel: () => {
       if (!analyser) return 0;
       const buf = new Float32Array(analyser.fftSize);
@@ -426,5 +432,7 @@ export function startAudio(win: Window): AudioHandle {
     consume: (frame) => {
       if (!diag.injected) feed(frame);
     },
+    setMixer: applyMixer,
+    musicForce,
   };
 }

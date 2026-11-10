@@ -6,12 +6,30 @@ import { mountFiles } from "./files";
 import { applyEvents, controlsHint, emptyHud, formatHud, mountControlsHint, mountHud } from "./hud";
 import { Library } from "./library";
 import { mountFlyPointerLock } from "./pointer-lock";
+import { titleWanted } from "./title/store";
+import { type TitleHandle, mountTitle } from "./title/title";
 
 declare global {
   interface Window {
     wasmBindings?: WasmBindings;
+    /** The title screen's test hook (P5-T3), present while the title is shown. */
+    __parbleTitle?: TitleHandle;
   }
 }
+
+function storageOf(win: Window): Storage | null {
+  try {
+    return win.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+// The title (P5-T3) shows on a bare load or with title=1, before the wasm is up; any agent switch skips it.
+const title = titleWanted(location.search)
+  ? mountTitle({ doc: document, win: window, storage: storageOf(window) })
+  : null;
+if (title) window.__parbleTitle = title;
 
 type CameraState = { mode?: string; flyOnly?: boolean; orbit?: Orbit };
 type ParbleState = { camera?: CameraState; editor?: EditorDiag };
@@ -45,6 +63,10 @@ function start(bindings: WasmBindings): void {
       : null;
   const files = editor ? null : mountFiles(document, (cmd) => bridge.post(cmd), library);
   const audio = startAudio(window);
+  if (title) {
+    title.setMixerSink(audio.setMixer);
+    if (new URLSearchParams(location.search).get("music") === null) audio.musicForce("title");
+  }
   let state = emptyHud();
   let shown = "";
   const frame = (): void => {

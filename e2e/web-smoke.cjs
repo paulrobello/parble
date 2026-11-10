@@ -24,7 +24,7 @@ const BAD_TEXT = (t) => /%cERROR%c|\bERROR\b/.test(t) || /uncaptured|invalid|pan
     server = spawn("python3", ["-m", "http.server", String(port), "--bind", "127.0.0.1",
       "--directory", path.resolve(__dirname, "../target/web-dist")], { stdio: "ignore" });
     await new Promise((r) => setTimeout(r, 800));
-    url = `http://127.0.0.1:${port}/`;
+    url = `http://127.0.0.1:${port}/?title=0`;
   }
   const errors = [];
   let code = 1;

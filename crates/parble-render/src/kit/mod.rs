@@ -1522,6 +1522,8 @@ mod tests {
             .split("href=\"assets/")
             .skip(1)
             .map(|s| s[..s.find('"').expect("closing quote")].to_owned())
+            // The title's key art and the social card (P5-T3) are page files, not kit files.
+            .filter(|p| !p.starts_with("keyart/"))
             .collect();
         shipped.sort();
         assert_eq!(shipped, fetchable_paths());

@@ -53,9 +53,10 @@ ui-test: $(UI_NPM)
 ui-build: $(UI_NPM)
 	cd $(UI) && ./node_modules/.bin/vite build
 	node scripts/web/stage-audio.mjs $(UI)/dist/audio
-	mkdir -p $(UI)/dist/fonts $(UI)/dist/thumbs
+	mkdir -p $(UI)/dist/fonts $(UI)/dist/thumbs/marbles
 	cp $(UI)/fonts/*.woff2 $(UI)/fonts/OFL.txt $(UI)/dist/fonts/
 	cp $(UI)/thumbs/*.png $(UI)/dist/thumbs/
+	cp $(UI)/thumbs/marbles/*.webp $(UI)/dist/thumbs/marbles/
 
 # Fast gate, fail-fast order: fmt → clippy (native + wasm32) → Biome/tsc → cargo test → Vitest → audio tests + provenance.
 checkall:

@@ -31,7 +31,7 @@ async function wd(method, p, body) {
     const sitePort = port + 1;
     server = spawn("python3", ["-m", "http.server", String(sitePort), "--bind", "127.0.0.1",
       "--directory", path.resolve(__dirname, "../target/web-dist")], { stdio: "ignore" });
-    url = `http://127.0.0.1:${sitePort}/`;
+    url = `http://127.0.0.1:${sitePort}/?title=0`;
   }
   let session = null, code = 1;
   try {

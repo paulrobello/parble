@@ -10,9 +10,30 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; base-uri 'none'; form-action 'none'; object-src 'none'"
     />
-    <title>Parble</title>
+    <title>parble</title>
     <meta name="description" content="Build marble runs from wooden blocks and rails, then watch the marbles race." />
-    <link rel="icon" href="data:," />
+    <meta name="theme-color" content="#22160f" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" href="web/favicon/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" type="image/png" sizes="32x32" href="web/favicon/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="web/favicon/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="web/favicon/apple-touch-icon.png" />
+    <!-- Link previews: the P5-T2 social card (text-free, 1200x630), by absolute URL as scrapers need. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="parble" />
+    <meta property="og:title" content="parble: wooden marble runs in your browser" />
+    <meta property="og:description" content="Build marble runs from wooden blocks and rails, then watch the marbles race." />
+    <meta property="og:url" content="https://parble.pardev.net/" />
+    <meta property="og:image" content="https://parble.pardev.net/assets/keyart/social-card-1200x630.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="A wooden marble run with rails and a spiral, lit by paper lanterns in a dark playroom." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="parble: wooden marble runs in your browser" />
+    <meta name="twitter:description" content="Build marble runs from wooden blocks and rails, then watch the marbles race." />
+    <meta name="twitter:image" content="https://parble.pardev.net/assets/keyart/social-card-1200x630.png" />
+    <meta name="twitter:image:alt" content="A wooden marble run with rails and a spiral, lit by paper lanterns in a dark playroom." />
     <style>
       html, body { margin: 0; height: 100%; background: #1c1a17; overflow: hidden; }
       canvas#parble { display: block; width: 100%; height: 100%; outline: none; }
@@ -51,6 +72,28 @@
     <link data-trunk rel="copy-file" href="web/wgsl-compat.js" data-target-path="web" />
     <link data-trunk rel="copy-file" href="web/frame-latency.js" data-target-path="web" />
     <link data-trunk rel="copy-dir" href="web/ui/dist" data-target-path="web/ui" />
+    <!-- P5-T3: the favicon suite (scripts/web/favicon.py), favicon.ico also at the root, and the key art
+         the title and the unsupported page show plus the social card (assets/keyart, P5-T2). -->
+    <link data-trunk rel="copy-dir" href="web/favicon" data-target-path="web/favicon" />
+    <link data-trunk rel="copy-file" href="web/favicon/favicon.ico" />
+    <link data-trunk rel="copy-file" href="assets/keyart/hero-21x9-1280x543.avif" data-target-path="assets/keyart" />
+    <link data-trunk rel="copy-file" href="assets/keyart/hero-21x9-1280x543.webp" data-target-path="assets/keyart" />
+    <link data-trunk rel="copy-file" href="assets/keyart/hero-21x9-2560x1086.avif" data-target-path="assets/keyart" />
+    <link data-trunk rel="copy-file" href="assets/keyart/hero-21x9-2560x1086.webp" data-target-path="assets/keyart" />
+    <link data-trunk rel="copy-file" href="assets/keyart/hero-16x9-1280x720.avif" data-target-path="assets/keyart" />
+    <link data-trunk rel="copy-file" href="assets/keyart/hero-16x9-1280x720.webp" data-target-path="assets/keyart" />
+    <link data-trunk rel="copy-file" href="assets/keyart/hero-16x9-1280x720.png" data-target-path="assets/keyart" />
+    <link data-trunk rel="copy-file" href="assets/keyart/hero-16x9-2560x1440.avif" data-target-path="assets/keyart" />
+    <link data-trunk rel="copy-file" href="assets/keyart/hero-16x9-2560x1440.webp" data-target-path="assets/keyart" />
+    <link data-trunk rel="copy-file" href="assets/keyart/hero-portrait-9x16-720x1280.avif" data-target-path="assets/keyart" />
+    <link data-trunk rel="copy-file" href="assets/keyart/hero-portrait-9x16-720x1280.webp" data-target-path="assets/keyart" />
+    <link data-trunk rel="copy-file" href="assets/keyart/hero-portrait-9x16-1080x1920.avif" data-target-path="assets/keyart" />
+    <link data-trunk rel="copy-file" href="assets/keyart/hero-portrait-9x16-1080x1920.webp" data-target-path="assets/keyart" />
+    <link data-trunk rel="copy-file" href="assets/keyart/loading-16x9-1280x720.avif" data-target-path="assets/keyart" />
+    <link data-trunk rel="copy-file" href="assets/keyart/loading-16x9-1280x720.webp" data-target-path="assets/keyart" />
+    <link data-trunk rel="copy-file" href="assets/keyart/loading-16x9-1152x648.png" data-target-path="assets/keyart" />
+    <link data-trunk rel="copy-file" href="assets/keyart/social-card-1200x630.png" data-target-path="assets/keyart" />
+    <link data-trunk rel="copy-file" href="assets/keyart/social-card-1200x630.jpg" data-target-path="assets/keyart" />
     <!-- Kit textures, exactly the files the wasm can fetch (crates/parble-render/src/kit fetchable_paths,
          checked by a test): the three wood variants' base_color and orm in all three texture families
          (the wasm fetches only the device's family; the sets' normal maps are not loaded), then each

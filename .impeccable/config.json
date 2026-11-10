@@ -1,3 +1,15 @@
 {
-  "buildPath": "comp"
+  "buildPath": "comp",
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "sans\",ui-sans-serif,system-ui,sans-serif",
+        "createdAt": "2026-11-10T08:26:30.657Z",
+        "reason": "agent: false positive, the stack is DESIGN.md's own Alegreya Sans stack split at the quoted family name"
+      }
+    ]
+  }
 }

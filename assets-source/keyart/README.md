@@ -59,4 +59,4 @@ Layout notes for P5-T3:
 | Creative | approved by Paul 2026-11-08 (primary wide hero) |
 | Rights | cleared 2026-11-08: Higgsfield Terms of Use section 4.4 (no ownership claim on outputs, no commercial-use restriction) |
 | Owner | approved by Paul 2026-11-08 |
-| Live use (title and loading screens in Chrome and Safari, desktop and mobile) | not done; it belongs to P5-T3, which builds those screens |
+| Live use (title and loading screens in Chrome and Safari, desktop and mobile) | partly: the P5-T3 title shows the three hero crops in GPU Chromium at 2.4:1, 16:10 and 3:4 windows, and the unsupported page shows the loading art (`e2e/tests/title.spec.mjs`, [docs/design/title](../../docs/design/title/README.md)). Safari, mobile, load latency and fallback activation are not checked. No loading screen exists yet. |
