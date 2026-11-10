@@ -159,11 +159,12 @@ impl Scenario {
                 .take(parble_sim::allpieces::MARBLES)
                 .map(|&k| (k, MarbleSize::Standard.radius_m()))
                 .collect(),
-            // The editor's hopper runs release up to `MAX_MARBLES` legacy standard marbles.
+            // The editor's hopper runs release up to `MAX_MARBLES` marbles: the picked type at the
+            // picked size ([`editor_pick`]), else legacy standard marbles.
             Self::Editor => vec![
                 (
-                    MarbleKind::default(),
-                    marble::spec_for(None, MarbleSize::Standard).radius_m,
+                    marble.unwrap_or_default(),
+                    marble::spec_for(marble, size).radius_m,
                 );
                 crate::editor::MAX_MARBLES as usize
             ],
@@ -171,6 +172,19 @@ impl Scenario {
                 marble.unwrap_or_default(),
                 marble::spec_for(marble, size).radius_m,
             )],
+        }
+    }
+
+    /// The marble the editor's hopper runs release (`--marble`, `--marble-size`, the title's
+    /// marble picker): `None`, the legacy standard marble, unless a type or a non-standard size
+    /// is given, as [`marble::spec_for`] reads them.
+    pub fn editor_pick(
+        marble: Option<MarbleKind>,
+        size: MarbleSize,
+    ) -> Option<(MarbleKind, MarbleSize)> {
+        match (marble, size) {
+            (None, MarbleSize::Standard) => None,
+            (m, s) => Some((m.unwrap_or_default(), s)),
         }
     }
 

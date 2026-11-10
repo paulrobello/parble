@@ -105,6 +105,7 @@ fn main() {
         .add_plugins(editor::EditorPlugin {
             active: opts.scenario == Scenario::Editor,
             fill: opts.editor_fill,
+            marble: Scenario::editor_pick(opts.marble, opts.marble_size),
         })
         .insert_resource(SimClock {
             sim: recording(opts.scenario.build(opts.marble, opts.marble_size)),

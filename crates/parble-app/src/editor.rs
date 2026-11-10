@@ -40,6 +40,7 @@ use parble_render::{
         parts::PartFrame,
     },
 };
+use parble_sim::marble::{MarbleKind, MarbleSize as SimMarbleSize};
 use parble_sim::mechanism::MechanismRegistry;
 #[cfg(test)]
 use parble_sim::track_run::TrackRun;
@@ -840,6 +841,9 @@ struct EditState {
     restarts: u64,
     /// The editor's keyboard shortcuts are on (`keys`).
     keys: bool,
+    /// The marble runs release: this type, every queued marble at this size. `None`: the queued
+    /// sizes as legacy marbles.
+    marble: Option<(MarbleKind, SimMarbleSize)>,
     name: String,
     run: RunState,
     /// Edit count the issues and placement counts were computed at.
@@ -930,6 +934,7 @@ impl EditState {
             marks_key: None,
             restarts: 0,
             keys: true,
+            marble: None,
             name: UNTITLED.to_owned(),
             run: RunState {
                 active: false,
@@ -1362,6 +1367,26 @@ fn editor_run(track: &Track, release: Option<ReleaseMode>) -> Result<TrackRun, S
         .map_err(|e| e.to_string())
 }
 
+/// The build of a run of `track` releasing `marble`: its type, with every queued marble at its
+/// size. `None` is [`TrackRunBuild::new`].
+fn run_build(track: &Track, marble: Option<(MarbleKind, SimMarbleSize)>) -> TrackRunBuild<'static> {
+    let Some((kind, size)) = marble else {
+        return TrackRunBuild::new(track);
+    };
+    let mut t = track.clone();
+    t.hopper.queue.fill(match size {
+        SimMarbleSize::Mini => MarbleSize::Mini,
+        SimMarbleSize::Standard => MarbleSize::Standard,
+        SimMarbleSize::Shooter => MarbleSize::Shooter,
+    });
+    TrackRunBuild::with_mechanisms(
+        &t,
+        parble_kit::builtin(),
+        &parble_sim::behaviour::registry(),
+        Some(kind),
+    )
+}
+
 /// Start building a fresh run of the editor's track to replace the live sim, which holds still
 /// until [`step_build`] installs it. A build already under way is dropped.
 fn start_run(
@@ -1372,7 +1397,7 @@ fn start_run(
 ) -> Result<(), String> {
     let track = editor_track(st.editor.track(), release)?;
     st.build = Some(RunBuild {
-        build: TrackRunBuild::new(&track),
+        build: run_build(&track, st.marble),
         op,
         release,
         edits: ctx.diag.edits,
@@ -1406,7 +1431,7 @@ fn step_build(
     if b.edits != diag.edits {
         match editor_track(st.editor.track(), b.release) {
             Ok(track) => {
-                b.build = TrackRunBuild::new(&track);
+                b.build = run_build(&track, st.marble);
                 b.edits = diag.edits;
                 b.timing.pieces = track.placements.len();
                 b.timing.restarts += 1;
@@ -2221,6 +2246,8 @@ fn click(st: &mut EditState, ctx: &mut Ctx, px: Vec2, shift: bool) -> Result<(),
 pub struct EditorPlugin {
     pub active: bool,
     pub fill: Option<u32>,
+    /// The marble every run releases ([`crate::agent::Scenario::editor_pick`]).
+    pub marble: Option<(MarbleKind, SimMarbleSize)>,
 }
 
 impl Plugin for EditorPlugin {
@@ -2234,7 +2261,9 @@ impl Plugin for EditorPlugin {
             queue.push_back((None, Action::Fill { count: n }));
         }
         inbox().extend(queue);
-        app.insert_resource(EditState::new())
+        let mut state = EditState::new();
+        state.marble = self.marble;
+        app.insert_resource(state)
             .insert_resource(CameraMode::Orbit)
             .insert_resource(EditorCamera {
                 active: true,
@@ -3053,6 +3082,28 @@ mod tests {
         );
         assert_eq!(parse(r#"{"op":"reset"}"#), Action::Reset {});
         assert_eq!(parse(r#"{"op":"stop"}"#), Action::Stop {});
+    }
+
+    #[test]
+    fn a_picked_marble_runs_at_its_size_and_no_pick_keeps_the_legacy_marble() {
+        let mut track = Track::new(0);
+        track.placements.push(placed("mech_hopper", c(0, 0, 0)));
+        track.hopper.queue = vec![MarbleSize::Standard; 3];
+        let track = editor_track(&track, Some(ReleaseMode::All)).unwrap();
+        let radius = |pick| {
+            let mut run = run_build(&track, pick).finish().unwrap();
+            run.tick(1);
+            let r = run.marble_radii();
+            assert!(!r.is_empty());
+            r[0]
+        };
+        let shooter = SimMarbleSize::Shooter.radius_m();
+        assert_eq!(
+            radius(Some((MarbleKind::Steel, SimMarbleSize::Shooter))),
+            shooter
+        );
+        let legacy = parble_sim::marble::spec_for(None, SimMarbleSize::Standard).radius_m;
+        assert_eq!(radius(None), legacy);
     }
 
     #[test]
