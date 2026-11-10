@@ -3271,7 +3271,8 @@ mod tests {
     }
 
     /// The marble check runs the release named in the action once per marble spec, reports a stall
-    /// anchored at the end stop for each, names the release, and goes stale on the next edit.
+    /// for each at the piece holding it (the end stop, or the straight before it), names the
+    /// release, and goes stale on the next edit.
     #[test]
     fn the_marble_check_reports_a_stall_and_goes_stale_on_an_edit() {
         let mut rig = Rig::new();
@@ -3318,10 +3319,25 @@ mod tests {
             ["swirl", "onionskin", "opal", "glow"].to_vec()
         );
         assert_eq!(c.warning_count, 3);
+        // Every spec bounces back off the end stop (PHYSICS_VERSION 9's tube hand-over) and again
+        // off the pillar's wall. Cat's eye and steel roll back into the end stop and rest there;
+        // glazed comes back off the pillar at about 0.03 m/s and rests on the straight at
+        // x = 0.310 m, 20 mm short of the end stop's cell, so the stall is the straight's.
+        let at: Vec<_> = c
+            .warnings
+            .iter()
+            .map(|w| (w.marble, w.piece.as_deref(), w.anchor))
+            .collect();
+        assert_eq!(
+            at,
+            [
+                ("cats-eye", Some("blk_end_l3"), Some([6, 0, -6])),
+                ("glazed", Some("blk_straight_l3"), Some([5, 0, -6])),
+                ("steel", Some("blk_end_l3"), Some([6, 0, -6])),
+            ]
+        );
         for w in &c.warnings {
             assert_eq!(w.kind, "stalled");
-            assert_eq!(w.piece.as_deref(), Some("blk_end_l3"));
-            assert_eq!(w.anchor, Some([6, 0, -6]));
             assert_eq!(w.marbles, [0]);
         }
         // An edit leaves the warnings listed, marked stale.
