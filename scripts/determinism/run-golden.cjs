@@ -7,20 +7,31 @@
 // playroom file, also runs run_playroom() (the playroom kit run on chunk colliders). With an
 // allpieces file (P2-T7), also runs run_allpieces() (the all-pieces track, 10 marbles, 30 s). With
 // a rope arch file (P2 item 18), also runs run_rope_arch() (the rope-curtain pass, both ways).
-// a lift file, also runs run_lift_track() (hopper to finish up both stepper elevators).
+// a lift file, also runs run_lift_track() (hopper to finish up both stepper elevators). With a
+// marble check file, also runs run_marble_check() (the editor's marble check of the all-pieces
+// release, every marble spec at every size) and compares it line by line.
 "use strict";
 
 const fs = require("node:fs");
 const path = require("node:path");
 
-const [modulePath, goldenPath, variantsPath, mechanismPath, playroomPath, allpiecesPath, ropePath, liftPath] =
+const [modulePath, goldenPath, variantsPath, mechanismPath, playroomPath, allpiecesPath, ropePath, liftPath, checkPath] =
   process.argv.slice(2);
 if (!modulePath || !goldenPath) {
-  console.error("usage: node run-golden.cjs <module.js> <golden.hash> [<variants.hash> [<mechanism.hash> [<playroom.hash> [<allpieces.hash> [<rope.hash> [<lift.hash>]]]]]]");
+  console.error("usage: node run-golden.cjs <module.js> <golden.hash> [<variants.hash> [<mechanism.hash> [<playroom.hash> [<allpieces.hash> [<rope.hash> [<lift.hash> [<marble-check.txt>]]]]]]]");
   process.exit(2);
 }
 
-const { run_golden, run_variants, run_mechanism_demo, run_playroom, run_allpieces, run_rope_arch, run_lift_track } = require(
+const {
+  run_golden,
+  run_variants,
+  run_mechanism_demo,
+  run_playroom,
+  run_allpieces,
+  run_rope_arch,
+  run_lift_track,
+  run_marble_check,
+} = require(
   path.resolve(modulePath),
 );
 const expected = fs.readFileSync(goldenPath, "utf8").trim();
@@ -102,4 +113,18 @@ if (liftPath) {
     process.exit(1);
   }
   console.log("determinism-wasm: stepper lift track run matches native");
+}
+
+if (checkPath) {
+  const want = fs.readFileSync(checkPath, "utf8").trim().split("\n");
+  const got = run_marble_check().trim().split("\n");
+  let bad = 0;
+  for (let i = 0; i < Math.max(want.length, got.length); i++) {
+    if (want[i] !== got[i]) {
+      console.error(`FAIL: marble check native ${want[i] ?? "(none)"} != wasm ${got[i] ?? "(none)"}`);
+      bad++;
+    }
+  }
+  if (bad) process.exit(1);
+  console.log(`determinism-wasm: marble check (${got.length} lines) matches native (${checkPath})`);
 }

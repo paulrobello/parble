@@ -52,6 +52,13 @@ pub fn run_lift_track() -> String {
     parble_sim::lift_run::lift_track_hash_hex()
 }
 
+/// Run the editor's marble check of the all-pieces track's pinned release for every marble spec at
+/// every size and return the lines of `crates/parble-sim/tests/golden/allpieces_marble_check.txt`.
+#[wasm_bindgen]
+pub fn run_marble_check() -> String {
+    parble_sim::marble_check::allpieces_marble_check()
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -77,6 +84,10 @@ mod tests {
         assert_eq!(
             super::run_lift_track(),
             parble_sim::lift_run::lift_track_hash_hex()
+        );
+        assert_eq!(
+            super::run_marble_check(),
+            parble_sim::marble_check::allpieces_marble_check()
         );
     }
 }

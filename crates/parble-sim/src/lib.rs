@@ -24,6 +24,7 @@ pub mod hash;
 pub mod inlay;
 pub mod lift_run;
 pub mod marble;
+pub mod marble_check;
 pub mod mech_showcase;
 pub mod mechanism;
 pub mod playroom_run;

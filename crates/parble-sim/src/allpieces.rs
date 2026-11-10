@@ -295,6 +295,9 @@ mod tests {
     use std::collections::{BTreeMap, BTreeSet};
 
     use super::*;
+    use crate::marble_check::{
+        CheckReport, MarbleCheck, MarbleWatch, Outcome, cell_of, check_kinds,
+    };
     use parble_core::{controlled_drops, validate_track};
 
     #[test]
@@ -335,25 +338,17 @@ mod tests {
         assert_eq!(issues, Vec::new(), "{issues:#?}");
     }
 
-    /// [`LAYOUT`] index of the placement holding each world cell.
-    fn cell_owners() -> BTreeMap<[i32; 3], usize> {
+    /// The marble check's bookkeeping for this track ([`MarbleWatch`]); no two placements share
+    /// a cell.
+    fn watch() -> MarbleWatch {
         let kit = parble_kit::builtin();
-        let mut owners = BTreeMap::new();
-        for (i, p) in placements().iter().enumerate() {
+        let mut cells = BTreeSet::new();
+        for p in placements() {
             for c in p.world_cells(&kit.piece(&p.piece).unwrap().def) {
-                assert!(owners.insert([c.x, c.y, c.z], i).is_none(), "cells overlap");
+                assert!(cells.insert(c), "cells overlap");
             }
         }
-        owners
-    }
-
-    fn cell_of(position: [f32; 3]) -> [i32; 3] {
-        let cell = crate::scene::cell_m();
-        [
-            libm::floorf(position[0] / cell + 0.5) as i32,
-            libm::floorf(position[1] / cell) as i32,
-            libm::floorf(position[2] / cell + 0.5) as i32,
-        ]
+        MarbleWatch::new(&track(), kit)
     }
 
     /// Why a run missed the track's success condition ([`check_run`]).
@@ -445,24 +440,28 @@ mod tests {
     /// each fork sends marbles both ways and the mechanisms count every pass. On success returns
     /// the tick all marbles were in a cup and the cup counts.
     fn check_run(mut run: TrackRun) -> Result<(u32, Vec<usize>), Failure> {
-        let owners = cell_owners();
+        let mut watch = watch();
         // entered[i][m]: marble m's centre was inside placement i.
         let mut entered = vec![vec![false; MARBLES]; LAYOUT.len()];
         let mut done_at = None;
         for t in 1..=RUN_TICKS {
             run.tick(1);
+            watch.observe(&run);
             for (m, s) in run.marbles().iter().enumerate() {
-                if let Some(&i) = owners.get(&cell_of(s.position)) {
+                if let Some(i) = watch.owner(cell_of(s.position)) {
                     entered[i][m] = true;
                 }
-                if s.position[1] <= -0.06 {
-                    eprintln!(
-                        "marble {m} fell off the track at tick {t}: {:?}",
-                        s.position
-                    );
-                    let last = (0..LAYOUT.len()).rev().find(|&i| entered[i][m]);
-                    return Err(Failure::FellOff { marble: m, last });
-                }
+            }
+            let report = watch.report(&run, MarbleKind::CatsEye);
+            if let Some(m) = report.problems().find_map(|m| match m.outcome {
+                Outcome::FellOff { last } => Some(Failure::FellOff {
+                    marble: m.marble,
+                    last,
+                }),
+                _ => None,
+            }) {
+                eprintln!("{m:?} at tick {t}");
+                return Err(m);
             }
             if done_at.is_none() && finish_counts(&run).iter().sum::<usize>() == MARBLES {
                 done_at = Some(t);
@@ -474,23 +473,9 @@ mod tests {
         }
         let counts = finish_counts(&run);
         if counts.iter().sum::<usize>() != MARBLES || !counts.iter().all(|&c| c > 0) {
-            let counted: BTreeSet<usize> = run
-                .mechanisms()
-                .iter()
-                .filter(|m| m.piece.as_str() == behaviour::FINISH)
-                .flat_map(|m| behaviour::Finish::arrivals(&m.state))
-                .map(|(m, _)| m)
-                .collect();
-            let stuck = run
-                .marbles()
-                .iter()
-                .enumerate()
-                .filter(|(m, _)| !counted.contains(m))
-                .map(|(m, s)| (m, owners.get(&cell_of(s.position)).copied()))
-                .collect();
             return Err(Failure::Short {
                 cups: counts,
-                stuck,
+                stuck: stuck(&watch.report(&run, MarbleKind::CatsEye)),
             });
         }
         for (i, (id, cell, _)) in LAYOUT.iter().enumerate() {
@@ -586,59 +571,18 @@ mod tests {
     /// later, and so these outcomes. Before the 2026-11-09 layout changes the same physics left
     /// mini steel off the track at transfer 2, mini and shooter glazed and shooter cat's eye off
     /// the open end under the hole, and standard steel with 1 of 10 in the cups.
-    fn every_size_of(kind: MarbleKind, want: [Result<(), Failure>; 3]) {
+    fn every_size_of(kind: MarbleKind) {
         let sizes = [MarbleSize::Mini, MarbleSize::Standard, MarbleSize::Shooter];
-        for (size, want) in sizes.into_iter().zip(want) {
+        for (size, want) in sizes.into_iter().zip(pinned(kind)) {
             let got = check_run(run_marble(kind, size).unwrap()).map(|_| ());
             assert_eq!(got, want, "{} {size:?}", kind.name());
         }
     }
 
-    /// [`every_size_of`] for the cat's eye spec, which swirl, onionskin, opal and glow share.
-    fn cats_eye_spec(kind: MarbleKind) {
-        assert_eq!(kind.spec(), MarbleKind::CatsEye.spec());
-        every_size_of(
-            kind,
-            [
-                Ok(()),
-                Ok(()),
-                Err(Failure::Short {
-                    cups: vec![2, 1, 2, 1],
-                    stuck: vec![(4, Some(51)), (6, Some(51)), (8, Some(41)), (9, Some(39))],
-                }),
-            ],
-        );
-    }
-
-    #[test]
-    fn cats_eye_runs_the_track_at_every_size() {
-        cats_eye_spec(MarbleKind::CatsEye);
-    }
-
-    #[test]
-    fn swirl_runs_the_track_at_every_size() {
-        cats_eye_spec(MarbleKind::Swirl);
-    }
-
-    #[test]
-    fn onionskin_runs_the_track_at_every_size() {
-        cats_eye_spec(MarbleKind::Onionskin);
-    }
-
-    #[test]
-    fn opal_runs_the_track_at_every_size() {
-        cats_eye_spec(MarbleKind::Opal);
-    }
-
-    #[test]
-    fn glow_runs_the_track_at_every_size() {
-        cats_eye_spec(MarbleKind::Glow);
-    }
-
-    #[test]
-    fn glazed_runs_the_track_at_every_size() {
-        every_size_of(
-            MarbleKind::Glazed,
+    /// The pinned outcome of `kind` at mini, standard and shooter ([`every_size_of`]). Swirl,
+    /// onionskin, opal and glow share the cat's eye spec, and so its outcome.
+    fn pinned(kind: MarbleKind) -> [Result<(), Failure>; 3] {
+        if kind.spec() == MarbleKind::Glazed.spec() {
             [
                 Ok(()),
                 Err(Failure::Short {
@@ -656,14 +600,8 @@ mod tests {
                     cups: vec![2, 2, 2, 2],
                     stuck: vec![(8, Some(51)), (9, Some(39))],
                 }),
-            ],
-        );
-    }
-
-    #[test]
-    fn steel_runs_the_track_at_every_size() {
-        every_size_of(
-            MarbleKind::Steel,
+            ]
+        } else if kind.spec() == MarbleKind::Steel.spec() {
             [
                 Ok(()),
                 Ok(()),
@@ -671,8 +609,107 @@ mod tests {
                     cups: vec![2, 2, 3, 2],
                     stuck: vec![(9, Some(39))],
                 }),
-            ],
-        );
+            ]
+        } else {
+            assert_eq!(kind.spec(), MarbleKind::CatsEye.spec());
+            [
+                Ok(()),
+                Ok(()),
+                Err(Failure::Short {
+                    cups: vec![2, 1, 2, 1],
+                    stuck: vec![(4, Some(51)), (6, Some(51)), (8, Some(41)), (9, Some(39))],
+                }),
+            ]
+        }
+    }
+
+    /// Each marble no cup counted, and the placement holding it ([`Failure::Short`]).
+    fn stuck(report: &CheckReport) -> Vec<(usize, Option<usize>)> {
+        report
+            .problems()
+            .map(|m| match m.outcome {
+                Outcome::Stalled { at, .. } => (m.marble, at),
+                o => panic!("marble {} {o:?}", m.marble),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn cats_eye_runs_the_track_at_every_size() {
+        every_size_of(MarbleKind::CatsEye);
+    }
+
+    #[test]
+    fn swirl_runs_the_track_at_every_size() {
+        every_size_of(MarbleKind::Swirl);
+    }
+
+    #[test]
+    fn onionskin_runs_the_track_at_every_size() {
+        every_size_of(MarbleKind::Onionskin);
+    }
+
+    #[test]
+    fn opal_runs_the_track_at_every_size() {
+        every_size_of(MarbleKind::Opal);
+    }
+
+    #[test]
+    fn glow_runs_the_track_at_every_size() {
+        every_size_of(MarbleKind::Glow);
+    }
+
+    #[test]
+    fn glazed_runs_the_track_at_every_size() {
+        every_size_of(MarbleKind::Glazed);
+    }
+
+    #[test]
+    fn steel_runs_the_track_at_every_size() {
+        every_size_of(MarbleKind::Steel);
+    }
+
+    /// The marble check ([`MarbleCheck`], the editor's, with its early end and cap) of the pinned
+    /// release reports what [`every_size_of`] pins for every spec and size: nothing for a run
+    /// with every marble in a cup, and each marble short of a cup as stalled where the 30 s run
+    /// leaves it.
+    #[test]
+    fn the_marble_check_reports_the_pinned_outcomes() {
+        let sizes = [MarbleSize::Mini, MarbleSize::Standard, MarbleSize::Shooter];
+        for (kind, same) in check_kinds() {
+            for (size, want) in sizes.into_iter().zip(pinned(kind)) {
+                let report = MarbleCheck::run(&track_sized(size), kind).unwrap();
+                let want = match want {
+                    Ok(()) => Vec::new(),
+                    Err(Failure::Short { stuck, .. }) => stuck,
+                    Err(f) => panic!("{f:?}"),
+                };
+                assert_eq!(stuck(&report), want, "{} {size:?}", kind.name());
+                assert!(report.ticks <= u64::from(RUN_TICKS), "{}", report.ticks);
+                for &k in &same {
+                    assert_eq!(pinned(k), pinned(kind));
+                }
+            }
+        }
+        // Swirl runs exactly as cat's eye: a type reaches the sim only through its spec.
+        let hash = |k| {
+            let mut run = run_marble(k, MarbleSize::Shooter).unwrap();
+            run.tick(RUN_TICKS);
+            run.trajectory_hash()
+        };
+        assert_eq!(hash(MarbleKind::Swirl), hash(MarbleKind::CatsEye));
+    }
+
+    /// The check of every spec at every size is the committed golden, which the wasm build must
+    /// also produce (`make determinism-wasm`).
+    #[test]
+    fn the_marble_check_matches_its_golden() {
+        let want = include_str!("../tests/golden/allpieces_marble_check.txt");
+        let got = crate::marble_check::allpieces_marble_check();
+        if got != want {
+            eprintln!("MARBLE CHECK GOLDEN\n{got}");
+        }
+        assert_eq!(got, want);
     }
 
     /// Diagnostic, not a gate: the outcome of every marble spec at every size at seeds 2–9
@@ -705,13 +742,13 @@ mod tests {
                     println!("SWEEP seed {seed} {} {size:?}: {got:?}", kind.name());
                     if class != "Ok" {
                         // Final speed of each stuck marble, and any entry into the support pillar.
-                        let owners = cell_owners();
+                        let owners = watch();
                         let mut run = TrackRun::with_marble(&t, kind).unwrap();
                         let mut pillar = BTreeSet::new();
                         for _ in 0..RUN_TICKS {
                             run.tick(1);
                             for (m, st) in run.marbles().iter().enumerate() {
-                                if owners.get(&cell_of(st.position)) == Some(&SUPPORT) {
+                                if owners.owner(cell_of(st.position)) == Some(SUPPORT) {
                                     pillar.insert(m);
                                 }
                             }
