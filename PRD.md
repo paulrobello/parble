@@ -199,7 +199,7 @@ Scope:
 - A 2,000-piece synthetic stress scene for the perf gate.
 
 Acceptance:
-- [ ] Owner approves showcase shots set side by side with `ref-01`–`ref-04` and `ref-07`.
+- [x] Owner approves showcase shots set side by side with `ref-01`–`ref-04` and `ref-07`. (Paul, 2026-11-10: `docs/decisions/0001-render-look.md`)
 - [ ] Glass transmission renders in Chrome and Safari, the fallback shader renders on Low, and TAA shows no ghosting on a fast marble under the follow camera.
 - [ ] No visible or physical bump at piece seams: the marble's vertical-velocity spike stays below the threshold set in the plan.
 - [ ] Perf gate: paced p95 ≤ 16.7 ms at 1440p High on M4 Max in Chrome and Safari, on both the showcase and the 2,000-piece stress scene, under the load guard.
