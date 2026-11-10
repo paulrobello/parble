@@ -20,7 +20,7 @@ Output: `docs/perf/p1-gate.json`. `make perf-gate-smoke` (`PARBLE_PERF_SMOKE=1`)
 ## What the scenes put on screen
 
 - `showcase`: the all-pieces run (52 pieces) on the playroom rug with its lights, under the follow camera. Over the 10 s sampled after READY the hopper has released about 5 of its 10 marbles (one every 2 s).
-- `stress2000`: 2,000 kit pieces in 40 chunks (the all-pieces track plus a 20-layer render-only tower) under one fixed set shot that keeps all of them in frame. The same hopper timing applies: about 5 marbles are moving during the sample, all 10 by 27 s.
+- `stress2000`: 2,000 kit pieces in 41 chunks (the all-pieces track plus a 20-layer render-only tower) under one fixed set shot that keeps all of them in frame. The same hopper timing applies: about 5 marbles are moving during the sample, all 10 by 27 s.
 
 ## Hardware
 

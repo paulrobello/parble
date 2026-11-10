@@ -30,22 +30,27 @@
 //!
 //! # Layout changes for every marble type and size (P5-T1, 2026-11-09)
 //!
-//! Every type and size at [`SEED`] fell off the track somewhere (`p5t1-outcome-bisection` in the
-//! session notes): the v8 physics is sound, but three places let a marble off.
+//! At [`SEED`], four of the nine type × size runs fell off the track before these changes (mini
+//! steel at transfer 2, mini and shooter glazed and shooter cat's eye at the open end under the
+//! hole), and of the other five only standard cat's eye put all ten in the cups
+//! (`p5t1-outcome-bisection` in the session notes).
 //!
-//! - Transfer 2 swing. A marble rejoining from the layer-4 toggle swings across the channel and
-//!   left the `L1` port at up to 0.23 m/s sideways, landing on the `L3` lip 13 mm off its axis,
-//!   and the swing it kept on landing threw it off the S-rail's first arc. The rope-curtain arch
-//!   now stands on the `L1` run before the port: the curtain halves the marble's speed and damps
-//!   the swing, so no marble left the rails at [`SEED`] or at seeds 3–9 (measured 2026-11-09).
-//!   The hopper-to-joiner run moved one cell along −X to make room.
+//! - Transfer 2 swing. A marble rejoining from the layer-4 toggle swings across the channel: on
+//!   the last `L1` cell before the port the mini and standard marbles crossed its centre at up to
+//!   0.23 m/s sideways, and mini steel fell off at that port. On trial layouts
+//!   without the arch the swing kept on landing also threw marbles off the S-rail's first arc. The
+//!   rope-curtain arch now stands on that `L1` cell: the curtain halves the marble's speed, the
+//!   sideways speed there is at most 0.09 m/s, and no marble left the rails at [`SEED`] or at
+//!   seeds 3–9 (measured 2026-11-09). The hopper-to-joiner run moved one cell along −X to make
+//!   room.
 //! - Open end under transfer 3. The `L3` straight the marbles drop into had an unconnected `+x`
 //!   end under the one-way hole, and a falling marble knocked a resting one out of it. The cell
 //!   under the hole has to take the hole's drop port, so the gate and the hole swapped places: the
 //!   marbles roll over the hole, through the gate and drop from the gate's `−X` port, and the end
 //!   stop under the gate closes the straight's `+x` end.
-//! - Cup capacity. Two cups hold 3 shooters each, so 4 shooters were left in the last toggle and
-//!   one fell off a full cup. The last toggle now feeds two toggles and four cups.
+//! - Cup capacity. A cup holds 2–3 shooters, so two cups cannot take 10 (on a trial layout with
+//!   the other two fixes, 4 shooters were left in the last toggle and one fell off a full cup).
+//!   The last toggle now feeds two toggles and four cups.
 //!
 //! # Measured limits that shaped the layout
 //!
@@ -551,10 +556,12 @@ mod tests {
     /// - Shooter cat's eye family: 6 of 10 in the cups. Marbles 4 and 6 are at rest in the end stop
     ///   [19, 1, −7], marble 8 in the transfer 3 straight [18, 1, −7] and marble 9 on the one-way
     ///   hole [20, 2, −7], short of the gate.
-    /// - Standard glazed: 4 of 10 in the cups. The other six queue at rest from the `L1` rail
-    ///   straight to the hole (placements 37–39): the tower landing sends them out slowly
-    ///   (`block_seam_test::tower_drop_stays_on_the_rails_for_glazed_and_steel`) and the level
-    ///   `L1` run stops them.
+    /// - Standard glazed: 4 of 10 in the cups. The other six are at rest in a queue on the level
+    ///   `L1` run: the first, marble 4, against the gate's flap (its centre at x = 1.172 m, inside
+    ///   the gate's cell, 1.14–1.20 m), four more touching behind it on the hole and marble 9 on
+    ///   the checkpoint. The tower landing sends glazed marbles out slowly
+    ///   (`block_seam_test::tower_drop_stays_on_the_rails_for_glazed_and_steel`), and the first
+    ///   one reaches the gate, now the last piece of that run, too slowly to push its flap open.
     /// - Shooter glazed: 8 of 10 in the cups, marble 8 at rest in the end stop, marble 9 on the
     ///   hole.
     /// - Shooter steel: 9 of 10 in the cups, marble 9 at rest on the hole.
