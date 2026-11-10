@@ -28,7 +28,7 @@ The PRD criterion is "on M4 Max". gpu-host-a is the M4 Max but is usually far ab
 
 ## Running it on gpu-host-b
 
-Book the window first (house load rules). gpu-host-b needs a logged-in console (GUI) session: Safari WebDriver and the Metal device need one, and Safari must stay frontmost, since a background window's rAF is throttled.
+Book the window first (house load rules). gpu-host-b needs a logged-in console (GUI) session: Safari WebDriver and the Metal device need one, and Safari must stay frontmost, since a background window's rAF is throttled. The console must also be unlocked: on a locked screen Safari draws no frames, so `window.__parble` (published from a frame) never appears and every sample reports READY never came, with a blank page and no errors (2026-11-10 05:45 run). Check with `ioreg -n Root -d1 | grep CGSSessionScreenIsLocked` over ssh before launching. Headless Chromium is not affected.
 
 One-time setup on gpu-host-b, at the console:
 
@@ -171,3 +171,15 @@ ssh -i <ssh-key> <user>@gpu-host-b.local 'rm -rf ~/Repos/parble-perf /tmp/parble
 ```
 
 Read `scenes[].last.warmup` in `safari-diag.json` first. `endedBy: "quiet"` with an empty `stuck` means nothing waited 120 frames in that run, so the hang did not reproduce. A non-empty `stuck`, or `waitingOn: "pending"` at the ceiling, names the pipeline and its shader error. `waitingOn: "textures"` with `texturesNotLoaded` names the texture. A `pipelines.createdTotal` still climbing between polls means pipelines keep being recreated. The gate log prints each sample's warm-up end (`endedBy`, render frame, stuck count) under its p95 line: a `ceiling` end can still hitch mid-run even when the p95 passes.
+
+#### Result after the warm-up fix (2026-11-10)
+
+gpu-host-b, Safari 27.2, main 9e4b2fb, 7:05 AM PST, load 1.4 to 3.4, screen unlocked. `safari-diag.json`: both scenes reach READY with the warm-up `endedBy: "quiet"`, `stuck` empty, no texture loading, and no pipeline created after the first render frames (showcase 63 pipelines, stress2000 53). The Safari-only gate (`p1-gate-safari.json`):
+
+| Scene | p95 | p50 | Max | Dropped | READY | Warm-up end | Load before → after | pass | passStrict |
+|---|---|---|---|---|---|---|---|---|---|
+| showcase | 17.0 ms | 17.0 ms | 19 ms | 0/600 | 1421 ms | quiet, render frame 22 | 2.95 → 3.37 | true | false |
+| stress2000 | 17.0 ms | 17.0 ms | 19 ms | 0/600 | 3402 ms | quiet, render frame 24 | 3.37 → 2.91 | true | false |
+
+The 1.1 s frame is gone: the worst Safari frame is 19 ms on both scenes, against 1103 and 1115 ms before the warm-up.
+
