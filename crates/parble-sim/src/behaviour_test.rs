@@ -1588,3 +1588,140 @@ fn gate_lets_through(speed: f32, ticks: usize, far_edge: f32) -> bool {
             && sim.mechanisms()[0].part_angles[0] <= GATE_CLOSED_MDEG
     })
 }
+
+/// The marble specs (swirl, onionskin, opal and glow share the cat's eye spec) at every size.
+fn every_spec_and_size() -> Vec<(String, MarbleSpec)> {
+    for k in MarbleKind::ALL {
+        assert!(
+            [MarbleKind::CatsEye, MarbleKind::Glazed, MarbleKind::Steel]
+                .iter()
+                .any(|b| b.spec() == k.spec()),
+            "{} has a spec of its own",
+            k.name()
+        );
+    }
+    [MarbleKind::CatsEye, MarbleKind::Glazed, MarbleKind::Steel]
+        .into_iter()
+        .flat_map(|k| {
+            crate::marble::MarbleSize::ALL
+                .map(|s| (format!("{} {}", k.name(), s.name()), k.spec_sized(s)))
+        })
+        .collect()
+}
+
+/// One `spec` marble on the gate test layout, launched `dz` m off the axis at `speed` m/s from
+/// x = −20 mm (forward, `dir` +1) or x = 140 mm (reverse, −1), for `ticks` ticks: the marble's
+/// trace, the flap angle after every tick, the events and the gate's state.
+fn gate_spec_run(
+    spec: &MarbleSpec,
+    dir: f32,
+    speed: f32,
+    dz: f32,
+    ticks: usize,
+) -> (Vec<MarbleState>, Vec<i32>, Vec<SimEvent>, MechConfig) {
+    let layout = [
+        place("blk_straight_l1", 0, 0, 0, 0),
+        place(GATE, 1, 0, 0, 0),
+        place("blk_straight_l1", 2, 0, 0, 0),
+    ];
+    let mut sim = rig(&layout, 1);
+    let x0 = if dir > 0.0 { -0.02 } else { 0.14 };
+    launch_spec(
+        &mut sim,
+        spec,
+        Vector::new(x0, 0.015 + spec.radius_m, dz),
+        Vector::X * speed * dir,
+    );
+    let (mut tr, mut angles) = (Vec::new(), Vec::new());
+    for _ in 0..ticks {
+        sim.tick(1);
+        tr.push(sim.marbles()[0]);
+        angles.push(sim.mechanisms()[0].part_angles[0]);
+    }
+    let ev = sim.drain_events();
+    (tr, angles, ev, state(&sim))
+}
+
+/// Forward launch speeds of the every-spec gate sweep, m/s: 0.1-0.4 in 50 mm/s steps, and two
+/// fast marbles.
+const GATE_SWEEP_SPEEDS: [f32; 9] = [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.6, 1.0];
+
+#[test]
+fn one_way_gate_passes_every_marble_spec_and_size() {
+    // Every spec at every size, 1 mm either side of the axis or centred, one cell upstream of the
+    // gate: the marble's centre leaves the gate's cell by its `exit` port (x 90 mm) on the floor,
+    // and the flap is shut behind it at the end, never swung back through its stop.
+    let mut bad = Vec::new();
+    for (name, spec) in every_spec_and_size() {
+        for speed in GATE_SWEEP_SPEEDS {
+            for dz in [-0.001, 0.0, 0.001] {
+                let (tr, angles, _, s) = gate_spec_run(&spec, 1.0, speed, dz, 1_200);
+                let end = tr.last().unwrap();
+                let out = tr
+                    .iter()
+                    .any(|m| m.position[0] > 1.5 * CELL && m.position[1] > 0.015);
+                let shut = *angles.last().unwrap() <= GATE_CLOSED_MDEG;
+                let through = angles.iter().all(|&a| a > -1_500);
+                eprintln!(
+                    "gate {name} {speed:.2} m/s {:+.0} mm: end x {:.3}, flap {} mdeg, passes {}",
+                    dz * 1e3,
+                    end.position[0],
+                    angles.last().unwrap(),
+                    s["passes"]
+                );
+                if !(out && shut && through && s["passes"] == 1) {
+                    bad.push(format!(
+                        "{name} {speed:.2} {:+.0} mm: end {:?}",
+                        dz * 1e3,
+                        end.position
+                    ));
+                }
+            }
+        }
+    }
+    assert!(bad.is_empty(), "{bad:#?}");
+}
+
+#[test]
+fn one_way_gate_stops_reverse_marbles_of_every_spec_and_size() {
+    // The one-way function for every spec and size: from `exit` the shut flap stops the marble
+    // one radius short of its plate (within 2 mm: the 0.6 and 1 m/s minis and shooters press
+    // 1.1-1.6 mm into the soft contact), never opens and counts it blocked. Minis stay against
+    // the plate rather than rolling back, so the check is the distance, not a rebound.
+    let mut bad = Vec::new();
+    for (name, spec) in every_spec_and_size() {
+        let r = spec.radius_m;
+        for speed in GATE_SPEEDS {
+            let (tr, angles, ev, s) = gate_spec_run(&spec, -1.0, speed, 0.0, 600);
+            let closest = tr.iter().map(|m| m.position[0]).fold(f32::MAX, f32::min);
+            let end = tr.last().unwrap().position[0];
+            let ok = closest > CELL + 0.0015 + r - 0.002
+                && angles.iter().all(|&a| (-500..GATE_OPEN_MDEG).contains(&a))
+                && signals(&ev, "open").is_empty()
+                && s["blocked"] == 1
+                && s["passes"] == 0;
+            if !ok {
+                bad.push(format!(
+                    "{name} {speed:.3} m/s: closest x {closest:.4}, end x {end:.4}"
+                ));
+            }
+        }
+    }
+    assert!(bad.is_empty(), "{bad:#?}");
+}
+
+/// Diagnostic, not a gate: the slowest forward launch speed, on a 5 mm/s grid, at which each
+/// spec and size gets through the gate on its test layout
+/// (`cargo test -p parble-sim --release gate_min_launch_speeds -- --ignored --nocapture`).
+#[test]
+#[ignore]
+fn gate_min_launch_speeds() {
+    for (name, spec) in every_spec_and_size() {
+        let min = (6..=40).map(|k| 0.005 * k as f32).find(|&v| {
+            let (tr, angles, ..) = gate_spec_run(&spec, 1.0, v, 0.0, 2_400);
+            tr.last().unwrap().position[0] > 1.5 * CELL
+                && *angles.last().unwrap() <= GATE_CLOSED_MDEG
+        });
+        println!("GATE MIN {name}: {min:?} m/s");
+    }
+}

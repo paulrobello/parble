@@ -62,6 +62,18 @@ fn run_with(
     ticks: u32,
     control: &Control,
 ) -> Vec<MarbleState> {
+    run_until(layout, at, vel, ticks, control, |_| false)
+}
+
+/// [`run_with`], stopping early after the first tick at which `stop` holds for the trace so far.
+fn run_until(
+    layout: &[Placement],
+    at: Vector,
+    vel: Vector,
+    ticks: u32,
+    control: &Control,
+    mut stop: impl FnMut(&[MarbleState]) -> bool,
+) -> Vec<MarbleState> {
     let kit = parble_kit::builtin();
     let mut sim = Sim::empty();
     sim.pieces.end_gap_hand_over = control.end_gap_hand_over;
@@ -91,12 +103,15 @@ fn run_with(
         .colliders
         .insert_with_parent(collider, h, &mut sim.world.bodies);
     sim.marbles.push(h);
-    (0..ticks)
-        .map(|_| {
-            sim.tick(1);
-            sim.marbles()[0]
-        })
-        .collect()
+    let mut tr = Vec::with_capacity(ticks as usize);
+    for _ in 0..ticks {
+        sim.tick(1);
+        tr.push(sim.marbles()[0]);
+        if stop(&tr) {
+            break;
+        }
+    }
+    tr
 }
 
 /// `(upward limit, kick limit)` from the seamless channel at `level`: that level's straight
@@ -1378,4 +1393,191 @@ fn tower_exit_speeds() {
             all.join(" ")
         );
     }
+}
+
+/// The all-pieces track's layer 3 → 2 run (`allpieces::LAYOUT` placements 33-41) moved to cell
+/// (1, 1, 0): an `L2` straight and the drop hole on layer 2, the tower socket under it, then the
+/// rail joint, a rail straight, the checkpoint, the one-way hole (rolled over) and the one-way gate
+/// (half turn, in by `+x`) back along -x, all with their behaviours. The gate's `-x` port is
+/// transfer 3: the marble drops onto the `L3` straight on layer 0, closed under the gate by the end
+/// stop.
+fn transfer3_layout() -> Vec<Placement> {
+    vec![
+        place("blk_straight_l2", 0, 2, 0, 0, false),
+        place("blk_drop_l2", 1, 2, 0, 0, false),
+        place("blk_tower_socket_l1", 1, 1, 0, 0, false),
+        place("rail_joint_l1", 0, 1, 0, 0, false),
+        place("rail_straight_l1", -1, 1, 0, 0, false),
+        place("mech_checkpoint_l1", -2, 1, 0, 0, false),
+        place("mech_hole_oneway_l1", -3, 1, 0, 0, false),
+        place("mech_gate_oneway_l1", -4, 1, 0, 2, false),
+        place("blk_end_l3", -4, 0, 0, 0, false),
+        place("blk_straight_l3", -5, 0, 0, 0, false),
+        place("blk_straight_l3", -6, 0, 0, 0, false),
+        place("blk_straight_l3", -7, 0, 0, 0, false),
+    ]
+}
+
+/// World x of the gate's `-x` port face (transfer 3), metres.
+const TRANSFER3_PORT_X: f32 = -0.27;
+/// A run stops when the marble reaches this x, 30 mm before the rig's open `-x` end.
+const TRANSFER3_END_X: f32 = -0.42;
+
+/// How a [`transfer3_run`] ended.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Transfer3 {
+    /// Through the gate's port and in the `L3` channel below.
+    Through,
+    /// Came to rest (or ran out of time) short of the gate's port, centre at `x`.
+    Stall { x: f32 },
+    /// Left the track at `at` before the port, or did not land in the channel below it.
+    FellOff { at: [f32; 3] },
+}
+
+/// One marble of `spec` entering the `L2` straight at x = -20 mm, `dz` m off the axis, at `speed`
+/// m/s along +x on the [`transfer3_layout`]: how it ended, and its speed crossing the rail joint's
+/// centre (x = 0) and the gate's pivot plane (x = -0.24 m), m/s (0 if it did not cross).
+fn transfer3_run(
+    spec: crate::marble::MarbleSpec,
+    speed: f32,
+    dz: f32,
+) -> (Transfer3, f32, f32, Vec<MarbleState>) {
+    let r = spec.radius_m;
+    let control = Control {
+        mechanisms: true,
+        marble: Some(spec),
+        ..Control::default()
+    };
+    // Floors of the `L3` straight on layer 0 and of the `L1` run on layer 1.
+    let (low, run) = (0.045, 0.075);
+    let off = move |m: &MarbleState| m.position[1] < low + r - 0.006 || m.position[2].abs() > 0.03;
+    let mut passed: Option<usize> = None;
+    let tr = run_until(
+        &transfer3_layout(),
+        Vector::new(-0.02, 0.06 * 2.0 + 0.03 + r, dz),
+        Vector::X * speed,
+        7_200,
+        &control,
+        |tr| {
+            let i = tr.len() - 1;
+            if passed.is_none() && tr[i].position[0] < TRANSFER3_PORT_X {
+                passed = Some(i);
+            }
+            let rested = i >= 480
+                && tr[i - 480..]
+                    .iter()
+                    .all(|s| Vector::from(s.linvel).length() < 5.0e-4);
+            // Past the port: stop 720 ticks on, or 30 mm before the open end of the last straight.
+            let done = passed.is_some_and(|p| i >= p + 720) || tr[i].position[0] < TRANSFER3_END_X;
+            off(&tr[i]) || rested || done
+        },
+    );
+    let cross = |x: f32| {
+        tr.windows(2)
+            .find(|w| w[0].position[0] > x && w[1].position[0] <= x && w[1].position[1] > run)
+            .map_or(0.0, |w| w[1].linvel[0].hypot(w[1].linvel[2]))
+    };
+    let end = tr.last().unwrap();
+    let outcome = if let Some(m) = tr.iter().find(|m| off(m)) {
+        Transfer3::FellOff { at: m.position }
+    } else if tr.iter().any(|m| m.position[0] < TRANSFER3_PORT_X) {
+        let y = end.position[1] - (low + r);
+        let landed = (-0.004..0.008).contains(&y) && end.position[2].abs() < 0.012;
+        if landed {
+            Transfer3::Through
+        } else {
+            Transfer3::FellOff { at: end.position }
+        }
+    } else {
+        Transfer3::Stall { x: end.position[0] }
+    };
+    (outcome, cross(0.0), cross(-0.24), tr)
+}
+
+/// Arrival speeds of the transfer 3 sweep, m/s: 0.1-0.4 in 25 mm/s steps.
+const TRANSFER3_SPEEDS: [f32; 13] = [
+    0.1, 0.125, 0.15, 0.175, 0.2, 0.225, 0.25, 0.275, 0.3, 0.325, 0.35, 0.375, 0.4,
+];
+
+/// Lateral offsets of the transfer 3 sweep, metres: ±1 mm in 0.5 mm steps.
+const TRANSFER3_OFFSETS: [f32; 5] = [-0.001, -0.0005, 0.0, 0.0005, 0.001];
+
+/// The marble specs: swirl, onionskin, opal and glow share the cat's eye spec.
+const SPECS: [MarbleKind; 3] = [MarbleKind::CatsEye, MarbleKind::Glazed, MarbleKind::Steel];
+
+/// Every marble spec at every size rolled into the drop hole at every [`TRANSFER3_SPEEDS`] and
+/// [`TRANSFER3_OFFSETS`]: name, speed, offset, how the run ended, its joint and gate speeds.
+fn transfer3_sweep() -> Vec<(String, f32, f32, Transfer3, f32, f32)> {
+    let mut out = Vec::new();
+    for kind in SPECS {
+        for size in crate::marble::MarbleSize::ALL {
+            let spec = kind.spec_sized(size);
+            for v in TRANSFER3_SPEEDS {
+                for dz in TRANSFER3_OFFSETS {
+                    let (o, joint, gate, _) = transfer3_run(spec, v, dz);
+                    out.push((format!("{} {size:?}", kind.name()), v, dz, o, joint, gate));
+                }
+            }
+        }
+    }
+    out
+}
+
+#[test]
+#[ignore = "red on the tip: 13 of 585 runs stall short of the gate or fall off the transfer 3 landing"]
+fn tower_landing_and_transfer3_gate_pass_every_marble_at_every_arrival_speed() {
+    // The tower landing resets a dropped marble's speed and the one-way gate's flap takes more of
+    // it. A marble that leaves either too slow stops on the level `L1` run short of transfer 3 (the
+    // all-pieces track's queue at the gate); one thrown sideways leaves the rails.
+    for k in MarbleKind::ALL {
+        assert!(
+            SPECS.iter().any(|b| b.spec() == k.spec()),
+            "{} has a spec of its own: add it to the sweep",
+            k.name()
+        );
+    }
+    let mut bad = Vec::new();
+    for (name, v, dz, o, joint, gate) in transfer3_sweep() {
+        eprintln!(
+            "transfer 3 {name} at {v:.3} m/s, {:+.1} mm: {o:?}, joint {joint:.3} m/s, gate \
+             {gate:.3} m/s",
+            dz * 1000.0
+        );
+        if o != Transfer3::Through {
+            bad.push(format!("{name} {v:.3} {:+.1} mm: {o:?}", dz * 1000.0));
+        }
+    }
+    assert!(bad.is_empty(), "{} runs failed: {bad:#?}", bad.len());
+}
+
+/// Diagnostic, not a gate: [`transfer3_run`] on a finer grid than the gated sweep, every spec at
+/// every size, 0.1-0.4 m/s in 10 mm/s steps and ±1 mm in 0.5 mm steps (1,395 runs), printing each
+/// failure and the count
+/// (`cargo test -p parble-sim --release transfer3_fine_sweep -- --ignored --nocapture`).
+#[test]
+#[ignore]
+fn transfer3_fine_sweep() {
+    let (mut n, mut bad) = (0, 0);
+    for kind in SPECS {
+        for size in crate::marble::MarbleSize::ALL {
+            for i in 0..=30 {
+                let v = 0.1 + 0.01 * i as f32;
+                for j in 0..5 {
+                    let dz = -0.001 + 0.0005 * j as f32;
+                    let (o, joint, gate, _) = transfer3_run(kind.spec_sized(size), v, dz);
+                    n += 1;
+                    if o != Transfer3::Through {
+                        bad += 1;
+                        println!(
+                            "FINE {} {size:?} {v:.2} m/s {:+.1} mm: {o:?}, joint {joint:.3}, \
+                             gate {gate:.3}",
+                            kind.name(),
+                            dz * 1e3
+                        );
+                    }
+                }
+            }
+        }
+    }
+    println!("FINE {bad} of {n} runs failed");
 }
