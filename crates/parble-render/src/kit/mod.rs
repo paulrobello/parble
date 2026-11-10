@@ -273,6 +273,8 @@ pub enum KitScene {
     /// The P1-T8 stress scene: the all-pieces track (first, so its mechanism parts keep their sim
     /// order) and a render-only tower of showcase blocks behind it, [`TOWER_TOTAL`] pieces in all.
     Tower2000,
+    /// The funnel look-dev track ([`parble_sim::funnel_run`]): the same placements the sim runs.
+    Funnel,
 }
 
 impl KitScene {
@@ -285,6 +287,7 @@ impl KitScene {
             Self::Mechanisms => run_layout(&parble_sim::mech_showcase::LAYOUT),
             Self::AllPieces => run_layout(&parble_sim::allpieces::LAYOUT),
             Self::Tower2000 => tower_layout(),
+            Self::Funnel => run_layout(&parble_sim::funnel_run::LAYOUT),
         }
     }
 }

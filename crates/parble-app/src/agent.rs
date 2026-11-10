@@ -88,6 +88,11 @@ pub enum Scenario {
     /// 1.8 m tower of showcase blocks behind it, 2,000 pieces in all
     /// ([`KitScene::Tower2000`]), under one fixed set shot of the whole scene.
     Stress2000,
+    /// Funnel look-dev (`docs/design/funnel/`): the funnel catcher with both rim inlets fed, its
+    /// drop catch and run-out ([`parble_sim::funnel_run`]), one marble (`--marble`,
+    /// `--marble-size`) rolled into inlet 0 from its block channel (`funnel`) or inlet 1 from its
+    /// rail (`funnel-rail`). Restarts every 20 s.
+    Funnel { inlet: u8 },
 }
 
 impl Scenario {
@@ -103,6 +108,8 @@ impl Scenario {
             "allpieces" => Some(Self::AllPieces),
             "showcase" => Some(Self::Showcase),
             "stress2000" => Some(Self::Stress2000),
+            "funnel" => Some(Self::Funnel { inlet: 0 }),
+            "funnel-rail" => Some(Self::Funnel { inlet: 1 }),
             _ => None,
         }
     }
@@ -119,6 +126,8 @@ impl Scenario {
             Self::AllPieces => "allpieces",
             Self::Showcase => "showcase",
             Self::Stress2000 => "stress2000",
+            Self::Funnel { inlet: 0 } => "funnel",
+            Self::Funnel { .. } => "funnel-rail",
         }
     }
 
@@ -135,6 +144,7 @@ impl Scenario {
             Self::Lineup => Sim::lineup_scene(),
             Self::Editor => Sim::tray_scene(),
             Self::Mechanisms => Sim::mech_showcase_scene(),
+            Self::Funnel { inlet } => Sim::funnel_scene(inlet, spec),
             Self::AllPieces | Self::Showcase | Self::Stress2000 => {
                 return parble_sim::allpieces::run().expect("the all-pieces track runs");
             }
@@ -200,7 +210,8 @@ impl Scenario {
             | Self::Editor
             | Self::Mechanisms
             | Self::AllPieces
-            | Self::Stress2000 => Environment::Plain,
+            | Self::Stress2000
+            | Self::Funnel { .. } => Environment::Plain,
             Self::Playroom | Self::Showcase => Environment::Playroom,
         }
     }
@@ -213,6 +224,7 @@ impl Scenario {
             Self::Mechanisms => KitScene::Mechanisms,
             Self::AllPieces | Self::Showcase => KitScene::AllPieces,
             Self::Stress2000 => KitScene::Tower2000,
+            Self::Funnel { .. } => KitScene::Funnel,
             _ => KitScene::None,
         }
     }
@@ -223,6 +235,7 @@ impl Scenario {
         match self {
             Self::AllPieces | Self::Showcase | Self::Stress2000 => parble_sim::allpieces::RUN_TICKS,
             Self::Editor | Self::Playroom => u32::MAX,
+            Self::Funnel { .. } => parble_sim::funnel_run::RUN_TICKS,
             _ => parble_sim::golden::RAMP_10S_TICKS,
         }
     }
@@ -256,6 +269,11 @@ pub enum CameraChoice {
     /// A fixed set shot on the showcase rope arch from 45 degrees off the lane and above, so the
     /// ropes' swing plane faces the camera, for judging how the ropes bend round the marble.
     RopeSide,
+    /// A fixed set shot looking almost straight down into the funnel's bowl (`--scenario funnel`).
+    FunnelTop,
+    /// A fixed set shot looking down into the funnel's bowl from three-quarters, over its +x, +z
+    /// corner (the funnel scenarios' default).
+    Funnel3q,
     /// Fly only, from the opening shot of the scenario's cues: no director, and no key leaves fly
     /// ([`parble_render::camera::FlyOnly`]). The mechanism showcase's default when `--camera` is not
     /// given; not a `--camera` value.
@@ -271,6 +289,8 @@ impl CameraChoice {
             "checkpoint" => Some(Self::Checkpoint),
             "rope" => Some(Self::Rope),
             "rope-side" => Some(Self::RopeSide),
+            "funnel-top" => Some(Self::FunnelTop),
+            "funnel-3q" => Some(Self::Funnel3q),
             _ => None,
         }
     }
@@ -278,9 +298,13 @@ impl CameraChoice {
     pub fn mode(self) -> CameraMode {
         match self {
             Self::Orbit => CameraMode::Orbit,
-            Self::Director | Self::Overview | Self::Checkpoint | Self::Rope | Self::RopeSide => {
-                CameraMode::Director
-            }
+            Self::Director
+            | Self::Overview
+            | Self::Checkpoint
+            | Self::Rope
+            | Self::RopeSide
+            | Self::FunnelTop
+            | Self::Funnel3q => CameraMode::Director,
             Self::FlyOnly => CameraMode::Fly,
         }
     }
@@ -306,6 +330,8 @@ impl CameraChoice {
             (Self::Checkpoint, ..) => checkpoint_cues(),
             (Self::Rope, ..) => rope_cues(),
             (Self::RopeSide, ..) => rope_side_cues(),
+            (Self::FunnelTop, ..) => funnel_cues(FUNNEL_TOP_EYE),
+            (Self::Funnel3q, ..) | (_, Scenario::Funnel { .. }, _) => funnel_cues(FUNNEL_3Q_EYE),
             (_, Scenario::Kit2000, _) => Cues::kit(),
             (_, Scenario::Playroom, Some(v)) => Cues::playroom(v),
             (_, Scenario::Playroom, None) => Cues::playroom_run(),
@@ -359,6 +385,27 @@ fn rope_shot(offset: Vec3) -> Cues {
     let [x, y, z] = parble_sim::mech_showcase::ROPE_CELL;
     let cell = parble_sim::scene::cell_m();
     let look = Vec3::new(x as f32, y as f32, z as f32) * cell + Vec3::Y * 0.03;
+    let eye = look + offset;
+    Cues(vec![(
+        0,
+        Shot::Set {
+            eye: eye.to_array(),
+            look: look.to_array(),
+            focus_m: eye.distance(look),
+        },
+    )])
+}
+
+/// The funnel shots' eyes, from the bowl's look point (its axis at the rim floor less 20 mm). The
+/// top view is 10 mm off the vertical, since the camera's up is world Y.
+pub const FUNNEL_TOP_EYE: Vec3 = Vec3::new(0.0, 0.46, 0.01);
+pub const FUNNEL_3Q_EYE: Vec3 = Vec3::new(0.15, 0.24, 0.17);
+
+/// One set shot on the funnel track's bowl from `offset`, focused on the bowl.
+pub fn funnel_cues(offset: Vec3) -> Cues {
+    use parble_render::camera::Shot;
+    let [x, z] = parble_sim::funnel_run::AXIS_M;
+    let look = Vec3::new(x, parble_sim::funnel_run::RIM_FLOOR_M - 0.02, z);
     let eye = look + offset;
     Cues(vec![(
         0,
@@ -487,7 +534,7 @@ impl AgentOpts {
                 "scenario" => {
                     let v = need(value)?;
                     o.scenario = Scenario::parse(&v).ok_or_else(|| {
-                        format!("scenario: unknown {v:?} (known: ramp, closeup, playroom, kit2000, lineup, editor, mechanisms, allpieces, showcase, stress2000)")
+                        format!("scenario: unknown {v:?} (known: ramp, closeup, playroom, kit2000, lineup, editor, mechanisms, allpieces, showcase, stress2000, funnel, funnel-rail)")
                     })?;
                 }
                 "seed" => {
@@ -505,7 +552,7 @@ impl AgentOpts {
                     camera_given = true;
                     let v = need(value)?;
                     o.camera = CameraChoice::parse(&v).ok_or_else(|| {
-                        format!("camera: unknown {v:?} (director|orbit|overview|checkpoint|rope|rope-side)")
+                        format!("camera: unknown {v:?} (director|orbit|overview|checkpoint|rope|rope-side|funnel-top|funnel-3q)")
                     })?;
                 }
                 "taa" => o.post.taa = Some(parse_bool(&key, value.as_deref())?),
@@ -601,6 +648,7 @@ impl AgentOpts {
                     | Scenario::Mechanisms
                     | Scenario::AllPieces
                     | Scenario::Stress2000
+                    | Scenario::Funnel { .. }
             )
         {
             // Owner direction 2026-11-08: the piece showcases are judged sharp, with no depth of field.
@@ -1295,6 +1343,8 @@ mod tests {
             "allpieces",
             "showcase",
             "stress2000",
+            "funnel",
+            "funnel-rail",
         ] {
             let o = args(&format!("--scenario {name}")).unwrap();
             assert_eq!(o.camera, CameraChoice::Director, "{name}");

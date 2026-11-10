@@ -19,6 +19,7 @@ pub mod allpieces;
 pub mod behaviour;
 pub mod chunk;
 pub mod door_seam;
+pub mod funnel_run;
 pub mod golden;
 pub mod hash;
 pub mod inlay;
