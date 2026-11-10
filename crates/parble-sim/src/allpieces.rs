@@ -554,11 +554,10 @@ mod tests {
     /// - Mini and standard cat's eye family, mini glazed, mini and standard steel: all 10 in the
     ///   cups, through every piece.
     /// - Shooter cat's eye family: 6 of 10 in the cups. Marbles 4 and 6 are at rest in the end stop
-    ///   [19, 1, −7] and marble 8 in the transfer 3 straight [18, 1, −7]: they fall from the gate's
-    ///   port with little `−x` speed onto that level straight and stop on it, about 70 mm short of
-    ///   the redirect's bowl, or roll back against the end stop. Marble 9 is on the one-way hole
-    ///   [20, 2, −7] but still rolling at 0.114 m/s when the run ends: the last shooter has not
-    ///   finished in 30 s, which is run length, not a fault on the hole.
+    ///   [19, 1, −7], and marble 8 is in the transfer 3 straight [18, 1, −7] at 0.026 m/s: they
+    ///   fall from the gate's port with little `−x` speed onto that level straight, about 70 mm
+    ///   short of the redirect's bowl, or roll back against the end stop. Marble 9 is on the
+    ///   one-way hole [20, 2, −7], still rolling at 0.114 m/s when the run ends.
     /// - Standard glazed: 4 of 10 in the cups. The other six are at rest in a queue on the level
     ///   `L1` run: the first, marble 4, against the gate's flap (its centre at x = 1.172 m, inside
     ///   the gate's cell, 1.14–1.20 m), four more touching behind it on the hole and marble 9 on
@@ -572,6 +571,15 @@ mod tests {
     /// - Shooter glazed: 8 of 10 in the cups, marble 8 at rest in the end stop, marble 9 on the
     ///   hole still rolling at 0.110 m/s.
     /// - Shooter steel: 9 of 10 in the cups, marble 9 on the hole still rolling at 0.108 m/s.
+    ///
+    /// The shooters still rolling at 30 s are not a run-length artefact. Run for 60 s (measured
+    /// 2026-11-09), the seed-2 shooter on the hole leaves it and comes to rest on the transfer 3
+    /// straight (glazed and steel, 0.0001 m/s or less), not in a cup; cat's eye marbles 8 and 9
+    /// reach a cup, and 4 and 6 stay at rest in the end stop. Over seeds 2–9 the 60 s run turns
+    /// shooters that are short at 30 s into two falls off the track after 30 s (seed 3 glazed,
+    /// marble 7 at tick 7814; seed 7 steel, marble 8 at tick 7434, both last in the transfer 3
+    /// straight) and one that skips the redirect (seed 8 cat's eye). Both are the transfer 3
+    /// landing, so the checks keep [`RUN_TICKS`] and pin the 30 s outcome.
     ///
     /// The run is chaotic past the splitter: a change anywhere (the channel contacts' rest
     /// height, the CCD sweep, a kit piece's collision, a placement) moves which marbles collide

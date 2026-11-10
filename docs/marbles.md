@@ -62,13 +62,15 @@ Every type × size ramp run (7 × 3) has a committed golden in `crates/parble-si
 
 The ramp tray is the run every type × size is proven on: `every_type_and_size_rolls_down_the_ramp_and_stays_in_the_tray` checks every tick against the floor, walls and ends of the tray.
 
-The all-pieces track (P2-T7, `crates/parble-sim/src/allpieces.rs`) and its golden run the P0 legacy marble. `TrackRun::with_marble` runs it with a type's real physics at each queued size, and the `*_runs_the_track_at_every_size` tests pin the outcome of all 21 type × size runs against the track's own success condition. Only steel at the standard size passes (measured 2026-11-08):
+The all-pieces track (P2-T7, `crates/parble-sim/src/allpieces.rs`) and its golden run the P0 legacy marble. `TrackRun::with_marble` runs it with a type's real physics at each queued size, and the `*_runs_the_track_at_every_size` tests pin the outcome of all 21 type × size runs against the track's own success condition, over the 30 s run at the track's seed 2. No marble of any type or size falls off the track (measured 2026-11-09):
 
 | Size | Cat's eye, swirl, onionskin, opal, glow | Glazed | Steel |
 |---|---|---|---|
-| Mini | 0 of 10 in a cup: stopped at the one-way gate and hole, one on the layer-4 toggle branch | 7 of 10: 3 stop on the layer-1 run | 8 of 10: 2 stop on the layer-1 run |
-| Standard | 0 of 10: the first bounces back off the layer-0 toggle, the rest stop at the one-way gate and hole | falls off after the S-rail | passes, 5 + 5 |
-| Shooter | 0 of 10: stopped at the splitter's rest-pose part, the queue backs up to the hopper | as cat's eye | as cat's eye |
+| Mini | passes | passes | passes |
+| Standard | passes | 4 of 10 in a cup: the other six queue on the level layer-2 `L1` run behind the one-way gate, slowed by the tower landing | passes |
+| Shooter | 6 of 10: three stop on or roll back from the transfer 3 straight under the gate, one is still on the one-way hole at 30 s | 8 of 10: one in the end stop under the gate, one still on the hole | 9 of 10: one still on the hole |
+
+A shooter still on the hole at 30 s does not finish given longer: run for 60 s it comes to rest on the transfer 3 straight, and over seeds 2–9 two shooters leave the track there after 30 s. The `every_size_of` docs in `allpieces.rs` carry the per-marble detail.
 
 No size is exempt from a piece by the kit contract, so these are open track or kit defects, not size limits.
 
