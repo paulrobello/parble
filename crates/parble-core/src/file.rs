@@ -462,10 +462,35 @@ mod tests {
         assert!(doc.get("camera_zones").is_none());
         for case in list("valid")
             .into_iter()
-            .filter(|c| c["name"] != "nudge-zones")
+            .filter(|c| c["name"] != "nudge-zones" && c["name"] != "nudge-zones-constant")
         {
             assert!(case["file"].get("nudge_zones").is_none());
         }
+        // Top-up is the default mode and never written: the fixture's zones carry no `mode`.
+        let zones: Value = serde_json::from_str(&text).unwrap();
+        for z in zones["nudge_zones"].as_array().unwrap() {
+            assert!(z.get("mode").is_none());
+        }
+    }
+
+    /// A constant-mode zone loads, saves `"mode": "constant"` and reloads byte for byte.
+    #[test]
+    fn a_constant_nudge_zone_round_trips() {
+        let case = list("valid")
+            .into_iter()
+            .find(|c| c["name"] == "nudge-zones-constant")
+            .expect("constant nudge fixture");
+        let file = load(&case["file"].to_string()).unwrap();
+        assert_eq!(
+            file.track.nudge_zones[0].mode,
+            crate::nudge_zone::NudgeMode::Constant
+        );
+        let text = file.to_json();
+        let doc: Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(doc["nudge_zones"][0]["mode"], "constant");
+        let back = load(&text).unwrap();
+        assert_eq!(back, file);
+        assert_eq!(back.to_json(), text);
     }
 
     #[test]

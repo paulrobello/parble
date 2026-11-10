@@ -10,7 +10,8 @@
 // a lift file, also runs run_lift_track() (hopper to finish up both stepper elevators). With a
 // marble check file, also runs run_marble_check() (the editor's marble check of the all-pieces
 // release, every marble spec at every size) and compares it line by line. With a nudge file, also
-// runs run_nudge_track() (rope arches kept moving by a nudge zone).
+// runs run_nudge_track() (rope arches kept moving by a nudge zone). With a constant nudge file, also
+// runs run_nudge_constant_track() (the same track, its zone in constant mode).
 "use strict";
 
 const fs = require("node:fs");
@@ -27,9 +28,10 @@ const [
   liftPath,
   checkPath,
   nudgePath,
+  nudgeConstantPath,
 ] = process.argv.slice(2);
 if (!modulePath || !goldenPath) {
-  console.error("usage: node run-golden.cjs <module.js> <golden.hash> [<variants.hash> [<mechanism.hash> [<playroom.hash> [<allpieces.hash> [<rope.hash> [<lift.hash> [<marble-check.txt> [<nudge.hash>]]]]]]]]");
+  console.error("usage: node run-golden.cjs <module.js> <golden.hash> [<variants.hash> [<mechanism.hash> [<playroom.hash> [<allpieces.hash> [<rope.hash> [<lift.hash> [<marble-check.txt> [<nudge.hash> [<nudge-constant.hash>]]]]]]]]]");
   process.exit(2);
 }
 
@@ -43,6 +45,7 @@ const {
   run_lift_track,
   run_marble_check,
   run_nudge_track,
+  run_nudge_constant_track,
 } = require(
   path.resolve(modulePath),
 );
@@ -151,4 +154,16 @@ if (nudgePath) {
     process.exit(1);
   }
   console.log("determinism-wasm: nudge track run matches native");
+}
+
+if (nudgeConstantPath) {
+  const want = fs.readFileSync(nudgeConstantPath, "utf8").trim();
+  const got = run_nudge_constant_track();
+  console.log(`constant nudge track (native) ${want}`);
+  console.log(`constant nudge track (wasm)   ${got}`);
+  if (got !== want) {
+    console.error(`FAIL: wasm constant nudge track hash ${got} != native ${want} (${nudgeConstantPath})`);
+    process.exit(1);
+  }
+  console.log("determinism-wasm: constant nudge track run matches native");
 }

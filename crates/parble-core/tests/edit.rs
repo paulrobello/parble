@@ -721,6 +721,34 @@ fn nudge_zones_add_set_remove_and_undo() {
     assert_eq!(ed.track().nudge_zones, vec![zone]);
 }
 
+/// Switching a zone to constant mode is one SetNudge: undo puts top-up back and the track's bytes
+/// with it, redo switches it again.
+#[test]
+fn nudge_mode_switches_with_undo_and_redo() {
+    let cat = catalog();
+    let mut ed = Editor::new(Track::new(3));
+    let zone = NudgeZone::over_cells(c(0, 0, 0), c(2, 0, 0), 0);
+    ed.apply(&cat, EditCommand::AddNudge(zone.clone())).unwrap();
+    let top_up = bytes(ed.track());
+    let constant = NudgeZone {
+        mode: parble_core::NudgeMode::Constant,
+        ..zone
+    };
+    ed.apply(
+        &cat,
+        EditCommand::SetNudge {
+            index: 0,
+            zone: constant.clone(),
+        },
+    )
+    .unwrap();
+    assert_eq!(ed.track().nudge_zones, vec![constant.clone()]);
+    assert!(ed.undo());
+    assert_eq!(bytes(ed.track()), top_up);
+    assert!(ed.redo());
+    assert_eq!(ed.track().nudge_zones, vec![constant]);
+}
+
 #[test]
 fn editor_accepts_a_trait_object_catalog() {
     let cat = catalog();

@@ -17,6 +17,14 @@
 //! never pushes one that is moving well, and adds nothing sideways. Overlapping zones each top up
 //! on their own, in track order.
 //!
+//! # Constant mode
+//!
+//! A zone with `mode: "constant"` pushes every marble whose centre is inside by `max_accel_um_s2
+//! · dt` along its direction every tick, whatever the marble's speed: a steady force, like a
+//! steeper incline over the box, not a top-up. `min_speed_um_s` is kept (and still checked) but
+//! unused. The default mode is top-up, and the file omits `mode` when it is top-up, so files and
+//! trajectory hashes from before the field existed are unchanged.
+//!
 //! # The acceleration cap
 //!
 //! The default acceleration, [`DEFAULT_MAX_ACCEL_UM_S2`], is 1 m/s²: the pull gravity gives a
@@ -59,12 +67,32 @@ pub const FULL_TURN_MDEG: i32 = 360_000;
 /// Pitch range, millidegrees.
 pub const PITCH_MDEG: (i32, i32) = (-90_000, 90_000);
 
+/// How a zone pushes (module docs). Written `"top_up"` or `"constant"`; omitted when top-up.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NudgeMode {
+    /// Push only while the speed along the direction is below the minimum, up to it.
+    #[default]
+    TopUp,
+    /// Push at the zone's acceleration every tick, whatever the speed.
+    Constant,
+}
+
+impl NudgeMode {
+    pub fn is_top_up(&self) -> bool {
+        *self == Self::TopUp
+    }
+}
+
 /// One nudge zone.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NudgeZone {
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub name: String,
+    /// Top-up (the default, omitted from the file) or constant.
+    #[serde(default, skip_serializing_if = "NudgeMode::is_top_up")]
+    pub mode: NudgeMode,
     /// The axis-aligned box, µm: a marble whose centre is in `min_um..=max_um` on every axis is
     /// inside.
     pub min_um: [i32; 3],
@@ -74,9 +102,11 @@ pub struct NudgeZone {
     /// Above or below the horizontal, `-90_000..=90_000`.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub pitch_mdeg: i32,
-    /// The speed along the direction the zone tops a marble up to, µm/s, `1..=2_000_000`.
+    /// The speed along the direction the zone tops a marble up to, µm/s, `1..=2_000_000`. Unused
+    /// in constant mode.
     pub min_speed_um_s: u32,
-    /// The most the zone adds per second, µm/s², `1..=2_000_000`.
+    /// The most the zone adds per second, µm/s², `1..=2_000_000`: the cap in top-up mode, the
+    /// steady push in constant mode.
     pub max_accel_um_s2: u32,
 }
 
@@ -95,6 +125,7 @@ impl NudgeZone {
         );
         Self {
             name: String::new(),
+            mode: NudgeMode::TopUp,
             min_um: [
                 a[0] * CELL_UM - HALF_CELL_UM,
                 a[1] * CELL_UM,
@@ -170,6 +201,10 @@ mod tests {
         let v = serde_json::to_value(&z).unwrap();
         assert!(v.get("name").is_none());
         assert!(v.get("pitch_mdeg").is_none());
+        assert!(
+            v.get("mode").is_none(),
+            "top-up is the default and is omitted"
+        );
         let back: NudgeZone = serde_json::from_value(v).unwrap();
         assert_eq!(back, z);
         assert_eq!(z.check(), Ok(()));
@@ -181,6 +216,27 @@ mod tests {
         let back: NudgeZone =
             serde_json::from_value(serde_json::to_value(&named).unwrap()).unwrap();
         assert_eq!(back, named);
+    }
+
+    #[test]
+    fn constant_mode_is_written_and_read_back() {
+        let z = NudgeZone {
+            mode: NudgeMode::Constant,
+            ..zone()
+        };
+        let v = serde_json::to_value(&z).unwrap();
+        assert_eq!(v["mode"], json!("constant"));
+        assert_eq!(serde_json::from_value::<NudgeZone>(v).unwrap(), z);
+        let mut v = serde_json::to_value(zone()).unwrap();
+        v.as_object_mut()
+            .unwrap()
+            .insert("mode".into(), json!("top_up"));
+        assert_eq!(
+            serde_json::from_value::<NudgeZone>(v.clone()).unwrap(),
+            zone()
+        );
+        v["mode"] = json!("sideways");
+        assert!(serde_json::from_value::<NudgeZone>(v).is_err());
     }
 
     #[test]

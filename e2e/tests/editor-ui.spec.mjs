@@ -334,7 +334,7 @@ test("drag-to-lay: press a drawer tile, drag over the board, release, and undo t
   expect(errors).toEqual([]);
 });
 
-test("nudge zones: add, size, aim, move, undo and redo from the panel, export them, hide them in a run, delete", async ({
+test("nudge zones: add, size, aim, move, switch mode, undo and redo from the panel, export them, hide them in a run, delete", async ({
   page,
 }) => {
   test.setTimeout(180_000);
@@ -430,6 +430,34 @@ test("nudge zones: add, size, aim, move, undo and redo from the panel, export th
       max_accel_um_s2: 1_250_000,
     },
   ]);
+  await page.keyboard.press("Escape");
+
+  // Mode: Constant from the inspector's radio, one undo step; the min speed row goes while it is on.
+  const modeRadio = (m) => sel.locator(`[role="radiogroup"][aria-label="Mode"] [data-nzmode="${m}"]`);
+  await expect(modeRadio("top_up")).toHaveAttribute("aria-checked", "true");
+  await modeRadio("constant").click();
+  await wait(() => window.__parble.editor.nudges.zones[0].mode === "constant");
+  await expect(modeRadio("constant")).toHaveAttribute("aria-checked", "true");
+  await expect(sel).not.toContainText("Min speed");
+  await expect(sel.locator('[data-nz="speed:1"]')).toHaveCount(0);
+  await page.locator('#pe-top [data-k="undo"]').click();
+  await wait(() => window.__parble.editor.nudges.zones[0].mode === "top_up");
+  await nz.locator('[data-nzsel="0"]').click();
+  await wait(() => window.__parble.editor.nudges.selected === 0);
+  await expect(modeRadio("top_up")).toHaveAttribute("aria-checked", "true");
+  await expect(sel).toContainText("Min speed");
+  await page.locator('#pe-top [data-k="redo"]').click();
+  await wait(() => window.__parble.editor.nudges.zones[0].mode === "constant");
+  await nz.locator('[data-nzsel="0"]').click();
+  await wait(() => window.__parble.editor.nudges.selected === 0);
+  await expect(modeRadio("constant")).toHaveAttribute("aria-checked", "true");
+  // The export carries the mode, and only the mode changed.
+  await page.locator('[data-k="library"]').click();
+  const [download2] = await Promise.all([page.waitForEvent("download"), page.locator('#pe-sheet [data-k="export"]').click()]);
+  const chunks2 = [];
+  for await (const c of await download2.createReadStream()) chunks2.push(c);
+  const file2 = JSON.parse(Buffer.concat(chunks2).toString("utf8"));
+  expect(file2.nudge_zones).toEqual([{ ...file.nudge_zones[0], mode: "constant" }]);
   await page.keyboard.press("Escape");
 
   // A run never shows a zone; Stop brings it back.

@@ -2,7 +2,7 @@
 // `parbleEdit` actions the overlay sends, kept by hand like bridge.ts. Pure helpers only: names,
 // families, issue sentences and labels, so Vitest can check every string the panel shows.
 
-import type { NudgeZone } from "../parble";
+import type { NudgeMode, NudgeZone } from "../parble";
 
 export type Vec3i = [number, number, number];
 export type Tool = "place" | "select" | "delete";
@@ -180,6 +180,8 @@ export interface EditorDiag {
 export interface NudgeZoneDiag {
   index: number;
   name: string;
+  /** "top_up" or "constant"; absent from builds before constant mode (read as top-up). */
+  mode?: NudgeMode;
   minUm: Vec3i;
   maxUm: Vec3i;
   yawMdeg: number;
@@ -568,9 +570,20 @@ export const NUDGE_PITCH_MAX = 90_000;
 /** One inspector edit: grow or shrink an axis by a cell (on its high side), or step an aim or rate. */
 export type NudgeEdit =
   | { kind: "size"; axis: 0 | 1 | 2; by: 1 | -1 }
-  | { kind: "yaw" | "pitch" | "speed" | "accel"; by: 1 | -1 };
+  | { kind: "yaw" | "pitch" | "speed" | "accel"; by: 1 | -1 }
+  | { kind: "mode"; mode: NudgeMode };
 
-/** A listed zone back in its `.parble` shape (snake_case, the empty name and zero pitch omitted). */
+/** A listed zone's mode, top-up when the build does not report one. */
+export const nudgeMode = (z: Pick<NudgeZoneDiag, "mode">): NudgeMode => z.mode ?? "top_up";
+
+/** The zone inspector's Mode choices, in order. */
+export const NUDGE_MODE_LABELS: readonly [NudgeMode, string][] = [
+  ["top_up", "Top up"],
+  ["constant", "Constant"],
+];
+
+/** A listed zone back in its `.parble` shape (snake_case; the empty name, zero pitch and top-up
+ * mode omitted). */
 export function zoneOf(z: NudgeZoneDiag): NudgeZone {
   const out: NudgeZone = {
     min_um: [...z.minUm],
@@ -580,6 +593,7 @@ export function zoneOf(z: NudgeZoneDiag): NudgeZone {
     max_accel_um_s2: z.maxAccelUmS2,
   };
   if (z.name) out.name = z.name;
+  if (nudgeMode(z) !== "top_up") out.mode = nudgeMode(z);
   if (z.pitchMdeg) out.pitch_mdeg = z.pitchMdeg;
   return out;
 }
@@ -618,6 +632,11 @@ export function nudgeEdit(z: NudgeZone, e: NudgeEdit): NudgeZone | null {
       next.max_accel_um_s2 = v;
       return next;
     }
+    case "mode":
+      if (e.mode === (z.mode ?? "top_up")) return null;
+      if (e.mode === "top_up") delete next.mode;
+      else next.mode = e.mode;
+      return next;
   }
 }
 

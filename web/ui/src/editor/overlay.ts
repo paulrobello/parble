@@ -36,6 +36,8 @@ import {
   nudgeAccelText,
   nudgeEdit,
   nudgeHeadingText,
+  NUDGE_MODE_LABELS,
+  nudgeMode,
   nudgeName,
   nudgeSizeText,
   nudgeSpeedText,
@@ -678,6 +680,7 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
       const [k, v] = b.dataset.opt.split(":");
       if (k && v !== undefined) act({ op: "mechConfig", key: k, value: Number(v) });
     } else if (b.dataset.nz) nudgeButton(b.dataset.nz);
+    else if (b.dataset.nzmode) nudgeButton(`mode:${b.dataset.nzmode}`);
     else if (b.dataset.nzsel) {
       act({ op: "nudgeSelect", index: Number(b.dataset.nzsel) });
       act({ op: "tool", tool: "select" });
@@ -706,7 +709,8 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     }
     act({ op: "tool", tool: "select" });
   };
-  /** An inspector button, `size:<axis>:<±1>` or `<yaw|pitch|speed|accel>:<±1>`: one nudgeSet. */
+  /** An inspector button, `size:<axis>:<±1>`, `<yaw|pitch|speed|accel>:<±1>` or
+   * `mode:<top_up|constant>`: one nudgeSet. */
   const nudgeButton = (spec: string): void => {
     const z = selectedZone(d);
     if (!z) return;
@@ -714,7 +718,9 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     const e: NudgeEdit =
       kind === "size"
         ? { kind, axis: Number(a) as 0 | 1 | 2, by: Number(b) as 1 | -1 }
-        : { kind: kind as "yaw" | "pitch" | "speed" | "accel", by: Number(a) as 1 | -1 };
+        : kind === "mode"
+          ? { kind, mode: a === "constant" ? "constant" : "top_up" }
+          : { kind: kind as "yaw" | "pitch" | "speed" | "accel", by: Number(a) as 1 | -1 };
     const next = nudgeEdit(zoneOf(z), e);
     if (next) act({ op: "nudgeSet", index: z.index, zone: next });
   };
@@ -832,11 +838,26 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     `<span class="sc">${label}</span><div class="seg nzs">${buttons
       .map(([text, attr, aria]) => `<button ${attr} aria-label="${esc(aria)}">${text}</button>`)
       .join("")}</div>`;
-  const zoneInspector = (z: NudgeZoneDiag): string => `<h2><span class="sc">Nudge zone:</span>${esc(nudgeName(z))}</h2>
+  /** The zone's Mode: a segmented radio like a piece option's, the brass pin on the set mode. */
+  const nzModeRow = (z: NudgeZoneDiag): string =>
+    `<span class="sc">Mode</span><div class="seg opt" role="radiogroup" aria-label="Mode">${NUDGE_MODE_LABELS.map(
+      ([m, label]) => {
+        const on = nudgeMode(z) === m;
+        return `<button role="radio" data-nzmode="${m}" aria-checked="${on}"${on ? ' class="on"' : ""}>${on ? '<i class="pin"></i>' : ""}${label}</button>`;
+      },
+    ).join("")}</div>`;
+  const zoneInspector = (z: NudgeZoneDiag): string => {
+    const constant = nudgeMode(z) === "constant";
+    return `<h2><span class="sc">Nudge zone:</span>${esc(nudgeName(z))}</h2>
 <div class="kv"><span class="sc">Box</span><span>${nudgeSizeText(z)} · ${cellText(z.cell)}</span>
 <span class="sc">Heading</span><span>${esc(nudgeHeadingText(z.yawMdeg, z.pitchMdeg))}</span>
-<span class="sc">Min speed</span><span>${nudgeSpeedText(z.minSpeedUmS)}</span>
-<span class="sc">Max push</span><span>${nudgeAccelText(z.maxAccelUmS2)}</span>
+${nzModeRow(z)}
+${
+  constant
+    ? ""
+    : `<span class="sc">Min speed</span><span>${nudgeSpeedText(z.minSpeedUmS)}</span>
+`
+}<span class="sc">${constant ? "Push" : "Max push"}</span><span>${nudgeAccelText(z.maxAccelUmS2)}</span>
 ${nzRow("Size", [
   ["X−", 'data-nz="size:0:-1"', "Shrink along x"],
   ["X+", 'data-nz="size:0:1"', "Grow along x"],
@@ -859,22 +880,31 @@ ${nzRow("Aim", [
   ["Tilt up", 'data-nz="pitch:1"', "Tilt the heading up 15°"],
   ["Tilt dn", 'data-nz="pitch:-1"', "Tilt the heading down 15°"],
 ])}
-${nzRow("Speed", [
-  ["Slower", 'data-nz="speed:-1"', "Lower the minimum speed 0.05 m/s"],
-  ["Faster", 'data-nz="speed:1"', "Raise the minimum speed 0.05 m/s"],
-])}
+${
+  constant
+    ? ""
+    : nzRow("Speed", [
+        ["Slower", 'data-nz="speed:-1"', "Lower the minimum speed 0.05 m/s"],
+        ["Faster", 'data-nz="speed:1"', "Raise the minimum speed 0.05 m/s"],
+      ])
+}
 ${nzRow("Push", [
   ["Softer", 'data-nz="accel:-1"', "Lower the push 0.25 m/s²"],
   ["Stronger", 'data-nz="accel:1"', "Raise the push 0.25 m/s², at most 2 m/s²"],
 ])}</div>
 <div class="acts"><button class="btn" data-k="gDelete">${icon("del")}Delete zone <kbd>⌫</kbd></button></div>
-<p class="note">Invisible in a run. A marble inside moving slower than the min speed along the arrow is pushed up to it, never harder than the max push. Arrows and PgUp/PgDn move it, R turns it.</p>`;
+<p class="note">Invisible in a run. ${
+      constant
+        ? "Every marble inside is pushed along the arrow at the push rate, however fast it is already going."
+        : "A marble inside moving slower than the min speed along the arrow is pushed up to it, never harder than the max push."
+    } Arrows and PgUp/PgDn move it, R turns it.</p>`;
+  };
 
   let nzKey = "";
   const renderNudges = (s: EditorDiag): void => {
     const n = s.nudges;
     const key = n
-      ? `${s.edits}|${n.count}|${n.selected}|${s.selection}|${n.zones.map((z) => `${z.cell}|${z.yawMdeg}|${z.minSpeedUmS}`).join(";")}`
+      ? `${s.edits}|${n.count}|${n.selected}|${s.selection}|${n.zones.map((z) => `${z.cell}|${z.yawMdeg}|${z.minSpeedUmS}|${z.maxAccelUmS2}|${nudgeMode(z)}`).join(";")}`
       : "none";
     if (key === nzKey) return;
     nzKey = key;
@@ -894,7 +924,7 @@ ${nzRow("Push", [
       n.zones
         .map((z) => {
           const on = z.index === n.selected && s.selection === 0;
-          return `<div class="iss${on ? " on" : ""}"><i class="pin${on ? "" : " bl"}"></i><i>${cellText(z.cell)}</i><button data-nzsel="${z.index}" aria-label="Select ${esc(nudgeName(z))}">${on ? "Selected" : "Select"}</button><span>${esc(nudgeName(z))} · ${esc(nudgeHeadingText(z.yawMdeg, z.pitchMdeg))} · ${nudgeSpeedText(z.minSpeedUmS)}</span></div>`;
+          return `<div class="iss${on ? " on" : ""}"><i class="pin${on ? "" : " bl"}"></i><i>${cellText(z.cell)}</i><button data-nzsel="${z.index}" aria-label="Select ${esc(nudgeName(z))}">${on ? "Selected" : "Select"}</button><span>${esc(nudgeName(z))} · ${esc(nudgeHeadingText(z.yawMdeg, z.pitchMdeg))} · ${nudgeMode(z) === "constant" ? `constant ${nudgeAccelText(z.maxAccelUmS2)}` : nudgeSpeedText(z.minSpeedUmS)}</span></div>`;
         })
         .join("") + (n.count > n.zones.length ? `<p class="note">and ${n.count - n.zones.length} more</p>` : "");
   };

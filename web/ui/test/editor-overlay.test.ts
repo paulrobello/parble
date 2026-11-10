@@ -823,6 +823,48 @@ describe("editor overlay", () => {
     expect(sent.at(-1)).toEqual({ op: "nudgeSet", index: 0, zone: { ...base, min_speed_um_s: 250_000 } });
     click('[data-nz="accel:1"]');
     expect(sent.at(-1)).toEqual({ op: "nudgeSet", index: 0, zone: { ...base, max_accel_um_s2: 1_250_000 } });
+    // Mode: a segmented radio, Top up checked; Constant sends the zone with mode, Top up sends nothing.
+    const modes = (): [string, string | null][] =>
+      [
+        ...document.querySelectorAll<HTMLElement>(
+          '[data-k="sel"] [role="radiogroup"][aria-label="Mode"] [role="radio"]',
+        ),
+      ].map((r) => [r.textContent ?? "", r.getAttribute("aria-checked")]);
+    expect(modes()).toEqual([
+      ["Top up", "true"],
+      ["Constant", "false"],
+    ]);
+    expect(document.querySelector('[data-k="sel"] [data-nz="speed:1"]')).not.toBeNull();
+    sent = [];
+    click('[data-nzmode="top_up"]');
+    expect(sent).toEqual([]);
+    click('[data-nzmode="constant"]');
+    expect(sent.at(-1)).toEqual({ op: "nudgeSet", index: 0, zone: { ...base, mode: "constant" } });
+    // In constant mode the min speed is unused: its line and Speed row go, Push replaces Max push,
+    // the list row shows the push, and every edit keeps the mode.
+    const constant: NudgeZoneDiag = { ...zone, mode: "constant" };
+    ui.update(diag({ edits: 1, nudges: { count: 1, selected: 0, zones: [constant] } }));
+    expect(modes()).toEqual([
+      ["Top up", "false"],
+      ["Constant", "true"],
+    ]);
+    const csel = $('[data-k="sel"]').textContent ?? "";
+    expect(csel).not.toContain("Min speed");
+    expect(csel).not.toContain("Max push");
+    expect(csel).toContain("Push1.00 m/s²");
+    expect(csel).toContain("however fast");
+    expect(document.querySelector('[data-k="sel"] [data-nz="speed:1"]')).toBeNull();
+    expect($('[data-k="nz"]').textContent).toContain("constant 1.00 m/s²");
+    click('[data-nz="accel:1"]');
+    expect(sent.at(-1)).toEqual({
+      op: "nudgeSet",
+      index: 0,
+      zone: { ...base, mode: "constant", max_accel_um_s2: 1_250_000 },
+    });
+    click('[data-nzmode="top_up"]');
+    expect(sent.at(-1)).toEqual({ op: "nudgeSet", index: 0, zone: base });
+    ui.update(diag({ edits: 2, nudges: { count: 1, selected: 0, zones: [zone] } }));
+    expect($('[data-k="sel"]').textContent).toContain("Min speed");
     // A shrink below one cell sends nothing.
     const n = sent.length;
     click('[data-nz="size:1:-1"]');

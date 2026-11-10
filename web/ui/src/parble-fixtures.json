@@ -522,6 +522,195 @@
           }
         ]
       }
+    },
+    {
+      "name": "nudge-zones-constant",
+      "runHash": "d4141ee4fb557d81",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 8,
+        "kit_contract": 1,
+        "seed": 11,
+        "placements": [
+          {
+            "piece": "mech_hopper",
+            "anchor": [
+              0,
+              1,
+              -6
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "blk_straight_l1",
+            "anchor": [
+              1,
+              1,
+              -6
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_arch_rope_l1",
+            "anchor": [
+              2,
+              1,
+              -6
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "blk_straight_l1",
+            "anchor": [
+              3,
+              1,
+              -6
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_arch_rope_l1",
+            "anchor": [
+              4,
+              1,
+              -6
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "blk_straight_l1",
+            "anchor": [
+              5,
+              1,
+              -6
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_arch_rope_l1",
+            "anchor": [
+              6,
+              1,
+              -6
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "blk_straight_l1",
+            "anchor": [
+              7,
+              1,
+              -6
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_arch_rope_l1",
+            "anchor": [
+              8,
+              1,
+              -6
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "blk_straight_l1",
+            "anchor": [
+              9,
+              1,
+              -6
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_arch_rope_l1",
+            "anchor": [
+              10,
+              1,
+              -6
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "blk_straight_l1",
+            "anchor": [
+              11,
+              1,
+              -6
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_arch_rope_l1",
+            "anchor": [
+              12,
+              1,
+              -6
+            ],
+            "yaw": 0,
+            "mirror": false
+          },
+          {
+            "piece": "mech_finish",
+            "anchor": [
+              13,
+              0,
+              -6
+            ],
+            "yaw": 0,
+            "mirror": false
+          }
+        ],
+        "hopper": {
+          "placement": 0,
+          "queue": [
+            "standard",
+            "standard",
+            "standard"
+          ],
+          "release": {
+            "mode": "interval",
+            "ticks": 480
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Constant nudge zone",
+          "description": "The nudge zones track with one constant-mode zone: a steady 0.25 m/s² push along the run (crates/parble-sim/src/nudge.rs)."
+        },
+        "nudge_zones": [
+          {
+            "name": "constant run",
+            "mode": "constant",
+            "min_um": [
+              30000,
+              60000,
+              -390000
+            ],
+            "max_um": [
+              750000,
+              120000,
+              -330000
+            ],
+            "yaw_mdeg": 0,
+            "min_speed_um_s": 200000,
+            "max_accel_um_s2": 250000
+          }
+        ]
+      }
     }
   ],
   "rejected": [
@@ -4941,6 +5130,46 @@
               120000,
               -330000
             ],
+            "min_speed_um_s": 200000,
+            "max_accel_um_s2": 1000000
+          }
+        ]
+      }
+    },
+    {
+      "why": "nudge mode neither top_up nor constant",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 0,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [],
+          "release": {
+            "mode": "one"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Empty"
+        },
+        "nudge_zones": [
+          {
+            "mode": "steady",
+            "min_um": [
+              90000,
+              60000,
+              -390000
+            ],
+            "max_um": [
+              270000,
+              120000,
+              -330000
+            ],
+            "yaw_mdeg": 0,
             "min_speed_um_s": 200000,
             "max_accel_um_s2": 1000000
           }

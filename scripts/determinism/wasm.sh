@@ -25,6 +25,8 @@ lift=crates/parble-sim/tests/golden/lift_track.hash
 check=crates/parble-sim/tests/golden/allpieces_marble_check.txt
 # Nudge zones: rope arches that stall marbles, kept moving by a nudge zone.
 nudge=crates/parble-sim/tests/golden/nudge_track.hash
+# The same track with its nudge zone in constant mode.
+nudge_constant=crates/parble-sim/tests/golden/nudge_constant_track.hash
 out=target/determinism-wasm
 tools=target/tools
 
@@ -44,4 +46,4 @@ cargo build --locked --release -p parble-sim-wasm --target "$target"
 rm -rf "$out"
 "$bindgen" --target nodejs --out-dir "$out" "target/$target/release/parble_sim_wasm.wasm"
 
-node scripts/determinism/run-golden.cjs "$out/parble_sim_wasm.js" "$golden" "$variants" "$mechanism" "$playroom" "$allpieces" "$rope" "$lift" "$check" "$nudge"
+node scripts/determinism/run-golden.cjs "$out/parble_sim_wasm.js" "$golden" "$variants" "$mechanism" "$playroom" "$allpieces" "$rope" "$lift" "$check" "$nudge" "$nudge_constant"

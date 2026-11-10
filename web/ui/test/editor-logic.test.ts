@@ -19,6 +19,7 @@ import {
   nudgeAccelText,
   nudgeEdit,
   nudgeHeadingText,
+  nudgeMode,
   nudgeName,
   nudgeSizeText,
   nudgeSpeedText,
@@ -323,6 +324,25 @@ describe("nudge zones", () => {
     expect(nudgeEdit({ ...zone, max_accel_um_s2: 2_000_000 }, { kind: "accel", by: 1 })).toBeNull();
     // The edit never touches the zone it was given.
     expect(zone.max_um).toEqual([750_000, 120_000, -330_000]);
+  });
+
+  it("keeps a constant zone's mode through every edit, and omits top-up from the file shape", () => {
+    expect(zoneOf({ ...listed, mode: "top_up" })).not.toHaveProperty("mode");
+    expect(nudgeMode(listed)).toBe("top_up");
+    const constant = zoneOf({ ...listed, mode: "constant" });
+    expect(constant.mode).toBe("constant");
+    expect(nudgeEdit(zone, { kind: "mode", mode: "constant" })).toEqual({ ...zone, mode: "constant" });
+    expect(nudgeEdit(zone, { kind: "mode", mode: "top_up" })).toBeNull();
+    expect(nudgeEdit(constant, { kind: "mode", mode: "constant" })).toBeNull();
+    expect(nudgeEdit(constant, { kind: "mode", mode: "top_up" })).toEqual(zone);
+    for (const e of [
+      { kind: "size", axis: 0, by: 1 },
+      { kind: "yaw", by: 1 },
+      { kind: "pitch", by: 1 },
+      { kind: "speed", by: 1 },
+      { kind: "accel", by: 1 },
+    ] as const)
+      expect(nudgeEdit(constant, e)?.mode, e.kind).toBe("constant");
   });
 
   it("labels a zone's box, heading and rates in plain units", () => {

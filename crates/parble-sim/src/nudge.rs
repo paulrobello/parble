@@ -4,8 +4,10 @@
 //! resistance. For each marble in spawn order and each zone in track order: when the marble's
 //! centre, quantized to 1 µm like the trajectory hash, is inside the zone's box (an integer
 //! test), and its speed along the zone's direction is below the zone's minimum, its linear
-//! velocity gains `min(max_accel · dt, min_speed − speed along)` along the direction. A sim with no
-//! zones skips the pass entirely, so every track without them keeps its trajectory hash.
+//! velocity gains `min(max_accel · dt, min_speed − speed along)` along the direction. A zone in
+//! constant mode adds `max_accel · dt` along the direction to every marble inside, whatever its
+//! speed. A sim with no zones skips the pass entirely, so every track without them keeps its
+//! trajectory hash, and the top-up arithmetic is the same as before constant mode existed.
 //!
 //! Determinism: the direction comes from `libm` trig, the speeds from integer µm units, and the
 //! iteration order is the marbles' spawn order and the zones' track order. No wall clock.
@@ -13,9 +15,11 @@
 //! [`track`] is the nudged test track: a hopper releases marbles into a run of rope arches that
 //! stalls them short of the finish cup, and [`track_zone`] keeps them rolling to
 //! it. Its trajectory hash is the committed golden `tests/golden/nudge_track.hash`, checked
-//! natively and by the wasm parity check (`make determinism-wasm`).
+//! natively and by the wasm parity check (`make determinism-wasm`). [`constant_track`] is the same
+//! run with [`constant_zone`], a constant-mode zone, and its golden is
+//! `tests/golden/nudge_constant_track.hash`.
 
-use parble_core::nudge_zone::NudgeZone;
+use parble_core::nudge_zone::{NudgeMode, NudgeZone};
 use parble_core::{
     CellCoord, HopperConfig, MarbleSize, Mirror, PieceId, Placement, ReleaseMode, Track, Yaw4,
 };
@@ -34,8 +38,10 @@ pub struct Nudge {
     dir: Vector,
     /// Minimum speed along `dir`, m/s.
     min_speed: f32,
-    /// Most velocity one tick adds, m/s.
+    /// Most velocity one tick adds, m/s (in constant mode, what every tick adds).
     dv_max: f32,
+    /// Constant mode: push whatever the speed.
+    constant: bool,
 }
 
 impl Nudge {
@@ -47,6 +53,7 @@ impl Nudge {
             dir: Vector::new(d[0], d[1], d[2]),
             min_speed: (f64::from(z.min_speed_um_s) * 1.0e-6) as f32,
             dv_max: (f64::from(z.max_accel_um_s2) * 1.0e-6 * f64::from(DT)) as f32,
+            constant: z.mode == NudgeMode::Constant,
         }
     }
 
@@ -80,6 +87,11 @@ pub(crate) fn apply(world: &mut PhysicsWorld, marbles: &[RigidBodyHandle], nudge
         let mut pushed = false;
         for n in nudges {
             if !n.contains(at) {
+                continue;
+            }
+            if n.constant {
+                v += n.dir * n.dv_max;
+                pushed = true;
                 continue;
             }
             let along = v.dot(n.dir);
@@ -161,6 +173,32 @@ pub fn track() -> Track {
     let mut t = flat_track();
     t.nudge_zones.push(track_zone());
     t
+}
+
+/// The constant-mode zone of [`constant_track`]: [`track_zone`]'s box and heading, pushing at
+/// 0.25 m/s² whatever the speed (a quarter of the top-up default, so the run stays on the track).
+pub fn constant_zone() -> NudgeZone {
+    NudgeZone {
+        name: "constant run".into(),
+        mode: NudgeMode::Constant,
+        max_accel_um_s2: 250_000,
+        ..track_zone()
+    }
+}
+
+/// [`flat_track`] with [`constant_zone`].
+pub fn constant_track() -> Track {
+    let mut t = flat_track();
+    t.nudge_zones.push(constant_zone());
+    t
+}
+
+/// Run [`constant_track`] for [`TRACK_TICKS`] and return its trajectory hash, the format of
+/// `tests/golden/nudge_constant_track.hash` (without the newline).
+pub fn constant_track_hash_hex() -> String {
+    let mut run = TrackRun::new(&constant_track()).expect("the constant nudge track runs");
+    run.tick(TRACK_TICKS);
+    hash::format_hash(run.trajectory_hash())
 }
 
 /// A fresh run of [`track`] at tick 0.
@@ -246,6 +284,84 @@ mod tests {
         );
         apply(&mut world2, &[out], &[n]);
         assert_eq!(world2.bodies[out].linvel(), Vector::ZERO);
+    }
+
+    /// From rest, a second inside a top-up zone ends at the minimum speed and stays there, while
+    /// the same zone in constant mode keeps adding its acceleration every tick, past the minimum.
+    #[test]
+    fn a_constant_zone_keeps_accelerating_past_the_minimum_where_top_up_stops() {
+        let top_up = track_zone();
+        let constant = NudgeZone {
+            mode: NudgeMode::Constant,
+            ..top_up.clone()
+        };
+        let mut world = PhysicsWorld::new();
+        let inside = Vector::new(0.12, 0.08, -0.36);
+        let mut add = || {
+            world.bodies.insert(
+                RigidBodyBuilder::dynamic()
+                    .translation(inside)
+                    .linvel(Vector::ZERO),
+            )
+        };
+        let (a, b) = (add(), add());
+        let (na, nb) = ([Nudge::new(&top_up)], [Nudge::new(&constant)]);
+        let dv = 1.0 / 240.0;
+        let mut speeds = Vec::new();
+        for _ in 0..240 {
+            apply(&mut world, &[a], &na);
+            apply(&mut world, &[b], &nb);
+            speeds.push((world.bodies[a].linvel().x, world.bodies[b].linvel().x));
+        }
+        // Both start the same: one tick of 1 m/s².
+        assert!((speeds[0].0 - dv).abs() < 1e-7 && (speeds[0].1 - dv).abs() < 1e-7);
+        // Top-up reaches 0.2 m/s after 48 ticks and holds it.
+        assert!(
+            speeds[47..].iter().all(|s| (s.0 - 0.2).abs() < 1e-6),
+            "{:?}",
+            &speeds[40..60]
+        );
+        // Constant passes 0.2 m/s and keeps rising by one tick's push each tick, to 1 m/s after 1 s.
+        assert!(speeds[60].1 > 0.25);
+        assert!(
+            speeds
+                .windows(2)
+                .all(|w| (w[1].1 - w[0].1 - dv).abs() < 1e-5)
+        );
+        assert!((speeds[239].1 - 1.0).abs() < 1e-3, "{}", speeds[239].1);
+        // Constant mode pushes a fast marble too, and slows nothing sideways.
+        let fast = world.bodies.insert(
+            RigidBodyBuilder::dynamic()
+                .translation(inside)
+                .linvel(Vector::new(1.5, 0.0, 0.3)),
+        );
+        apply(&mut world, &[fast], &nb);
+        let v = world.bodies[fast].linvel();
+        assert!((v.x - (1.5 + dv)).abs() < 1e-6 && v.z == 0.3, "{v:?}");
+        // Outside the box nothing happens.
+        let out = world.bodies.insert(
+            RigidBodyBuilder::dynamic()
+                .translation(Vector::new(0.12, 0.2, -0.36))
+                .linvel(Vector::ZERO),
+        );
+        apply(&mut world, &[out], &nb);
+        assert_eq!(world.bodies[out].linvel(), Vector::ZERO);
+    }
+
+    /// The constant track runs every marble to the finish, and its zone moves the run away from
+    /// the top-up track's.
+    #[test]
+    fn the_constant_track_differs_from_top_up_and_repeats() {
+        let mut run = TrackRun::new(&constant_track()).unwrap();
+        run.tick(TRACK_TICKS);
+        assert_eq!(
+            finished(&run),
+            TRACK_MARBLES,
+            "the constant zone finishes them all"
+        );
+        let c = constant_track_hash_hex();
+        assert_eq!(c, constant_track_hash_hex());
+        assert_ne!(c, nudge_track_hash_hex());
     }
 
     #[test]

@@ -6,7 +6,7 @@
 //! apart from the placement selection: selecting one clears the other.
 //!
 //! - `nudgeAdd`: a zone over `cells` (two corner cells), else over the selected placements' cells.
-//! - `nudgeSelect`, `nudgeSet` (the whole zone, one undo step), `nudgeRemove`.
+//! - `nudgeSelect`, `nudgeSet` (the whole zone, `mode` included, one undo step), `nudgeRemove`.
 //! - With a zone selected and no pieces, `move` shifts it by whole cells, `rotate` turns its yaw a
 //!   quarter turn per step, and `remove` deletes it.
 //! - In the select tool a click that hits no piece selects the zone it passes through (nearest
@@ -18,7 +18,7 @@
 
 use bevy::prelude::*;
 use parble_core::nudge_zone::wrap_yaw;
-use parble_core::{CellCoord, EditCommand, NudgeZone, PieceCatalog};
+use parble_core::{CellCoord, EditCommand, NudgeMode, NudgeZone, PieceCatalog};
 use serde::Serialize;
 
 use super::{Ctx, EditState, cell_arr, project_box, run_command};
@@ -47,6 +47,8 @@ pub struct NudgeDiag {
 pub struct NudgeZoneDiag {
     pub index: u32,
     pub name: String,
+    /// `"top_up"` or `"constant"`, as in the file (where top-up is omitted).
+    pub mode: NudgeMode,
     pub min_um: [i32; 3],
     pub max_um: [i32; 3],
     pub yaw_mdeg: i32,
@@ -264,6 +266,7 @@ pub fn diag(st: &EditState, project: impl Fn(Vec3) -> Option<Vec2>) -> NudgeDiag
                 NudgeZoneDiag {
                     index,
                     name: z.name.clone(),
+                    mode: z.mode,
                     min_um: z.min_um,
                     max_um: z.max_um,
                     yaw_mdeg: z.yaw_mdeg,
@@ -318,5 +321,22 @@ mod tests {
         assert_eq!(pick(&st, down(0.5)), None);
         let side = Ray3d::new(Vec3::new(-1.0, 0.09, -0.36), Dir3::X);
         assert_eq!(pick(&st, side), Some(0));
+    }
+
+    #[test]
+    fn the_diag_reports_each_zone_mode() {
+        let mut st = EditState::new();
+        let mut t = parble_core::Track::new(0);
+        t.nudge_zones = vec![
+            zone(0),
+            NudgeZone {
+                mode: NudgeMode::Constant,
+                ..zone(0)
+            },
+        ];
+        st.editor = parble_core::Editor::new(t);
+        let v = serde_json::to_value(diag(&st, |_| None)).unwrap();
+        assert_eq!(v["zones"][0]["mode"], "top_up");
+        assert_eq!(v["zones"][1]["mode"], "constant");
     }
 }

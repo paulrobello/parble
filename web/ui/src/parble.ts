@@ -90,11 +90,14 @@ const MAX_ZONE_MS = 10_000;
 /**
  * Nudge zones (crates/parble-core/src/nudge_zone.rs): a µm box, a direction (yaw 0..360 000 and
  * pitch ±90 000 millidegrees), the speed along it a marble inside is topped up to (µm/s) and the
- * acceleration cap (µm/s²).
+ * acceleration cap (µm/s²). In constant mode the zone pushes at that acceleration whatever the
+ * speed, and the minimum speed is unused.
  */
 export interface NudgeZone {
   /** Omitted when empty. */
   name?: string;
+  /** Omitted when top-up (the default). */
+  mode?: NudgeMode;
   min_um: Vec3i;
   max_um: Vec3i;
   yaw_mdeg: number;
@@ -105,6 +108,9 @@ export interface NudgeZone {
 }
 
 export const MAX_NUDGE_ZONES = 256;
+/** How a nudge zone pushes: up to its minimum speed (top-up), or at its acceleration every tick. */
+export type NudgeMode = "top_up" | "constant";
+export const NUDGE_MODES: readonly NudgeMode[] = ["top_up", "constant"];
 /** Highest `min_speed_um_s` (2 m/s) and `max_accel_um_s2` (2 m/s²) a file may hold. */
 export const MAX_NUDGE_SPEED_UM_S = 2_000_000;
 export const MAX_NUDGE_ACCEL_UM_S2 = 2_000_000;
@@ -299,7 +305,11 @@ function nudgeZone(v: unknown, i: number): void {
       min_speed_um_s: (x) => isInt(x, 1, MAX_NUDGE_SPEED_UM_S),
       max_accel_um_s2: (x) => isInt(x, 1, MAX_NUDGE_ACCEL_UM_S2),
     },
-    { name: (n) => typeof n === "string" && chars(n) <= MAX_NAME_CHARS, pitch_mdeg: (p) => isInt(p, -90_000, 90_000) },
+    {
+      name: (n) => typeof n === "string" && chars(n) <= MAX_NAME_CHARS,
+      pitch_mdeg: (p) => isInt(p, -90_000, 90_000),
+      mode: (m) => NUDGE_MODES.includes(m as NudgeMode),
+    },
   );
   const [lo, hi] = [z.min_um as Vec3i, z.max_um as Vec3i];
   if (lo.some((x, k) => x >= (hi[k] as number))) fail(`${what} min_um must be below max_um`);

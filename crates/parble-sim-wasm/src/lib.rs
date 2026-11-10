@@ -66,6 +66,13 @@ pub fn run_nudge_track() -> String {
     parble_sim::nudge::nudge_track_hash_hex()
 }
 
+/// Run the nudge track with its zone in constant mode and return its hash, the same format as
+/// `crates/parble-sim/tests/golden/nudge_constant_track.hash` (without the newline).
+#[wasm_bindgen]
+pub fn run_nudge_constant_track() -> String {
+    parble_sim::nudge::constant_track_hash_hex()
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -99,6 +106,10 @@ mod tests {
         assert_eq!(
             super::run_nudge_track(),
             parble_sim::nudge::nudge_track_hash_hex()
+        );
+        assert_eq!(
+            super::run_nudge_constant_track(),
+            parble_sim::nudge::constant_track_hash_hex()
         );
     }
 }
