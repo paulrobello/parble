@@ -45,11 +45,14 @@ export interface SelectionDiag {
   } | null;
 }
 
-/** A piece option the inspector offers (a toggle's first side): the side each value sends to. */
+/**
+ * A piece option the inspector offers (a toggle's or alternating splitter's first side, a splitter's
+ * mode): a side choice carries the face it sends to, a named choice its label.
+ */
 export interface PieceOption {
   key: string;
   value: number;
-  choices: { value: number; face: Face }[];
+  choices: { value: number; face?: Face; label?: string }[];
 }
 
 /** A drag-to-lay stroke in progress: pieces laid so far and the level it lays on. */

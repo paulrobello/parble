@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { BridgeCommand } from "../src/bridge";
-import type { Action, EditorDiag } from "../src/editor/model";
+import type { Action, EditorDiag, PieceOption } from "../src/editor/model";
 import { CONFIRM_DELETE, type EditorOverlay, FLY_MS, mountEditor } from "../src/editor/overlay";
 
 const PALETTE = [
@@ -522,6 +522,64 @@ describe("editor overlay", () => {
     expect($('[data-k="sel"]').textContent).toContain("First side");
     expect($('[data-k="sel"]').textContent).toContain("next Run or Reset");
     opts[1]?.click();
+    expect(sent.at(-1)).toEqual({ op: "mechConfig", key: "first", value: 1 });
+  });
+
+  it("a splitter's mode is Random or Alternate, and Alternate adds its first side", () => {
+    const mode = (value: number) => ({
+      key: "mode",
+      value,
+      choices: [
+        { value: 0, label: "Random" },
+        { value: 1, label: "Alternate" },
+      ],
+    });
+    const single = (options: PieceOption[]) => ({
+      piece: "mech_splitter_l3",
+      anchor: [7, 0, -6] as [number, number, number],
+      yaw: 1,
+      mirror: false,
+      ports: [],
+      config: {},
+      options,
+    });
+    const show = (edits: number, options: PieceOption[]) =>
+      ui.update(
+        diag({
+          edits,
+          selection: 1,
+          selected: [[7, 0, -6]],
+          selectionInfo: { count: 1, families: { mech: 1 }, levels: [0, 0], single: single(options) },
+        }),
+      );
+    show(1, [mode(0)]);
+    let groups = document.querySelectorAll<HTMLElement>(".seg.opt");
+    expect([...groups].map((g) => g.getAttribute("aria-label"))).toEqual(["Mode"]);
+    let opts = document.querySelectorAll<HTMLButtonElement>("[data-opt]");
+    expect([...opts].map((b) => b.textContent)).toEqual(["Random", "Alternate"]);
+    expect(opts[0]?.getAttribute("aria-checked")).toBe("true");
+    expect(opts[0]?.querySelector(".pin")).not.toBeNull();
+    expect($('[data-k="sel"]').textContent).not.toContain("First side");
+    opts[1]?.click();
+    expect(sent.at(-1)).toEqual({ op: "mechConfig", key: "mode", value: 1 });
+    // The engine answers with Alternate set and the first side offered.
+    const first = {
+      key: "first",
+      value: 0,
+      choices: [
+        { value: 0, face: "+x" as const },
+        { value: 1, face: "-x" as const },
+      ],
+    };
+    show(2, [mode(1), first]);
+    groups = document.querySelectorAll<HTMLElement>(".seg.opt");
+    expect([...groups].map((g) => g.getAttribute("aria-label"))).toEqual(["Mode", "First side"]);
+    opts = document.querySelectorAll<HTMLButtonElement>("[data-opt]");
+    expect([...opts].map((b) => b.textContent)).toEqual(["Random", "Alternate", "East", "West"]);
+    expect(opts[1]?.getAttribute("aria-checked")).toBe("true");
+    expect(opts[2]?.getAttribute("aria-checked")).toBe("true");
+    expect($('[data-k="sel"]').textContent).toContain("next Run or Reset");
+    opts[3]?.click();
     expect(sent.at(-1)).toEqual({ op: "mechConfig", key: "first", value: 1 });
   });
 

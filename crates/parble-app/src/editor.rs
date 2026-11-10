@@ -474,7 +474,7 @@ pub struct RunTiming {
     pub pieces: usize,
 }
 
-/// A piece option the inspector offers: its value and, per choice, the side face it sends to.
+/// A piece option the inspector offers: its value and its choices.
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PieceOption {
@@ -483,11 +483,16 @@ pub struct PieceOption {
     pub choices: Vec<OptionChoice>,
 }
 
+/// One choice of a [`PieceOption`]: a side choice carries the world `face` it sends the marble
+/// to, a named choice (the splitter's mode) its `label`.
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct OptionChoice {
     pub value: i64,
-    pub face: PortFace,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub face: Option<PortFace>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<&'static str>,
 }
 
 /// Timing of the last edit, ms. `collider_ms` and `collider_chunks` sum every frame's budgeted
@@ -1692,24 +1697,55 @@ fn apply_action(st: &mut EditState, ctx: &mut Ctx, action: Action) -> Result<Las
 }
 
 /// The options the inspector offers for `p`: the toggle's first side (`first`, 0 = the piece's +z
-/// side, 1 = its −z side), named by the world face each sends to.
+/// side, 1 = its −z side), named by the world face each sends to; the splitter's mode (`mode`,
+/// Random or Alternate) and, in Alternate mode, its first side.
 pub fn piece_options(p: &Placement) -> Vec<PieceOption> {
-    if p.piece.as_str() != parble_sim::behaviour::TOGGLE {
-        return Vec::new();
-    }
-    let o = Orientation::new(p.yaw, p.mirror);
-    let face = |z: i32| PortFace::from_normal(o.apply_cell(CellCoord::new(0, 0, z)));
-    let (Some(a), Some(b)) = (face(1), face(-1)) else {
-        return Vec::new();
+    use parble_sim::behaviour::{
+        SPLITTER, SPLITTER_ALTERNATE, SPLITTER_MODE, SPLITTER_RANDOM, TOGGLE,
     };
-    vec![PieceOption {
-        key: "first",
-        value: p.config.get("first").copied().unwrap_or(0).clamp(0, 1),
-        choices: vec![
-            OptionChoice { value: 0, face: a },
-            OptionChoice { value: 1, face: b },
-        ],
-    }]
+    let first_side = || {
+        let o = Orientation::new(p.yaw, p.mirror);
+        let face = |z: i32| PortFace::from_normal(o.apply_cell(CellCoord::new(0, 0, z)));
+        let (a, b) = (face(1)?, face(-1)?);
+        let side = |value, face| OptionChoice {
+            value,
+            face: Some(face),
+            label: None,
+        };
+        Some(PieceOption {
+            key: "first",
+            value: p.config.get("first").copied().unwrap_or(0).clamp(0, 1),
+            choices: vec![side(0, a), side(1, b)],
+        })
+    };
+    match p.piece.as_str() {
+        TOGGLE => first_side().into_iter().collect(),
+        SPLITTER => {
+            let alternate = p.config.get(SPLITTER_MODE) == Some(&SPLITTER_ALTERNATE);
+            let named = |value, label| OptionChoice {
+                value,
+                face: None,
+                label: Some(label),
+            };
+            let mut opts = vec![PieceOption {
+                key: SPLITTER_MODE,
+                value: if alternate {
+                    SPLITTER_ALTERNATE
+                } else {
+                    SPLITTER_RANDOM
+                },
+                choices: vec![
+                    named(SPLITTER_RANDOM, "Random"),
+                    named(SPLITTER_ALTERNATE, "Alternate"),
+                ],
+            }];
+            if alternate {
+                opts.extend(first_side());
+            }
+            opts
+        }
+        _ => Vec::new(),
+    }
 }
 
 /// The cells a 4-connected walk on `a`'s level visits from `a` to `b`, `a` excluded.
@@ -3149,9 +3185,9 @@ mod tests {
         assert_eq!(opts[0].key, "first");
         assert_eq!(opts[0].value, 0);
         // Yaw 1 turns the piece's +z side to +x.
-        assert_eq!(opts[0].choices[0].face, PortFace::PosX);
-        assert_eq!(opts[0].choices[1].face, PortFace::NegX);
-        assert!(piece_options(&placed("mech_splitter_l3", c(0, 0, 0))).is_empty());
+        assert_eq!(opts[0].choices[0].face, Some(PortFace::PosX));
+        assert_eq!(opts[0].choices[1].face, Some(PortFace::NegX));
+        assert!(piece_options(&placed("blk_straight_l3", c(0, 0, 0))).is_empty());
         act(st, ctx, r#"{"op":"boxSelect","a":[0,0,0],"b":[0,0,0]}"#).unwrap();
         assert!(act(st, ctx, r#"{"op":"mechConfig","key":"first","value":2}"#).is_err());
         assert!(act(st, ctx, r#"{"op":"mechConfig","key":"start","value":1}"#).is_err());
@@ -3165,6 +3201,52 @@ mod tests {
         let json = export_json(st.editor.track(), "t").unwrap();
         let back = parble_core::file::load(&json).unwrap();
         assert_eq!(back.track.placements[0].config.get("first"), Some(&1));
+        act(st, ctx, r#"{"op":"undo"}"#).unwrap();
+        assert!(st.editor.track().placements[0].config.is_empty());
+    }
+
+    #[test]
+    fn the_splitter_offers_random_or_alternate_and_a_first_side_when_alternating() {
+        let mut rig = Rig::new();
+        let mut st = EditState::new();
+        let ctx = &mut rig.ctx();
+        let st = &mut st;
+        act(
+            st,
+            ctx,
+            r#"{"op":"place","piece":"mech_splitter_l3","cell":[0,0,0],"yaw":1}"#,
+        )
+        .unwrap();
+        // Random, the default: the mode alone, its choices named rather than sided.
+        let opts = piece_options(&st.editor.track().placements[0]);
+        assert_eq!(opts.len(), 1);
+        assert_eq!((opts[0].key, opts[0].value), ("mode", 0));
+        let labels: Vec<_> = opts[0].choices.iter().map(|c| (c.value, c.label)).collect();
+        assert_eq!(labels, [(0, Some("Random")), (1, Some("Alternate"))]);
+        assert!(opts[0].choices.iter().all(|c| c.face.is_none()));
+        act(st, ctx, r#"{"op":"boxSelect","a":[0,0,0],"b":[0,0,0]}"#).unwrap();
+        // No first side to set while it splits at random, and no third mode.
+        assert!(act(st, ctx, r#"{"op":"mechConfig","key":"first","value":1}"#).is_err());
+        assert!(act(st, ctx, r#"{"op":"mechConfig","key":"mode","value":2}"#).is_err());
+        act(st, ctx, r#"{"op":"mechConfig","key":"mode","value":1}"#).unwrap();
+        let info = selection_diag(st).unwrap().single.unwrap();
+        assert_eq!(info.options.len(), 2);
+        assert_eq!((info.options[0].key, info.options[0].value), ("mode", 1));
+        assert_eq!((info.options[1].key, info.options[1].value), ("first", 0));
+        // Yaw 1 turns the piece's +z side to +x, as on the toggle.
+        assert_eq!(info.options[1].choices[0].face, Some(PortFace::PosX));
+        assert_eq!(info.options[1].choices[1].face, Some(PortFace::NegX));
+        act(st, ctx, r#"{"op":"mechConfig","key":"first","value":1}"#).unwrap();
+        let json = export_json(st.editor.track(), "t").unwrap();
+        let back = parble_core::file::load(&json).unwrap();
+        let cfg = &back.track.placements[0].config;
+        assert_eq!((cfg.get("mode"), cfg.get("first")), (Some(&1), Some(&1)));
+        // Back to Random: the first side row goes, the stored side stays for the next switch.
+        act(st, ctx, r#"{"op":"mechConfig","key":"mode","value":0}"#).unwrap();
+        let info = selection_diag(st).unwrap().single.unwrap();
+        assert_eq!(info.options.len(), 1);
+        act(st, ctx, r#"{"op":"undo"}"#).unwrap();
+        act(st, ctx, r#"{"op":"undo"}"#).unwrap();
         act(st, ctx, r#"{"op":"undo"}"#).unwrap();
         assert!(st.editor.track().placements[0].config.is_empty());
     }

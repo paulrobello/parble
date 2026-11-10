@@ -78,7 +78,7 @@ const RUN_TIPS: Record<string, [string, string?]> = {
   follow: ["Follow cam", "C"],
 };
 /** Piece options by key: the inspector's label. */
-const OPTION_LABEL: Record<string, string> = { first: "First side" };
+const OPTION_LABEL: Record<string, string> = { mode: "Mode", first: "First side" };
 
 export interface EditorOverlay {
   root: HTMLElement;
@@ -726,7 +726,7 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
           `<span class="sc">${esc(OPTION_LABEL[o.key] ?? o.key)}</span><div class="seg opt" role="radiogroup" aria-label="${esc(OPTION_LABEL[o.key] ?? o.key)}">${o.choices
             .map(
               (c) =>
-                `<button role="radio" data-opt="${esc(o.key)}:${c.value}" aria-checked="${c.value === o.value}"${c.value === o.value ? ' class="on"' : ""}>${c.value === o.value ? '<i class="pin"></i>' : ""}${esc(faceWord(c.face))}</button>`,
+                `<button role="radio" data-opt="${esc(o.key)}:${c.value}" aria-checked="${c.value === o.value}"${c.value === o.value ? ' class="on"' : ""}>${c.value === o.value ? '<i class="pin"></i>' : ""}${esc(c.label ?? (c.face ? faceWord(c.face) : String(c.value)))}</button>`,
             )
             .join("")}</div>`,
       )

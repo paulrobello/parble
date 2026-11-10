@@ -121,6 +121,23 @@ test("editor overlay: drawer place, select, slice, show an issue, run, fade and 
   await expect(page.locator('[data-k="sel"]')).toContainText("Selected:");
   await expect(page.locator('[data-k="sel"]')).toContainText("Ports");
 
+  // The splitter's Mode: Alternate adds its First side, Random takes it away again.
+  const cfg = () => page.evaluate(() => window.__parble.editor.selectionInfo?.single?.config ?? {});
+  const mode = page.locator('.seg.opt[aria-label="Mode"]');
+  await expect(mode.locator('[data-opt="mode:0"]')).toHaveAttribute("aria-checked", "true");
+  await expect(page.locator('.seg.opt[aria-label="First side"]')).toHaveCount(0);
+  await mode.locator('[data-opt="mode:1"]').click();
+  await page.waitForFunction(() => window.__parble.editor.selectionInfo?.single?.config?.mode === 1);
+  await expect(mode.locator('[data-opt="mode:1"]')).toHaveAttribute("aria-checked", "true");
+  const firstSide = page.locator('.seg.opt[aria-label="First side"]');
+  await expect(firstSide).toBeVisible();
+  await firstSide.locator('[data-opt="first:1"]').click();
+  await page.waitForFunction(() => window.__parble.editor.selectionInfo?.single?.config?.first === 1);
+  expect(await cfg()).toEqual({ mode: 1, first: 1 });
+  await mode.locator('[data-opt="mode:0"]').click();
+  await page.waitForFunction(() => window.__parble.editor.selectionInfo?.single?.config?.mode === 0);
+  await expect(page.locator('.seg.opt[aria-label="First side"]')).toHaveCount(0);
+
   // Spec frame 1: Place tool, ghost on a valid cell, a piece selected, issues listed.
   await page.locator('[data-f="blocks"]').click();
   await page.locator('[data-piece="blk_straight_l3"]').click();
