@@ -270,9 +270,13 @@ pub fn obstacles_for(track: &Track) -> CameraObstacles {
 /// The all-pieces track's vertical drop: the marble leaves the L2 run through `blk_drop_l2` at
 /// cell (24, 3, −7) and falls into the tower socket below it. The zone is a cylinder round that
 /// column; its shot pulls back and frames the column's axis, from the tower socket's floor to
-/// half a cell above the drop, with the marble, focused on the axis. It holds 1.5 s after the
-/// marble leaves the column, so the pull-back reads before the camera blends back to the follow
-/// shot along the rail joint.
+/// half a cell above the drop, with the marble, focused on the axis. It holds 0.8 s after the
+/// marble leaves the column and blends out over 1.4 s, so the pull-back reads before the camera
+/// returns to the follow shot along the rail joint.
+///
+/// The shot looks from the +z side at a set bearing. The marble leaves the socket onto the rail
+/// joint (23, 2, −7) under `blk_straight_l2`, and runs on under `blk_curve90_l2`: from above or
+/// along the run (−x) those blocks and the rail cells hide it, so only a side view sees it there.
 pub fn allpieces_demo() -> CameraZone {
     let (x, z) = (24 * CELL_UM, -7 * CELL_UM);
     let base_um = [x, 2 * CELL_UM, z];
@@ -291,7 +295,7 @@ pub fn allpieces_demo() -> CameraZone {
             focus: FocusOn::Target,
             margin_permille: 1_500,
             elevation_mdeg: 30_000,
-            azimuth_mdeg: None,
+            azimuth_mdeg: Some(0),
             fov_mdeg: None,
         },
         priority: 10,
