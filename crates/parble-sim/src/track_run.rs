@@ -29,7 +29,9 @@ use crate::{Sim, scene};
 use parble_core::contract::{
     MARBLE_MINI_DIAMETER_UM, MARBLE_SHOOTER_DIAMETER_UM, MARBLE_STANDARD_DIAMETER_UM,
 };
-use parble_core::{CellCoord, MarbleSize, Orientation, PieceId, Placement, ReleaseMode, Track};
+use parble_core::{
+    CellCoord, MarbleSize, MechConfig, Orientation, PieceId, Placement, ReleaseMode, Track,
+};
 use parble_kit::KitCatalog;
 use rapier3d::prelude::*;
 
@@ -213,6 +215,13 @@ pub struct TrackRun {
     /// The marble type every release spawns as ([`TrackRun::with_marble`]); `None` spawns the
     /// legacy glass marble the track goldens were recorded with.
     kind: Option<MarbleKind>,
+    /// The track seed mechanism instances are rooted at, for live edits.
+    seed: u64,
+    /// The hopper's release mode and queue length, when the run releases from a hopper.
+    hopper_queue: Option<(ReleaseMode, usize)>,
+    /// The state of the run's hopper since a live edit removed it ([`TrackRun::remove_mechanism`]):
+    /// no marble spawns until a hopper is placed again and takes this state over.
+    hopper_gone: Option<MechConfig>,
 }
 
 impl TrackRun {
@@ -227,6 +236,9 @@ impl TrackRun {
             hopper: None,
             footprint: Default::default(),
             kind: None,
+            seed: 0,
+            hopper_queue: None,
+            hopper_gone: None,
         }
     }
 
@@ -270,66 +282,31 @@ impl TrackRun {
         kind: Option<MarbleKind>,
     ) -> Result<Self, TrackRunError> {
         let mut sim = Sim::empty();
-        let mut mechanisms = Vec::new();
         sim.world.colliders.insert(scene::tray_collider());
-        let mut placed = 0usize;
-        let mut hopper = None;
-        let mut footprint = std::collections::BTreeSet::new();
-        for (i, p) in track.placements.iter().enumerate() {
-            match kit_binding(kit, &p.piece) {
-                None => {
-                    return Err(TrackRunError::UnknownPiece {
-                        placement: i,
-                        piece: p.piece.clone(),
-                    });
-                }
-                Some(KitBinding::NoCollider { .. }) => {}
-                Some(KitBinding::Kit(piece)) => {
-                    let kp = Placement { piece, ..p.clone() };
-                    if let Some(k) = kit.piece(&kp.piece) {
-                        footprint.extend(kp.world_cells(&k.def).iter().map(|c| (c.x, c.z)));
-                    }
-                    let is_hopper = track.hopper.placement == u32::try_from(i).ok()
-                        && kp.piece.as_str() == behaviour::HOPPER;
-                    if is_hopper {
-                        hopper = Some(kp.clone());
-                    }
-                    if registry.get(&kp.piece).is_some() {
-                        let mut mp = kp.clone();
-                        if is_hopper {
-                            mp.config.extend(behaviour::hopper_config(
-                                track.hopper.release,
-                                track.hopper.queue.len(),
-                            ));
-                        }
-                        mechanisms.push((i, mp));
-                    }
-                    sim.place_piece(kit, kp)
-                        .map_err(|error| TrackRunError::Chunk {
-                            placement: Some(i),
-                            error,
-                        })?;
-                    placed += 1;
-                }
-            }
+        let mut plan = Plan::default();
+        for i in 0..track.placements.len() {
+            plan.place(&mut sim, kit, registry, track, i)?;
         }
         // A piece-free world never rebuilds: rebuilding switches off contact clustering, which
         // would move tray-only runs off the ramp golden.
-        if placed > 0 {
+        if plan.placed > 0 {
             sim.rebuild_chunks(kit)
                 .map_err(|error| TrackRunError::Chunk {
                     placement: None,
                     error,
                 })?;
         }
-        for (i, p) in mechanisms {
-            sim.add_registered(registry, kit, &p, track.seed)
-                .map_err(|error| TrackRunError::Mechanism {
-                    placement: i,
-                    error,
-                })?;
+        for (i, p) in &plan.mechanisms {
+            add_mechanism(&mut sim, kit, registry, *i, p, track.seed)?;
         }
+        Ok(Self::finish(sim, track, plan, kind))
+    }
+
+    /// The run of a world with every collider and mechanism in: the release schedule, then the
+    /// tick-0 releases and sample.
+    fn finish(sim: Sim, track: &Track, plan: Plan, kind: Option<MarbleKind>) -> Self {
         let sequential = track.hopper.release == ReleaseMode::Sequential;
+        let has_queue = plan.hopper.is_some() && !track.hopper.queue.is_empty();
         let mut run = Self {
             sim,
             releases: if sequential {
@@ -344,13 +321,16 @@ impl TrackRun {
                 Vec::new()
             },
             motion: Vec::new(),
-            hopper,
-            footprint,
+            hopper: plan.hopper,
+            footprint: plan.footprint,
             kind,
+            seed: track.seed,
+            hopper_queue: has_queue.then_some((track.hopper.release, track.hopper.queue.len())),
+            hopper_gone: None,
         };
         run.release_due();
         run.sim.sample();
-        Ok(run)
+        run
     }
 
     /// Advance `n` fixed steps, releasing marbles whose tick has come before each step.
@@ -437,6 +417,9 @@ impl TrackRun {
     }
 
     fn release_due(&mut self) {
+        if self.hopper_gone.is_some() {
+            return;
+        }
         if let Some(&size) = self.sequential.get(self.next) {
             if self.motion.iter().all(|m| !m.is_moving()) {
                 self.spawn(size);
@@ -507,6 +490,292 @@ impl TrackRun {
         w.colliders
             .insert_with_parent(collider, handle, &mut w.bodies);
         self.sim.marbles.push(handle);
+    }
+}
+
+/// What a build gathered from the placements so far: the mechanisms to add, the hopper, the
+/// footprint and how many pieces have colliders.
+#[derive(Default)]
+struct Plan {
+    mechanisms: Vec<(usize, Placement)>,
+    hopper: Option<Placement>,
+    footprint: std::collections::BTreeSet<(i32, i32)>,
+    placed: usize,
+}
+
+impl Plan {
+    /// Bind placement `i` of `track` and place its chunk collider.
+    fn place(
+        &mut self,
+        sim: &mut Sim,
+        kit: &KitCatalog,
+        registry: &MechanismRegistry,
+        track: &Track,
+        i: usize,
+    ) -> Result<(), TrackRunError> {
+        let p = &track.placements[i];
+        match kit_binding(kit, &p.piece) {
+            None => Err(TrackRunError::UnknownPiece {
+                placement: i,
+                piece: p.piece.clone(),
+            }),
+            Some(KitBinding::NoCollider { .. }) => Ok(()),
+            Some(KitBinding::Kit(piece)) => {
+                let kp = Placement { piece, ..p.clone() };
+                if let Some(k) = kit.piece(&kp.piece) {
+                    self.footprint
+                        .extend(kp.world_cells(&k.def).iter().map(|c| (c.x, c.z)));
+                }
+                let is_hopper = track.hopper.placement == u32::try_from(i).ok()
+                    && kp.piece.as_str() == behaviour::HOPPER;
+                if is_hopper {
+                    self.hopper = Some(kp.clone());
+                }
+                if registry.get(&kp.piece).is_some() {
+                    let mut mp = kp.clone();
+                    if is_hopper {
+                        mp.config.extend(behaviour::hopper_config(
+                            track.hopper.release,
+                            track.hopper.queue.len(),
+                        ));
+                    }
+                    self.mechanisms.push((i, mp));
+                }
+                sim.place_piece(kit, kp)
+                    .map_err(|error| TrackRunError::Chunk {
+                        placement: Some(i),
+                        error,
+                    })?;
+                self.placed += 1;
+                Ok(())
+            }
+        }
+    }
+}
+
+fn add_mechanism(
+    sim: &mut Sim,
+    kit: &KitCatalog,
+    registry: &MechanismRegistry,
+    i: usize,
+    p: &Placement,
+    seed: u64,
+) -> Result<(), TrackRunError> {
+    sim.add_registered(registry, kit, p, seed)
+        .map(drop)
+        .map_err(|error| TrackRunError::Mechanism {
+            placement: i,
+            error,
+        })
+}
+
+/// Placements bound and placed per [`TrackRunBuild::step`] unit.
+pub const BUILD_PLACE_PIECES: usize = 64;
+
+/// Where a [`TrackRunBuild`] is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BuildStage {
+    /// Binding and placing placements from this index on, [`BUILD_PLACE_PIECES`] per unit.
+    Place(usize),
+    /// One stage of one chunk collider per unit ([`Sim::rebuild_step_chunk`]).
+    Colliders,
+    /// One mechanism instance per unit, from this index of the gathered mechanisms on.
+    Mechanisms(usize),
+    /// Every unit is done: [`TrackRunBuild::finish`] hands the run over.
+    Done,
+}
+
+/// [`TrackRun::new`] (or [`TrackRun::with_mechanisms`], [`TrackRun::with_marble`]) built one
+/// bounded unit of work at a time (P3-T5), so the editor can spread a large track's build over
+/// frames. The units make the same world changes in the same order however the calls split them,
+/// and the chunk colliders come from the staged [`Sim::rebuild_step_chunk`], which installs the
+/// colliders [`Sim::rebuild_chunks`] does, so the run's trajectory and mechanism hashes are
+/// [`TrackRun::new`]'s. Units take no wall-clock input; a caller with a frame budget times them.
+pub struct TrackRunBuild<'k> {
+    kit: &'k KitCatalog,
+    registry: MechanismRegistry,
+    track: Track,
+    kind: Option<MarbleKind>,
+    sim: Sim,
+    plan: Plan,
+    stage: BuildStage,
+    /// Chunk colliders installed so far, and the dirty chunks when the collider stage began.
+    chunks: (usize, usize),
+}
+
+impl TrackRunBuild<'static> {
+    /// The build of [`TrackRun::new`]`(track)`, with no work done yet.
+    pub fn new(track: &Track) -> Self {
+        Self::with_mechanisms(track, parble_kit::builtin(), &behaviour::registry(), None)
+    }
+}
+
+impl<'k> TrackRunBuild<'k> {
+    /// The build of [`TrackRun::with_mechanisms`], spawning `kind` as [`TrackRun::with_marble`]
+    /// does when set.
+    pub fn with_mechanisms(
+        track: &Track,
+        kit: &'k KitCatalog,
+        registry: &MechanismRegistry,
+        kind: Option<MarbleKind>,
+    ) -> Self {
+        let mut sim = Sim::empty();
+        sim.world.colliders.insert(scene::tray_collider());
+        Self {
+            kit,
+            registry: registry.clone(),
+            track: track.clone(),
+            kind,
+            sim,
+            plan: Plan::default(),
+            stage: BuildStage::Place(0),
+            chunks: (0, 0),
+        }
+    }
+
+    pub fn stage(&self) -> BuildStage {
+        self.stage
+    }
+
+    pub fn is_done(&self) -> bool {
+        self.stage == BuildStage::Done
+    }
+
+    /// The track being built.
+    pub fn track(&self) -> &Track {
+        &self.track
+    }
+
+    /// Rough share of the work done, 0 to 1: placing is the first 5 %, the chunk colliders (by
+    /// chunks installed) the next 90 %, the mechanisms the last 5 %.
+    pub fn progress(&self) -> f32 {
+        let part = |done: usize, total: usize| {
+            if total == 0 {
+                1.0
+            } else {
+                done as f32 / total as f32
+            }
+        };
+        match self.stage {
+            BuildStage::Place(i) => 0.05 * part(i, self.track.placements.len()),
+            BuildStage::Colliders => 0.05 + 0.9 * part(self.chunks.0, self.chunks.1),
+            BuildStage::Mechanisms(i) => 0.95 + 0.05 * part(i, self.plan.mechanisms.len()),
+            BuildStage::Done => 1.0,
+        }
+    }
+
+    /// Do one unit of work and return whether the build is done. After an error the build is
+    /// spent: the track cannot run.
+    pub fn step(&mut self) -> Result<bool, TrackRunError> {
+        match self.stage {
+            BuildStage::Place(from) => {
+                let to = (from + BUILD_PLACE_PIECES).min(self.track.placements.len());
+                for i in from..to {
+                    self.plan
+                        .place(&mut self.sim, self.kit, &self.registry, &self.track, i)?;
+                }
+                self.stage = if to < self.track.placements.len() {
+                    BuildStage::Place(to)
+                } else if self.plan.placed > 0 {
+                    // As in [`TrackRun::new`]: a piece-free world never rebuilds.
+                    self.chunks = (0, self.sim.chunk_colliders().dirty_chunks().count());
+                    BuildStage::Colliders
+                } else {
+                    BuildStage::Mechanisms(0)
+                };
+            }
+            BuildStage::Colliders => {
+                let step = self.sim.rebuild_step_chunk(self.kit).map_err(|error| {
+                    TrackRunError::Chunk {
+                        placement: None,
+                        error,
+                    }
+                })?;
+                match step {
+                    Some((_, installed)) => self.chunks.0 += usize::from(installed),
+                    None => self.stage = BuildStage::Mechanisms(0),
+                }
+            }
+            BuildStage::Mechanisms(i) => match self.plan.mechanisms.get(i) {
+                Some((at, p)) => {
+                    add_mechanism(
+                        &mut self.sim,
+                        self.kit,
+                        &self.registry,
+                        *at,
+                        p,
+                        self.track.seed,
+                    )?;
+                    self.stage = BuildStage::Mechanisms(i + 1);
+                }
+                None => self.stage = BuildStage::Done,
+            },
+            BuildStage::Done => {}
+        }
+        Ok(self.is_done())
+    }
+
+    /// The run, doing whatever work is left first.
+    pub fn finish(mut self) -> Result<TrackRun, TrackRunError> {
+        while !self.step()? {}
+        Ok(TrackRun::finish(
+            self.sim,
+            &self.track,
+            self.plan,
+            self.kind,
+        ))
+    }
+}
+
+/// Live mechanism edits (P3-T5): the editor adds and removes a placement's mechanism instance on a
+/// running run as its pieces change, so a mechanism moved mid-run works at its new cell. Only the
+/// editor calls these; a track's own runs (and their goldens) never do.
+impl TrackRun {
+    /// Add the mechanism of kit placement `p` if `registry` has a behaviour for its piece, rooted
+    /// at the track seed as the build roots it. A hopper placed while the run's hopper is gone
+    /// becomes the run's hopper: it gets the queue and release mode, takes the removed hopper's
+    /// state over (released marbles, gate angle) and marbles spawn from it again.
+    pub fn add_mechanism(
+        &mut self,
+        kit: &KitCatalog,
+        registry: &MechanismRegistry,
+        p: &Placement,
+    ) -> Result<Option<crate::mechanism::InstanceId>, MechanismError> {
+        if registry.get(&p.piece).is_none() {
+            return Ok(None);
+        }
+        let takes_over = p.piece.as_str() == behaviour::HOPPER && self.hopper_gone.is_some();
+        let mut mp = p.clone();
+        if takes_over && let Some((release, n)) = self.hopper_queue {
+            mp.config.extend(behaviour::hopper_config(release, n));
+        }
+        let id = self.sim.add_registered(registry, kit, &mp, self.seed)?;
+        if takes_over && let Some(state) = self.hopper_gone.take() {
+            let mut one = Track::new(self.seed);
+            one.placements = vec![mp];
+            self.sim.restore_mechanism_states(
+                &one,
+                &[parble_core::MechanismState {
+                    placement: 0,
+                    state,
+                }],
+            );
+            self.hopper = Some(p.clone());
+        }
+        Ok(id)
+    }
+
+    /// Remove the mechanism instance anchored at `anchor` and return whether there was one.
+    /// Removing the run's hopper holds every release until a hopper is placed again.
+    pub fn remove_mechanism(&mut self, anchor: CellCoord) -> bool {
+        let Some((_, state)) = self.sim.remove_mechanism(anchor) else {
+            return false;
+        };
+        if self.hopper.as_ref().is_some_and(|h| h.anchor == anchor) {
+            self.hopper = None;
+            self.hopper_gone = Some(state);
+        }
+        true
     }
 }
 
@@ -964,5 +1233,212 @@ mod tests {
         assert_eq!(run.sim.pieces.chunks().count(), 1);
         assert_eq!(run_hash(&saved, 2_400), run_hash(&shipped, 2_400));
         assert_ne!(run_hash(&saved, 2_400), run_hash(&with_pieces(&[]), 2_400));
+    }
+
+    /// `track` built with [`TrackRunBuild`] one unit per call, and the number of calls.
+    fn stepped(track: &Track) -> (TrackRun, usize) {
+        let mut b = TrackRunBuild::new(track);
+        let mut calls = 0;
+        while !b.step().unwrap() {
+            calls += 1;
+        }
+        (b.finish().unwrap(), calls + 1)
+    }
+
+    /// What a run looks like after `ticks`: trajectory and mechanism hashes, marbles and every
+    /// chunk collider as built.
+    fn fingerprint(mut run: TrackRun, ticks: u32) -> (u64, u64, usize, Vec<crate::ChunkGeometry>) {
+        let geometry = run.chunk_collider_geometry();
+        run.tick(ticks);
+        (
+            run.trajectory_hash(),
+            run.mechanism_hash(),
+            run.marbles().len(),
+            geometry,
+        )
+    }
+
+    /// P3-T5: a track's run is the same whether [`TrackRun::new`] builds it in one go, a
+    /// [`TrackRunBuild`] finishes it in one call, or the build is stepped one unit at a time over
+    /// many calls (the editor's frames): same chunk colliders, same trajectory and mechanism
+    /// hashes. Covers the mechanism-heavy all-pieces track, a tray-only track (no rebuild) and a
+    /// small mixed track.
+    #[test]
+    fn a_stepped_build_runs_like_the_one_step_build() {
+        let mut mixed = with_pieces(&[
+            (behaviour::HOPPER, [0, 1, 0], 0),
+            ("blk_straight_l3", [4, 0, 0], 0),
+            (behaviour::TOGGLE, [6, 0, 0], 0),
+            (behaviour::GATE, [8, 0, 2], 1),
+        ]);
+        mixed.hopper = HopperConfig {
+            placement: Some(0),
+            queue: vec![MarbleSize::Standard; 3],
+            release: ReleaseMode::Interval { ticks: 120 },
+        };
+        let cases = [
+            ("allpieces", crate::allpieces::track(), 2_400),
+            (
+                "tray",
+                track(vec![MarbleSize::Standard], ReleaseMode::One),
+                crate::golden::RAMP_10S_TICKS,
+            ),
+            ("mixed", mixed, 1_200),
+        ];
+        for (name, t, ticks) in cases {
+            let whole = fingerprint(TrackRun::new(&t).unwrap(), ticks);
+            let one_call = fingerprint(TrackRunBuild::new(&t).finish().unwrap(), ticks);
+            let (run, calls) = stepped(&t);
+            let many = fingerprint(run, ticks);
+            assert!(calls > 1, "{name}: the build took one unit");
+            assert_eq!(one_call, whole, "{name}: one-call build");
+            assert_eq!(many, whole, "{name}: stepped over {calls} calls");
+            eprintln!("{name}: {calls} units, hash {:016x}", whole.0);
+        }
+        // The tray-only track is the ramp golden, stepped or not.
+        let (run, _) = stepped(&track(vec![MarbleSize::Standard], ReleaseMode::One));
+        assert_eq!(
+            fingerprint(run, crate::golden::RAMP_10S_TICKS).0,
+            crate::golden::ramp_10s_hash()
+        );
+    }
+
+    #[test]
+    fn a_stepped_build_reports_its_stages_and_refuses_what_the_run_refuses() {
+        let t = crate::allpieces::track();
+        let mut b = TrackRunBuild::new(&t);
+        assert_eq!(b.stage(), BuildStage::Place(0));
+        let mut seen = vec![core::mem::discriminant(&b.stage())];
+        let mut last = 0.0;
+        while !b.step().unwrap() {
+            let stage = core::mem::discriminant(&b.stage());
+            if seen.last() != Some(&stage) {
+                seen.push(stage);
+            }
+            assert!(b.progress() >= last, "progress went back");
+            last = b.progress();
+        }
+        assert_eq!(seen.len(), 3, "place, colliders, mechanisms");
+        assert_eq!(b.progress(), 1.0);
+        let bad = with_pieces(&[
+            ("blk_straight_l3", [4, 0, 0], 0),
+            ("blk_spiral_l1", [5, 0, 0], 0),
+        ]);
+        let mut b = TrackRunBuild::new(&bad);
+        assert_eq!(
+            b.step().err(),
+            Some(TrackRunError::UnknownPiece {
+                placement: 1,
+                piece: id("blk_spiral_l1")
+            })
+        );
+    }
+
+    fn world_counts(run: &TrackRun) -> (usize, usize, usize) {
+        let w = &run.sim.world;
+        (w.bodies.len(), w.colliders.len(), w.impulse_joints.len())
+    }
+
+    /// P3-T5 live edits: removing a mechanism takes its part bodies, colliders, joints and hinge
+    /// frames out of the world and adding it back at another cell puts the same back, so the
+    /// world returns to its counts; the instance and its sensors follow the move.
+    #[test]
+    fn live_mechanism_edits_add_and_remove_instances_and_their_bodies() {
+        let kit = parble_kit::builtin();
+        let registry = behaviour::registry();
+        let t = with_pieces(&[
+            (behaviour::GATE, [6, 0, 4], 0),
+            (behaviour::TOGGLE, [2, 0, 4], 0),
+            ("blk_straight_l3", [4, 0, 4], 0),
+        ]);
+        let mut run = TrackRun::new(&t).unwrap();
+        run.tick(10);
+        let full = world_counts(&run);
+        let before = run.mechanisms().len();
+        assert_eq!(before, 2);
+        // The gate's flap is a hinged dynamic part: a body, its collider, a frame and a joint.
+        assert!(full.2 >= 1, "{full:?}");
+        let gate = t.placements[0].clone();
+        assert!(run.remove_mechanism(gate.anchor));
+        assert!(!run.remove_mechanism(gate.anchor), "removed twice");
+        let gone = world_counts(&run);
+        assert!(
+            gone.0 < full.0 && gone.1 < full.1 && gone.2 < full.2,
+            "{gone:?}"
+        );
+        assert_eq!(run.mechanisms().len(), 1);
+        assert!(run.sensors().iter().all(|s| s.id.0 != gate.anchor));
+        let moved = Placement {
+            anchor: CellCoord::new(10, 0, 4),
+            ..gate.clone()
+        };
+        let id = run.add_mechanism(kit, &registry, &moved).unwrap();
+        assert_eq!(id, Some(crate::mechanism::InstanceId(moved.anchor)));
+        assert_eq!(world_counts(&run), full);
+        assert!(run.sensors().iter().any(|s| s.id.0 == moved.anchor));
+        let views = run.mechanisms();
+        assert_eq!(views.len(), before);
+        assert!(views.iter().any(|v| v.id.0 == moved.anchor));
+        // A piece with no behaviour adds nothing; the run keeps stepping.
+        let plain = &t.placements[2];
+        assert_eq!(run.add_mechanism(kit, &registry, plain).unwrap(), None);
+        assert!(!run.remove_mechanism(plain.anchor));
+        run.tick(240);
+        assert_eq!(world_counts(&run), full);
+    }
+
+    /// P3-T5 live edits: the run's hopper moved mid-run (removed, then placed at another cell)
+    /// holds releases while it is gone, then releases the rest of the queue from its new cell
+    /// with its count carried over, so no past release repeats.
+    #[test]
+    fn a_hopper_moved_mid_run_releases_the_rest_from_its_new_cell() {
+        let kit = parble_kit::builtin();
+        let registry = behaviour::registry();
+        let mut t = with_pieces(&[(behaviour::HOPPER, [0, 1, 0], 0)]);
+        t.hopper = HopperConfig {
+            placement: Some(0),
+            queue: vec![MarbleSize::Standard; 3],
+            release: ReleaseMode::Interval { ticks: 120 },
+        };
+        let mut run = TrackRun::new(&t).unwrap();
+        run.tick(60);
+        assert_eq!(run.marbles().len(), 1);
+        let old = t.placements[0].clone();
+        assert!(run.remove_mechanism(old.anchor));
+        run.remove_piece(old.anchor).unwrap();
+        run.tick(120);
+        assert_eq!(
+            run.marbles().len(),
+            1,
+            "a release while the hopper was gone"
+        );
+        let moved = Placement {
+            anchor: CellCoord::new(-6, 1, 6),
+            ..old.clone()
+        };
+        run.place_piece(kit, moved.clone()).unwrap();
+        while run.rebuild_next_chunk(kit).unwrap().is_some() {}
+        run.add_mechanism(kit, &registry, &moved).unwrap();
+        let hopper = |run: &TrackRun| {
+            run.mechanisms()
+                .into_iter()
+                .find(|m| m.piece.as_str() == behaviour::HOPPER)
+                .unwrap()
+        };
+        assert_eq!(hopper(&run).id.0, moved.anchor);
+        assert_eq!(hopper(&run).state["released"], 1, "the count carried over");
+        // The overdue release spawns at once, in the new hopper's bowl.
+        run.tick(1);
+        assert_eq!(run.marbles().len(), 2);
+        let spawned = run.marbles()[1].position;
+        let bowl = place_point_um(moved.orientation(), moved.anchor, HOPPER_BOWL_UM);
+        let bowl_m = |i: usize| (bowl[i] as f64 * 1.0e-6) as f32;
+        assert!(
+            (spawned[0] - bowl_m(0)).abs() < 0.03 && (spawned[2] - bowl_m(2)).abs() < 0.03,
+            "spawned at {spawned:?}, bowl {bowl:?}"
+        );
+        run.tick(240);
+        assert_eq!(run.marbles().len(), 3);
+        assert_eq!(hopper(&run).state["released"], 3);
     }
 }

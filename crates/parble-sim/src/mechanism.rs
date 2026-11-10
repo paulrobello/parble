@@ -401,6 +401,8 @@ impl PlacedShape {
 struct PartRuntime {
     name: String,
     body: RigidBodyHandle,
+    /// A physical part's fixed hinge frame body ([`Sim::remove_mechanism`] frees it).
+    frame: Option<RigidBodyHandle>,
     pivot: Vector,
     /// World hinge (or slide) axis.
     axis: Vector,
@@ -880,6 +882,7 @@ impl Mechanisms {
             let runtime = PartRuntime {
                 name: part.name.clone(),
                 body: RigidBodyHandle::invalid(),
+                frame: None,
                 pivot: um_m(pivot_um),
                 axis: um_m(place_point_um(o, origin, part.axis)) * 1.0e6,
                 slide,
@@ -945,6 +948,7 @@ impl Mechanisms {
                     .limits([rad(runtime.limits[0]), rad(runtime.limits[1])])
                     .contacts_enabled(false);
                 world.impulse_joints.insert(frame, handle, joint, true);
+                runtime.frame = Some(frame);
             } else {
                 runtime.pose_next(&mut world.bodies[handle], tick);
             }
@@ -1247,6 +1251,27 @@ impl Sim {
             .ok_or_else(|| MechanismError::UnknownPiece(placement.piece.clone()))?;
         self.add_mechanism(piece, placement, seed, factory(&placement.config))
             .map(Some)
+    }
+
+    /// Remove the instance anchored at `anchor` (the editor's live edits, P3-T5): its sensors,
+    /// its part bodies with their colliders and joints, and the hinge frames of its physical
+    /// parts. Returns its piece and its state as [`Sim::save_mechanism_states`] saves it, or
+    /// `None` when no instance is anchored there. The piece's static collision is
+    /// [`Sim::remove_piece`]'s.
+    pub fn remove_mechanism(&mut self, anchor: CellCoord) -> Option<(PieceId, MechConfig)> {
+        let id = InstanceId(anchor);
+        let inst = self.mechanisms.instances.remove(&id)?;
+        let state = inst.save(self.tick);
+        for part in &inst.parts {
+            self.world.remove_body(part.body);
+            if let Some(frame) = part.frame {
+                self.world.remove_body(frame);
+            }
+        }
+        let m = &mut self.mechanisms;
+        m.part_colliders.retain(|_, (owner, _, _)| *owner != id);
+        m.doors.retain(|_, d| d.instance != id);
+        Some((inst.piece, state))
     }
 
     /// Every instance in [`InstanceId`] order.
