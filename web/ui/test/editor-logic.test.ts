@@ -5,6 +5,8 @@ import {
   familyOf,
   familyText,
   boxPath,
+  checkReleaseText,
+  checkText,
   countBadge,
   faceWord,
   focusOrbit,
@@ -157,6 +159,37 @@ describe("editor model", () => {
     expect(o.yaw).toBe(0.3);
     expect(o.pitch).toBe(0.5);
     expect(o.radius).toBe(2);
+  });
+});
+
+describe("marble check text", () => {
+  const w = {
+    kind: "stalled" as const,
+    marble: "steel",
+    also: [],
+    size: "shooter",
+    piece: "mech_hole_oneway_l1",
+    anchor: null,
+    cell: null,
+    marbles: [9],
+    rolling: 1,
+    tick: 7200,
+  };
+  it("names the type, size, count and piece", () => {
+    expect(checkText(w)).toBe("Steel shooter: 1 marble still rolling at the time limit on One-way hole · 1");
+    expect(checkText({ ...w, marbles: [4, 6], rolling: 1, marble: "cats-eye", also: ["swirl"] })).toBe(
+      "Cat's eye family shooter: 1 marble stops, 1 marble still rolling at the time limit on One-way hole · 1",
+    );
+    expect(checkText({ ...w, kind: "fellOff", marbles: [0, 1], rolling: 0, piece: "blk_straight_l1" })).toBe(
+      "Steel shooter: 2 marbles fall off at Straight · 1",
+    );
+  });
+  it("names the release it checked", () => {
+    const r = { release: "all" as const, intervalTicks: 0, marbles: 10, seed: 2, sizes: ["standard"], allSizes: false };
+    expect(checkReleaseText(r)).toBe("Release all · 10 standard marbles · seed 2");
+    expect(checkReleaseText({ ...r, release: "interval", intervalTicks: 480, allSizes: true, marbles: 1 })).toBe(
+      "Interval 2 s · 1 marble at every size · seed 2",
+    );
   });
 });
 

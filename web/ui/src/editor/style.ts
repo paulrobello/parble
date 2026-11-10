@@ -114,6 +114,14 @@ export const CSS = `
 #pe .iss button{grid-column:3;grid-row:1/3;align-self:center;color:var(--p);text-decoration:underline;text-underline-offset:3px;font-weight:500;padding:4px 4px}
 #pe .note{margin-top:8px;color:var(--m);font-size:12px;line-height:1.35}
 #pe .ok{display:flex;align-items:center;gap:8px;color:var(--c)}
+#pe .ck{margin-top:14px;padding-top:12px;border-top:1px solid rgba(217,194,160,.14)}
+#pe .ck h3{font-size:15px;font-weight:500;margin-bottom:10px}
+#pe .ckb{display:flex;gap:8px;align-items:center}
+#pe .ckb .seg{flex:1}
+#pe .ckb .seg button{display:flex;align-items:center;justify-content:center;gap:6px;padding:5px 8px}
+#pe .ckb .seg button .pin{margin-left:-2px}
+#pe .ck.stale .iss{opacity:.55}
+#pe .ck .ok{margin-top:10px}
 
 #pe-tray{left:12px;right:12px;bottom:12px;height:var(--tray-h);overflow:hidden;transition:opacity .4s ease-out}
 #pe .tabs{position:relative;display:flex;height:36px;border-bottom:1px solid var(--line);padding:0 14px;gap:2px;align-items:flex-end}

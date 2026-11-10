@@ -50,6 +50,9 @@ use crate::SimClock;
 use crate::bridge::{self, Event};
 use crate::playback::Playback;
 
+mod check;
+pub use check::CheckDiag;
+
 /// Largest `fill` (and `--editor-fill`).
 pub const MAX_FILL: u32 = 4_000;
 /// Collider rebuild time per frame. A rebuild stage that starts inside it always finishes, so a
@@ -241,6 +244,16 @@ pub enum Action {
     MechConfig {
         key: String,
         value: i64,
+    },
+    /// The marble check ([`check`]): run the release `run` would make with these arguments once
+    /// per marble spec, headless and over frames, at the queue's sizes or with `allSizes` at all
+    /// three. Results land in `check`; an edit makes them stale.
+    Check {
+        release: String,
+        #[serde(default)]
+        interval_ticks: Option<u32>,
+        #[serde(default)]
+        all_sizes: bool,
     },
 }
 
@@ -600,6 +613,8 @@ pub struct EditorDiag {
     /// The anchor a Show pulse is blinking, while it runs.
     pub pulse: Option<[i32; 3]>,
     pub last_run: Option<RunTiming>,
+    /// The marble check (`check`): warnings parallel to `issues`, never errors.
+    pub check: CheckDiag,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -806,6 +821,8 @@ struct EditState {
     stroke: Option<Stroke>,
     /// Show pulse: the anchor and when it started.
     pulse: Option<(CellCoord, Instant)>,
+    /// The marble check under way.
+    check: check::CheckState,
 }
 
 fn palette() -> Vec<&'static str> {
@@ -895,6 +912,7 @@ impl EditState {
             selection_at: None,
             stroke: None,
             pulse: None,
+            check: default(),
         }
     }
 
@@ -1200,6 +1218,7 @@ fn op_name(a: &Action) -> &'static str {
         Action::Stroke { .. } => "stroke",
         Action::Pulse { .. } => "pulse",
         Action::MechConfig { .. } => "mechConfig",
+        Action::Check { .. } => "check",
     }
 }
 
@@ -1437,6 +1456,14 @@ fn build_run(
     diag.run.building = b.is_some();
     diag.run.build_progress = b.map_or(0.0, |b| b.build.progress());
     diag.run.build_op = b.map(|b| b.op);
+}
+
+/// [`check::step`] inside [`check::CHECK_BUDGET_MS`], once a frame. A run, stop or reset building
+/// its sim has the frame to itself.
+fn step_check(mut st: ResMut<EditState>, mut diag: ResMut<EditorDiag>) {
+    if st.build.is_none() {
+        check::step(&mut st, &mut diag, Some(check::CHECK_BUDGET_MS));
+    }
 }
 
 /// A trimmed track name of 1 to [`parble_core::file::MAX_NAME_CHARS`] characters.
@@ -1803,6 +1830,11 @@ fn apply_action(st: &mut EditState, ctx: &mut Ctx, action: Action) -> Result<Las
             ctx.playback.paused = false;
             ctx.playback.step = false;
         }
+        Action::Check {
+            release,
+            interval_ticks,
+            all_sizes,
+        } => check::start_check(st, ctx.diag, &release, interval_ticks, all_sizes)?,
         Action::Stop {} => start_run(st, ctx, "stop", None)?,
         Action::Reset {} => {
             let release = match &st.build {
@@ -2154,6 +2186,7 @@ impl Plugin for EditorPlugin {
                     mouse_and_keys,
                     apply_actions,
                     build_run,
+                    step_check,
                     update_hover,
                     rebuild_colliders,
                 )
@@ -3114,6 +3147,85 @@ mod tests {
 
     fn act(st: &mut EditState, ctx: &mut Ctx, json: &str) -> Result<LastAction, String> {
         apply_action(st, ctx, parse(json))
+    }
+
+    /// The marble check runs the release named in the action once per marble spec, reports a stall
+    /// anchored at the end stop for each, names the release, and goes stale on the next edit.
+    #[test]
+    fn the_marble_check_reports_a_stall_and_goes_stale_on_an_edit() {
+        let mut rig = Rig::new();
+        let mut st = EditState::new();
+        let ctx = &mut rig.ctx();
+        let st = &mut st;
+        assert_eq!(
+            act(st, ctx, r#"{"op":"check","release":"one"}"#).err(),
+            Some("check: no hopper".to_owned())
+        );
+        for (piece, cell) in [
+            ("mech_hopper", [4, 1, -6]),
+            ("blk_pillar", [4, 0, -6]),
+            ("blk_straight_l3", [5, 0, -6]),
+            ("blk_end_l3", [6, 0, -6]),
+        ] {
+            act(
+                st,
+                ctx,
+                &format!(r#"{{"op":"place","piece":"{piece}","cell":{cell:?}}}"#),
+            )
+            .unwrap();
+        }
+        act(st, ctx, r#"{"op":"check","release":"one"}"#).unwrap();
+        assert_eq!(ctx.diag.check.state, "running");
+        let mut frames = 0;
+        while ctx.diag.check.state == "running" {
+            check::step(st, ctx.diag, Some(check::CHECK_BUDGET_MS));
+            frames += 1;
+            assert!(frames < 100_000);
+        }
+        let c = &ctx.diag.check;
+        assert_eq!(c.state, "done", "{:?}", c.error);
+        assert!(frames > 1, "the check spreads over frames");
+        let r = c.release.as_ref().unwrap();
+        assert_eq!(
+            (r.release, r.marbles, r.sizes.clone(), r.all_sizes),
+            ("one", 10, vec!["standard"], false)
+        );
+        let marbles: Vec<&str> = c.runs.iter().map(|r| r.marble).collect();
+        assert_eq!(marbles, ["cats-eye", "glazed", "steel"]);
+        assert_eq!(
+            c.runs[0].also,
+            ["swirl", "onionskin", "opal", "glow"].to_vec()
+        );
+        assert_eq!(c.warning_count, 3);
+        for w in &c.warnings {
+            assert_eq!(w.kind, "stalled");
+            assert_eq!(w.piece.as_deref(), Some("blk_end_l3"));
+            assert_eq!(w.anchor, Some([6, 0, -6]));
+            assert_eq!(w.marbles, [0]);
+        }
+        // An edit leaves the warnings listed, marked stale.
+        act(
+            st,
+            ctx,
+            r#"{"op":"place","piece":"blk_straight_l3","cell":[5,0,-4]}"#,
+        )
+        .unwrap();
+        check::step(st, ctx.diag, None);
+        assert_eq!(ctx.diag.check.state, "stale");
+        assert_eq!(ctx.diag.check.warning_count, 3);
+        // All sizes: three sizes per spec.
+        act(
+            st,
+            ctx,
+            r#"{"op":"check","release":"interval","intervalTicks":480,"allSizes":true}"#,
+        )
+        .unwrap();
+        check::step(st, ctx.diag, None);
+        let c = &ctx.diag.check;
+        assert_eq!(c.state, "done");
+        assert_eq!(c.runs.len(), 9);
+        let r = c.release.as_ref().unwrap();
+        assert_eq!((r.release, r.interval_ticks), ("interval", 480));
     }
 
     /// Finish the run build under way, if any, and install it ([`step_build`] with no budget).

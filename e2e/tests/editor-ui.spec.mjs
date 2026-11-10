@@ -208,6 +208,64 @@ test("editor overlay: drawer place, select, slice, show an issue, run, fade and 
   expect(errors).toEqual([]);
 });
 
+// The marble check (owner request 2026-11-09): Check runs the Run release once per marble type off
+// the live sim, a warning lands under the issues, its Show flies to and selects the piece, and an
+// edit marks the result stale.
+test("marble check: check, a warning, show it, and an edit marks it stale", async ({ page }) => {
+  test.setTimeout(180_000);
+  const errors = [];
+  await openEditor(page, errors);
+  // Hopper on a pillar, its L1 exit dropping into an L3 straight closed by an end stop: the marbles
+  // come to rest against the end stop, short of any cup.
+  const placed = [
+    ["mech_hopper", [4, 1, -6]],
+    ["blk_pillar", [4, 0, -6]],
+    ["blk_straight_l3", [5, 0, -6]],
+    ["blk_end_l3", [6, 0, -6]],
+  ];
+  for (const [piece, cell] of placed) await edit(page, { op: "place", piece, cell });
+  const ck = page.locator('#pe-side [data-k="ck"]');
+  await expect(ck.locator('[data-k="check"]')).toBeEnabled();
+  await expect(ck.locator('[data-k="ckQueue"]')).toHaveAttribute("aria-checked", "true");
+  const frameBefore = await page.evaluate(() => window.__parble.frame);
+  await ck.locator('[data-k="check"]').click();
+  await page.waitForFunction(() => window.__parble.editor.check?.state === "running", null, { timeout: 5_000 });
+  await expect(ck.locator('[data-k="ckl"]')).toContainText("Checking");
+  await page.waitForFunction(() => window.__parble.editor.check?.state === "done", null, { timeout: 120_000 });
+  const c = await page.evaluate(() => window.__parble.editor.check);
+  // The Run button's release (Release all by default), named back; frames kept coming meanwhile.
+  expect(c.release).toMatchObject({ release: "all", marbles: 10, sizes: ["standard"], allSizes: false });
+  expect(c.runs.map((r) => r.marble)).toEqual(["cats-eye", "glazed", "steel"]);
+  expect(c.timing.frames).toBeGreaterThan(1);
+  expect(await page.evaluate(() => window.__parble.frame)).toBeGreaterThanOrEqual(frameBefore + c.timing.frames);
+  expect(c.warningCount).toBeGreaterThan(0);
+  const w = c.warnings.find((x) => x.anchor);
+  expect(w).toBeTruthy();
+  // Warnings, not issues: the validation count does not include them.
+  const s = await state(page);
+  expect(s.issues.every((i) => !["fellOff", "stalled"].includes(i.kind))).toBe(true);
+  await expect(ck.locator(".iss").first()).toBeVisible();
+  await expect(ck.locator('[data-k="ckl"]')).toContainText("Checked: Release all · 10 standard marbles");
+  await expect(ck).not.toHaveClass(/stale/);
+  // Show on the first warning: the camera flies there and selects that piece.
+  const before = await page.evaluate(() => window.__parble.camera.orbit);
+  await ck.locator("[data-show]").first().click();
+  await page.waitForFunction(
+    (a) => window.__parble.editor.selection === 1 && JSON.stringify(window.__parble.editor.selected[0]) === JSON.stringify(a),
+    c.warnings[0].anchor,
+    { timeout: 5_000 },
+  );
+  const after = await page.evaluate(() => window.__parble.camera.orbit);
+  expect(after.target).not.toEqual(before.target);
+  // An edit makes the result stale: the rows stay, dimmed, and Check reads Check again.
+  await edit(page, { op: "place", piece: "blk_straight_l3", cell: [5, 0, -4] });
+  await page.waitForFunction(() => window.__parble.editor.check?.state === "stale", null, { timeout: 5_000 });
+  await expect(ck).toHaveClass(/stale/);
+  await expect(ck.locator('[data-k="ckl"]')).toContainText("Out of date: the track changed");
+  await expect(ck.locator('[data-k="check"]')).toHaveText("Check again");
+  expect(errors).toEqual([]);
+});
+
 test("drag-to-lay: press a drawer tile, drag over the board, release, and undo takes the run back", async ({ page }) => {
   test.setTimeout(120_000);
   const errors = [];

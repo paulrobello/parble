@@ -67,6 +67,7 @@ State is a brass pin, never a fill. When the active tool, family tab, tile or se
 - Issues update after every edit. Each row shows its cell, a plain sentence and **Show**.
 - Show flies the camera to the cell over 450 ms (`Camera`), pulses a pale-blue outline on the piece twice and selects it.
 - The section header shows the count. Zero issues reads "Track is complete" with a brass pin.
+- Marble check sits under the issues: a Queue size / All sizes segmented choice and Check. It runs the release Run would make once per marble type, off the scene and over frames, and lists where marbles fall off or stall as pale-blue rows with the same Show. They are warnings, not issues, and never change the header. The release it checked is named under the rows. An edit, or a different Run release, marks the result out of date and dims the rows until Check again.
 
 ### Run
 - Run, or `Space` when nothing has focus, releases the hopper's marbles and starts the sim.

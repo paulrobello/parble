@@ -303,6 +303,76 @@ describe("editor overlay", () => {
     expect($('[data-k="vh"]').textContent).toBe("Track is complete");
   });
 
+  it("the marble check runs the Run release, lists its warnings with Show, and goes stale", () => {
+    orbit = null;
+    ui.update(diag());
+    expect($('[data-k="check"]').textContent).toBe("Check");
+    click('[data-k="check"]');
+    expect(sent.at(-1)).toEqual({ op: "check", release: "all", allSizes: false });
+    click('[data-k="ckAll"]');
+    ui.update(diag());
+    expect($('[data-k="ckAll"]').getAttribute("aria-checked")).toBe("true");
+    // Interval at 1 s is the Run release now; the check sends the same interval.
+    click('[data-s="1"]');
+    click('[data-k="check"]');
+    expect(sent.at(-1)).toEqual({ op: "check", release: "interval", intervalTicks: 240, allSizes: true });
+    const release = {
+      release: "interval" as const,
+      intervalTicks: 240,
+      marbles: 10,
+      seed: 2,
+      sizes: ["standard"],
+      allSizes: false,
+    };
+    const check = {
+      state: "running" as const,
+      progress: 0.42,
+      current: "glazed standard",
+      release,
+      edits: 3,
+      runs: [],
+      warningCount: 0,
+      warnings: [],
+      error: null,
+    };
+    ui.update(diag({ check }));
+    expect($('[data-k="ckl"]').textContent).toContain("Checking glazed standard · 42%");
+    const warning = {
+      kind: "stalled" as const,
+      marble: "glazed",
+      also: [],
+      size: "standard",
+      piece: "mech_hole_oneway_l1",
+      anchor: [20, 2, -7] as [number, number, number],
+      cell: [20, 2, -7] as [number, number, number],
+      marbles: [4, 5, 6, 7],
+      rolling: 0,
+      tick: 6882,
+    };
+    ui.update(
+      diag({ check: { ...check, state: "done", progress: 1, current: null, warningCount: 1, warnings: [warning] } }),
+    );
+    const row = $('[data-k="ckl"] .iss');
+    expect(row.textContent).toContain("Glazed standard: 4 marbles stop on One-way hole · 1");
+    expect($('[data-k="ckl"]').textContent).toContain("Checked: Interval 1 s · 10 standard marbles · seed 2");
+    expect($('[data-k="ck"]').classList.contains("stale")).toBe(false);
+    click('[data-k="ckl"] [data-show]');
+    expect(sent.slice(-3)).toEqual([
+      expect.objectContaining({ op: "camera" }),
+      { op: "boxSelect", a: [20, 2, -7], b: [20, 2, -7] },
+      { op: "pulse", anchor: [20, 2, -7] },
+    ]);
+    ui.update(
+      diag({
+        edits: 4,
+        check: { ...check, state: "stale", progress: 1, current: null, warningCount: 1, warnings: [warning] },
+      }),
+    );
+    expect($('[data-k="ck"]').classList.contains("stale")).toBe(true);
+    expect($('[data-k="ckl"]').textContent).toContain("Out of date: the track changed");
+    expect($('[data-k="check"]').textContent).toBe("Check again");
+  });
+
   it("the ghost tooltip trails the pointer with the cell, level and validity", () => {
     const canvas = $("#parble");
     canvas.dispatchEvent(new PointerEvent("pointermove", { clientX: 100, clientY: 200, bubbles: true }));

@@ -80,6 +80,57 @@ export interface RunDiag {
   buildOp?: string | null;
 }
 
+/** The release a marble check ran (CheckRelease, crates/parble-app/src/editor/check.rs). */
+export interface CheckRelease {
+  release: Release;
+  intervalTicks: number;
+  marbles: number;
+  seed: number;
+  sizes: string[];
+  allSizes: boolean;
+}
+
+/** One marble spec at one size (`size` null: the queue's own sizes). */
+export interface CheckRun {
+  marble: string;
+  also: string[];
+  size: string | null;
+  marbles: number;
+  finished: number;
+  fellOff: number;
+  stalled: number;
+  ticks: number;
+}
+
+/** Where marbles of one type and size fell off or stalled, anchored like an issue. */
+export interface CheckWarning {
+  kind: "fellOff" | "stalled";
+  marble: string;
+  also: string[];
+  size: string;
+  piece: string | null;
+  anchor: Vec3i | null;
+  cell: Vec3i | null;
+  marbles: number[];
+  /** Of a stall's marbles, how many were still rolling when the check ended. */
+  rolling: number;
+  tick: number;
+}
+
+/** `editor.check`: the marble check, warnings parallel to `issues`. */
+export interface CheckDiag {
+  state: "none" | "running" | "done" | "stale" | "failed";
+  progress: number;
+  current: string | null;
+  release: CheckRelease | null;
+  edits: number;
+  runs: CheckRun[];
+  warningCount: number;
+  warnings: CheckWarning[];
+  error: string | null;
+  timing?: { frames: number; workMs: number; frameMsMax: number; unitMsMax: number; wallMs: number } | null;
+}
+
 export interface EditorDiag {
   tool: Tool;
   brush: { piece: string; yaw: number; mirror: boolean };
@@ -117,6 +168,8 @@ export interface EditorDiag {
     frameMsMax?: number;
     wallMs?: number;
   } | null;
+  /** The marble check; absent from builds before it. */
+  check?: CheckDiag;
 }
 
 export type Action =
@@ -143,7 +196,8 @@ export type Action =
   | { op: "export" }
   | { op: "stroke"; phase: "start" | "end" | "cancel" }
   | { op: "pulse"; anchor: Vec3i }
-  | { op: "mechConfig"; key: string; value: number };
+  | { op: "mechConfig"; key: string; value: number }
+  | { op: "check"; release: Release; intervalTicks?: number; allSizes?: boolean };
 
 export type Send = (a: Action) => void;
 
@@ -263,6 +317,54 @@ export function issueText(i: IssueDiag): string {
     default:
       return i.kind;
   }
+}
+
+const MARBLES: Record<string, string> = {
+  "cats-eye": "Cat's eye",
+  glazed: "Glazed",
+  steel: "Steel",
+  swirl: "Swirl",
+  onionskin: "Onionskin",
+  opal: "Opal",
+  glow: "Glow",
+};
+
+/** A marble type's name; a type standing for others of its physics is their family. */
+export function marbleName(marble: string, also: readonly string[] = []): string {
+  const name = MARBLES[marble] ?? marble;
+  return also.length ? `${name} family` : name;
+}
+
+const plural = (n: number, one: string): string => `${n} ${one}${n === 1 ? "" : "s"}`;
+
+/** The plain sentence for one marble-check warning. */
+export function checkText(w: CheckWarning): string {
+  const who = `${marbleName(w.marble, w.also)} ${w.size}`;
+  const n = w.marbles.length;
+  const piece = w.piece ? pieceName(w.piece) : "the track";
+  if (w.kind === "fellOff") return `${who}: ${plural(n, "marble")} ${n === 1 ? "falls" : "fall"} off at ${piece}`;
+  const still = n - w.rolling;
+  const parts: string[] = [];
+  if (still) parts.push(`${plural(still, "marble")} ${still === 1 ? "stops" : "stop"}`);
+  if (w.rolling) parts.push(`${plural(w.rolling, "marble")} still rolling at the time limit`);
+  return `${who}: ${parts.join(", ")} on ${piece}`;
+}
+
+const RELEASES: Record<Release, string> = {
+  one: "Release one",
+  all: "Release all",
+  interval: "Interval",
+  sequential: "Sequential",
+};
+
+/** The release a check ran: "Release all · 10 standard marbles · seed 2". */
+export function checkReleaseText(r: CheckRelease): string {
+  const mode = r.release === "interval" ? `Interval ${r.intervalTicks / TICK_HZ} s` : RELEASES[r.release];
+  const marbles = `marble${r.marbles === 1 ? "" : "s"}`;
+  const queue = r.allSizes
+    ? `${r.marbles} ${marbles} at every size`
+    : `${r.marbles} ${r.sizes.join(" and ")} ${marbles}`;
+  return `${mode} · ${queue} · seed ${r.seed}`;
 }
 
 /** The stepper's value: "L0–L4" for all levels, "≤ L2" when sliced. */

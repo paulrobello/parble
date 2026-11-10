@@ -68,8 +68,9 @@ pub const CAP_MIN_TICKS: u64 = 7_200;
 pub const CAP_AFTER_LAST_RELEASE_TICKS: u64 = 2_880;
 /// A check never runs past this tick (5 min).
 pub const CAP_MAX_TICKS: u64 = 72_000;
-/// Ticks per [`MarbleCheck::step`] once the run is built (0.1 s).
-pub const CHECK_TICKS_PER_UNIT: u32 = 24;
+/// Ticks per [`MarbleCheck::step`] once the run is built: small enough that a unit of a
+/// 10-marble track stays under a few ms in wasm, so a frame budget can hold several.
+pub const CHECK_TICKS_PER_UNIT: u32 = 8;
 
 /// What became of one marble.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

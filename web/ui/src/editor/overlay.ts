@@ -12,6 +12,9 @@ import { ENGINE_KEYS, keyResult, ownsKeys } from "./keys";
 import {
   type Action,
   boxPath,
+  type CheckDiag,
+  checkReleaseText,
+  checkText,
   cellText,
   countBadge,
   type EditorDiag,
@@ -208,14 +211,15 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
   let lastRelease: Release = "all";
   let lastSlice: number | null = null;
 
+  // The release Run makes: the marble check runs exactly this one.
+  const releaseOf = (release: Release): { release: Release; intervalTicks?: number } =>
+    release === "interval" ? { release, intervalTicks: Math.round(intervalS * TICK_HZ) } : { release };
   const run = (release: Release): void => {
     lastRelease = release;
-    act(
-      release === "interval"
-        ? { op: "run", release, intervalTicks: Math.round(intervalS * TICK_HZ) }
-        : { op: "run", release },
-    );
+    act({ op: "run", ...releaseOf(release) });
   };
+  let checkAllSizes = false;
+  const check = (): void => act({ op: "check", ...releaseOf(lastRelease), allSizes: checkAllSizes });
   const toggleSlice = (): void => {
     if (!d) return;
     if (d.slice === null) act({ op: "slice", level: lastSlice ?? sliceDown(null, d.maxLevel) });
@@ -239,10 +243,18 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
 <button class="spine" data-k="panel" title="Collapse the panel (\\)" aria-label="Collapse the panel" aria-expanded="true"><kbd>\\</kbd></button>
 <section class="sec" data-k="sel"></section>
 <section class="sec" data-k="val"><h2><span class="sc">Validation ·</span><span data-k="vh"></span></h2><div data-k="vl"></div>
+<div class="ck" data-k="ck"><h3><span class="sc">Marble check</span></h3>
+<div class="ckb"><div class="seg" role="radiogroup" aria-label="Marble sizes" data-k="cks"></div>
+<button class="btn" data-k="check" title="Run the release Run makes once per marble type, off the scene, and list where marbles fall off or stall">Check</button></div>
+<div data-k="ckl"></div></div>
 <p class="note">Show moves the camera to the cell and selects the piece.</p></section>`;
   const selSec = q(side, '[data-k="sel"]');
   const vHead = q(side, '[data-k="vh"]');
   const vList = q(side, '[data-k="vl"]');
+  const ckSec = q(side, '[data-k="ck"]');
+  const ckBtn = q<HTMLButtonElement>(side, '[data-k="check"]');
+  const ckSizes = q(side, '[data-k="cks"]');
+  const ckList = q(side, '[data-k="ckl"]');
   let confirmDelete = false;
   let deletedNote: string | null = null;
 
@@ -576,6 +588,15 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     reset: () => act({ op: "reset" }),
     follow: () => d && act({ op: "follow", on: !d.run.follow }),
     run: () => (d?.run.active ? act({ op: "stop" }) : run(lastRelease)),
+    check,
+    ckQueue: () => {
+      checkAllSizes = false;
+      ckKey = "";
+    },
+    ckAll: () => {
+      checkAllSizes = true;
+      ckKey = "";
+    },
     panel: () => {
       root.classList.toggle("side-closed");
       q(side, ".spine").setAttribute("aria-expanded", String(!root.classList.contains("side-closed")));
@@ -817,6 +838,74 @@ ${groupActs}
       (s.issueCount > s.issues.length ? `<p class="note">and ${s.issueCount - s.issues.length} more</p>` : "");
   };
 
+  // The marble check: warnings under the issues, never issues themselves. A result is stale after
+  // an edit, or once the Run release differs from the release it checked.
+  let ckKey = "";
+  const renderCheck = (s: EditorDiag): void => {
+    const c: CheckDiag | undefined = s.check;
+    const now = releaseOf(lastRelease);
+    const r = c?.release ?? null;
+    const otherRelease =
+      !!r && (r.release !== now.release || (now.release === "interval" && r.intervalTicks !== now.intervalTicks));
+    const state = c?.state ?? "none";
+    const key = `${state}|${Math.floor((c?.progress ?? 0) * 100)}|${c?.current}|${c?.warningCount}|${c?.edits}|${otherRelease}|${checkAllSizes}|${s.hoppers}|${s.pieces === 0}`;
+    if (key === ckKey) return;
+    ckKey = key;
+    ckSec.hidden = s.pieces === 0;
+    ckSizes.innerHTML = [
+      ["ckQueue", "Queue size", !checkAllSizes],
+      ["ckAll", "All sizes", checkAllSizes],
+    ]
+      .map(
+        ([k, label, on]) =>
+          `<button role="radio" data-k="${k}" aria-checked="${on}"${on ? ' class="on"' : ""}>${on ? '<i class="pin"></i>' : ""}${label}</button>`,
+      )
+      .join("");
+    const running = state === "running";
+    ckBtn.disabled = s.hoppers === 0;
+    ckBtn.textContent = running ? "Checking" : state === "none" ? "Check" : "Check again";
+    ckBtn.title =
+      s.hoppers === 0
+        ? "Place a hopper first: the check runs its release"
+        : "Run the release Run makes once per marble type, off the scene, and list where marbles fall off or stall";
+    const stale = state === "stale" || (state === "done" && otherRelease);
+    ckSec.classList.toggle("stale", stale);
+    if (!c || state === "none") {
+      ckList.innerHTML = `<p class="note">Runs the Run release once per marble type and lists where marbles fall off or stall. These are warnings: a run can still go.</p>`;
+      return;
+    }
+    if (state === "failed") {
+      ckList.innerHTML = `<p class="note">The check could not run: ${esc(c.error ?? "unknown error")}</p>`;
+      return;
+    }
+    if (running) {
+      ckList.innerHTML = `<p class="note">Checking ${esc(c.current ?? "")} · ${Math.floor(c.progress * 100)}%</p>`;
+      return;
+    }
+    const named = r ? `<p class="note">Checked: ${esc(checkReleaseText(r))}</p>` : "";
+    const why = stale
+      ? `<p class="note">Out of date: ${state === "stale" ? "the track changed" : "the Run release changed"} since this check. Check again.</p>`
+      : "";
+    if (c.warningCount === 0) {
+      ckList.innerHTML = `${why}<p class="ok"><i class="pin"></i>Every marble type reaches a cup.</p>${named}`;
+      return;
+    }
+    ckList.innerHTML =
+      why +
+      c.warnings
+        .map((w) => {
+          const cell = w.cell ?? w.anchor;
+          const where = cell ? `<i>${cellText(cell)}</i>` : "<i>Track</i>";
+          const btn = cell
+            ? `<button data-show="${[...cell, ...(w.anchor ?? [])].join(",")}" aria-label="Show ${esc(checkText(w))}">Show</button>`
+            : "<span></span>";
+          return `<div class="iss wn"><i class="pin bl"></i>${where}${btn}<span>${esc(checkText(w))}</span></div>`;
+        })
+        .join("") +
+      (c.warningCount > c.warnings.length ? `<p class="note">and ${c.warningCount - c.warnings.length} more</p>` : "") +
+      named;
+  };
+
   let topKey = "";
   const renderTop = (s: EditorDiag): void => {
     const r = s.run;
@@ -1033,6 +1122,7 @@ ${groupActs}
     renderTiles(next);
     renderSelection(next);
     renderValidation(next);
+    renderCheck(next);
     renderHint(next);
     renderTip(next);
     renderGhost(next);
