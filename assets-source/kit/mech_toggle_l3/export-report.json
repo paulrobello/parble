@@ -8,11 +8,11 @@
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
+      "sha256": "dc5e4354830f2f6d50756485cd133bbd220e6033f9901f815880958c55fc99b7"
     },
     {
       "path": "blender/kit/kitmech.py",
@@ -59,8 +59,8 @@
     }
   },
   "lodTris": {
-    "mech_toggle_l3_lod0": 2420,
-    "mech_toggle_l3_lod1": 472,
+    "mech_toggle_l3_lod0": 2436,
+    "mech_toggle_l3_lod1": 480,
     "mech_toggle_l3_lod2": 192
   },
   "mapSize": {
@@ -96,19 +96,19 @@
   "pieceId": "mech_toggle_l3",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2854.2,
-      "median": 2724.9,
-      "min": 2168.2
+      "max": 2818.4,
+      "median": 2698.2,
+      "min": 2101.9
     },
     "lod1": {
-      "max": 1436.0,
-      "median": 1386.8,
-      "min": 1091.1
+      "max": 1522.2,
+      "median": 1413.0,
+      "min": 1209.8
     },
     "lod2": {
-      "max": 708.8,
-      "median": 695.7,
-      "min": 603.2
+      "max": 701.7,
+      "median": 688.5,
+      "min": 596.3
     }
   }
 }

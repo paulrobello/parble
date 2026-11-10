@@ -1,7 +1,7 @@
 {
   "generator": "blender/kit/thumbnails.py",
   "blender": "Blender 5.2.2 LTS",
-  "git_head": "65b963d6c18dd1266a20e816b54d198b1599d856",
+  "git_head": "c300195b4b8650a9499aa3f9aff80e9fbbdccd7a",
   "date": "2026-11-09",
   "render": {
     "engine": "BLENDER_EEVEE",
@@ -164,7 +164,7 @@
     {
       "id": "blk_tower_socket_l1",
       "source_glb": "assets/kit/blk_tower_socket_l1/blk_tower_socket_l1.glb",
-      "source_glb_sha256": "bc86581db9c12dc9d22f2f99048a4c4bc1b9a7d963560d8a716370bc9026b031",
+      "source_glb_sha256": "7d1a62658ec98b4e33c11d247853765aaa848778650c9918d13bdd09eeb08c66",
       "png": "blk_tower_socket_l1.png",
       "png_sha256": "9d848cf27984270fb033eb8a5d811a9ca43c6dc98a48c971abaea621c046e3f0",
       "bytes": 2974
@@ -220,10 +220,10 @@
     {
       "id": "mech_splitter_l3",
       "source_glb": "assets/kit/mech_splitter_l3/mech_splitter_l3.glb",
-      "source_glb_sha256": "4ed022e6423f3a6a6f34f63e446b7138c9fb2d61afad9b7bedd6388dbc805e53",
+      "source_glb_sha256": "763050a340eac24b8bac52ab143b4af58974339154fc2844c04ea87e2b356b71",
       "png": "mech_splitter_l3.png",
-      "png_sha256": "02608b16acf1806112defd94c22e7c86c42f5fcd8b80c3585ca2928ef5b8a036",
-      "bytes": 3410
+      "png_sha256": "4cde8ff994f6c86e0a68626efe8be9ce9415207c7a2e4735f4946e0e8c957514",
+      "bytes": 3400
     },
     {
       "id": "mech_stepper_up1_l1",
@@ -244,10 +244,10 @@
     {
       "id": "mech_toggle_l3",
       "source_glb": "assets/kit/mech_toggle_l3/mech_toggle_l3.glb",
-      "source_glb_sha256": "cc576d00836d226a4ab2f1b149d3fdb99344967fc394e05cec10dd908216b9a9",
+      "source_glb_sha256": "debb904de7fca631a60c25914affb79b9a71934203b67822023908eedc697801",
       "png": "mech_toggle_l3.png",
-      "png_sha256": "8ccd3d42abeceba85e0a1df6e06d3c20ca7e718506db870b64db763c4ca3f538",
-      "bytes": 3433
+      "png_sha256": "4a77de4f5447ac4d2e2aa5edaa603b166242907a61751f528d584e9be1554195",
+      "bytes": 3412
     },
     {
       "id": "rail_curve90_r90_l2",

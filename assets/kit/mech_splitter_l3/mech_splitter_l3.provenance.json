@@ -7,7 +7,7 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "55e12fdccb33402654f301ed70080957efce66e33758b5179ec83cae9a096ef3",
+    "sha256": "2acd4572252f06892d41a12eaa626866c06ae1010343f5d8f220259d6119ede1",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
@@ -17,11 +17,11 @@
   "generatorDeps": [
     {
       "path": "blender/kit/kitgeom.py",
-      "sha256": "0defd0876ce34b30f6b6e852bc82bf5585ffd58c69da9ad18b426a813ef88cd2"
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
+      "sha256": "dc5e4354830f2f6d50756485cd133bbd220e6033f9901f815880958c55fc99b7"
     },
     {
       "path": "blender/kit/kitmech.py",
@@ -54,32 +54,32 @@
     "channels": {
       "mech_splitter_l3_lod0_ao": {
         "colorspace": "Non-Color",
-        "sha256": "a4795087e01c7ba35c556ed0520f6ab0268ead86086814758156d0cb100faabb",
+        "sha256": "1ef5967072c1a66e059b10feef0a270d7038256cdd045826ad4a0bc18e77d4cf",
         "size": 512
       },
       "mech_splitter_l3_lod0_normal": {
         "colorspace": "Non-Color",
-        "sha256": "96dded7fcc723fa9b4f9b63f134e6000719a34a9d5a57982b42d904928b7c507",
+        "sha256": "4f4658b897f64fe12565c0d318b399ebe87acb1ddd04cb485d481ad79b96649d",
         "size": 512
       },
       "mech_splitter_l3_lod1_ao": {
         "colorspace": "Non-Color",
-        "sha256": "7cd0b4c87bff901300f13a1d6681b88c8408e6d3ec57f15654dce5bc5a450713",
+        "sha256": "8c617a9e756931eef7d48444aa7b6ffa2f72f2bec9f932905a91ff0fa549c3c6",
         "size": 256
       },
       "mech_splitter_l3_lod1_normal": {
         "colorspace": "Non-Color",
-        "sha256": "08c1b06062679cc203beef1a1280a0ac9e8f43b2814abe25e1a44439e6b7cd74",
+        "sha256": "ec5d0eb1a8b619716e4b80c125458a74f78dd6617d8264da8a9b03867c6e5e09",
         "size": 256
       },
       "mech_splitter_l3_lod2_ao": {
         "colorspace": "Non-Color",
-        "sha256": "c59b41a24de55348fb45a2e4f1b65a4cff782135609d863ab9a98e60b98d95e2",
+        "sha256": "982fbfe767eff2884cdb3b3fda42c64ec94b552a9dd62f99a8cf5bc1712875ea",
         "size": 128
       },
       "mech_splitter_l3_lod2_normal": {
         "colorspace": "Non-Color",
-        "sha256": "02a3c05fa32dd166cb36d8d5268c71b2aa61d87980b4dfa81b957564d8899db9",
+        "sha256": "692959952f7d32f3d8f38999037a1aa21d821422d755aa0f0b0f1e59eccaae13",
         "size": 128
       }
     }
@@ -87,11 +87,11 @@
   "lods": [
     {
       "lod": "mech_splitter_l3_lod0",
-      "tris": 2420
+      "tris": 2436
     },
     {
       "lod": "mech_splitter_l3_lod1",
-      "tris": 472
+      "tris": 480
     },
     {
       "lod": "mech_splitter_l3_lod2",
@@ -105,31 +105,31 @@
   "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
   "texelDensityPxPerM": {
     "lod0": {
-      "max": 2853.7,
-      "median": 2725.1,
-      "min": 2168.3
+      "max": 2818.5,
+      "median": 2698.4,
+      "min": 2102.1
     },
     "lod1": {
-      "max": 1436.1,
-      "median": 1386.9,
-      "min": 1091.2
+      "max": 1522.3,
+      "median": 1413,
+      "min": 1209.9
     },
     "lod2": {
-      "max": 708.8,
-      "median": 695.7,
-      "min": 603.2
+      "max": 701.9,
+      "median": 688.5,
+      "min": 596.3
     }
   },
   "compression": {
     "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
-    "glbBytes": 109116,
+    "glbBytes": 109020,
     "ktx2": "not produced in P1-T2 (maps ship as PNG)"
   },
   "derivedFiles": [
     {
       "path": "assets/kit/mech_splitter_l3/mech_splitter_l3.glb",
-      "sha256": "93fd5360001854a5da21ca13f8156d5a634f7f04e8ff50af51a0734eec7bbbcf",
-      "bytes": 109116
+      "sha256": "763050a340eac24b8bac52ab143b4af58974339154fc2844c04ea87e2b356b71",
+      "bytes": 109020
     },
     {
       "path": "assets/kit/mech_splitter_l3/mech_splitter_l3.kit.json",
@@ -138,43 +138,43 @@
     },
     {
       "path": "assets/kit/mech_splitter_l3/mech_splitter_l3_lod0_ao.png",
-      "sha256": "a4795087e01c7ba35c556ed0520f6ab0268ead86086814758156d0cb100faabb",
-      "bytes": 43315
+      "sha256": "1ef5967072c1a66e059b10feef0a270d7038256cdd045826ad4a0bc18e77d4cf",
+      "bytes": 42078
     },
     {
       "path": "assets/kit/mech_splitter_l3/mech_splitter_l3_lod0_normal.png",
-      "sha256": "96dded7fcc723fa9b4f9b63f134e6000719a34a9d5a57982b42d904928b7c507",
-      "bytes": 64894
+      "sha256": "4f4658b897f64fe12565c0d318b399ebe87acb1ddd04cb485d481ad79b96649d",
+      "bytes": 53496
     },
     {
       "path": "assets/kit/mech_splitter_l3/mech_splitter_l3_lod1_ao.png",
-      "sha256": "7cd0b4c87bff901300f13a1d6681b88c8408e6d3ec57f15654dce5bc5a450713",
-      "bytes": 16525
+      "sha256": "8c617a9e756931eef7d48444aa7b6ffa2f72f2bec9f932905a91ff0fa549c3c6",
+      "bytes": 15080
     },
     {
       "path": "assets/kit/mech_splitter_l3/mech_splitter_l3_lod1_normal.png",
-      "sha256": "08c1b06062679cc203beef1a1280a0ac9e8f43b2814abe25e1a44439e6b7cd74",
-      "bytes": 24511
+      "sha256": "ec5d0eb1a8b619716e4b80c125458a74f78dd6617d8264da8a9b03867c6e5e09",
+      "bytes": 21522
     },
     {
       "path": "assets/kit/mech_splitter_l3/mech_splitter_l3_lod2_ao.png",
-      "sha256": "c59b41a24de55348fb45a2e4f1b65a4cff782135609d863ab9a98e60b98d95e2",
-      "bytes": 5032
+      "sha256": "982fbfe767eff2884cdb3b3fda42c64ec94b552a9dd62f99a8cf5bc1712875ea",
+      "bytes": 4885
     },
     {
       "path": "assets/kit/mech_splitter_l3/mech_splitter_l3_lod2_normal.png",
-      "sha256": "02a3c05fa32dd166cb36d8d5268c71b2aa61d87980b4dfa81b957564d8899db9",
-      "bytes": 10857
+      "sha256": "692959952f7d32f3d8f38999037a1aa21d821422d755aa0f0b0f1e59eccaae13",
+      "bytes": 9296
     },
     {
       "path": "assets-source/kit/mech_splitter_l3/mech_splitter_l3_high.blend",
-      "sha256": "8ace6839823b03acaaaeb52b8dd48b2cb1f2ede6450df3e3a8bb50cc663898b8",
-      "bytes": 359328
+      "sha256": "3f0da54ed6fc887c20c32bfdff656fe4e60881bf6e25383ba9c94a3d56840688",
+      "bytes": 360741
     },
     {
       "path": "assets-source/kit/mech_splitter_l3/mech_splitter_l3_low.blend",
-      "sha256": "5632b0bb94a60e0eb781b256f423480ca1b243f0c9f79ba2beba5350b28b4e98",
-      "bytes": 187515
+      "sha256": "dded6545901960e0bef03cedf65e90823de51c0825bea5540c6ce03aeeb14128",
+      "bytes": 188590
     }
   ],
   "references": [
