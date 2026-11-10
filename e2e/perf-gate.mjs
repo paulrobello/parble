@@ -208,6 +208,7 @@ async function sample(browser, scene) {
       canvas: r.canvas, dpr: r.dpr, inner: r.inner, readyMs: Math.round(r.readyMs),
       state: r.state, errors: r.errors,
       frameTimes: st,
+      longFrames: r.deltas.flatMap((d, i) => (d > 50 ? [[i, +d.toFixed(1)]] : [])),
       passP95Ms: passMs(browser),
       pass: st.p95Ms <= passMs(browser),
       // The criterion read literally: p95 rounded to 0.1 ms at most 16.7 ms, no jitter allowance.
