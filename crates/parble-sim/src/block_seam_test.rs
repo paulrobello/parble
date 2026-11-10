@@ -1312,10 +1312,14 @@ fn a_swinging_marble_on_straights_meets_no_facet_edges() {
 }
 
 #[test]
-#[ignore = "red on the tip: steel stalls at 0.275 m/s centred, as it does in the 537822f physics"]
 fn tower_drop_stays_on_the_rails_for_glazed_and_steel() {
     // `tower_drop_stays_on_the_rails` with the glazed and the steel marble (P5-T1: every marble
-    // type runs the track). Measured 2026-11-09 on the tip: glazed 0 of 24 off; steel 1 of 24,
+    // type runs the track). With the dead landing pad (`chunk.rs` `TOWER_PAD_UM`, measured
+    // 2026-11-10) none of either is off and the joint exit minimum is 0.138 cat's eye, 0.139
+    // glazed, 0.139 steel (`tower_exit_speeds`), peak sideways 0.157, 0.157 and 0.216 m/s. The
+    // history below is from the pad that kept the marble's bounce.
+    //
+    // Measured 2026-11-09 on the tip: glazed 0 of 24 off; steel 1 of 24,
     // 0.275 m/s centred, which turns about 0.8 m/s of its fall sideways on the landing floor and
     // stops on the rails at x -0.164 m, short of the -0.21 m the check needs. With the exact
     // contacts' rest height, the CCD triangle filter and the socket's port-plane cap all as at
@@ -1524,11 +1528,19 @@ fn transfer3_sweep() -> Vec<(String, f32, f32, Transfer3, f32, f32)> {
 }
 
 #[test]
-#[ignore = "red on the tip: 13 of 585 runs stall short of the gate or fall off the transfer 3 landing"]
 fn tower_landing_and_transfer3_gate_pass_every_marble_at_every_arrival_speed() {
     // The tower landing resets a dropped marble's speed and the one-way gate's flap takes more of
     // it. A marble that leaves either too slow stops on the level `L1` run short of transfer 3 (the
     // all-pieces track's queue at the gate); one thrown sideways leaves the rails.
+    //
+    // Before the tower's dead landing pad and the end stop's tube hand-over (`chunk.rs`
+    // `TOWER_PAD_UM`, `ChannelStraight::end_of`), 13 of the 585 runs failed (measured
+    // 2026-11-10): 9 standard marbles entering at 0.375-0.4 m/s stopped short of the gate, having
+    // crossed the rail joint at 0.030-0.109 m/s after hopping and rattling on the pad, and 4
+    // standard cat's eyes fell off the `L3` straight after transfer 3, thrown 30 mm sideways by a
+    // landing on the facets' bottom crease next to the end stop. `transfer3_fine_sweep` failed 28
+    // of 1,395. With both, none fail on either grid and every run crosses the joint at 0.132 m/s
+    // or more.
     for k in MarbleKind::ALL {
         assert!(
             SPECS.iter().any(|b| b.spec() == k.spec()),

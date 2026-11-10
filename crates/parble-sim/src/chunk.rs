@@ -202,6 +202,8 @@ pub struct ChunkMesh {
     pub trapdoor: bool,
     /// Straight channel blocks of the chunk's placements (see [`ChannelStraight`]).
     pub straights: Vec<ChannelStraight>,
+    /// End stops of the chunk's placements ([`ChannelStraight::end_of`]).
+    pub ends: Vec<ChannelStraight>,
     /// Cells of the chunk's forks ([`ChannelJunction::fork`]).
     pub forks: Vec<CellCoord>,
 }
@@ -415,7 +417,12 @@ pub(crate) const CREASE_SINK_COMPENSATION_M: f32 = 3.417_8e-5;
 /// piece's cell lies within a ball diameter along the channel ([`ChunkColliders::straight_owner`]).
 /// Every seam with a slope, bend, junction, rail or mechanism keeps the contact it had, so the
 /// hand-over to and from the exact tube happens between straights, where the two surfaces meet
-/// the ball at the same height and the same normal for a centred ball.
+/// the ball at the same height and the same normal for a centred ball. An end stop on the same
+/// tube line ([`ChannelStraight::end_of`]) counts as a straight for that rule: its channel is the
+/// straight's half-round up to the stop, 36 mm past the seam, and a marble dropped onto the
+/// straight next to it (transfer 3 of the all-pieces track) otherwise lands on the facets' bottom
+/// crease and is thrown over the channel wall (0.24 m/s sideways from a centred landing, measured
+/// 2026-11-10).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ChannelStraight {
     /// The straight's cell.
@@ -457,6 +464,35 @@ impl ChannelStraight {
             place_point_um(p.orientation(), p.anchor, [n.x * half, axis_y, n.z * half])
         };
         let (u, v) = (world(na), world(nb));
+        let (axis, at_um) = if u[0] != v[0] { (0, u[2]) } else { (2, u[0]) };
+        Some(Self {
+            cell: p.anchor,
+            axis,
+            at_um,
+            axis_y_um: u[1],
+        })
+    }
+
+    /// The channel tube of a `blk_end_*` placement: one channel side port. Its cell never owns
+    /// the contact; it only lets the straight it closes keep the exact tube up to their seam.
+    fn end_of(piece: &KitPiece, p: &Placement) -> Option<Self> {
+        let def = &piece.def;
+        let [a] = def.ports.as_slice() else {
+            return None;
+        };
+        let level = a.level?;
+        let n = a.face.normal();
+        if !p.piece.as_str().starts_with("blk_end_")
+            || def.footprint.len() != 1
+            || a.class != PortClass::Channel
+            || matches!(a.face, PortFace::Top | PortFace::Bottom)
+        {
+            return None;
+        }
+        let half = HALF_CELL_UM;
+        let axis_y = level.floor_um() + CHANNEL_RADIUS_UM;
+        let world = |x: i32, z: i32| place_point_um(p.orientation(), p.anchor, [x, axis_y, z]);
+        let (u, v) = (world(n.x * half, n.z * half), world(0, 0));
         let (axis, at_um) = if u[0] != v[0] { (0, u[2]) } else { (2, u[0]) };
         Some(Self {
             cell: p.anchor,
@@ -1061,6 +1097,17 @@ const LANDING_REACH_UM: i32 = 17_000;
 
 /// Plan distance past the shaft axis to the end of the tower socket's landing pad, µm (kitblocks
 /// `TOWER_PAD`): every 8 mm marble centre in the 32 mm shaft is over the pad.
+///
+/// The pad is a dead landing: its contact never bounces (restitution 0 in place of the marble
+/// spec's 0.60-0.66 against wood). A marble falls the shaft at about 1.2 m/s, and with the bounce it
+/// hopped across the pad, landed again off the axis on the round floor and rattled between the
+/// tunnel walls, so its exit speed depended on where each hop came down: on the all-pieces
+/// layer 3 → 2 run (`block_seam_test::transfer3_run`, 585 runs, every spec and size, entry
+/// 0.1-0.4 m/s) it crossed the rail joint at 0.030-0.47 m/s and 9 runs stopped short of the
+/// one-way gate. Without the bounce the marble stays on the pad where it first lands and rolls
+/// off down its fall and the descent: 0.132-0.41 m/s at the joint, none short (measured
+/// 2026-11-10). The shape trials before it (a flat floor under the shaft, an 8 % pad) raised
+/// the rig's minimum too but each regressed the all-pieces sweep.
 const TOWER_PAD_UM: i32 = 8_000;
 
 /// The tower socket's landing pad's fall toward the socket, µm per mm (kitblocks
@@ -1474,6 +1521,8 @@ pub struct ChunkColliders {
     /// Straight channel blocks of every installed chunk collider by cell (see
     /// [`ChannelStraight`]), for the straight contact's ownership across chunk seams.
     straight_cells: BTreeMap<CellCoord, ChannelStraight>,
+    /// End stops of every installed chunk collider by cell ([`ChannelStraight::end_of`]).
+    end_cells: BTreeMap<CellCoord, ChannelStraight>,
     /// Fork cells of every installed chunk collider ([`ChunkMesh::forks`]).
     fork_cells: BTreeSet<CellCoord>,
     /// Whether the contact pair being updated has received its exact straight contact, reset
@@ -1756,6 +1805,8 @@ impl ChunkColliders {
                     .any(|q| q.face == PortFace::Bottom && q.class == PortClass::Drop);
             mesh.straights
                 .extend(ChannelStraight::of(piece, &placed.placement));
+            mesh.ends
+                .extend(ChannelStraight::end_of(piece, &placed.placement));
         }
         if from.saturating_add(count) < members.len() {
             return false;
@@ -2071,6 +2122,7 @@ impl ChunkColliders {
         let clear = |n: CellCoord| {
             !self.occupancy.contains_key(&n)
                 || self.straight_cells.get(&n).is_some_and(|o| o.same_tube(s))
+                || self.end_cells.get(&n).is_some_and(|o| o.same_tube(s))
                 || (FORK_HAND_OVER && self.fork_cells.contains(&n))
         };
         if along - lo < reach && !clear(at + CellCoord::new(-step.x, 0, -step.z)) {
@@ -2098,6 +2150,7 @@ impl ChunkColliders {
     /// Drop `chunk`'s collider and its contact-hook tags, if it has one.
     fn remove_installed(&mut self, world: &mut PhysicsWorld, chunk: CellCoord) {
         self.straight_cells.retain(|&c, _| chunk_of(c) != chunk);
+        self.end_cells.retain(|&c, _| chunk_of(c) != chunk);
         self.fork_cells.retain(|&c| chunk_of(c) != chunk);
         if let Some(h) = self.handles.remove(&chunk) {
             world.remove_collider(h);
@@ -2169,6 +2222,8 @@ impl ChunkColliders {
                 .insert(h.into_raw_parts(), (mesh.arcs, mesh.arc_of));
             self.straight_cells
                 .extend(mesh.straights.iter().map(|s| (s.cell, *s)));
+            self.end_cells
+                .extend(mesh.ends.iter().map(|s| (s.cell, *s)));
             self.fork_cells.extend(mesh.forks.iter().copied());
         }
         self.dirty.remove(&chunk);
@@ -2469,12 +2524,15 @@ impl PhysicsHooks for ChunkColliders {
                 // A marble falling onto a landing floor ([`ChannelSlope::landing`]) moves 5–7 mm
                 // a tick and first meets it already penetrating (−11 to −250 µm at the start of
                 // the step, measured 2026-11-08 in the tower), so there the bounce is dropped only
-                // while the ball also approaches no faster than LANDING_ROLLING_M_S.
+                // while the ball also approaches no faster than LANDING_ROLLING_M_S. The tower
+                // socket's landing pad (and the drop catch's, the same landing) is a dead landing:
+                // no bounce at any speed (see [`TOWER_PAD_UM`]).
                 let landing = slopes[k].len_um != i64::from(CELL_UM);
                 let approach = -bodies[ball_body].linvel().dot(n);
-                if self.rolling(gap, || slopes[k].contact(centre, ball.radius))
-                    && !keep
-                    && !(landing && approach > LANDING_ROLLING_M_S)
+                if slopes[k].pad_len_um > 0
+                    || (self.rolling(gap, || slopes[k].contact(centre, ball.radius))
+                        && !keep
+                        && !(landing && approach > LANDING_ROLLING_M_S))
                 {
                     *rigid.restitution = 0.0;
                 }

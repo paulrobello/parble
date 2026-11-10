@@ -533,32 +533,30 @@ mod tests {
     /// (the track's own test and golden run the P0 legacy marble). Each outcome is pinned. Swirl,
     /// onionskin, opal and glow share the cat's eye spec, so they share its outcome at each size.
     /// No marble of any type or size falls off the track. The outcomes, per measurement on
-    /// 2026-11-09 with the layout changes in the module docs (rope-curtain arch before transfer 2,
-    /// gate and hole swapped with the end stop under the gate, four cups):
+    /// 2026-11-10 with the layout changes in the module docs (rope-curtain arch before transfer 2,
+    /// gate and hole swapped with the end stop under the gate, four cups), the tower socket's dead
+    /// landing pad (`chunk.rs` `TOWER_PAD_UM`) and the end stop's tube hand-over
+    /// (`chunk::ChannelStraight::end_of`):
     ///
-    /// - Mini and standard cat's eye family, mini glazed, mini and standard steel: all 10 in the
-    ///   cups, through every piece.
-    /// - Shooter cat's eye family: 6 of 10 in the cups. Marbles 4 and 6 are at rest in the end stop
-    ///   [19, 1, −7], and marble 8 is in the transfer 3 straight [18, 1, −7] at 0.026 m/s: they
-    ///   fall from the gate's port with little `−x` speed onto that level straight, about 70 mm
-    ///   short of the redirect's bowl, or roll back against the end stop. Marble 9 is on the
-    ///   one-way hole [20, 2, −7], still rolling at 0.114 m/s when the run ends.
-    /// - Standard glazed: 4 of 10 in the cups. The other six are at rest in a queue on the level
-    ///   `L1` run: the first, marble 4, against the gate's flap (its centre at x = 1.172 m, inside
-    ///   the gate's cell, 1.14–1.20 m), four more touching behind it on the hole and marble 9 on
-    ///   the checkpoint. The cause is the tower landing, not the flap: marble 4 crossed the joint
-    ///   at 0.077 m/s and the hole at 0.024 m/s, where the marbles that passed crossed the joint at
-    ///   0.13–0.17 m/s, and halving the flap's closing torque left glazed standard queued at every
-    ///   seed it queued at before (measured 2026-11-09). A marble landing off centre on the
-    ///   round landing floor turns its fall sideways (up to 0.76 m/s in the socket's cell on this
-    ///   run), rattles across the pad and the descent and can leave the descent at 0.017 m/s
-    ///   (seed 6, marble 0, which stopped 18 mm past the socket face).
-    /// - Shooter glazed: 8 of 10 in the cups, marble 8 at rest in the end stop, marble 9 on the
-    ///   hole still rolling at 0.110 m/s.
-    /// - Shooter steel: 9 of 10 in the cups, marble 9 on the hole still rolling at 0.108 m/s.
+    /// - Mini and standard of every spec: all 10 in the cups, through every piece.
+    /// - Shooter cat's eye family: 8 of 10 in the cups. Marble 4 is at rest in the end stop
+    ///   [19, 1, −7]: it falls from the gate's port with little `−x` speed onto the level transfer
+    ///   3 straight and rolls back against the stop. Marble 9 is on the gate [19, 2, −7], still
+    ///   rolling at 0.112 m/s when the run ends.
+    /// - Shooter glazed: 8 of 10 in the cups, marble 4 at rest in the end stop, marble 9 on the
+    ///   hole still rolling at 0.127 m/s.
+    /// - Shooter steel: 8 of 10 in the cups. Marble 8 is in the toggle [15, 0, −7] at
+    ///   0.013 m/s and marble 9 at rest on the transfer 1 straight [0, 6, −6].
     ///
-    /// The shooters still rolling at 30 s are not a run-length artefact. Run for 60 s (measured
-    /// 2026-11-09), the seed-2 shooter on the hole leaves it and comes to rest on the transfer 3
+    /// Before the dead pad (measured 2026-11-09) standard glazed had 4 of 10 in the cups, the
+    /// other six at rest in a queue on the level `L1` run from the gate's flap back to the
+    /// checkpoint: marble 4 crossed the rail joint at 0.077 m/s after rattling on the bouncing
+    /// pad, where the marbles that passed crossed at 0.13–0.17 m/s, and halving the flap's closing
+    /// torque left glazed standard queued at every seed it queued at. The shooters were 6 of 10
+    /// (cat's eye), 8 of 10 (glazed) and 9 of 10 (steel).
+    ///
+    /// The shooters still rolling at 30 s were not a run-length artefact with the bouncing pad.
+    /// Run for 60 s (measured 2026-11-09, not re-measured with the dead pad), the seed-2 shooter on the hole leaves it and comes to rest on the transfer 3
     /// straight (glazed and steel, 0.0001 m/s or less), not in a cup; cat's eye marbles 8 and 9
     /// reach a cup, and 4 and 6 stay at rest in the end stop. Over seeds 2–9 the 60 s run turns
     /// shooters that are short at 30 s into two falls off the track after 30 s (seed 3 glazed,
@@ -585,20 +583,10 @@ mod tests {
         if kind.spec() == MarbleKind::Glazed.spec() {
             [
                 Ok(()),
-                Err(Failure::Short {
-                    cups: vec![1, 1, 1, 1],
-                    stuck: vec![
-                        (4, Some(39)),
-                        (5, Some(39)),
-                        (6, Some(39)),
-                        (7, Some(39)),
-                        (8, Some(38)),
-                        (9, Some(37)),
-                    ],
-                }),
+                Ok(()),
                 Err(Failure::Short {
                     cups: vec![2, 2, 2, 2],
-                    stuck: vec![(8, Some(51)), (9, Some(39))],
+                    stuck: vec![(4, Some(51)), (9, Some(39))],
                 }),
             ]
         } else if kind.spec() == MarbleKind::Steel.spec() {
@@ -606,8 +594,8 @@ mod tests {
                 Ok(()),
                 Ok(()),
                 Err(Failure::Short {
-                    cups: vec![2, 2, 3, 2],
-                    stuck: vec![(9, Some(39))],
+                    cups: vec![2, 1, 2, 3],
+                    stuck: vec![(8, Some(44)), (9, Some(2))],
                 }),
             ]
         } else {
@@ -616,8 +604,8 @@ mod tests {
                 Ok(()),
                 Ok(()),
                 Err(Failure::Short {
-                    cups: vec![2, 1, 2, 1],
-                    stuck: vec![(4, Some(51)), (6, Some(51)), (8, Some(41)), (9, Some(39))],
+                    cups: vec![2, 2, 2, 2],
+                    stuck: vec![(4, Some(51)), (9, Some(40))],
                 }),
             ]
         }
