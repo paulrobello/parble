@@ -392,6 +392,39 @@ mod tests {
         );
     }
 
+    /// The splitter's mode (`mode`: 0 Random, 1 Alternate) and first side (`first`) are placement
+    /// config, so they save and reload in schema 1 byte for byte, and a splitter saved before the
+    /// mode existed loads with no `mode` key (Random).
+    #[test]
+    fn splitter_mode_saves_and_reloads_and_old_files_load_as_random() {
+        use crate::{CellCoord, Mirror, PieceId, Placement, Yaw4};
+        let splitter = || {
+            Placement::new(
+                PieceId::new("mech_splitter_l3").unwrap(),
+                CellCoord::new(1, 0, 0),
+                Yaw4::new(1),
+                Mirror::Off,
+            )
+        };
+        let mut t = Track::new(7);
+        let mut alt = splitter();
+        alt.config.insert("mode".into(), 1);
+        alt.config.insert("first".into(), 1);
+        t.placements = vec![alt, splitter()];
+        let f = ParbleFile::new(t, "splitter modes");
+        let text = f.to_json();
+        let back = load(&text).expect("saved file reloads");
+        assert_eq!(back, f);
+        assert_eq!(back.to_json(), text, "canonical bytes are stable");
+        assert_eq!(back.track.schema, 1);
+        let cfg = &back.track.placements[0].config;
+        assert_eq!((cfg.get("mode"), cfg.get("first")), (Some(&1), Some(&1)));
+        // The default splitter writes no config at all, as before the mode existed.
+        let doc: Value = serde_json::from_str(&text).unwrap();
+        assert!(doc["placements"][1].get("config").is_none());
+        assert!(back.track.placements[1].config.get("mode").is_none());
+    }
+
     #[test]
     fn v1_loads_through_the_production_chain() {
         assert!(MIGRATIONS.is_empty(), "schema 1 needs no steps");

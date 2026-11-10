@@ -131,10 +131,21 @@ fn fork_side(tr: &[Vec<MarbleState>], m: usize) -> Option<Side> {
 /// `n` marbles fed one at a time from an L3 straight into the fork `piece` at cell (1, 0, 0),
 /// 240 ticks apart. Returns each marble's branch and the events.
 fn feed_fork(piece: &str, seed: u64, n: usize) -> (Vec<Option<Side>>, Vec<SimEvent>) {
-    let layout = [
-        place("blk_straight_l3", 0, 0, 0, 0),
-        place(piece, 1, 0, 0, 0),
-    ];
+    feed_fork_with(piece, &[], seed, n)
+}
+
+/// [`feed_fork`] with `config` set on the fork's placement.
+fn feed_fork_with(
+    piece: &str,
+    config: &[(&str, i64)],
+    seed: u64,
+    n: usize,
+) -> (Vec<Option<Side>>, Vec<SimEvent>) {
+    let mut fork = place(piece, 1, 0, 0, 0);
+    for &(k, v) in config {
+        fork.config.insert(k.into(), v);
+    }
+    let layout = [place("blk_straight_l3", 0, 0, 0, 0), fork];
     let mut sim = rig(&layout, seed);
     let (mut tr, mut ev) = (Vec::new(), Vec::new());
     for _ in 0..n {
@@ -198,6 +209,50 @@ fn shipped_splitter_matches_its_seeded_sequence() {
         assert_eq!(set[..8].iter().map(|&s| Some(s)).collect::<Vec<_>>(), want);
     }
     assert!(both[0] && both[1], "the sequences never used both branches");
+}
+
+/// An explicit Random mode is the default: the same seeded sides, events and saved state as a
+/// placement without the key.
+#[test]
+fn splitter_random_mode_matches_the_seeded_sequence() {
+    for seed in [3, 11] {
+        let (sides, ev) = feed_fork_with(SPLITTER, &[(SPLITTER_MODE, SPLITTER_RANDOM)], seed, 8);
+        assert_eq!(sides, expected_splits(seed, 8), "seed {seed}");
+        assert_eq!(ev, feed_fork(SPLITTER, seed, 8).1, "seed {seed}");
+    }
+}
+
+/// Alternate mode sends marbles left and right in turn from the chosen first side, whatever the
+/// seed, and never draws from the RNG.
+#[test]
+fn splitter_alternate_mode_alternates_from_the_first_side() {
+    for first in [0, 1] {
+        let want: Vec<Option<Side>> = (0..6).map(|i| Some((first + i) % 2)).collect();
+        for seed in [3, 11] {
+            let config = [(SPLITTER_MODE, SPLITTER_ALTERNATE), ("first", first)];
+            let (sides, ev) = feed_fork_with(SPLITTER, &config, seed, 6);
+            assert_eq!(sides, want, "first {first}, seed {seed}");
+            let passes: Vec<Option<Side>> = signals(&ev, "pass")
+                .into_iter()
+                .map(|p| Some(p.1))
+                .collect();
+            assert_eq!(passes, want, "first {first}, seed {seed}");
+        }
+    }
+    let layout = {
+        let mut s = place(SPLITTER, 1, 0, 0, 0);
+        s.config.insert(SPLITTER_MODE.into(), SPLITTER_ALTERNATE);
+        [place("blk_straight_l3", 0, 0, 0, 0), s]
+    };
+    let mut sim = rig(&layout, 3);
+    let (mut tr, mut ev) = (Vec::new(), Vec::new());
+    launch(&mut sim, Vector::new(-0.02, rest(3), 0.0), Vector::X * 0.6);
+    run(&mut sim, 240, &mut tr, &mut ev);
+    assert_eq!(fork_side(&tr, 0), Some(0), "first side defaults to 0");
+    assert!(
+        !state(&sim).keys().any(|k| k.starts_with("rng/")),
+        "Alternate mode drew from the RNG"
+    );
 }
 
 /// The shipped fork parts steer the marble: it touches the part and leaves by a branch, never back

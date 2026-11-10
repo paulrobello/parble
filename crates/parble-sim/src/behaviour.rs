@@ -15,7 +15,7 @@
 //! |---|---|---|---|
 //! | `mech_hopper` | `release` | `anim_gate` | opens on each release tick of its queue ([`release_ticks`]), or in `sequential` mode when the run spawns the next marble, and closes once the marble has left `release` |
 //! | `mech_finish` | `cup` | — | counts each marble once and keeps its arrival tick |
-//! | `mech_splitter_l3` | `entry` | `anim_flap` | the flap is set to a seeded side before each marble arrives |
+//! | `mech_splitter_l3` | `entry` | `anim_flap` | the flap is set before each marble arrives: to a seeded side in Random mode (the default), to the other side in Alternate mode (config [`SPLITTER_MODE`], first side `first`) |
 //! | `mech_toggle_l3` | `entry` | `anim_rocker` | the rocker flips to the other side after each marble |
 //! | `mech_checkpoint_l1` | `gate` | — | split tick and a camera cue per pass; its inlay lights on the first pass and stays lit for the run |
 //! | `mech_gate_oneway_l1` | `approach`, `exit` | `anim_flap` (physical) | marbles from `approach` push the hinged flap open; the flap's closed stop holds the others back |
@@ -413,17 +413,33 @@ impl Fork {
     }
 }
 
-/// Random splitter: each marble's side is the next [`crate::mechanism::MechRng::below`]`(2)` of
-/// the instance's `choice` stream, drawn when the previous marble has passed.
+/// Splitter config key: [`SPLITTER_RANDOM`] (the default, also for a placement without the key)
+/// or [`SPLITTER_ALTERNATE`].
+pub const SPLITTER_MODE: &str = "mode";
+pub const SPLITTER_RANDOM: i64 = 0;
+pub const SPLITTER_ALTERNATE: i64 = 1;
+
+/// Splitter. In Random mode each marble's side is the next
+/// [`crate::mechanism::MechRng::below`]`(2)` of the instance's `choice` stream, drawn when the
+/// previous marble has passed. In Alternate mode it draws nothing: the first marble goes to side
+/// `first` (config, default 0: +Z) and the sides alternate after it, as on the toggle.
 #[derive(Debug, Clone, Default)]
-pub struct Splitter(Fork);
+pub struct Splitter {
+    fork: Fork,
+    /// `Some(first side)` in Alternate mode.
+    alternate: Option<Side>,
+}
 
 impl Splitter {
-    pub fn factory(_: &MechConfig) -> Box<dyn Mechanism> {
-        Box::new(Self(Fork {
-            move_at: -1,
-            ..Fork::default()
-        }))
+    pub fn factory(config: &MechConfig) -> Box<dyn Mechanism> {
+        Box::new(Self {
+            fork: Fork {
+                move_at: -1,
+                ..Fork::default()
+            },
+            alternate: (get(config, SPLITTER_MODE) == SPLITTER_ALTERNATE)
+                .then(|| get(config, "first").clamp(0, 1)),
+        })
     }
 }
 
@@ -436,19 +452,26 @@ impl Mechanism for Splitter {
     }
 
     fn step(&mut self, ctx: &mut MechContext<'_>) {
-        self.0.step(
-            ctx,
-            &mut |ctx, _| i64::from(ctx.rng(SPLITTER_STREAM).below(2)),
-            fork_angle,
-        );
+        match self.alternate {
+            None => self.fork.step(
+                ctx,
+                &mut |ctx, _| i64::from(ctx.rng(SPLITTER_STREAM).below(2)),
+                fork_angle,
+            ),
+            Some(first) => self.fork.step(
+                ctx,
+                &mut |_, prev| if prev < 0 { first } else { 1 - prev },
+                fork_angle,
+            ),
+        }
     }
 
     fn save(&self) -> MechConfig {
-        self.0.save()
+        self.fork.save()
     }
 
     fn restore(&mut self, state: &MechConfig) {
-        self.0.restore(state);
+        self.fork.restore(state);
     }
 }
 
