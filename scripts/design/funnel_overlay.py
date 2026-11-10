@@ -38,6 +38,7 @@ PANEL = 320
 STRIP_TICKS = [100, 200, 260, 320, 380, 420, 480, 560]
 STRIP_SCENARIO = "funnel-rail"
 STRIP_SIZE = "standard"
+CHECK_3Q_TICK = 380
 COLOURS = {
     (0, "mini"): (120, 230, 255),
     (0, "standard"): (40, 140, 255),
@@ -106,9 +107,9 @@ def projector(cam: dict):
 
 
 def run_end(pos: list) -> int:
-    """Index where the marble has left the run-out's end (x < -0.09, beyond the last straight)."""
+    """Index where the marble has left the run-out's end (x < -0.03, the last straight's -x face)."""
     for i, q in enumerate(pos):
-        if q[0] < -0.09:
+        if q[0] < -0.03:
             return i
     return len(pos) - 1
 
@@ -139,9 +140,11 @@ def metrics(run: dict) -> dict:
         bowl_turn += (a1 - a0 + math.pi) % (2 * math.pi) - math.pi
     # Climb above the inlet floor height anywhere in the funnel (rim riding).
     climb = max(pos[i][1] - rim_y for i in range(enter, bore))
-    # Bounces: ticks with upward speed over 50 mm/s inside the funnel.
-    ups = [i for i in range(enter, bore) if pos[i][4] > 0.05]
-    max_up = max((pos[i][4] for i in range(enter, bore)), default=0.0)
+    # Bumps: ticks moving up faster than 50 mm/s inside the funnel, on the rim channel (over
+    # 40 mm off the axis) and in the throat (under 20 mm).
+    rim_ups = [i for i in range(enter, bore) if pos[i][4] > 0.05 and rad[i] > 0.04]
+    throat_ups = [i for i in range(enter, bore) if pos[i][4] > 0.05 and rad[i] < 0.02]
+    peak = lambda ix: round(max((pos[i][4] for i in ix), default=0.0) * 1000)
     # Near-axis swirl before the bore: radius under 20 mm, above the funnel's bottom face.
     swirl = [i for i in range(leave_rim, bore) if rad[i] < 0.02 and pos[i][1] >= FUNNEL_BOTTOM_Y]
     catch = next(i for i in range(bore, len(pos)) if pos[i][1] < 0.03 + r)
@@ -162,8 +165,11 @@ def metrics(run: dict) -> dict:
         "catch_landing_tick": catch,
         "run_out_end_tick": end,
         "climb_above_inlet_floor_mm": round(climb * 1000, 1),
-        "upward_ticks_over_50mm_s": len(ups),
-        "max_upward_mm_s": round(max_up * 1000),
+        "rim_bump_ticks": len(rim_ups),
+        "rim_bump_peak_mm_s": peak(rim_ups),
+        "rim_bumps": [[i, round(rad[i] * 1000), round(pos[i][4] * 1000)] for i in rim_ups],
+        "throat_bump_ticks": len(throat_ups),
+        "throat_bump_peak_mm_s": peak(throat_ups),
         "sense": "clockwise from above" if rim_turn > 0 else "counter-clockwise from above",
     }
 
@@ -289,21 +295,40 @@ def contact(m: list, out: Path) -> None:
             for s, rs in rows.items()
         )
 
-    maxup = ", ".join(f"{s} {max(r['max_upward_mm_s'] for r in rs)}" for s, rs in rows.items())
+    def peak(k: str) -> str:
+        return ", ".join(f"{s} {max(r[k] for r in rs)}" for s, rs in rows.items())
+
     lines = [
         "What the paths show (all six runs, cat's eye at 0.3 m/s; a tick is 1/240 s):",
         "1. Every marble enters, none misses an inlet or leaves the funnel. Each first rides the level scroll channel round the rim, counter-clockwise from above, "
-        f"for {span('rim_ledge_turn_deg')} degrees ({span('rim_ledge_ticks')} ticks, about 1.25 s) , then drops into the bowl.",
+        f"for {span('rim_ledge_turn_deg')} degrees ({span('rim_ledge_ticks')} ticks, about 1.25 s), then drops into the bowl.",
         f"2. No rim climb: the highest any marble gets is {max(by('climb_above_inlet_floor_mm')):.1f} mm above its inlet's floor height.",
         f"3. Off the ledge it spirals in, then circles the bore mouth. Turns in the bowl: {per_size('bowl_turns', '{:.1f}')}. "
         f"Ticks within 20 mm of the axis: {per_size('near_axis_swirl_ticks')}.",
-        f"4. Bigger marbles rattle at the bore mouth, 5-13 mm off the axis. Ticks moving up faster than 50 mm/s: "
-        f"{per_size('upward_ticks_over_50mm_s')} (peak mm/s: {maxup}).",
-        f"5. Down the bore at tick {span('bore_tick')}, on the catch at {span('catch_landing_tick')}, off the run-out's end at "
+        "4. Small vertical bumps on the rim channel: 60-61 mm off the axis in every run, and 85 mm off it about 24 ticks past the inlet for the mini "
+        f"and shooter. Ticks moving up faster than 50 mm/s: {per_size('rim_bump_ticks')} (peak mm/s: {peak('rim_bump_peak_mm_s')}).",
+        "5. Bigger marbles rattle in the throat, 5-13 mm off the axis, before they drop: ticks moving up faster than 50 mm/s "
+        f"{per_size('throat_bump_ticks')} (peak mm/s: {peak('throat_bump_peak_mm_s')}).",
+        f"6. Down the bore at tick {span('bore_tick')}, on the catch at {span('catch_landing_tick')}, off the run-out's end at "
         f"{span('run_out_end_tick')} (the L1 run-out is slow, about 0.14 m/s).",
+        "Colours: cool = inlet 0 (block channel from -x), warm = inlet 1 (rail from +x); light to dark = mini, standard, shooter.",
     ]
     header = 56
-    text_h = 34 * len(lines) + 20
+    fl = font(21)
+    measure = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+    wrapped = []
+    for ln in lines:
+        words, cur = ln.split(" "), ""
+        for w in words:
+            nxt = f"{cur} {w}" if cur else w
+            if measure.textlength(nxt, font=fl) > sw - 40 and cur:
+                wrapped.append(cur)
+                cur = "    " + w
+            else:
+                cur = nxt
+        wrapped.append(cur)
+    lines = wrapped
+    text_h = 30 * len(lines) + 20
     sheet = Image.new("RGB", (sw, header + top.height + 12 + st.height + 12 + text_h), (18, 18, 24))
     d = ImageDraw.Draw(sheet)
     d.text((10, 12), "blk_funnel_3x3_l2 + blk_catch_l1: marble paths from each inlet (top, three-quarter, frame strip)",
@@ -314,8 +339,8 @@ def contact(m: list, out: Path) -> None:
     sheet.paste(st, (0, y))
     y += st.height + 12
     for ln in lines:
-        d.text((12, y), ln, font=font(21), fill=(230, 230, 236))
-        y += 34
+        d.text((12, y), ln, font=fl, fill=(230, 230, 236))
+        y += 30
     sheet.save(out / "funnel-contact-sheet.png")
 
 
@@ -337,16 +362,27 @@ def main() -> int:
         load = lambda n: json.loads((shots / f"{n}.json").read_text())
         top, tq = load("top"), load("3q")
         frames = [load(f"strip-{t}") for t in STRIP_TICKS]
+        tq_check = load(f"check-3q-{CHECK_3Q_TICK}")
     else:
         # The scenario's own mini has run out and fallen off the floor's edge by tick 2400, so
         # the scene is empty under the paths.
         top = capture(binary, "top", "funnel", "funnel-top", "mini", 2400)
         tq = capture(binary, "3q", "funnel", "funnel-3q", "mini", 2400)
         frames = [capture(binary, f"strip-{t}", STRIP_SCENARIO, "funnel-top", STRIP_SIZE, t) for t in STRIP_TICKS]
+        tq_check = capture(binary, f"check-3q-{CHECK_3Q_TICK}", STRIP_SCENARIO, "funnel-3q", STRIP_SIZE, CHECK_3Q_TICK)
     draw_paths(top, runs, OUT / "funnel-top-paths.png", ["Funnel catcher", "top view, six sim paths"])
     draw_paths(tq, runs, OUT / "funnel-3q-paths.png", ["Funnel catcher", "three-quarter view,", "six sim paths"])
     strip_run = next(r for r in runs if r["inlet"] == 1 and r["size"] == STRIP_SIZE)
     checks = strip(frames, strip_run, OUT / "funnel-rail-strip.png")
+    for c in checks:
+        c["camera"] = "funnel-top"
+    sim = strip_run["pos"][tq_check["tick"]][:3]
+    checks.append({
+        "camera": "funnel-3q",
+        "tick": tq_check["tick"],
+        "sim_vs_app_mm": round(math.dist(sim, tq_check["marbles"][0]["position"]) * 1000, 3),
+        "proj_vs_marblePx": round(math.dist(projector(tq_check["shotCamera"])(sim), tq_check["shotCamera"]["marblePx"][0]), 2),
+    })
     m = [metrics(r) for r in runs]
     contact(m, OUT)
     report = {"strip_checks": checks, "runs": m}
