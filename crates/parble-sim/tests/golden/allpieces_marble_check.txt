@@ -1,22 +1,15 @@
-# cats-eye mini 6802
-# cats-eye standard 6846
+# cats-eye mini 6735
+# cats-eye standard 6991
 # cats-eye shooter 7200
 cats-eye shooter 4 stalled 51 7200
-cats-eye shooter 6 rolling 51 7200
-cats-eye shooter 8 rolling 41 7200
-cats-eye shooter 9 rolling 39 7200
-# glazed mini 6746
-# glazed standard 6882
-glazed standard 4 stalled 39 6882
-glazed standard 5 stalled 39 6882
-glazed standard 6 stalled 39 6882
-glazed standard 7 stalled 39 6882
-glazed standard 8 stalled 38 6882
-glazed standard 9 stalled 37 6882
+cats-eye shooter 9 rolling 40 7200
+# glazed mini 6949
+# glazed standard 6519
 # glazed shooter 7200
-glazed shooter 8 stalled 51 7200
+glazed shooter 4 stalled 51 7200
 glazed shooter 9 rolling 39 7200
-# steel mini 6837
-# steel standard 6811
+# steel mini 7175
+# steel standard 7080
 # steel shooter 7200
-steel shooter 9 rolling 39 7200
+steel shooter 8 rolling 44 7200
+steel shooter 9 stalled 2 7200
