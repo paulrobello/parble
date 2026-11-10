@@ -70,6 +70,8 @@ The web build replaces `window.__parble` every frame. `--dump-state` prints the 
   },
   "sensors": {"on": false, "volumes": 0, "occupied": 0},
   "playback": {"paused": false, "timeScale": 1.0},
+  "pipelines": {"renderFrame": 106, "total": 58, "ok": 58, "pending": 0, "failed": 0, "lastCreatedFrame": 3, "created": []},
+  "warmup": {"done": true, "doneFrame": 13},
   "exited": true
 }
 ```
