@@ -1314,8 +1314,14 @@ fn tower_drop_stays_on_the_rails_for_glazed_and_steel() {
     // 0.3 m/s sideways. Two prototypes changed only the exact contact (the mesh stayed round):
     // a 3 mm flat floor under the shaft raised the minimum to 0.124-0.131 m/s with none
     // off the rails, and a 6 % pad to 0.099-0.103, but both made the all-pieces sweep worse
-    // (32 of 72 runs Ok to 15 and 13), so neither shipped. A flat landing floor needs the
-    // generator and the exact contact changed together.
+    // (32 of 72 runs Ok to 15 and 13), so neither shipped. Changing the generator and the exact
+    // contact together does not rescue it either (measured 2026-11-09, socket only, catch
+    // untouched): a 1.066 mm flat floor under the shaft, crown raised to keep the overhead
+    // check, left 2 runs off the rails here and took the sweep (Ok / Short / FellOff / Other)
+    // from 32 / 38 / 1 / 1 to 8 / 51 / 13 / 0, mini marbles crossing the joint at 0.08-0.12 m/s
+    // where they crossed at 0.13-0.24; an 8 % pad passed here (exit minimum 0.105 cat's eye,
+    // 0.105 glazed, 0.109 steel, steel 0 off) but took the sweep to 22 / 44 / 4 / 2, fast
+    // marbles stalling at the hole and the gate.
     let mut off = Vec::new();
     for kind in [MarbleKind::Glazed, MarbleKind::Steel] {
         let control = Control {
