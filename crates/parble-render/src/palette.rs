@@ -11,6 +11,9 @@ use bevy::prelude::*;
 pub const WARM_AMBER: Color = Color::srgb(1.0, 0.78, 0.52);
 /// A lighter warm yellow for broad key lights, so lit wood stays wood-coloured.
 pub const WARM_KEY: Color = Color::srgb(1.0, 0.86, 0.68);
+/// Paper lantern shade glow: warm amber a quarter of the way to white, so the paper reads warm
+/// off-white rather than orange (ref-12).
+pub const LANTERN_PAPER: Color = Color::srgb(1.0, 0.835, 0.64);
 /// Pale blue: moonlight, window fill and rim light.
 pub const PALE_BLUE: Color = Color::srgb(0.62, 0.74, 1.0);
 /// Deep night blue for ambient fill and the space behind the scene.

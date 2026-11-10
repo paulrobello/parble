@@ -24,7 +24,7 @@ Code: `crates/parble-render/src/post.rs` (`Quality::post`). Tier selection: `--q
 
 ## Light colour (2026-11-08)
 
-PRD §5.5: every scene mixes a warm key with a pale blue fill or rim, as the references do (blue in the background, on shadowed faces and on edges turned from the key; lit wood stays amber). The colours live in `crates/parble-render/src/palette.rs`: `WARM_AMBER` (lanterns, lamp, glow presets), `WARM_KEY` (broad key light), `PALE_BLUE` (moon, fill, rim) and `NIGHT_BLUE` (ambient), plus a `Glow` preset enum for emissive inlays. The blue is desaturated, because ACES fitted pushes saturated blue towards purple.
+PRD §5.5: every scene mixes a warm key with a pale blue fill or rim, as the references do (blue in the background, on shadowed faces and on edges turned from the key; lit wood stays amber). The colours live in `crates/parble-render/src/palette.rs`: `WARM_AMBER` (lantern lights and ribs, lamp, glow presets), `LANTERN_PAPER` (the lantern shades' glow, amber a quarter of the way to white, `docs/design/lantern/`), `WARM_KEY` (broad key light), `PALE_BLUE` (moon, fill, rim) and `NIGHT_BLUE` (ambient), plus a `Glow` preset enum for emissive inlays. The blue is desaturated, because ACES fitted pushes saturated blue towards purple.
 
 | Scene | Warm | Pale blue | Shadow casters (High) |
 |---|---|---|---|

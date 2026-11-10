@@ -13,7 +13,7 @@
 use std::{f32::consts::FRAC_PI_2, path::Path, sync::OnceLock};
 
 use bevy::{
-    asset::{RenderAssetUsages, io::embedded::EmbeddedAssetRegistry},
+    asset::{RenderAssetUsages, embedded_asset, io::embedded::EmbeddedAssetRegistry},
     gltf::GltfAssetLabel,
     image::{
         CompressedImageFormats, ImageAddressMode, ImageFilterMode, ImageSampler,
@@ -21,18 +21,20 @@ use bevy::{
     },
     light::{EnvironmentMapLight, NotShadowCaster, NotShadowReceiver},
     math::Affine2,
+    pbr::{ExtendedMaterial, MaterialExtension},
     prelude::*,
     render::render_resource::{
-        Extent3d, TextureDataOrder, TextureDimension, TextureFormat, TextureViewDescriptor,
-        TextureViewDimension,
+        AsBindGroup, Extent3d, ShaderType, TextureDataOrder, TextureDimension, TextureFormat,
+        TextureViewDescriptor, TextureViewDimension,
     },
+    shader::ShaderRef,
 };
 use serde::Deserialize;
 
 use crate::{
     Quality,
     camera::MainCamera,
-    palette::{NIGHT_BLUE, PALE_BLUE, WARM_AMBER as WARM},
+    palette::{LANTERN_PAPER, NIGHT_BLUE, PALE_BLUE, WARM_AMBER as WARM},
 };
 
 /// Which environment surrounds the P0 tray. Chosen by the app from the scenario.
@@ -315,8 +317,46 @@ impl Plugin for PlayroomPlugin {
             )
             .add_systems(PostStartup, attach_environment_map.run_if(is_playroom))
             .add_systems(PostUpdate, enforce_shadow_cap);
+        embedded_asset!(app, "lantern.wesl");
+        app.add_plugins(MaterialPlugin::<LanternMaterial>::default());
     }
 }
+
+const LANTERN_SHADER: &str = "embedded://parble_render/lantern.wesl";
+
+/// Paper shade emissive face on, cd/m² per unit of [`LANTERN_PAPER`] (ref-12, 2026-11-10).
+pub const LANTERN_PAPER_NITS: f32 = 2.2;
+/// Bamboo rib emissive, cd/m² per unit of warm amber: darker lines on the lit paper.
+pub const LANTERN_RIB_NITS: f32 = 0.8;
+/// Shade emissive scale at the silhouette, and the falloff exponent on N.V towards it.
+pub const LANTERN_EDGE: f32 = 0.0;
+pub const LANTERN_FALLOFF_POWER: f32 = 2.0;
+
+/// Shade falloff for `lantern.wesl` (binding 100).
+#[derive(ShaderType, Reflect, Debug, Clone, Copy, Default)]
+pub struct LanternParams {
+    /// Emissive scale at the silhouette, where the view grazes the paper.
+    pub edge: f32,
+    /// Falloff exponent on N.V.
+    pub power: f32,
+    pub pad0: f32,
+    pub pad1: f32,
+}
+
+/// Paper lantern shade and ribs: the emissive dims from face on towards the silhouette.
+#[derive(Asset, AsBindGroup, Reflect, Debug, Clone, Default)]
+pub struct LanternExt {
+    #[uniform(100)]
+    pub params: LanternParams,
+}
+
+impl MaterialExtension for LanternExt {
+    fn fragment_shader() -> ShaderRef {
+        LANTERN_SHADER.into()
+    }
+}
+
+pub type LanternMaterial = ExtendedMaterial<StandardMaterial, LanternExt>;
 
 fn is_playroom(env: Res<Environment>) -> bool {
     *env == Environment::Playroom
@@ -464,12 +504,14 @@ pub fn cube_image(bytes: &[u8], size: u32, levels: u32) -> Image {
     img
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_playroom_set(
     mut commands: Commands,
     registry: Res<EmbeddedAssetRegistry>,
     assets: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut lantern_materials: ResMut<Assets<LanternMaterial>>,
     mut images: ResMut<Assets<Image>>,
     kit_scene: Option<Res<crate::kit::KitScene>>,
 ) {
@@ -554,17 +596,32 @@ fn spawn_playroom_set(
     ));
 
     // Paper lanterns: an emissive shade with darker bamboo ribs. The light is spawned separately.
-    let paper = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.95, 0.9, 0.82),
-        emissive: LinearRgba::from(WARM) * 30.0,
-        perceptual_roughness: 0.9,
-        ..default()
+    // The emissive stays below ACES's shoulder so the paper is not clipped and the ribs show, and
+    // it fades towards the silhouette (ref-12).
+    let falloff = LanternExt {
+        params: LanternParams {
+            edge: LANTERN_EDGE,
+            power: LANTERN_FALLOFF_POWER,
+            ..default()
+        },
+    };
+    let paper = lantern_materials.add(LanternMaterial {
+        base: StandardMaterial {
+            base_color: Color::srgb(0.95, 0.9, 0.82),
+            emissive: LinearRgba::from(LANTERN_PAPER) * LANTERN_PAPER_NITS,
+            perceptual_roughness: 0.9,
+            ..default()
+        },
+        extension: falloff.clone(),
     });
-    let rib = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.5, 0.42, 0.33),
-        emissive: LinearRgba::from(WARM) * 5.0,
-        perceptual_roughness: 0.9,
-        ..default()
+    let rib = lantern_materials.add(LanternMaterial {
+        base: StandardMaterial {
+            base_color: Color::srgb(0.5, 0.42, 0.33),
+            emissive: LinearRgba::from(WARM) * LANTERN_RIB_NITS,
+            perceptual_roughness: 0.9,
+            ..default()
+        },
+        extension: falloff,
     });
     let sphere = meshes.add(Sphere::new(1.0).mesh().uv(48, 24));
     for lan in &lay.lanterns {
