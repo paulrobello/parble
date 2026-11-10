@@ -422,7 +422,7 @@ mod tests {
         // The default splitter writes no config at all, as before the mode existed.
         let doc: Value = serde_json::from_str(&text).unwrap();
         assert!(doc["placements"][1].get("config").is_none());
-        assert!(back.track.placements[1].config.get("mode").is_none());
+        assert!(!back.track.placements[1].config.contains_key("mode"));
     }
 
     #[test]
