@@ -9,16 +9,27 @@
 // a rope arch file (P2 item 18), also runs run_rope_arch() (the rope-curtain pass, both ways).
 // a lift file, also runs run_lift_track() (hopper to finish up both stepper elevators). With a
 // marble check file, also runs run_marble_check() (the editor's marble check of the all-pieces
-// release, every marble spec at every size) and compares it line by line.
+// release, every marble spec at every size) and compares it line by line. With a nudge file, also
+// runs run_nudge_track() (rope arches kept moving by a nudge zone).
 "use strict";
 
 const fs = require("node:fs");
 const path = require("node:path");
 
-const [modulePath, goldenPath, variantsPath, mechanismPath, playroomPath, allpiecesPath, ropePath, liftPath, checkPath] =
-  process.argv.slice(2);
+const [
+  modulePath,
+  goldenPath,
+  variantsPath,
+  mechanismPath,
+  playroomPath,
+  allpiecesPath,
+  ropePath,
+  liftPath,
+  checkPath,
+  nudgePath,
+] = process.argv.slice(2);
 if (!modulePath || !goldenPath) {
-  console.error("usage: node run-golden.cjs <module.js> <golden.hash> [<variants.hash> [<mechanism.hash> [<playroom.hash> [<allpieces.hash> [<rope.hash> [<lift.hash> [<marble-check.txt>]]]]]]]");
+  console.error("usage: node run-golden.cjs <module.js> <golden.hash> [<variants.hash> [<mechanism.hash> [<playroom.hash> [<allpieces.hash> [<rope.hash> [<lift.hash> [<marble-check.txt> [<nudge.hash>]]]]]]]]");
   process.exit(2);
 }
 
@@ -31,6 +42,7 @@ const {
   run_rope_arch,
   run_lift_track,
   run_marble_check,
+  run_nudge_track,
 } = require(
   path.resolve(modulePath),
 );
@@ -127,4 +139,16 @@ if (checkPath) {
   }
   if (bad) process.exit(1);
   console.log(`determinism-wasm: marble check (${got.length} lines) matches native (${checkPath})`);
+}
+
+if (nudgePath) {
+  const want = fs.readFileSync(nudgePath, "utf8").trim();
+  const got = run_nudge_track();
+  console.log(`nudge track (native) ${want}`);
+  console.log(`nudge track (wasm)   ${got}`);
+  if (got !== want) {
+    console.error(`FAIL: wasm nudge track hash ${got} != native ${want} (${nudgePath})`);
+    process.exit(1);
+  }
+  console.log("determinism-wasm: nudge track run matches native");
 }

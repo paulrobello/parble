@@ -8,6 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::catalog::PieceCatalog;
 use crate::grid::{CellCoord, Mirror, Orientation, Yaw4};
+use crate::nudge_zone::{MAX_NUDGE_ZONES, NudgeZone};
 use crate::piece::{PieceDef, PieceId};
 use crate::track::{HopperConfig, MechConfig, Placement, Track};
 
@@ -119,6 +120,12 @@ pub enum EditCommand {
     SetMechConfig { index: u32, config: MechConfig },
     /// Replace the hopper configuration.
     SetHopper(HopperConfig),
+    /// Append a nudge zone ([`crate::nudge_zone`]) and select it.
+    AddNudge(NudgeZone),
+    /// Replace nudge zone `index`.
+    SetNudge { index: u32, zone: NudgeZone },
+    /// Remove nudge zone `index`; later zones keep their order.
+    RemoveNudge(u32),
 }
 
 /// Why a command was rejected. A rejected command changes nothing.
@@ -136,6 +143,12 @@ pub enum EditError {
     Collision(CellCoord),
     /// A cell coordinate would leave the `i32` range.
     CoordOverflow,
+    /// A nudge zone index that is not in the track.
+    NudgeOutOfRange(u32),
+    /// A nudge zone that breaks a [`NudgeZone::check`] rule.
+    InvalidNudge(String),
+    /// The track already holds [`MAX_NUDGE_ZONES`].
+    TooManyNudges,
 }
 
 impl core::fmt::Display for EditError {
@@ -148,6 +161,9 @@ impl core::fmt::Display for EditError {
             Self::NotMechanism(i) => write!(f, "placement {i} is not a mechanism piece"),
             Self::Collision(c) => write!(f, "two placements would share cell {c:?}"),
             Self::CoordOverflow => f.write_str("cell coordinate overflow"),
+            Self::NudgeOutOfRange(i) => write!(f, "nudge zone index {i} is out of range"),
+            Self::InvalidNudge(e) => write!(f, "invalid nudge zone: {e}"),
+            Self::TooManyNudges => write!(f, "a track holds at most {MAX_NUDGE_ZONES} nudge zones"),
         }
     }
 }
@@ -174,6 +190,19 @@ enum Change {
         old: HopperConfig,
         new: HopperConfig,
     },
+    InsertNudge {
+        index: u32,
+        zone: NudgeZone,
+    },
+    RemoveNudge {
+        index: u32,
+        zone: NudgeZone,
+    },
+    ReplaceNudge {
+        index: u32,
+        old: NudgeZone,
+        new: NudgeZone,
+    },
 }
 
 impl Change {
@@ -187,6 +216,15 @@ impl Change {
             }
             Self::Replace { index, new, .. } => track.placements[*index as usize] = new.clone(),
             Self::SetHopper { new, .. } => track.hopper = new.clone(),
+            Self::InsertNudge { index, zone } => {
+                track.nudge_zones.insert(*index as usize, zone.clone());
+            }
+            Self::RemoveNudge { index, .. } => {
+                track.nudge_zones.remove(*index as usize);
+            }
+            Self::ReplaceNudge { index, new, .. } => {
+                track.nudge_zones[*index as usize] = new.clone();
+            }
         }
     }
 
@@ -200,6 +238,15 @@ impl Change {
             }
             Self::Replace { index, old, .. } => track.placements[*index as usize] = old.clone(),
             Self::SetHopper { old, .. } => track.hopper = old.clone(),
+            Self::InsertNudge { index, .. } => {
+                track.nudge_zones.remove(*index as usize);
+            }
+            Self::RemoveNudge { index, zone } => {
+                track.nudge_zones.insert(*index as usize, zone.clone());
+            }
+            Self::ReplaceNudge { index, old, .. } => {
+                track.nudge_zones[*index as usize] = old.clone();
+            }
         }
     }
 }
@@ -212,6 +259,9 @@ pub struct Editor {
     redo: Vec<Vec<Change>>,
     /// The current selection. Structural commands and undo/redo update it.
     pub selection: Selection,
+    /// The selected nudge zone, apart from the placement selection: [`EditCommand::AddNudge`]
+    /// selects the zone it adds, [`EditCommand::RemoveNudge`], undo and redo clear it.
+    pub nudge: Option<u32>,
 }
 
 impl Editor {
@@ -221,6 +271,7 @@ impl Editor {
             undo: Vec::new(),
             redo: Vec::new(),
             selection: Selection::new(),
+            nudge: None,
         }
     }
 
@@ -255,9 +306,19 @@ impl Editor {
         catalog: &C,
         cmd: EditCommand,
     ) -> Result<(), EditError> {
+        let nudge = match &cmd {
+            EditCommand::AddNudge(_) => Some(Some(
+                u32::try_from(self.track.nudge_zones.len()).expect("nudge count fits in u32"),
+            )),
+            EditCommand::RemoveNudge(_) => Some(None),
+            _ => None,
+        };
         let (changes, selection) = self.plan(catalog, cmd)?;
         for change in &changes {
             change.apply(&mut self.track);
+        }
+        if let Some(n) = nudge {
+            self.nudge = n;
         }
         self.undo.push(changes);
         self.redo.clear();
@@ -287,6 +348,7 @@ impl Editor {
         }
         self.redo.push(changes);
         self.selection.clear();
+        self.nudge = None;
         true
     }
 
@@ -300,6 +362,7 @@ impl Editor {
         }
         self.undo.push(changes);
         self.selection.clear();
+        self.nudge = None;
         true
     }
 
@@ -372,7 +435,39 @@ impl Editor {
                 let old = self.track.hopper.clone();
                 Ok((vec![Change::SetHopper { old, new }], None))
             }
+            EditCommand::AddNudge(zone) => {
+                zone.check().map_err(EditError::InvalidNudge)?;
+                if self.track.nudge_zones.len() >= MAX_NUDGE_ZONES {
+                    return Err(EditError::TooManyNudges);
+                }
+                let index =
+                    u32::try_from(self.track.nudge_zones.len()).expect("nudge count fits in u32");
+                Ok((vec![Change::InsertNudge { index, zone }], None))
+            }
+            EditCommand::SetNudge { index, zone } => {
+                zone.check().map_err(EditError::InvalidNudge)?;
+                let old = self.nudge_zone(index)?.clone();
+                Ok((
+                    vec![Change::ReplaceNudge {
+                        index,
+                        old,
+                        new: zone,
+                    }],
+                    None,
+                ))
+            }
+            EditCommand::RemoveNudge(index) => {
+                let zone = self.nudge_zone(index)?.clone();
+                Ok((vec![Change::RemoveNudge { index, zone }], None))
+            }
         }
+    }
+
+    fn nudge_zone(&self, index: u32) -> Result<&NudgeZone, EditError> {
+        self.track
+            .nudge_zones
+            .get(index as usize)
+            .ok_or(EditError::NudgeOutOfRange(index))
     }
 
     fn plan_append<C: PieceCatalog + ?Sized>(

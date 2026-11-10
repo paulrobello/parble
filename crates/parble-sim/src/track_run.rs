@@ -304,7 +304,8 @@ impl TrackRun {
 
     /// The run of a world with every collider and mechanism in: the release schedule, then the
     /// tick-0 releases and sample.
-    fn finish(sim: Sim, track: &Track, plan: Plan, kind: Option<MarbleKind>) -> Self {
+    fn finish(mut sim: Sim, track: &Track, plan: Plan, kind: Option<MarbleKind>) -> Self {
+        sim.set_nudge_zones(&track.nudge_zones);
         let sequential = track.hopper.release == ReleaseMode::Sequential;
         let has_queue = plan.hopper.is_some() && !track.hopper.queue.is_empty();
         let mut run = Self {
@@ -783,6 +784,11 @@ impl TrackRun {
 /// track one changed placement at a time and rebuilds only the touched chunks. Placements go
 /// straight to the chunk colliders, so ids must already be kit ids ([`kit_binding`]).
 impl TrackRun {
+    /// [`Sim::set_nudge_zones`]: the editor hands a live run the track's zones after an edit.
+    pub fn set_nudge_zones(&mut self, zones: &[parble_core::NudgeZone]) {
+        self.sim.set_nudge_zones(zones);
+    }
+
     pub fn place_piece(&mut self, kit: &KitCatalog, p: Placement) -> Result<(), ChunkError> {
         self.sim.place_piece(kit, p)
     }

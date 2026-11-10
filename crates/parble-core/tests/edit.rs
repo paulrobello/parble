@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use parble_core::{
     CellCoord, EditCommand, EditError, Editor, HopperConfig, MapCatalog, MarbleSize, MechConfig,
-    Mirror, PieceDef, PieceId, Placement, Port, PortClass, PortFace, PortFlow, PortLevel,
-    ReleaseMode, Selection, Track, Yaw4,
+    Mirror, NudgeZone, PieceDef, PieceId, Placement, Port, PortClass, PortFace, PortFlow,
+    PortLevel, ReleaseMode, Selection, Track, Yaw4,
 };
 use proptest::prelude::*;
 
@@ -501,6 +501,11 @@ enum Op {
     Paste(Vec<u32>, (i32, i32, i32)),
     MechConfig(u32, i64),
     Hopper(Option<u32>, u8),
+    /// Add a nudge zone over cells from a corner, `n` cells wide, at a yaw (an invalid yaw is
+    /// refused).
+    AddNudge((i32, i32, i32), i32, i32),
+    SetNudge(u32, i32, u32),
+    RemoveNudge(u32),
     Undo,
     Redo,
 }
@@ -528,6 +533,9 @@ fn op() -> impl Strategy<Value = Op> {
         1 => (idxs(), coord(3)).prop_map(|(s, d)| Op::Paste(s, d)),
         1 => (idx(), -3i64..3).prop_map(|(i, v)| Op::MechConfig(i, v)),
         1 => (prop::option::of(idx()), 0u8..4).prop_map(|(i, n)| Op::Hopper(i, n)),
+        1 => (coord(4), 1i32..4, -45_000i32..400_000).prop_map(|(a, n, y)| Op::AddNudge(a, n, y)),
+        1 => (idx(), -45_000i32..400_000, 0u32..2_100_000).prop_map(|(i, y, s)| Op::SetNudge(i, y, s)),
+        1 => idx().prop_map(Op::RemoveNudge),
         1 => Just(Op::Undo),
         1 => Just(Op::Redo),
     ]
@@ -544,6 +552,8 @@ fn to_sel(raw: &[u32], len: usize) -> Selection {
 fn run(ed: &mut Editor, cat: &MapCatalog, op: &Op) {
     let len = ed.track().placements.len();
     let wrap = |i: u32| if len == 0 { i } else { i % len as u32 };
+    let zones = ed.track().nudge_zones.len();
+    let wrap_nudge = |i: u32| if zones == 0 { i } else { i % zones as u32 };
     let cmd = match op {
         Op::Undo => {
             ed.undo();
@@ -584,6 +594,26 @@ fn run(ed: &mut Editor, cat: &MapCatalog, op: &Op) {
                 ticks: u32::from(*n) * 60,
             },
         }),
+        Op::AddNudge((x, y, z), n, yaw) => EditCommand::AddNudge(NudgeZone::over_cells(
+            c(*x, *y, *z),
+            c(x + n - 1, *y, *z),
+            *yaw,
+        )),
+        Op::SetNudge(i, yaw, speed) => {
+            let index = wrap_nudge(*i);
+            let Some(old) = ed.track().nudge_zones.get(index as usize) else {
+                return;
+            };
+            EditCommand::SetNudge {
+                index,
+                zone: NudgeZone {
+                    yaw_mdeg: *yaw,
+                    min_speed_um_s: *speed,
+                    ..old.clone()
+                },
+            }
+        }
+        Op::RemoveNudge(i) => EditCommand::RemoveNudge(wrap_nudge(*i)),
     };
     let before = bytes(ed.track());
     if ed.apply(cat, cmd).is_err() {
@@ -634,6 +664,61 @@ proptest! {
         }
         prop_assert_eq!(&bytes(ed.track()), &edited);
     }
+}
+
+/// Nudge zones add, change and go with undo and redo, select the zone added, and refuse a zone
+/// that breaks the file rules without touching the track.
+#[test]
+fn nudge_zones_add_set_remove_and_undo() {
+    let cat = catalog();
+    let mut ed = Editor::new(Track::new(3));
+    let zone = NudgeZone::over_cells(c(0, 0, 0), c(2, 0, 0), 0);
+    ed.apply(&cat, EditCommand::AddNudge(zone.clone())).unwrap();
+    assert_eq!(ed.track().nudge_zones, vec![zone.clone()]);
+    assert_eq!(ed.nudge, Some(0));
+    let aimed = NudgeZone {
+        yaw_mdeg: 90_000,
+        ..zone.clone()
+    };
+    ed.apply(
+        &cat,
+        EditCommand::SetNudge {
+            index: 0,
+            zone: aimed.clone(),
+        },
+    )
+    .unwrap();
+    assert_eq!(ed.track().nudge_zones[0], aimed);
+    let before = bytes(ed.track());
+    let bad = NudgeZone {
+        max_accel_um_s2: 0,
+        ..zone.clone()
+    };
+    assert!(matches!(
+        ed.apply(
+            &cat,
+            EditCommand::SetNudge {
+                index: 0,
+                zone: bad
+            }
+        ),
+        Err(EditError::InvalidNudge(_))
+    ));
+    assert_eq!(
+        ed.apply(&cat, EditCommand::RemoveNudge(4)),
+        Err(EditError::NudgeOutOfRange(4))
+    );
+    assert_eq!(bytes(ed.track()), before);
+    ed.apply(&cat, EditCommand::RemoveNudge(0)).unwrap();
+    assert!(ed.track().nudge_zones.is_empty());
+    assert_eq!(ed.nudge, None);
+    assert!(ed.undo());
+    assert_eq!(ed.track().nudge_zones, vec![aimed]);
+    assert!(ed.undo() && ed.undo());
+    assert!(ed.track().nudge_zones.is_empty());
+    assert_eq!(bytes(ed.track()), bytes(&Track::new(3)));
+    assert!(ed.redo());
+    assert_eq!(ed.track().nudge_zones, vec![zone]);
 }
 
 #[test]

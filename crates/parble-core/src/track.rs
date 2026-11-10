@@ -3,6 +3,7 @@
 use crate::camera_zone::CameraZone;
 use crate::contract::KIT_CONTRACT_VERSION;
 use crate::grid::{CellCoord, Mirror, Orientation, Yaw4};
+use crate::nudge_zone::NudgeZone;
 use crate::piece::{PieceDef, PieceId};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -138,6 +139,11 @@ pub struct Track {
     /// they did before this field existed.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub camera_zones: Vec<CameraZone>,
+    /// Nudge zones ([`crate::nudge_zone`]): the sim pushes marbles inside them. Omitted from the
+    /// file when empty, so a track without them serializes, and runs, exactly as it did before
+    /// this field existed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub nudge_zones: Vec<NudgeZone>,
 }
 
 impl Track {
@@ -151,6 +157,7 @@ impl Track {
             placements: Vec::new(),
             hopper: HopperConfig::default(),
             camera_zones: Vec::new(),
+            nudge_zones: Vec::new(),
         }
     }
 }

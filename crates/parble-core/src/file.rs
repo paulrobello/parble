@@ -5,11 +5,12 @@
 //! ```json
 //! { "format": "parble", "schema": 1, "physics": 1, "kit_contract": 1, "seed": 7,
 //!   "placements": [...], "hopper": {...}, "mechanisms": [...], "metadata": {...},
-//!   "camera_zones": [...] }
+//!   "camera_zones": [...], "nudge_zones": [...] }
 //! ```
 //!
-//! The version, seed, placement, hopper and camera zone fields are [`Track`]'s own. `camera_zones`
-//! ([`crate::camera_zone`]) is optional and left out when empty. `web/ui/src/parble.ts`
+//! The version, seed, placement, hopper, camera zone and nudge zone fields are [`Track`]'s own.
+//! `camera_zones` ([`crate::camera_zone`]) and `nudge_zones` ([`crate::nudge_zone`]) are optional
+//! and left out when empty. `web/ui/src/parble.ts`
 //! mirrors the shape by hand; `web/ui/src/parble-fixtures.json` holds valid and rejected files that
 //! both this module's tests and the Vitest suite check.
 //!
@@ -83,6 +84,9 @@ struct WireV1 {
     /// written before zones existed loads and saves byte for byte, still as schema 1.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     camera_zones: Vec<crate::camera_zone::CameraZone>,
+    /// Optional for the same reason: a file without nudge zones has no `nudge_zones` key.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    nudge_zones: Vec<crate::nudge_zone::NudgeZone>,
 }
 
 /// Why a file was refused.
@@ -183,6 +187,7 @@ pub fn load_value(doc: Value) -> Result<ParbleFile, FileError> {
             placements: wire.placements,
             hopper: wire.hopper,
             camera_zones: wire.camera_zones,
+            nudge_zones: wire.nudge_zones,
         },
         mechanisms: wire.mechanisms,
         metadata: wire.metadata,
@@ -259,6 +264,15 @@ impl ParbleFile {
             z.check()
                 .or_else(|e| bad(format!("camera zone {i}: {e}")))?;
         }
+        if t.nudge_zones.len() > crate::nudge_zone::MAX_NUDGE_ZONES {
+            return bad(format!(
+                "at most {} nudge zones",
+                crate::nudge_zone::MAX_NUDGE_ZONES
+            ));
+        }
+        for (i, z) in t.nudge_zones.iter().enumerate() {
+            z.check().or_else(|e| bad(format!("nudge zone {i}: {e}")))?;
+        }
         let md = &self.metadata;
         if md.name.chars().count() > MAX_NAME_CHARS || md.author.chars().count() > MAX_NAME_CHARS {
             return bad(format!(
@@ -287,6 +301,7 @@ impl ParbleFile {
             mechanisms: self.mechanisms.clone(),
             metadata: self.metadata.clone(),
             camera_zones: t.camera_zones.clone(),
+            nudge_zones: t.nudge_zones.clone(),
         })
         .expect(".parble files serialize")
     }
@@ -423,6 +438,34 @@ mod tests {
         let doc: Value = serde_json::from_str(&text).unwrap();
         assert!(doc["placements"][1].get("config").is_none());
         assert!(!back.track.placements[1].config.contains_key("mode"));
+    }
+
+    /// Nudge zones save and reload byte for byte; a track without them writes no `nudge_zones`
+    /// key, so its file is the one it was before they existed.
+    #[test]
+    fn nudge_zones_round_trip_and_are_omitted_when_empty() {
+        let case = list("valid")
+            .into_iter()
+            .find(|c| c["name"] == "nudge-zones")
+            .expect("nudge fixture");
+        let file = load(&case["file"].to_string()).unwrap();
+        assert_eq!(file.track.nudge_zones.len(), 2);
+        assert_eq!(file.track.nudge_zones[1].pitch_mdeg, -15_000);
+        let text = file.to_json();
+        let back = load(&text).unwrap();
+        assert_eq!(back, file);
+        assert_eq!(back.to_json(), text);
+        let mut bare = file.clone();
+        bare.track.nudge_zones.clear();
+        let doc: Value = serde_json::from_str(&bare.to_json()).unwrap();
+        assert!(doc.get("nudge_zones").is_none());
+        assert!(doc.get("camera_zones").is_none());
+        for case in list("valid")
+            .into_iter()
+            .filter(|c| c["name"] != "nudge-zones")
+        {
+            assert!(case["file"].get("nudge_zones").is_none());
+        }
     }
 
     #[test]

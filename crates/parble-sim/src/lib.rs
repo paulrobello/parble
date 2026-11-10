@@ -27,6 +27,7 @@ pub mod marble;
 pub mod marble_check;
 pub mod mech_showcase;
 pub mod mechanism;
+pub mod nudge;
 pub mod playroom_run;
 pub mod rail_arc;
 pub mod rope;
@@ -114,6 +115,8 @@ pub struct Sim {
     /// Placed piece id → its static collision surface, for contact events
     /// ([`mechanism::StaticSurfaces`]).
     piece_surfaces: std::collections::BTreeMap<parble_core::PieceId, parble_kit::Surface>,
+    /// Nudge zones in track order ([`nudge`]); empty for every track without them.
+    nudges: Vec<nudge::Nudge>,
     /// Test control: the rolling-resistance load summed over every manifold point, stale ones
     /// included ([`marble::solved_impulse`]).
     #[cfg(test)]
@@ -135,6 +138,7 @@ impl Sim {
             hasher: Fnv1a64::default(),
             mechanisms: mechanism::Mechanisms::default(),
             piece_surfaces: std::collections::BTreeMap::new(),
+            nudges: Vec::new(),
             #[cfg(test)]
             stale_rolling_load: false,
         }
@@ -218,6 +222,9 @@ impl Sim {
             }
             #[cfg(not(test))]
             marble::apply_rolling_resistance(&mut self.world, &self.marbles);
+            if !self.nudges.is_empty() {
+                nudge::apply(&mut self.world, &self.marbles, &self.nudges);
+            }
             if self.pieces.chunks().next().is_some() {
                 // The chunk colliders carry the seam contact hook ([`chunk::ChunkColliders`]), the
                 // one-way hole's door and floor the door seam hook ([`door_seam`]).
@@ -243,6 +250,16 @@ impl Sim {
             self.mechanisms
                 .after_step(&mut self.world, &self.marbles, self.tick, &statics);
         }
+    }
+
+    /// Replace the nudge zones ([`nudge`]), in track order. They act from the next tick.
+    pub fn set_nudge_zones(&mut self, zones: &[parble_core::NudgeZone]) {
+        self.nudges = zones.iter().map(nudge::Nudge::new).collect();
+    }
+
+    /// Nudge zones the sim applies.
+    pub fn nudge_count(&self) -> usize {
+        self.nudges.len()
     }
 
     /// Place a kit piece. Takes effect at the next [`Sim::rebuild_chunks`].

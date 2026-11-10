@@ -59,6 +59,13 @@ pub fn run_marble_check() -> String {
     parble_sim::marble_check::allpieces_marble_check()
 }
 
+/// Run the nudge track (rope arches kept moving by a nudge zone) and return its hash, the same
+/// format as `crates/parble-sim/tests/golden/nudge_track.hash` (without the newline).
+#[wasm_bindgen]
+pub fn run_nudge_track() -> String {
+    parble_sim::nudge::nudge_track_hash_hex()
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -88,6 +95,10 @@ mod tests {
         assert_eq!(
             super::run_marble_check(),
             parble_sim::marble_check::allpieces_marble_check()
+        );
+        assert_eq!(
+            super::run_nudge_track(),
+            parble_sim::nudge::nudge_track_hash_hex()
         );
     }
 }

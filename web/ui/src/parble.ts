@@ -87,6 +87,28 @@ export interface CameraZone {
 export const MAX_ZONES = 256;
 const MAX_ZONE_MS = 10_000;
 
+/**
+ * Nudge zones (crates/parble-core/src/nudge_zone.rs): a µm box, a direction (yaw 0..360 000 and
+ * pitch ±90 000 millidegrees), the speed along it a marble inside is topped up to (µm/s) and the
+ * acceleration cap (µm/s²).
+ */
+export interface NudgeZone {
+  /** Omitted when empty. */
+  name?: string;
+  min_um: Vec3i;
+  max_um: Vec3i;
+  yaw_mdeg: number;
+  /** Omitted when 0. */
+  pitch_mdeg?: number;
+  min_speed_um_s: number;
+  max_accel_um_s2: number;
+}
+
+export const MAX_NUDGE_ZONES = 256;
+/** Highest `min_speed_um_s` (2 m/s) and `max_accel_um_s2` (2 m/s²) a file may hold. */
+export const MAX_NUDGE_SPEED_UM_S = 2_000_000;
+export const MAX_NUDGE_ACCEL_UM_S2 = 2_000_000;
+
 export interface ParbleFile {
   format: typeof FORMAT;
   schema: number;
@@ -99,6 +121,8 @@ export interface ParbleFile {
   metadata: Metadata;
   /** Omitted when empty. */
   camera_zones?: CameraZone[];
+  /** Omitted when empty. */
+  nudge_zones?: NudgeZone[];
 }
 
 type Obj = Record<string, unknown>;
@@ -263,6 +287,24 @@ function cameraZone(v: unknown, i: number): void {
   } else fail(`${w} rule is invalid`);
 }
 
+function nudgeZone(v: unknown, i: number): void {
+  const what = `nudge zone ${i}`;
+  const z = fields(
+    v,
+    what,
+    {
+      min_um: isVec3i,
+      max_um: isVec3i,
+      yaw_mdeg: (y) => isInt(y, 0, 359_999),
+      min_speed_um_s: (x) => isInt(x, 1, MAX_NUDGE_SPEED_UM_S),
+      max_accel_um_s2: (x) => isInt(x, 1, MAX_NUDGE_ACCEL_UM_S2),
+    },
+    { name: (n) => typeof n === "string" && chars(n) <= MAX_NAME_CHARS, pitch_mdeg: (p) => isInt(p, -90_000, 90_000) },
+  );
+  const [lo, hi] = [z.min_um as Vec3i, z.max_um as Vec3i];
+  if (lo.some((x, k) => x >= (hi[k] as number))) fail(`${what} min_um must be below max_um`);
+}
+
 const TOP = [
   "format",
   "schema",
@@ -284,7 +326,8 @@ export function checkParbleFile(v: unknown): { ok: true; file: ParbleFile } | { 
     if (!isU32(o.schema)) fail("missing or non-integer schema version");
     if ((o.schema as number) > SCHEMA_VERSION) fail(`schema ${o.schema} is newer than ${SCHEMA_VERSION}`);
     if (o.schema !== SCHEMA_VERSION) fail(`no migration from schema ${o.schema}`);
-    if (!hasOnly(o, [...TOP, "camera_zones"]) || !hasAll(o, TOP)) fail("unknown or missing top-level fields");
+    if (!hasOnly(o, [...TOP, "camera_zones", "nudge_zones"]) || !hasAll(o, TOP))
+      fail("unknown or missing top-level fields");
     if (!isU32(o.physics) || !isU32(o.kit_contract)) fail("version fields are invalid");
     if (!isInt(o.seed, 0, MAX_SAFE)) fail("seed must be an integer in 0..=2^53 - 1");
     if (!Array.isArray(o.placements)) fail("placements is not an array");
@@ -304,6 +347,10 @@ export function checkParbleFile(v: unknown): { ok: true; file: ParbleFile } | { 
     if ("camera_zones" in o) {
       if (!Array.isArray(o.camera_zones) || o.camera_zones.length > MAX_ZONES) fail("camera_zones is invalid");
       (o.camera_zones as unknown[]).forEach(cameraZone);
+    }
+    if ("nudge_zones" in o) {
+      if (!Array.isArray(o.nudge_zones) || o.nudge_zones.length > MAX_NUDGE_ZONES) fail("nudge_zones is invalid");
+      (o.nudge_zones as unknown[]).forEach(nudgeZone);
     }
     return { ok: true, file: o as unknown as ParbleFile };
   } catch (e) {
