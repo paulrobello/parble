@@ -74,7 +74,9 @@ The web build replaces `window.__parble` every frame. `--dump-state` prints the 
 }
 ```
 
-- `ready`: the sim has ticked (or playback is paused, so `--paused` runs get ready at tick 0) and at least 3 frames have run. Pixels can lag behind it while pipelines compile, so a pixel check still needs to poll.
+- `ready`: the loading is over. The sim has ticked (or playback is paused, so `--paused` runs get ready at tick 0), at least 3 frames have run, and the warm-up is done (`warmup.done`): every kit texture has loaded (or failed) and the render pipeline cache has had nothing pending and created nothing for 10 render frames since. Until then every marble the sim has not released yet is drawn far under the floor (out of view, with no frustum culling), so each marble look's pipelines, in the main, prepass and shadow views, are created while loading rather than the first time that marble rolls in. `ready` stays true once set. A pipeline created later still shows in `pipelines.created`.
+- `pipelines`: the render world's Bevy `PipelineCache` on the last render frame: `renderFrame`, `total`, `ok`, `pending` (queued or being created), `failed` (shader errors that will not be retried), `lastCreatedFrame`, and `created`, the pipelines created on that frame as `label shader-path [shader defs]`. On wasm a pipeline is created synchronously on the main thread (WebGPU's `createRenderPipeline` compiles the WGSL), so a non-empty `created` after `ready` names a frame-time stall. `e2e/first-frames.mjs` records it on every frame of a cold load.
+- `warmup`: `done` and `doneFrame`, the render frame the warm-up ended on.
 - `tick`: sim ticks in the current run (240 Hz).
 - `run`: completed 10 s runs.
 - `hash`: the trajectory hash of the current run so far, as 16 hex digits. It is a string because a `u64` does not fit a JS number.

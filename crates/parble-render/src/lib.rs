@@ -7,6 +7,7 @@
 
 use bevy::{
     asset::RenderAssetUsages,
+    camera::visibility::NoFrustumCulling,
     light::{CascadeShadowConfigBuilder, DirectionalLightShadowMap},
     mesh::{Indices, PrimitiveTopology},
     prelude::*,
@@ -20,6 +21,7 @@ pub mod inlay;
 pub mod kit;
 pub mod marble;
 pub mod palette;
+pub mod pipelines;
 pub mod playroom;
 pub mod post;
 pub mod sensors;
@@ -100,6 +102,7 @@ impl Plugin for ParbleRenderPlugin {
             .add_plugins(playroom::PlayroomPlugin)
             .add_plugins(kit::KitPlugin)
             .add_plugins(inlay::InlayPlugin)
+            .add_plugins(pipelines::PipelineStatsPlugin)
             .add_systems(Startup, spawn_scene)
             .add_systems(PostUpdate, sync_marbles.before(TransformSystems::Propagate));
     }
@@ -245,14 +248,48 @@ fn lerp_state(a: &MarbleState, b: &MarbleState, t: f32) -> Transform {
     Transform::from_translation(pa.lerp(pb, t)).with_rotation(qa.slerp(qb, t))
 }
 
-/// A visual with no sim marble yet (a hopper track releases its marbles over the run) is hidden.
+/// Where the warm-up draws the marbles the sim has not released yet: far under the floor, out of
+/// every camera's view, and past every light, so it shades and shadows nothing on screen.
+const WARMUP_PARK_M: Vec3 = Vec3::new(0.0, -50.0, 0.0);
+
+/// A visual with no sim marble yet (a hopper track releases its marbles over the run) is hidden,
+/// except during the loading [`pipelines::Warmup`]: Bevy creates a material's pipelines only for
+/// meshes some view draws, so a look first shown mid-run (the opal shell's diffuse-transmission
+/// variant, released 2 s in) would compile then, on the main thread on wasm. Until the warm-up ends
+/// such a visual is drawn at [`WARMUP_PARK_M`], its meshes marked [`NoFrustumCulling`] so the
+/// main, prepass and every shadow view specialize them.
 fn sync_marbles(
+    mut commands: Commands,
     frame: Res<MarbleFrame>,
-    mut marbles: Query<(&MarbleVisual, &mut Transform, &mut Visibility)>,
+    warmup: Res<pipelines::Warmup>,
+    mut warming: Local<Option<bool>>,
+    mut marbles: Query<(&MarbleVisual, &mut Transform, &mut Visibility, &Children)>,
+    meshes: Query<(), With<Mesh3d>>,
 ) {
-    for (MarbleVisual(i), mut transform, mut visibility) in &mut marbles {
+    let warm = !warmup.done;
+    if *warming != Some(warm) {
+        for (.., children) in &marbles {
+            for child in children.iter().filter(|c| meshes.contains(*c)) {
+                if warm {
+                    commands.entity(child).insert(NoFrustumCulling);
+                } else {
+                    commands.entity(child).remove::<NoFrustumCulling>();
+                }
+            }
+        }
+        // Wait for the marbles' children to exist before latching.
+        if !marbles.is_empty() {
+            *warming = Some(warm);
+        }
+    }
+    for (MarbleVisual(i), mut transform, mut visibility, _) in &mut marbles {
         let Some(curr) = frame.curr.get(*i) else {
-            visibility.set_if_neq(Visibility::Hidden);
+            if warm {
+                visibility.set_if_neq(Visibility::Inherited);
+                transform.set_if_neq(Transform::from_translation(WARMUP_PARK_M));
+            } else {
+                visibility.set_if_neq(Visibility::Hidden);
+            }
             continue;
         };
         visibility.set_if_neq(Visibility::Inherited);

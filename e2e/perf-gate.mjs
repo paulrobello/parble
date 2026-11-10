@@ -22,6 +22,7 @@
 //   PARBLE_LOAD_WAIT_MS        bounded wait for the load before a sample, default 20 min.
 //   PARBLE_PERF_ATTEMPTS       tries per sample when the post-run load exceeds 15, default 3.
 //   PARBLE_PERF_OUT            output path override.
+//   PARBLE_PERF_DIST           build to serve, default target/web-dist (a before/after comparison).
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { cpus, platform, release } from "node:os";
@@ -104,7 +105,7 @@ const ADAPTER = `
 `;
 
 function serve() {
-  const srv = spawn("python3", [resolve(HERE, "static-server.py"), String(PORT), resolve(ROOT, "target/web-dist")], {
+  const srv = spawn("python3", [resolve(HERE, "static-server.py"), String(PORT), resolve(ROOT, process.env.PARBLE_PERF_DIST ?? "target/web-dist")], {
     stdio: ["ignore", "pipe", "ignore"],
   });
   return new Promise((ok, fail) => {

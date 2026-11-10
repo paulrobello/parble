@@ -12,6 +12,7 @@ use parble_render::{
     camera::{CameraDiag, CameraMode, Cues},
     kit::{KitDiag, KitScene, TextureCap, family::TextureFamily, parts::PartDiag},
     marble::MarbleLook,
+    pipelines::{PipelineCounts, PipelineStats, Warmup},
     post::{PostOverrides, parse_tonemapping},
     sensors::{SensorFrame, SensorOverlay},
 };
@@ -37,7 +38,8 @@ const ALLPIECES_LOOKS: [MarbleKind; 5] = [
     MarbleKind::Glow,
 ];
 
-/// `window.__parble.ready` turns true once the sim has ticked and this many frames have run.
+/// `window.__parble.ready` turns true once the sim has ticked, this many frames have run and the
+/// loading warm-up is done ([`Warmup`]: textures loaded, no pipeline left to create).
 const READY_FRAMES: u64 = 3;
 /// How long past `--exit-after` the app waits for a requested screenshot before failing.
 const SHOT_GRACE_S: f64 = 10.0;
@@ -707,6 +709,10 @@ struct DiagState<'a> {
     sensors: SensorsDiag,
     /// Pause and slow motion ([`crate::playback`]).
     playback: PlaybackDiag,
+    /// The render world's pipeline cache ([`parble_render::pipelines`]).
+    pipelines: Option<PipelineCounts>,
+    /// The loading warm-up READY waits for.
+    warmup: &'a Warmup,
     exited: bool,
 }
 
@@ -735,11 +741,12 @@ fn diag<'a>(
     shadows: &ShadowLights,
     kit: &'a KitDiag,
     editor: &'a EditorDiag,
+    warmup: &'a Warmup,
 ) -> DiagState<'a> {
     let tick = clock.sim.tick_count();
     DiagState {
         // Started paused, the sim never ticks on its own.
-        ready: (tick > 0 || playback.paused) && rt.frames >= READY_FRAMES,
+        ready: (tick > 0 || playback.paused) && rt.frames >= READY_FRAMES && warmup.done,
         tick,
         run: clock.runs,
         frame: rt.frames,
@@ -791,6 +798,8 @@ fn diag<'a>(
             paused: playback.paused,
             time_scale: playback.scale(),
         },
+        pipelines: None,
+        warmup,
         exited: rt.exiting,
     }
 }
@@ -1010,6 +1019,8 @@ fn auto_exit(
     sensor_overlay: Res<SensorOverlay>,
     sensor_frame: Res<SensorFrame>,
     playback: Res<Playback>,
+    pipelines: Res<PipelineStats>,
+    warmup: Res<Warmup>,
     mut rt: ResMut<AgentRuntime>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -1045,9 +1056,10 @@ fn auto_exit(
     rt.exiting = true;
     if opts.dump_state {
         let mut state = diag(
-            &clock, &playback, &rt, &opts, &camera, &shadows, &kit, &editor,
+            &clock, &playback, &rt, &opts, &camera, &shadows, &kit, &editor, &warmup,
         );
         state.sensors = sensors_diag(&sensor_overlay, &sensor_frame);
+        state.pipelines = Some(pipelines.counts());
         let json = serde_json::to_string(&state).unwrap_or_default();
         #[cfg(not(target_arch = "wasm32"))]
         println!("{json}");
@@ -1070,12 +1082,15 @@ fn publish(
     sensor_overlay: Res<SensorOverlay>,
     sensor_frame: Res<SensorFrame>,
     playback: Res<Playback>,
+    pipelines: Res<PipelineStats>,
+    warmup: Res<Warmup>,
 ) {
     use js_sys::{JSON, JsString, Reflect};
     let mut state = diag(
-        &clock, &playback, &rt, &opts, &camera, &shadows, &kit, &editor,
+        &clock, &playback, &rt, &opts, &camera, &shadows, &kit, &editor, &warmup,
     );
     state.sensors = sensors_diag(&sensor_overlay, &sensor_frame);
+    state.pipelines = Some(pipelines.counts());
     let Ok(json) = serde_json::to_string(&state) else {
         return;
     };
