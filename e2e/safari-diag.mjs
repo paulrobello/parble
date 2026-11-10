@@ -83,13 +83,27 @@ async function openSafari() {
   const base = `http://127.0.0.1:${port}`;
   const driver = spawn("safaridriver", ["-p", String(port)], { stdio: "ignore" });
   await new Promise((r) => setTimeout(r, 1500));
-  let session;
+  let session = null;
   try {
-    session = (await wd(base, "POST", "/session", { capabilities: { alwaysMatch: { browserName: "safari" } } })).sessionId;
+    // A second back-to-back session has failed once with `fetch failed`: retry once after a pause.
+    for (let attempt = 1; !session; attempt++) {
+      try {
+        session = (await wd(base, "POST", "/session", { capabilities: { alwaysMatch: { browserName: "safari" } } })).sessionId;
+      } catch (e) {
+        if (attempt >= 2) throw e;
+        console.error(`safari session: ${e?.message ?? e}; retrying in 5 s`);
+        await new Promise((r) => setTimeout(r, 5000));
+      }
+    }
+    return await safariBrowser(base, driver, session);
   } catch (e) {
+    if (session) await wd(base, "DELETE", `/session/${session}`).catch(() => {});
     driver.kill();
     throw e;
   }
+}
+
+async function safariBrowser(base, driver, session) {
   const s = `/session/${session}`;
   await wd(base, "POST", `${s}/timeouts`, { script: 60_000, pageLoad: 120_000 });
   const b = {
@@ -178,32 +192,38 @@ async function main() {
   mkdirSync(dirname(OUT), { recursive: true });
   const srv = await serve();
   const scenes = [];
-  try {
-    for (const scene of SCENES) {
-      // A fresh browser session per scene: a cold load, as the perf gate does.
-      const b = BROWSER === "safari" ? await openSafari() : await openChromium();
-      try {
-        scenes.push(await diagScene(b, scene));
-      } catch (e) {
-        scenes.push({ scene, ready: false, error: String(e?.message ?? e) });
-        console.error(`${scene}: ${e?.message ?? e}`);
-      } finally {
-        await b.close();
-      }
-    }
-  } finally {
-    srv.kill();
-  }
   const result = {
     diag: "loading diag (READY, warm-up, pipelines, textures)",
     browser: BROWSER,
     query: QUERY,
     seconds: SECONDS,
-    host: { platform: platform(), release: release(), cpu: cpus()[0]?.model, cores: cpus().length, load1: +load1().toFixed(2) },
+    host: { platform: platform(), release: release(), cpu: cpus()[0]?.model, cores: cpus().length, load1: null },
     when: new Date().toISOString(),
     scenes,
   };
-  writeFileSync(OUT, `${JSON.stringify(result, null, 2)}\n`);
+  // Written after every scene, so a later scene's failure never loses an earlier one's data.
+  const write = () => {
+    result.host.load1 = +load1().toFixed(2);
+    writeFileSync(OUT, `${JSON.stringify(result, null, 2)}\n`);
+  };
+  try {
+    for (const scene of SCENES) {
+      // A fresh browser session per scene: a cold load, as the perf gate does.
+      let b = null;
+      try {
+        b = BROWSER === "safari" ? await openSafari() : await openChromium();
+        scenes.push(await diagScene(b, scene));
+      } catch (e) {
+        scenes.push({ scene, ready: false, error: String(e?.message ?? e) });
+        console.error(`${scene}: ${e?.message ?? e}`);
+      } finally {
+        if (b) await b.close();
+      }
+      write();
+    }
+  } finally {
+    srv.kill();
+  }
   console.log(`wrote ${OUT}`);
   process.exit(scenes.every((s) => s.ready) ? 0 : 1);
 }

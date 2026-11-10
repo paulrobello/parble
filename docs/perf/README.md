@@ -122,7 +122,7 @@ The warm-up now has two bounds (`crates/parble-render/src/pipelines.rs`), counte
 - `STUCK_FRAMES` = 120. A pipeline still waiting after 120 render frames (2 s at 60 Hz) is marked `stuck`, logged with its shader error, and no longer holds the warm-up. A cold GPU Chromium load creates its last pipeline on render frame 4 or 5.
 - `WARMUP_MAX_FRAMES` = 600, the hard ceiling. The warm-up ends on render frame 600 (10 s at 60 Hz) whatever is still loading or pending, with `warmup.endedBy: "ceiling"` and a warning naming what it waited on. A normal load ends quietly on render frame 13 to 17, so the ceiling is about 40 times that, and above `STUCK_FRAMES` + `QUIET_FRAMES` for a pipeline first queued late. The opal hitch the warm-up exists to prevent is still covered on any load that ends quietly.
 
-READY and the parked warm-up marbles were the only things waiting on the warm-up: marble release, the sim and the UI's bridge `ready` event do not read it. A player in Safari was therefore never stuck. The cost was the hopper's unreleased marbles drawn 50 m under the floor, in every view and shadow view, for the whole session.
+READY and the parked warm-up marbles were the only things waiting on the warm-up: marble release and the sim do not read it, and the UI's bridge `ready` event is sent unconditionally (`announce_bridge` in `crates/parble-app/src/main.rs`). A player in Safari was therefore never stuck. The cost was the hopper's unreleased marbles drawn 50 m under the floor, in every view and shadow view, for the whole session.
 
 After the fix, on gpu-host-a (M4 Max) in GPU Chromium, non-gating smoke at load 27 to 42: READY at 1340 ms (showcase) and 788 ms (stress2000), warm-up `endedBy: "quiet"` on render frames 15 and 17, p95 16.8 ms on both, and no pipeline created after READY (`createdTotal` equals `total`). Native `make run-diag`: `doneFrame` 13, `endedBy: "quiet"`.
 
@@ -135,7 +135,7 @@ Run on gpu-host-b in the booked window. Ship the build from gpu-host-a, from a c
 ```bash
 ssh -i <ssh-key> <user>@gpu-host-b.local
 rm -rf ~/Repos/parble-perf && mkdir -p ~/Repos/parble-perf && tar xzf /tmp/parble-perf.tgz -C ~/Repos/parble-perf
-osascript -e 'quit app "Safari"'
+killall Safari 2>/dev/null || true
 cat > /tmp/parble-diag.command <<'CMD'
 #!/bin/bash
 cd ~/Repos/parble-perf && export PATH=/opt/homebrew/bin:$PATH
@@ -146,13 +146,13 @@ chmod +x /tmp/parble-diag.command && rm -f /tmp/parble-diag.log && open -g /tmp/
 for i in $(seq 1 120); do grep -q '^EXIT=' /tmp/parble-diag.log 2>/dev/null && break; sleep 5; done; cat /tmp/parble-diag.log
 ```
 
-The diag takes about 2.5 minutes after `npm ci`. Then the gate, Safari only, into its own file so it never overwrites the gating `p1-gate.json`:
+The diag takes about 2.5 minutes after `npm ci`, and writes `safari-diag.json` after each scene, so a failed second session keeps the first scene's data. Then the gate, Safari only, into its own file so it never overwrites the gating `p1-gate.json`:
 
 ```bash
 cat > /tmp/parble-perf.command <<'CMD'
 #!/bin/bash
 cd ~/Repos/parble-perf && export PATH=/opt/homebrew/bin:$PATH
-PARBLE_PERF_BROWSERS=safari PARBLE_PERF_OUT=docs/perf/p1-gate-safari.json node e2e/perf-gate.mjs > /tmp/parble-perf.log 2>&1
+{ npm ci --prefix e2e --no-audit --no-fund && PARBLE_PERF_BROWSERS=safari PARBLE_PERF_OUT=docs/perf/p1-gate-safari.json node e2e/perf-gate.mjs; } > /tmp/parble-perf.log 2>&1
 echo EXIT=$? >> /tmp/parble-perf.log
 CMD
 chmod +x /tmp/parble-perf.command && rm -f /tmp/parble-perf.log && open -g /tmp/parble-perf.command
@@ -170,4 +170,4 @@ scp -i <ssh-key> <user>@gpu-host-b.local:/tmp/parble-diag.log <user>@gpu-host-b.
 ssh -i <ssh-key> <user>@gpu-host-b.local 'rm -rf ~/Repos/parble-perf /tmp/parble-perf.tgz /tmp/parble-perf.log /tmp/parble-perf.command /tmp/parble-diag.log /tmp/parble-diag.command'
 ```
 
-Read `scenes[].last.warmup` in `safari-diag.json` first. `endedBy: "quiet"` with an empty `stuck` means nothing waited 120 frames in that run, so the hang did not reproduce. A non-empty `stuck`, or `waitingOn: "pending"` at the ceiling, names the pipeline and its shader error. `waitingOn: "textures"` with `texturesNotLoaded` names the texture. A `pipelines.createdTotal` still climbing between polls means pipelines keep being recreated.
+Read `scenes[].last.warmup` in `safari-diag.json` first. `endedBy: "quiet"` with an empty `stuck` means nothing waited 120 frames in that run, so the hang did not reproduce. A non-empty `stuck`, or `waitingOn: "pending"` at the ceiling, names the pipeline and its shader error. `waitingOn: "textures"` with `texturesNotLoaded` names the texture. A `pipelines.createdTotal` still climbing between polls means pipelines keep being recreated. The gate log prints each sample's warm-up end (`endedBy`, render frame, stuck count) under its p95 line: a `ceiling` end can still hitch mid-run even when the p95 passes.
