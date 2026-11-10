@@ -14,6 +14,7 @@ use parble_render::{
     marble::MarbleLook,
     pipelines::{PipelineCounts, PipelineStats, Warmup},
     post::{PostOverrides, parse_tonemapping},
+    present::{PresentProbe, ShotAttempt},
     sensors::{SensorFrame, SensorOverlay},
 };
 use parble_sim::{
@@ -44,6 +45,8 @@ const ALLPIECES_LOOKS: [MarbleKind; 5] = [
 const READY_FRAMES: u64 = 3;
 /// How long past `--exit-after` the app waits for a requested screenshot before failing.
 const SHOT_GRACE_S: f64 = 10.0;
+/// Captures tried before a screenshot whose frames are never presented fails.
+const SHOT_MAX_ATTEMPTS: u32 = 30;
 /// Exit codes: bad flags, screenshot missing or not lit.
 #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 const EXIT_BAD_FLAGS: u8 = 2;
@@ -663,8 +666,14 @@ struct AgentRuntime {
     shot_camera: Option<CameraDiag>,
     /// The mechanism part poses on the screenshot frame (`kit.parts`).
     shot_parts: Option<Vec<PartDiag>>,
+    /// The capture in flight; each retry of an unpresented frame takes the next.
+    shot_attempt: u32,
     exiting: bool,
 }
+
+/// A tick-timed screenshot is in flight: the sim holds its tick so a retry captures the same frame.
+#[derive(Resource, Default)]
+pub struct ShotHold(pub bool);
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -905,8 +914,10 @@ impl Plugin for AgentPlugin {
             },
             shot_camera: None,
             shot_parts: None,
+            shot_attempt: 0,
             exiting: false,
         })
+        .init_resource::<ShotHold>()
         .insert_resource(opts.quality)
         .insert_resource(MarbleLook(
             opts.scenario.looks(opts.marble, opts.marble_size),
@@ -935,6 +946,7 @@ fn count_frames(time: Res<Time<Real>>, mut rt: ResMut<AgentRuntime>) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn request_shot(
     mut commands: Commands,
     time: Res<Time<Real>>,
@@ -942,9 +954,12 @@ fn request_shot(
     clock: Res<SimClock>,
     camera: Res<CameraDiag>,
     kit: Res<KitDiag>,
+    probe: Res<PresentProbe>,
+    mut hold: ResMut<ShotHold>,
     mut rt: ResMut<AgentRuntime>,
 ) {
-    if rt.shot != ShotState::Pending {
+    // A retry waits for the window to present again.
+    if rt.shot != ShotState::Pending || (rt.shot_attempt > 0 && !probe.presenting()) {
         return;
     }
     let due = match opts.screenshot_tick {
@@ -955,9 +970,10 @@ fn request_shot(
         return;
     }
     rt.shot = ShotState::Capturing;
+    hold.0 = opts.screenshot_tick.is_some();
     rt.shot_camera = Some(camera.clone());
     rt.shot_parts = (!kit.parts.is_empty()).then(|| kit.parts.clone());
-    let mut shot = commands.spawn(Screenshot::primary_window());
+    let mut shot = commands.spawn((Screenshot::primary_window(), ShotAttempt(rt.shot_attempt)));
     #[cfg(target_arch = "wasm32")]
     if let Some(path) = &opts.screenshot {
         shot.observe(bevy::render::view::screenshot::save_to_disk(path.clone()));
@@ -987,7 +1003,41 @@ fn shot_ok(non_black: f32, lit: f32, colors: usize) -> bool {
     non_black > 0.5 && lit > 0.02 && colors > 16
 }
 
-fn on_shot(ev: On<ScreenshotCaptured>, opts: Res<AgentOpts>, mut rt: ResMut<AgentRuntime>) {
+/// A capture is retried only when its frame had no swapchain texture (`presented == Some(false)`)
+/// and every byte, alpha included, is zero: Bevy skipped the copy and read back the empty buffer. A
+/// frame that was drawn, however dark, still fails the lit check.
+fn shot_unpresented(data: &[u8], presented: Option<bool>) -> bool {
+    presented == Some(false) && data.iter().all(|&b| b == 0)
+}
+
+fn on_shot(
+    ev: On<ScreenshotCaptured>,
+    opts: Res<AgentOpts>,
+    probe: Res<PresentProbe>,
+    mut hold: ResMut<ShotHold>,
+    mut rt: ResMut<AgentRuntime>,
+) {
+    let attempt = ShotAttempt(rt.shot_attempt);
+    let data = ev.image.data.as_deref().unwrap_or_default();
+    if shot_unpresented(data, probe.attempt_presented(attempt)) {
+        let (frame, unpresented) = probe.frames();
+        if attempt.0 + 1 < SHOT_MAX_ATTEMPTS {
+            warn!(
+                "screenshot attempt {}: frame not presented (all-zero readback; {unpresented} of \
+                 {frame} render frames unpresented), retrying once the window presents",
+                attempt.0
+            );
+            rt.shot_attempt += 1;
+            rt.shot = ShotState::Pending;
+        } else {
+            hold.0 = false;
+            rt.shot = ShotState::Failed {
+                error: format!("no presented frame in {SHOT_MAX_ATTEMPTS} attempts"),
+            };
+        }
+        return;
+    }
+    hold.0 = false;
     let rgb = match ev.image.clone().try_into_dynamic() {
         Ok(img) => img.to_rgb8(),
         Err(e) => {
@@ -1014,10 +1064,12 @@ fn on_shot(ev: On<ScreenshotCaptured>, opts: Res<AgentOpts>, mut rt: ResMut<Agen
         }
     }
     info!(
-        "screenshot {}: {}x{} nonBlack={non_black:.3} lit={lit:.3} colors={colors} ok={ok}",
+        "screenshot {}: {}x{} nonBlack={non_black:.3} lit={lit:.3} colors={colors} ok={ok} \
+         attempt={}",
         opts.screenshot.as_deref().unwrap_or(""),
         rgb.width(),
-        rgb.height()
+        rgb.height(),
+        attempt.0
     );
     rt.shot = ShotState::Done { lit, colors, ok };
 }
@@ -1061,6 +1113,13 @@ fn auto_exit(
         }
         ShotState::Failed { error } => {
             error!("screenshot failed: {error}");
+            EXIT_SHOT_FAILED
+        }
+        ShotState::Pending | ShotState::Capturing if rt.shot_attempt > 0 => {
+            error!(
+                "screenshot never arrived: no presented frame after {} attempt(s)",
+                rt.shot_attempt
+            );
             EXIT_SHOT_FAILED
         }
         ShotState::Pending | ShotState::Capturing => {
@@ -1511,5 +1570,17 @@ mod tests {
             .collect();
         let (nb, lit, colors) = shot_stats(&scene);
         assert!(shot_ok(nb, lit, colors));
+    }
+
+    #[test]
+    fn only_an_empty_readback_of_an_unpresented_frame_is_retried() {
+        let empty = vec![0u8; 64];
+        assert!(shot_unpresented(&empty, Some(false)));
+        // A frame with a swapchain texture, or one not probed, fails the lit check instead.
+        assert!(!shot_unpresented(&empty, Some(true)));
+        assert!(!shot_unpresented(&empty, None));
+        // Drawn black still has opaque alpha.
+        let black: Vec<u8> = [0u8, 0, 0, 255].repeat(16);
+        assert!(!shot_unpresented(&black, Some(false)));
     }
 }

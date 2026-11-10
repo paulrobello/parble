@@ -62,6 +62,7 @@ def capture(binary: Path, out: Path, scene: str, quality: str, tick: int, extra:
         *extra,
     ]
     p = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=240)
+    out.with_suffix(".log").write_text(p.stdout + p.stderr)
     if p.returncode != 0:
         sys.stderr.write(p.stderr[-3000:])
         raise SystemExit(f"capture failed ({p.returncode}): {' '.join(cmd)}")

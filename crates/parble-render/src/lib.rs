@@ -24,6 +24,7 @@ pub mod palette;
 pub mod pipelines;
 pub mod playroom;
 pub mod post;
+pub mod present;
 pub mod sensors;
 pub mod zone_overlay;
 pub use playroom::{Environment, PlayroomView, ShadowLights};
@@ -103,6 +104,7 @@ impl Plugin for ParbleRenderPlugin {
             .add_plugins(kit::KitPlugin)
             .add_plugins(inlay::InlayPlugin)
             .add_plugins(pipelines::PipelineStatsPlugin)
+            .add_plugins(present::PresentProbePlugin)
             .add_systems(Startup, spawn_scene)
             .add_systems(PostUpdate, sync_marbles.before(TransformSystems::Propagate));
     }

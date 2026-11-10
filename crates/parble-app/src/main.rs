@@ -216,6 +216,7 @@ fn advance_sim(
     mut frame: ResMut<MarbleFrame>,
     mut parts: ResMut<PartFrame>,
     mut director: ResMut<DirectorClock>,
+    shot_hold: Res<agent::ShotHold>,
 ) {
     let (ticks, rest) = match opts.lockstep_after {
         Some(after) => (
@@ -225,7 +226,7 @@ fn advance_sim(
         None => playback::frame_ticks(&mut playback, clock.acc, time.delta_secs_f64()),
     };
     clock.acc = rest;
-    let ticks = if clock.hold { 0 } else { ticks };
+    let ticks = if clock.hold || shot_hold.0 { 0 } else { ticks };
     if ticks > 0 {
         let run_ticks = clock.run_ticks();
         if clock.sim.tick_count() >= u64::from(run_ticks) {

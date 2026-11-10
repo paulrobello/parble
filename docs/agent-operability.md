@@ -34,6 +34,8 @@ Native flags accept both `--key value` and `--key=value`. `--dump-state`, `--sen
 
 When `--screenshot` or `--exit-after` is set, the app redraws continuously even if its window never gets focus.
 
+On macOS a window that is fully covered, on another Space or hidden is occluded, and wgpu then skips its frames: there is no swapchain texture, so Bevy skips the capture's copy and reads back an all-zero image. The render world records whether each capture's frame had a swapchain texture (`parble_render::present`, logged as `screenshot attempt N captured, presented=...`). An all-zero capture of an unpresented frame is not judged. The app logs a warning and captures again once the window presents, up to 30 attempts within the `--exit-after` grace. With `--screenshot-tick` the sim holds its tick until the capture lands, so a retry shows the same frame. A blank capture of a presented frame still fails the lit check with exit code 3.
+
 ## Exit codes (native)
 
 - `0`: clean exit. If a screenshot was requested, it was written and shows a lit scene.
