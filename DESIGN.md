@@ -246,7 +246,7 @@ Drawer tabs round only their top corners. The pin is the only circle in the chro
 A maple glyph on a 25% black ground, with a 1px maple border at 50% opacity and a 2px bottom edge so it reads as a physical key. On the Run button the cap inverts to a walnut glyph on a 15% white ground.
 
 ### Segmented Control
-A row of buttons inside one stringing-bordered 4px box. Segments are split by inlay rules, and the active segment is filled raised walnut. A piece option (the toggle's First side) is a segmented radio in the selection panel: one segment per side, named by compass word, the chosen one with a brass pin, and a maple note that it takes effect on the next Run or Reset.
+A row of buttons inside one stringing-bordered 4px box. Segments are split by inlay rules, and the active segment is filled raised walnut. A piece option (the toggle's First side, the splitter's Mode) is a segmented radio in the selection panel: one segment per side, named by compass word, or one per named choice (Random, Alternate; Alternate adds the First side row), the chosen one with a brass pin, and a maple note that it takes effect on the next Run or Reset.
 
 ### Drawer Tabs and Piece Tiles
 Tabs are maple-text labels on an inlay baseline. The open tab is raised walnut, cream and bold. Tiles are 96px squares on a 22% black ground with stringing borders, holding 80px thumbnails rendered from the kit. Hover and selected fill raised walnut, and the selected tile adds a brass border and the tile lift shadow. Each scroll edge fades out over 48px when more tiles lie that way. A tile's top-right corner carries the placed count in maple 11px lining numerals ("×3"), empty when none is placed. Pressing a tile picks it and starts laying: drag onto the board to lay a run.
