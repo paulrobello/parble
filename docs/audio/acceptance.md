@@ -4,10 +4,10 @@ Evidence for the PRD §6 P4 acceptance boxes. Measured 2026-11-09 on gpu-host-a 
 
 | PRD P4 box | Status | Evidence |
 |---|---|---|
-| Each marble type sounds distinct on each surface (owner listening approval) | Open: needs Paul | [Listening review](#listening-review) below |
+| Each marble type sounds distinct on each surface (owner listening approval) | Approved by Paul, 2026-11-10 | [Listening review](#listening-review) below |
 | No clipping or voice starvation with 10 marbles on the stress track | Measured, passes | [C1](#c1-no-clipping-and-no-voice-starvation) |
 | Audio CPU stays within the frame budget | Measured, passes (p95 0.2 ms against 2 ms, load-guarded on gpu-host-b) | [C2](#c2-audio-main-thread-time) |
-| Music loops seamlessly | Automated checks pass (P4-T5), owner listen open | `e2e/tests/music.spec.mjs`, `make music-soak`, listening review item L3 |
+| Music loops seamlessly | Automated checks pass (P4-T5), approved by Paul, 2026-11-10 | `e2e/tests/music.spec.mjs`, `make music-soak`, listening review item L3 |
 
 ## C1: no clipping and no voice starvation
 
@@ -66,7 +66,7 @@ Status: passes. The 2026-11-10 02:31 PST run on gpu-host-b (Apple M4, booked win
 
 ## Listening review
 
-This box needs Paul's ears. Nothing below is approved yet.
+Approved by Paul on 2026-11-10 (check-in answer to Q18, "Q18 approved"), covering L1 to L4 and the music loops.
 
 How to run it:
 
@@ -79,11 +79,11 @@ How to run it:
 
 Checklist:
 
-- [ ] L1. Each marble type sounds distinct on each surface: glass, solid (glazed) and steel, each rolling and hitting on the block channel and on a rail. Minis and shooters keep their material's sound at a higher or lower pitch.
-- [ ] L2. The 10-marble stress mix (`stress2000`): no harshness, pumping or distortion when many marbles clack together, rolls stay audible under the impacts, and the music sits under the SFX.
-- [ ] L3. Each music loop's seam (run, build calm, build playful, night, title) is inaudible, and state changes crossfade smoothly.
-- [ ] L4. Mechanism cues (hopper release, toggle and splitter ticks, gate swing, trapdoor, drop holes, finish chime) match what is seen.
+- [x] L1. Each marble type sounds distinct on each surface: glass, solid (glazed) and steel, each rolling and hitting on the block channel and on a rail. Minis and shooters keep their material's sound at a higher or lower pitch.
+- [x] L2. The 10-marble stress mix (`stress2000`): no harshness, pumping or distortion when many marbles clack together, rolls stay audible under the impacts, and the music sits under the SFX.
+- [x] L3. Each music loop's seam (run, build calm, build playful, night, title) is inaudible, and state changes crossfade smoothly.
+- [x] L4. Mechanism cues (hopper release, toggle and splitter ticks, gate swing, trapdoor, drop holes, finish chime) match what is seen.
 
 Known limit: the rug cues are not staged (Paul rejected them on 2026-11-07, `docs/audio/cue-sheet.md`), and the sim reports the rug floor as wood, so there is no rug surface to judge yet.
 
-Owner approval (Paul): ______________________ Date: __________
+Owner approval (Paul): approved ("Q18 approved", relayed at the 2026-11-10 check-in) Date: 2026-11-10
