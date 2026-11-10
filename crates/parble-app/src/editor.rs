@@ -55,9 +55,11 @@ pub const MAX_FILL: u32 = 4_000;
 /// Collider rebuild time per frame. A rebuild stage that starts inside it always finishes, so a
 /// frame's rebuild is at most this plus one stage (gather, simplify, tag or install of one chunk).
 pub const COLLIDER_BUDGET_MS: f32 = 4.0;
-/// Run build time per frame ([`TrackRunBuild`]). A unit starts only when the longest unit so far
-/// still fits, so a frame's build stays near this; the collider rebuild waits while a build runs.
-pub const RUN_BUILD_BUDGET_MS: f32 = 6.0;
+/// Run build time per frame ([`TrackRunBuild`]), a ceiling: a unit starts only while the longest
+/// unit so far still fits under it. The longest units (a dense chunk's trimesh) are about 6 ms in
+/// GPU Chromium, so a frame does 4 to 10 ms of build work (measured 2026-11-09, P3-T5). The
+/// collider rebuild waits while a build runs.
+pub const RUN_BUILD_BUDGET_MS: f32 = 10.0;
 /// Fill grid: columns along +x from cell x 0, rows along −z from cell z −5.
 const FILL_COLS: i32 = 50;
 const FILL_Z0: i32 = -5;
