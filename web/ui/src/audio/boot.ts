@@ -61,6 +61,41 @@ export interface AudioDiag {
   musicForce(state: MusicState | "off" | null): void;
   /** Test hook: RMS of the music bus over the last 2048 samples (before the master and the mute). */
   musicLevel(): number;
+  /** Test hook: the master peak meter and the followed-marble check; the first call starts them, `reset` clears them. */
+  meter(reset?: boolean): MeterReading;
+  /** Test hook: record the main-thread ms of every fed frame (engine consume plus the music update); `false` stops. */
+  timing(on: boolean): void;
+  /** The recorded frame timings, ms, oldest first (at most 65,536). */
+  timings(): number[];
+}
+
+/** The peak meter's analyser window: 32,768 samples (683 ms at 48 kHz), read every fed frame, so no sample is missed while frames come faster than that. */
+const METER_FFT = 32_768;
+/** Most frame timings `timing()` keeps. */
+const TIMING_MAX = 65_536;
+
+export interface MeterReading {
+  /** Whether the meter runs (it starts on the first `meter()` call, once the engine exists). */
+  running: boolean;
+  /** Largest |sample| at the master output, after the limiter and before the mute gain. */
+  peak: number;
+  peakDb: number;
+  /** Reads whose window held a sample at or above 1.0 (0 dBFS). */
+  clippedReads: number;
+  /** The same peak before the limiter (the master bus), for the limiter's share. */
+  prePeak: number;
+  reads: number;
+  /** Longest wall time between two reads, ms: coverage is gapless while it stays under `windowMs`. */
+  maxGapMs: number;
+  windowMs: number;
+  /** Fed frames whose followed marble (`__parble.camera.director.followed`) was rolling (`RollFrame.audible`). */
+  focusFrames: number;
+  /** Of those, frames it held no sounding roll voice (culled, stolen or no buffer). */
+  focusSilent: number;
+  /** The followed marbles seen while rolling. */
+  focusMarbles: number[];
+  /** Most marbles rolling (audible) in one frame. */
+  maxRolling: number;
 }
 
 const MUSIC_PARAM = new Set<string>(["off", ...MUSIC_STATES]);
@@ -134,6 +169,15 @@ export function startAudio(win: Window): AudioHandle {
   let ctx: AudioContext | null = null;
   let engine: AudioEngine | null = null;
   const raw = new Map<string, ArrayBuffer>();
+  let meter: {
+    post: AnalyserNode;
+    pre: AnalyserNode;
+    buf: Float32Array<ArrayBuffer>;
+    last: number;
+    focus: Set<number>;
+    r: MeterReading;
+  } | null = null;
+  let timing: number[] | null = null;
 
   const loadFail = (what: string, err: unknown): void => {
     diag.loadErrors++;
@@ -260,10 +304,66 @@ export function startAudio(win: Window): AudioHandle {
     player.update();
   };
 
+  const emptyReading = (running: boolean, windowMs: number): MeterReading => ({
+    running,
+    peak: 0,
+    peakDb: Number.NEGATIVE_INFINITY,
+    clippedReads: 0,
+    prePeak: 0,
+    reads: 0,
+    maxGapMs: 0,
+    windowMs,
+    focusFrames: 0,
+    focusSilent: 0,
+    focusMarbles: [],
+    maxRolling: 0,
+  });
+
+  const peakOf = (a: AnalyserNode, buf: Float32Array<ArrayBuffer>): number => {
+    a.getFloatTimeDomainData(buf);
+    let p = 0;
+    for (const v of buf) p = Math.max(p, Math.abs(v));
+    return p;
+  };
+
+  const readMeter = (): void => {
+    if (!meter || !engine) return;
+    const m = meter;
+    const r = m.r;
+    const t = win.performance.now();
+    if (r.reads > 0) r.maxGapMs = Math.max(r.maxGapMs, t - m.last);
+    m.last = t;
+    r.reads++;
+    const post = peakOf(m.post, m.buf);
+    if (post >= 1) r.clippedReads++;
+    r.peak = Math.max(r.peak, post);
+    r.peakDb = 20 * Math.log10(r.peak);
+    r.prePeak = Math.max(r.prePeak, peakOf(m.pre, m.buf));
+    const followed = (win as unknown as { __parble?: { camera?: { director?: { followed?: number | null } } } })
+      .__parble?.camera?.director?.followed;
+    const rolls = engine.rollFrame();
+    r.maxRolling = Math.max(r.maxRolling, rolls.audible.length);
+    if (typeof followed === "number" && rolls.audible.includes(followed)) {
+      r.focusFrames++;
+      if (!rolls.voiced.includes(followed)) r.focusSilent++;
+      if (!m.focus.has(followed)) {
+        m.focus.add(followed);
+        r.focusMarbles = [...m.focus].sort((a, b) => a - b);
+      }
+    }
+  };
+
   const feed = (frame: AudioFrame): void => {
-    if (engine && ctx?.state === "running") engine.consume(frame);
+    const t0 = timing ? win.performance.now() : 0;
+    const running = engine && ctx?.state === "running";
+    if (running) engine?.consume(frame);
     else diag.skippedFrames++;
     steerMusic(frame);
+    if (timing) {
+      if (timing.length >= TIMING_MAX) timing.shift();
+      timing.push(win.performance.now() - t0);
+    }
+    if (running) readMeter();
   };
 
   win.__parbleAudio = {
@@ -287,6 +387,32 @@ export function startAudio(win: Window): AudioHandle {
       for (const v of buf) sum += v * v;
       return Math.sqrt(sum / buf.length);
     },
+    meter: (reset) => {
+      if (!meter && engine && ctx) {
+        const tap = (node: AudioNode): AnalyserNode => {
+          const a = (ctx as AudioContext).createAnalyser();
+          a.fftSize = METER_FFT;
+          node.connect(a);
+          return a;
+        };
+        meter = {
+          post: tap(engine.output()),
+          pre: tap(engine.bus("master")),
+          buf: new Float32Array(METER_FFT),
+          last: 0,
+          focus: new Set(),
+          r: emptyReading(true, (METER_FFT / ctx.sampleRate) * 1000),
+        };
+      } else if (meter && reset) {
+        meter.focus.clear();
+        meter.r = emptyReading(true, meter.r.windowMs);
+      }
+      return meter ? { ...meter.r, focusMarbles: [...meter.r.focusMarbles] } : emptyReading(false, 0);
+    },
+    timing: (on) => {
+      timing = on ? (timing ?? []) : null;
+    },
+    timings: () => [...(timing ?? [])],
     inject: (v) => {
       const e = decodeEvent(v);
       if (e?.type !== "audioFrame") return false;

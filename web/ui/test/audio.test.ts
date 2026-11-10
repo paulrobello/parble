@@ -390,6 +390,19 @@ describe("engine voice budget", () => {
     expect(e.stats().rollVoices).toBe(10);
   });
 
+  it("reports the last frame's audible and voiced rolls, empty while paused", () => {
+    const { e } = engine();
+    const rolls = [...Array.from({ length: 12 }, (_, i) => roll(i)), roll(20, { contact: false })];
+    e.consume(frame(4, { rolls }));
+    const r = e.rollFrame();
+    // 12 audible, the 10 nearest voiced; the airborne marble keeps neither.
+    expect(r.audible).toHaveLength(12);
+    expect(r.audible).not.toContain(20);
+    expect([...r.voiced].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    e.consume(frame(8, { paused: true }));
+    expect(e.rollFrame()).toEqual({ audible: [], voiced: [] });
+  });
+
   it("never sounds more than the cap, dropping or stealing for one-shots", () => {
     const { ctx, e } = engine();
     const rolls = Array.from({ length: 12 }, (_, i) => roll(i));

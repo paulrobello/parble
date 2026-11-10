@@ -115,6 +115,12 @@ interface Tail {
   nodes: AudioNode[];
 }
 
+/** The last consumed frame's rolls: `audible` marbles a roll voice should sound for, `voiced` the ones holding a sounding roll voice. */
+export interface RollFrame {
+  audible: number[];
+  voiced: number[];
+}
+
 export interface EngineOptions {
   /** Route the output through a zero gain: the engine runs but is silent. */
   muted?: boolean;
@@ -139,6 +145,8 @@ export class AudioEngine {
   readonly #picker: VariantPicker;
   readonly #buffers = new Map<string, AudioBuffer>();
   readonly #bus: Record<Bus, GainNode>;
+  readonly #output: DynamicsCompressorNode;
+  #rollFrame: RollFrame = { audible: [], voiced: [] };
   readonly #rolls = new Map<number, RollVoice>();
   readonly #held = new Map<number, Held>();
   readonly #oneShots = new Map<number, OneShot>();
@@ -174,6 +182,7 @@ export class AudioEngine {
     music.gain.value = BUS_DEFAULTS.music;
     music.connect(master);
     this.#bus = { master, sfx, music };
+    this.#output = limiter;
     this.#stats = {
       activeVoices: 0,
       rollVoices: 0,
@@ -204,6 +213,16 @@ export class AudioEngine {
   /** Glide bus `name` to `gain` (the mixer): a short time constant so slider moves do not click. */
   setBusGain(name: Bus, gain: number): void {
     this.#bus[name].gain.setTargetAtTime(Math.max(0, gain), this.#ctx.currentTime, BUS_GLIDE_TC);
+  }
+
+  /** The master output after the limiter and before the `muted` zero gain: what the speakers get (the peak meter's tap). */
+  output(): AudioNode {
+    return this.#output;
+  }
+
+  /** The rolls of the last consumed frame (the followed-marble starvation check). */
+  rollFrame(): RollFrame {
+    return this.#rollFrame;
   }
 
   addBuffer(stem: string, buffer: AudioBuffer): void {
@@ -250,6 +269,7 @@ export class AudioEngine {
     }
     this.#prune(now);
     if (!frame.paused) this.#updateRolls(now);
+    else this.#rollFrame = { audible: [], voiced: [] };
     s.contacts += frame.contacts.length;
     this.#impacts(frame.contacts, now);
     for (const e of frame.mechanisms) {
@@ -324,6 +344,10 @@ export class AudioEngine {
       v.tunnel?.src.playbackRate.setTargetAtTime(p.rate, now, SMOOTH_TC);
       setPosition(v.panner, c.held.roll.position);
     }
+    this.#rollFrame = {
+      audible: cands.filter((c) => c.gain > 0).map((c) => c.id),
+      voiced: [...this.#rolls.values()].filter((v) => v.layer !== null).map((v) => v.marble),
+    };
   }
 
   #panner(): PannerNode {

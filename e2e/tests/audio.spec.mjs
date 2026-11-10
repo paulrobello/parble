@@ -5,6 +5,9 @@
 // marbles and 64 contacts a frame through window.__parbleAudio.inject (decoded like a bridge event)
 // to show the cap binds: voices are dropped or stolen, never added past it. A third injects one signal
 // per mapped mechanism cue and checks each one starts a voice from a staged, decoded buffer.
+// P4-T6 (C1) runs the stress track (stress2000: the allpieces run, 10 marbles) for a full 30 s run
+// cycle under the master peak meter (window.__parbleAudio.meter, tapped after the limiter and before
+// the mute gain), and checks no sample reaches 0 dBFS and the followed marble's roll always sounds.
 import { expect, test } from "@playwright/test";
 
 const BAD_TEXT = (t) => /%cERROR%c|\bERROR\b/.test(t) || /uncaptured|invalid|validation|panicked/i.test(t);
@@ -32,8 +35,8 @@ function watch(page) {
 }
 
 // Load the page, unlock audio with a click on the canvas and wait for every SFX file to decode.
-async function unlock(page) {
-  await page.goto("/?mute=1");
+async function unlock(page, query = "") {
+  await page.goto(`/?mute=1${query}`);
   await page.waitForFunction(() => window.__parble?.ready === true, null, { timeout: 60_000 });
   expect(await page.evaluate(() => window.__parbleAudio.stats().state)).toBe("locked");
   await page.locator("canvas#parble").click({ position: { x: 20, y: 20 } });
@@ -197,4 +200,59 @@ test("every mapped mechanism signal plays its staged cue", async ({ page }) => {
   expect(r.after.started - r.before.started).toBe(signals.length);
   expect(r.after.missingBuffers - r.before.missingBuffers).toBe(0);
   expect(r.after.dropped - r.before.dropped).toBe(0);
+});
+
+// Real time on the stress track: a full 30 s run cycle plus its restart.
+const STRESS_S = 32;
+
+test("the stress track with 10 marbles never clips and never starves the followed marble", async ({ page }) => {
+  test.setTimeout(180_000);
+  const { errors } = watch(page);
+  await unlock(page, "&scenario=stress2000");
+  const started = await page.evaluate(() => window.__parbleAudio.meter());
+  expect(started.running).toBe(true);
+  const samples = [];
+  const end = Date.now() + STRESS_S * 1000;
+  while (Date.now() < end) {
+    samples.push(
+      await page.evaluate(() => {
+        const s = window.__parbleAudio.stats();
+        return {
+          marbles: window.__parble.marbles.length,
+          followed: window.__parble.camera?.director?.followed ?? null,
+          rolls: s.rollVoices,
+          voices: s.activeVoices,
+          music: s.music.state ?? null,
+        };
+      }),
+    );
+    await page.waitForTimeout(500);
+  }
+  const m = await page.evaluate(() => window.__parbleAudio.meter());
+  const s = await page.evaluate(() => window.__parbleAudio.stats());
+  const summary = {
+    meter: m,
+    marbles: Math.max(...samples.map((x) => x.marbles)),
+    maxRolls: Math.max(...samples.map((x) => x.rolls)),
+    maxVoices: Math.max(...samples.map((x) => x.voices)),
+    music: [...new Set(samples.map((x) => x.music))],
+    stats: s,
+  };
+  console.log(`audio stress2000: ${JSON.stringify(summary)}`);
+
+  expect(errors).toEqual([]);
+  expect(s.errors, s.lastError ?? "").toBe(0);
+  expect(s.loadErrors).toBe(0);
+  expect(summary.marbles).toBe(10);
+  expect(s.resets).toBeGreaterThan(0);
+  expect(s.started).toBeGreaterThan(0);
+  // Gapless: every read covers the meter window, and frames came faster than that window.
+  expect(m.reads).toBeGreaterThan(STRESS_S * 20);
+  expect(m.maxGapMs).toBeLessThan(m.windowMs);
+  expect(m.peak).toBeGreaterThan(0);
+  expect(m.peak).toBeLessThan(1);
+  expect(m.clippedReads).toBe(0);
+  expect(m.focusFrames).toBeGreaterThan(0);
+  expect(m.focusSilent).toBe(0);
+  expect(s.peakVoices).toBeLessThanOrEqual(s.cap.total);
 });
