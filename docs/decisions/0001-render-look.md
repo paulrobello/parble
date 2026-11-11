@@ -73,14 +73,14 @@ Glow and cat's-eye marbles are checked by measured margins in `e2e/tests/marbles
 
 | Check | Result | Bar | Where |
 |---|---|---|---|
-| Perf, headless GPU Chromium, 1440p High (gpu-host-b M4, build c86a1ef, 2026-11-09) | showcase p95 16.8 ms, max 33.4 ms; stress2000 p95 16.8 ms, max 33.3 ms; 1 of 600 frames dropped each; load 1.7–2.3 | p95 ≤ 16.7 ms + 0.3 ms quantum | `docs/perf/p1-gate.json` |
+| Perf, headless GPU Chromium, 1440p High (gpu-host-b M4, main 37eb2c2 with the lantern v3 shader, 2026-11-10) | showcase and stress2000 both p95 16.8 ms, max 16.8 ms, 0 of 600 dropped; load 2.9–3.3 | p95 ≤ 16.7 ms + 0.3 ms quantum | `docs/perf/p1-gate.json` |
 | Perf, Safari 27.2, 1440p High (gpu-host-b M4, main 9e4b2fb, 2026-11-10) | showcase and stress2000 both p95 17.0 ms, max 19 ms, 0 of 600 dropped; load 1.4–3.4 | same | `docs/perf/p1-gate-safari.json` |
 | TAA ghosting, follow camera at about 1.2 m/s (native, 2026-11-07) | follow-peak 0.000, trackside-cross 0.199; a synthetic ghost control reads 5.86 | ≤ 0.25 marble disc areas | ADR 0001 post stack, `docs/shots/p1-t7-ghost-*.png` |
 | Wasm size (main f4ce95c) | 11.89 MB gzip (29.0 MB raw) | ≤ 15 MB gzip | `make web-size` |
 | Look-dev shot references | showcase, stress2000, lineup and mechanisms all within their bars on main f4ce95c (`make shots-test` exit 0) | showcase 0.03 | `docs/shots/` |
 
 Caveats:
-- The perf numbers predate the lantern v3 shader. It adds one material pipeline, which the READY warm-up compiles before sampling, and it costs per pixel only on the lantern shades. A perf-gate rerun on the current main is still owed.
+- The Chromium numbers are rerun on main with the lantern v3 shader. The Safari numbers predate it: in the rerun (main 37eb2c2) Safari stress2000 passed at p95 17.0 ms, but showcase once never reached READY on a texture `RangeError` (card 01a1c899fb90), so the Safari record stays at 9e4b2fb until that is fixed. Five showcase loads after it all passed.
 - The PRD box names an M4 Max. The gating runs above are on gpu-host-b, an Apple M4.
 - Safari's earlier one-time 1.1 s frame was a pipeline created mid-run. The READY warm-up fixed it (`docs/perf/README.md`).
 
