@@ -1,7 +1,8 @@
 // Lost WebGPU device recovery (crates/parble-app/src/gpu_recovery.rs, index.html): a loss while
 // loading and a loss mid-run both rebuild the renderer. Rendering resumes and READY comes back, the
 // sim keeps ticking on the same scene, `window.__parble.gpuRecoveries` counts the rebuild, and
-// nothing is reported as fatal. The bound (more than 3 losses in 30 s) is in fatal.spec.mjs.
+// nothing is reported as fatal; in the editor the placed pieces and the edit history survive. The
+// bound (more than 3 losses in 30 s) is in fatal.spec.mjs.
 import { expect, test } from "@playwright/test";
 
 const SCENE = "/?scenario=showcase&mute=1&quality=high";
@@ -105,4 +106,35 @@ test("a device lost mid-run recovers without restarting the sim", async ({ page 
   const marbleNow = await page.evaluate(() => window.__parble.marbles[0].position);
   expect(marbleNow).toHaveLength(3);
   console.log("marble 0:", JSON.stringify(marbleAt), "->", JSON.stringify(marbleNow));
+});
+
+test("a device lost in the editor keeps the placed pieces and the edit history", async ({ page }) => {
+  await page.goto("/?mute=1&scenario=editor&quality=low&editor-ui=0&editor-fill=200");
+  await page.waitForFunction(() => window.__parble?.ready === true && window.__parble.editor?.pieces === 200, null, {
+    timeout: 60_000,
+  });
+  const editor = () =>
+    page.evaluate(() => {
+      const p = window.__parble;
+      return {
+        pieces: p.editor.pieces,
+        seq: p.editor.seq,
+        edits: p.editor.edits,
+        canUndo: p.editor.canUndo,
+        kitEditPieces: p.kit?.edit?.pieces,
+        kitEditChunks: p.kit?.edit?.chunks,
+        mainDraws: p.kit?.draws?.main ?? 0,
+      };
+    });
+  await expect.poll(async () => (await editor()).mainDraws, { timeout: 15_000 }).toBeGreaterThan(0);
+  const before = await editor();
+  await page.evaluate(() => window.__parbleLoseGpu());
+  await page.waitForFunction(() => window.__parble?.gpuRecoveries === 1 && window.__parble?.ready === true, null, {
+    timeout: 60_000,
+  });
+  await expect.poll(async () => (await editor()).mainDraws, { timeout: 15_000 }).toBeGreaterThan(0);
+  const after = await editor();
+  console.log("editor:", JSON.stringify(before), "->", JSON.stringify(after));
+  expect({ ...after, mainDraws: 0 }).toEqual({ ...before, mainDraws: 0 });
+  expect(await page.evaluate(() => window.__parble.fatal ?? window.__parbleFatal ?? null)).toBeNull();
 });

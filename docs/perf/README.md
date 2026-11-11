@@ -209,7 +209,7 @@ The fix (`index.html`):
 - A device that the page did not destroy itself becomes a fatal page error, `WebGPU device lost (<reason>): <message>`, in `window.__parble.fatal` (see `docs/agent-operability.md`). So does any uncaught error or wasm rejection, with its stack. `perf-gate.mjs` fails a sample at once on `fatal` instead of waiting 180 s.
 - Kit textures that fail to load are named in `warmup.texturesFailed`.
 
-A lost device no longer ends the load: the renderer is rebuilt with Bevy's `RenderErrorPolicy::Recover` and READY comes once the rebuilt pipelines are warm (`docs/agent-operability.md`, GPU device loss). Only a 4th loss within 30 s is fatal. The Safari runs are in the table below.
+A lost device no longer ends the load: the renderer is rebuilt with Bevy's `RenderErrorPolicy::Recover` and READY comes once the rebuilt pipelines are warm (`docs/agent-operability.md`, GPU device loss). Only a 4th loss within 30 s is fatal. A loss that recovers no longer fails a perf-gate sample as `fatal`, so `perf-gate.mjs` fails a sample whose `gpuRecoveries` changed while it was measured. The Safari runs are in the table below.
 
 #### Safari READY repeat harness
 

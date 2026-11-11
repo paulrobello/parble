@@ -70,13 +70,15 @@ function sampler(frames, settle, done, diag) {
       if (performance.now() - t0 > 180000) return done({ error: "READY never came", diag: diag() });
       return setTimeout(waitReady, 100);
     }
-    var readyMs = performance.now() - t0, n = 0, last = 0, out = [];
+    var readyMs = performance.now() - t0, n = 0, last = 0, out = [], recoveries = p.gpuRecoveries || 0;
     function loop(t) {
       if (n > settle) out.push(t - last);
       last = t;
       n++;
       if (out.length < frames) return requestAnimationFrame(loop);
       var c = document.querySelector("canvas#parble"), s = window.__parble;
+      // A lost device rebuilt mid-sample stalls frames that say nothing about the scene's cost.
+      if ((s.gpuRecoveries || 0) !== recoveries) return done({ error: "GPU device lost and recovered during the sample (gpuRecoveries " + recoveries + " -> " + s.gpuRecoveries + ")", diag: diag() });
       done({
         deltas: out,
         readyMs: readyMs,

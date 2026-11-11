@@ -50,6 +50,8 @@ use crate::bridge::{self, Event};
 pub const MAX_LOSSES: usize = 3;
 /// The window, in seconds of real time, [`MAX_LOSSES`] is counted over.
 pub const WINDOW_S: f64 = 30.0;
+/// Restarts of one rebuild after an error during it; one more is fatal.
+pub const MAX_RESTARTS: u32 = 3;
 
 /// Recoveries so far, and the recent losses the bound counts.
 #[derive(Resource, Debug, Default)]
@@ -61,6 +63,8 @@ pub struct GpuRecovery {
     /// A rebuild is under way: the lost device is still the render world's until the new one has
     /// drawn a frame.
     rebuilding: bool,
+    /// Restarts of the current rebuild ([`MAX_RESTARTS`]).
+    restarts: u32,
 }
 
 impl GpuRecovery {
@@ -68,7 +72,14 @@ impl GpuRecovery {
     fn admit(&mut self, now: f64) -> bool {
         self.losses.retain(|t| now - t < WINDOW_S);
         self.losses.push(now);
+        self.restarts = 0;
         self.losses.len() <= MAX_LOSSES
+    }
+
+    /// Records an error during a rebuild and answers whether the rebuild may start again.
+    fn restart(&mut self) -> bool {
+        self.restarts += 1;
+        self.restarts <= MAX_RESTARTS
     }
 }
 
@@ -120,15 +131,26 @@ fn refresh_after_recovery(
 
 fn handle(error: &RenderError, main: &mut World, render: &mut World) -> RenderErrorPolicy {
     let lost = matches!(error.ty, ErrorType::DeviceLost);
-    if !lost && main.resource::<GpuRecovery>().rebuilding {
+    let mut rec = main.resource_mut::<GpuRecovery>();
+    if !lost && rec.rebuilding {
         // Until the new device is in place Bevy still polls the lost one, and Safari reports
         // validation errors from a lost device. Such an error is the loss, not a new fault: ask for
-        // the device again (the request in flight is dropped) without counting another loss.
-        warn!(
-            "{:?} error from the lost GPU device while rebuilding: {}",
-            error.ty, error.description
+        // the device again (the request in flight is dropped) without counting another loss. An
+        // error that keeps coming back is a real one: past [`MAX_RESTARTS`] the app gives up.
+        if rec.restart() {
+            warn!(
+                "{:?} error while rebuilding after a lost GPU device, restarting the rebuild: {}",
+                error.ty, error.description
+            );
+            return RenderErrorPolicy::Recover(RenderCreation::default());
+        }
+        let message = format!(
+            "{:?} error {} times while rebuilding after a lost GPU device, not recovering: {}",
+            error.ty,
+            MAX_RESTARTS + 1,
+            error.description
         );
-        return RenderErrorPolicy::Recover(RenderCreation::default());
+        return give_up(main, &message);
     }
     if !lost {
         // Validation and out-of-memory errors keep Bevy's default: the cause is still there, so
@@ -144,10 +166,7 @@ fn handle(error: &RenderError, main: &mut World, render: &mut World) -> RenderEr
             "GPU device lost more than {MAX_LOSSES} times in {WINDOW_S} s, not recovering: {}",
             error.description
         );
-        error!("{message}");
-        page::gave_up(&message);
-        main.write_message(AppExit::error());
-        return RenderErrorPolicy::StopRendering;
+        return give_up(main, &message);
     }
     rec.recoveries += 1;
     rec.rebuilding = true;
@@ -168,6 +187,14 @@ fn handle(error: &RenderError, main: &mut World, render: &mut World) -> RenderEr
     page::recovering(count);
     // The same settings the app started with: `RenderPlugin`'s default.
     RenderErrorPolicy::Recover(RenderCreation::default())
+}
+
+/// Ends on the fatal path: rendering stops, the app exits, and on web the page records `message`.
+fn give_up(main: &mut World, message: &str) -> RenderErrorPolicy {
+    error!("{message}");
+    page::gave_up(message);
+    main.write_message(AppExit::error());
+    RenderErrorPolicy::StopRendering
 }
 
 /// index.html's device-lost hook. It records every loss; unless the app has claimed recovery it
@@ -233,5 +260,17 @@ mod tests {
         assert!(r.admit(20.0));
         assert!(r.admit(31.0), "the loss at 0 s has left the window");
         assert!(!r.admit(32.0));
+    }
+
+    #[test]
+    fn a_rebuild_restarts_at_most_three_times_and_a_new_loss_resets_the_count() {
+        let mut r = GpuRecovery::default();
+        assert!(r.admit(0.0));
+        assert!(r.restart());
+        assert!(r.restart());
+        assert!(r.restart());
+        assert!(!r.restart());
+        assert!(r.admit(1.0));
+        assert!(r.restart());
     }
 }
