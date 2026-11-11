@@ -1,25 +1,32 @@
 // First-run GPU quality detection (P5-T3): the adapter's info plus a short fill benchmark. The test
 // pass draws one full-screen triangle at 1920x1080 through a fragment loop of trig, so its time tracks
-// the per-pixel shading budget the post stack spends. A few passes are timed by queue completion and
-// the median picks the tier. The whole check stays under about a second, and a slow first pass ends
-// it early.
+// the per-pixel shading budget the post stack spends. Each round times a short and a long submit by
+// queue completion, and the per-pass time is their difference over the extra passes. That cancels the
+// fixed cost of a submit and its completion callback, which in Safari is many times a pass's GPU time.
+// The median round picks the tier. A slow warm-up, or rounds past the time budget, end it early.
 
 import type { AdapterInfo, Tier } from "./store";
 
 export const BENCH_W = 1920;
 export const BENCH_H = 1080;
-/** Draws per timed submit, and timed submits after one warm-up. */
-export const PASSES_PER_SUBMIT = 4;
-export const SUBMITS = 5;
-/** A warm-up submit slower than this ends the check at `low`, ms. */
+/** Draws in the short and the long submit of a round, and the rounds timed after the warm-up. */
+export const SHORT_PASSES = 8;
+export const LONG_PASSES = 72;
+export const ROUNDS = 5;
+/** Warm-up submits (short) before timing; the check ends at `low` only if every one is slower than this, ms. */
+export const WARMUPS = 2;
 export const SLOW_WARMUP_MS = 400;
+/** Rounds stop once the timed part has taken this long, ms; the median of those done picks the tier. */
+export const BENCH_BUDGET_MS = 1500;
 
 /**
- * Upper bounds of the median ms per test pass for each tier. Calibrated on an Apple M-series GPU in
- * GPU Chromium (PRODUCT.md: 60 fps at High on M-series at 1440p), which measured 0.75 ms per pass
- * there (docs/design/title/README.md). Faster than `ultra` is ultra, slower than `medium` is low.
+ * Upper bounds of the median ms per test pass for each tier, measured idle under the load guard
+ * (docs/perf/gpu-tier-*.json, docs/design/title/README.md). The M4 gpu-host-b reads 1.5-2.2 ms in
+ * Chromium and Safari and holds High at 1440p (docs/perf/p1-gate*.json), so High ends at 3 ms. No
+ * host has been perf-gated at Ultra, so the Ultra bound is below every host measured. Faster than
+ * `ultra` is ultra, slower than `medium` is low.
  */
-export const TIER_MS: Readonly<Record<Exclude<Tier, "low">, number>> = { ultra: 0.3, high: 2.5, medium: 6 };
+export const TIER_MS: Readonly<Record<Exclude<Tier, "low">, number>> = { ultra: 0.15, high: 3, medium: 6 };
 
 export interface Detection {
   tier: Tier;
@@ -106,10 +113,10 @@ export async function detectQuality(gpu: GpuLike | undefined, now: () => number)
       usage: 0x10, // GPUTextureUsage.RENDER_ATTACHMENT (the constant is not in the DOM lib)
     });
     const view = target.createView();
-    const submit = async (): Promise<number> => {
+    const submit = async (passes: number): Promise<number> => {
       const t0 = now();
       const enc = d.createCommandEncoder();
-      for (let i = 0; i < PASSES_PER_SUBMIT; i++) {
+      for (let i = 0; i < passes; i++) {
         const pass = enc.beginRenderPass({
           colorAttachments: [{ view, loadOp: "clear", storeOp: "store", clearValue: [0, 0, 0, 1] }],
         });
@@ -119,16 +126,24 @@ export async function detectQuality(gpu: GpuLike | undefined, now: () => number)
       }
       d.queue.submit([enc.finish()]);
       await d.queue.onSubmittedWorkDone();
-      return (now() - t0) / PASSES_PER_SUBMIT;
+      return now() - t0;
     };
-    const warm = await submit();
-    if (warm * PASSES_PER_SUBMIT > SLOW_WARMUP_MS) {
+    let warm = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < WARMUPS && warm > SLOW_WARMUP_MS; i++) warm = Math.min(warm, await submit(SHORT_PASSES));
+    if (warm > SLOW_WARMUP_MS) {
       target.destroy();
-      return { tier: "low", adapter: info, benchMs: warm, reason: "slow" };
+      return { tier: "low", adapter: info, benchMs: warm / SHORT_PASSES, reason: "slow" };
     }
     const times: number[] = [];
-    for (let i = 0; i < SUBMITS; i++) times.push(await submit());
+    const t0 = now();
+    for (let i = 0; i < ROUNDS && (i === 0 || now() - t0 < BENCH_BUDGET_MS); i++) {
+      const short = await submit(SHORT_PASSES);
+      const long = await submit(LONG_PASSES);
+      // A round whose long submit did not take longer is timer noise, not a GPU time.
+      if (long > short) times.push((long - short) / (LONG_PASSES - SHORT_PASSES));
+    }
     target.destroy();
+    if (!times.length) return { tier: "low", adapter: info, benchMs: null, reason: "error" };
     const ms = median(times);
     return { tier: tierFor(ms, false), adapter: info, benchMs: Math.round(ms * 1000) / 1000, reason: "bench" };
   } catch (err) {

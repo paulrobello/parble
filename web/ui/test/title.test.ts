@@ -1,5 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
+import gpuHostA from "../../../docs/perf/gpu-tier-gpu-host-a.json";
+import gpuHostB from "../../../docs/perf/gpu-tier-gpu-host-b.json";
 import { MIXER_KEY } from "../src/audio/mixer";
 import { TIER_MS, adapterName, median, tierFor } from "../src/title/gpu";
 import {
@@ -89,6 +91,23 @@ describe("quality detection", () => {
     expect(tierFor(0.1, true)).toBe("low");
     expect(median([5, 1, 3])).toBe(3);
     expect(median([4, 1, 3, 2])).toBe(2.5);
+  });
+
+  it("puts every measured host run at High (docs/perf/gpu-tier-*.json)", () => {
+    type Rec = { browsers: Record<string, { runs: { benchMs: number | null; reason: string; discard: boolean }[] }> };
+    for (const [host, rec] of [
+      ["gpu-host-b", gpuHostB],
+      ["gpu-host-a", gpuHostA],
+    ] as [string, Rec][]) {
+      for (const [browser, b] of Object.entries(rec.browsers)) {
+        for (const r of b.runs.filter((x) => !x.discard && x.reason === "bench")) {
+          expect(`${host} ${browser} ${tierFor(r.benchMs ?? Number.NaN, false)}`).toBe(`${host} ${browser} high`);
+        }
+      }
+    }
+  });
+
+  it("names the adapter", () => {
     expect(adapterName(null)).toBe("unknown GPU");
     expect(adapterName({ vendor: "apple", architecture: "metal-3", device: "", description: "" })).toBe(
       "Apple metal-3",

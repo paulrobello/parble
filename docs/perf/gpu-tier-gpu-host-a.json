@@ -1,0 +1,245 @@
+{
+  "host": "gpu-host-a",
+  "os": "27.0.0",
+  "date": "2026-11-11T04:25:02.579Z",
+  "runs": 7,
+  "loadMax": 15,
+  "browsers": {
+    "chromium": {
+      "runs": [
+        {
+          "tier": "high",
+          "adapter": {
+            "vendor": "apple",
+            "architecture": "metal-3",
+            "device": "",
+            "description": ""
+          },
+          "benchMs": 0.331,
+          "reason": "bench",
+          "loadBefore": 14.0283203125,
+          "loadAfter": 14.0283203125,
+          "discard": false
+        },
+        {
+          "tier": "high",
+          "adapter": {
+            "vendor": "apple",
+            "architecture": "metal-3",
+            "device": "",
+            "description": ""
+          },
+          "benchMs": 0.33,
+          "reason": "bench",
+          "loadBefore": 14.0283203125,
+          "loadAfter": 14.42626953125,
+          "discard": false
+        },
+        {
+          "tier": "high",
+          "adapter": {
+            "vendor": "apple",
+            "architecture": "metal-3",
+            "device": "",
+            "description": ""
+          },
+          "benchMs": 0.329,
+          "reason": "bench",
+          "loadBefore": 14.42626953125,
+          "loadAfter": 14.42626953125,
+          "discard": false
+        },
+        {
+          "tier": "high",
+          "adapter": {
+            "vendor": "apple",
+            "architecture": "metal-3",
+            "device": "",
+            "description": ""
+          },
+          "benchMs": 0.334,
+          "reason": "bench",
+          "loadBefore": 14.42626953125,
+          "loadAfter": 14.42626953125,
+          "discard": false
+        },
+        {
+          "tier": "high",
+          "adapter": {
+            "vendor": "apple",
+            "architecture": "metal-3",
+            "device": "",
+            "description": ""
+          },
+          "benchMs": 0.331,
+          "reason": "bench",
+          "loadBefore": 14.42626953125,
+          "loadAfter": 14.42626953125,
+          "discard": false
+        },
+        {
+          "tier": "high",
+          "adapter": {
+            "vendor": "apple",
+            "architecture": "metal-3",
+            "device": "",
+            "description": ""
+          },
+          "benchMs": 0.331,
+          "reason": "bench",
+          "loadBefore": 14.42626953125,
+          "loadAfter": 15.11279296875,
+          "discard": true
+        },
+        {
+          "tier": "high",
+          "adapter": {
+            "vendor": "apple",
+            "architecture": "metal-3",
+            "device": "",
+            "description": ""
+          },
+          "benchMs": 0.33,
+          "reason": "bench",
+          "loadBefore": 14.40966796875,
+          "loadAfter": 14.40966796875,
+          "discard": false
+        }
+      ],
+      "kept": 6,
+      "benchMs": {
+        "frames": 6,
+        "meanMs": 0.33083333333333337,
+        "p50Ms": 0.331,
+        "p95Ms": 0.334,
+        "p99Ms": 0.334,
+        "maxMs": 0.334,
+        "dropped": 0
+      },
+      "adapter": {
+        "vendor": "apple",
+        "architecture": "metal-3",
+        "device": "",
+        "description": ""
+      }
+    },
+    "safari": {
+      "runs": [
+        {
+          "tier": "high",
+          "benchMs": 0.688,
+          "adapter": {
+            "vendor": "apple",
+            "device": "apple",
+            "architecture": "apple",
+            "description": "apple"
+          },
+          "reason": "bench",
+          "loadBefore": 14.40966796875,
+          "loadAfter": 47.12841796875,
+          "discard": true
+        },
+        {
+          "tier": "high",
+          "benchMs": 0.523,
+          "adapter": {
+            "vendor": "apple",
+            "device": "apple",
+            "architecture": "apple",
+            "description": "apple"
+          },
+          "reason": "bench",
+          "loadBefore": 13.1708984375,
+          "loadAfter": 15.23876953125,
+          "discard": true
+        },
+        {
+          "tier": "high",
+          "benchMs": 0.445,
+          "adapter": {
+            "vendor": "apple",
+            "device": "apple",
+            "architecture": "apple",
+            "description": "apple"
+          },
+          "reason": "bench",
+          "loadBefore": 14.49560546875,
+          "loadAfter": 14.49560546875,
+          "discard": false
+        },
+        {
+          "tier": "high",
+          "benchMs": 0.609,
+          "adapter": {
+            "vendor": "apple",
+            "device": "apple",
+            "architecture": "apple",
+            "description": "apple"
+          },
+          "reason": "bench",
+          "loadBefore": 14.49560546875,
+          "loadAfter": 14.53564453125,
+          "discard": false
+        },
+        {
+          "tier": "high",
+          "benchMs": 0.43,
+          "adapter": {
+            "vendor": "apple",
+            "device": "apple",
+            "architecture": "apple",
+            "description": "apple"
+          },
+          "reason": "bench",
+          "loadBefore": 14.53564453125,
+          "loadAfter": 20.09814453125,
+          "discard": true
+        },
+        {
+          "tier": "high",
+          "benchMs": 0.391,
+          "adapter": {
+            "vendor": "apple",
+            "device": "apple",
+            "architecture": "apple",
+            "description": "apple"
+          },
+          "reason": "bench",
+          "loadBefore": 13.2626953125,
+          "loadAfter": 14.6826171875,
+          "discard": false
+        },
+        {
+          "tier": "high",
+          "benchMs": 0.664,
+          "adapter": {
+            "vendor": "apple",
+            "device": "apple",
+            "architecture": "apple",
+            "description": "apple"
+          },
+          "reason": "bench",
+          "loadBefore": 14.6826171875,
+          "loadAfter": 18.7119140625,
+          "discard": true
+        }
+      ],
+      "kept": 3,
+      "benchMs": {
+        "frames": 3,
+        "meanMs": 0.4816666666666667,
+        "p50Ms": 0.445,
+        "p95Ms": 0.609,
+        "p99Ms": 0.609,
+        "maxMs": 0.609,
+        "dropped": 0
+      },
+      "adapter": {
+        "vendor": "apple",
+        "device": "apple",
+        "architecture": "apple",
+        "description": "apple"
+      }
+    }
+  }
+}

@@ -30,9 +30,16 @@ The title is a front door. Build and Watch navigate to a scene URL (`?scenario=e
 
 ## First-run quality detection
 
-`web/ui/src/title/gpu.ts` reads the adapter info, then times a 1920x1080 full-screen fragment test (48 trig iterations per pixel): one warm-up submit and five timed submits of four passes, each timed to queue completion. The median ms per pass picks the tier: at most 0.3 ms is Ultra, 2.5 ms High, 6 ms Medium, slower is Low, and a fallback (software) adapter is Low. A warm-up slower than 400 ms ends the check at Low. The result is stored in `parble.settings/1` and is not rerun until the player asks.
+`web/ui/src/title/gpu.ts` reads the adapter info, then times a 1920x1080 full-screen fragment test (48 trig iterations per pixel). After one warm-up submit of 8 passes (a second if the first is slow), each of up to five rounds times a submit of 8 passes and one of 72 to queue completion. The per-pass time is their difference over the 64 extra passes, which cancels the fixed cost of a submit and its completion callback. In Safari that cost is many times a pass's GPU time: the old one-submit timing read 12-130 ms per pass on GPUs that hold High at 60 fps. The median round picks the tier: at most 0.15 ms is Ultra, 3 ms High, 6 ms Medium, slower is Low, and a fallback (software) adapter is Low. A warm-up slower than 400 ms twice ends the check at Low. The result is stored in `parble.settings/1` and is not rerun until the player asks.
 
-Calibration: an Apple M-series GPU (Apple, metal-3) in GPU Chromium measured 0.75 ms per pass with the 1-minute load average near 37, which is High, the tier the PRD sets for M-series. The thresholds leave room on both sides. They have not been checked on other GPUs.
+Calibration, 2026-11-10, idle under the load guard (1-minute load ≤ 15 before and after each run), `e2e/gpu-tier-bench.mjs`:
+
+| Host | Chromium (GPU, headless) | Safari 27.2 | Records |
+|---|---|---|---|
+| gpu-host-b (Apple M4) | 1.49-1.65 ms, median 1.58 | 1.98-2.23 ms, median 2.16 | `docs/perf/gpu-tier-gpu-host-b.json` |
+| gpu-host-a | 0.33 ms | 0.39-0.61 ms, median 0.45 | `docs/perf/gpu-tier-gpu-host-a.json` |
+
+Every run is High. gpu-host-b holds High at 1440p in both browsers (`docs/perf/p1-gate*.json`), so High ends at 3 ms, above gpu-host-b's slowest Safari run. No host has been perf-gated at Ultra, so the Ultra bound sits below every host measured. Other GPUs are not checked.
 
 ## Marble thumbnails
 
