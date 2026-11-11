@@ -20,12 +20,11 @@
 //   PARBLE_PERF_PORT     static server port, default 5313 (the perf gate's).
 //   PARBLE_PERF_DIST     build to serve, default target/web-dist.
 // Exit 0 when every scene reached READY, 1 otherwise.
-import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { cpus, platform, release } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { diagSummary, load1, pageDiag } from "./perf-helpers.mjs";
+import { diagSummary, load1, openSafari, pageDiag, serveDist } from "./perf-helpers.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
@@ -48,80 +47,10 @@ const ADAPTER = `
   }, function (e) { done({ adapter: null, error: String(e) }); });
 `;
 
-function serve() {
-  const srv = spawn("python3", [resolve(HERE, "static-server.py"), String(PORT), resolve(ROOT, process.env.PARBLE_PERF_DIST ?? "target/web-dist")], {
-    stdio: ["ignore", "pipe", "ignore"],
-  });
-  return new Promise((ok, fail) => {
-    const t = setTimeout(() => fail(new Error(`static server on ${PORT} did not start`)), 15_000);
-    srv.stdout.on("data", (d) => {
-      if (String(d).includes("serving")) {
-        clearTimeout(t);
-        ok(srv);
-      }
-    });
-    srv.on("exit", (code) => fail(new Error(`static server exited (${code}); is port ${PORT} free?`)));
-  });
-}
+const serve = () => serveDist(PORT, resolve(ROOT, process.env.PARBLE_PERF_DIST ?? "target/web-dist"));
 
-async function wd(base, method, p, body) {
-  const r = await fetch(base + p, {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(120_000),
-  });
-  const j = await r.json();
-  if (!r.ok) throw new Error(`${method} ${p}: ${JSON.stringify(j.value)}`);
-  return j.value;
-}
-
-// A browser behind one small interface: goto, run a sync script (WebDriver's execute/sync body),
-// run an async one, screenshot, close.
-async function openSafari() {
-  const port = 20000 + Math.floor(Math.random() * 20000);
-  const base = `http://127.0.0.1:${port}`;
-  const driver = spawn("safaridriver", ["-p", String(port)], { stdio: "ignore" });
-  await new Promise((r) => setTimeout(r, 1500));
-  let session = null;
-  try {
-    // A second back-to-back session has failed once with `fetch failed`: retry once after a pause.
-    for (let attempt = 1; !session; attempt++) {
-      try {
-        session = (await wd(base, "POST", "/session", { capabilities: { alwaysMatch: { browserName: "safari" } } })).sessionId;
-      } catch (e) {
-        if (attempt >= 2) throw e;
-        console.error(`safari session: ${e?.message ?? e}; retrying in 5 s`);
-        await new Promise((r) => setTimeout(r, 5000));
-      }
-    }
-    return await safariBrowser(base, driver, session);
-  } catch (e) {
-    if (session) await wd(base, "DELETE", `/session/${session}`).catch(() => {});
-    driver.kill();
-    throw e;
-  }
-}
-
-async function safariBrowser(base, driver, session) {
-  const s = `/session/${session}`;
-  await wd(base, "POST", `${s}/timeouts`, { script: 60_000, pageLoad: 120_000 });
-  const b = {
-    goto: (url) => wd(base, "POST", `${s}/url`, { url }),
-    sync: (script) => wd(base, "POST", `${s}/execute/sync`, { args: [], script }),
-    async: (script) => wd(base, "POST", `${s}/execute/async`, { args: [], script }),
-    shot: async () => Buffer.from(await wd(base, "GET", `${s}/screenshot`), "base64"),
-    close: async () => {
-      await wd(base, "DELETE", s).catch(() => {});
-      driver.kill();
-    },
-    consoleErrors: () => null,
-  };
-  // Size the window so the canvas is 2560 × 1440 device pixels (perf-gate.mjs does the same).
-  await b.goto(`${BASE}/__size-probe`);
-  const [dpr, dx, dy] = await b.sync("return [window.devicePixelRatio, window.outerWidth - window.innerWidth, window.outerHeight - window.innerHeight];");
-  await wd(base, "POST", `${s}/window/rect`, { x: 0, y: 0, width: Math.round(WIDTH / dpr) + dx, height: Math.round(HEIGHT / dpr) + dy });
-  return b;
+async function openSafariDiag() {
+  return { ...(await openSafari(BASE, WIDTH, HEIGHT)), consoleErrors: () => null };
 }
 
 async function openChromium() {
@@ -211,7 +140,7 @@ async function main() {
       // A fresh browser session per scene: a cold load, as the perf gate does.
       let b = null;
       try {
-        b = BROWSER === "safari" ? await openSafari() : await openChromium();
+        b = BROWSER === "safari" ? await openSafariDiag() : await openChromium();
         scenes.push(await diagScene(b, scene));
       } catch (e) {
         scenes.push({ scene, ready: false, error: String(e?.message ?? e) });
