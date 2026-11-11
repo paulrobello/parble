@@ -251,10 +251,10 @@ Scope:
 - IndexedDB library and `.parble` export/import with a versioned schema and migrations.
 
 Acceptance:
-- [ ] Build a 200-piece track from scratch and run it with no console errors.
-- [ ] Export, re-import and run reproduce the identical trajectory hash.
-- [ ] Editing a 2,000-piece track keeps frame time inside budget (chunk rebuild ≤ 1 frame budget amortized).
-- [ ] Undo/redo round-trips every operation (property test).
+- [x] Build a 200-piece track from scratch and run it with no console errors. (2026-11-11: `e2e/tests/editor-acceptance.spec.mjs`, `docs/perf/p3-editor.json`)
+- [x] Export, re-import and run reproduce the identical trajectory hash. (2026-11-11: `editor-acceptance.spec.mjs` on the 200-piece track, `persistence.spec.mjs` against the native hash)
+- [x] Editing a 2,000-piece track keeps frame time inside budget (chunk rebuild ≤ 1 frame budget amortized). (2026-11-11: `make web-editor-perf`, worst-frame rebuild 10.9 ms, Run build with no dropped frame, `docs/perf/p3-editor.json`)
+- [x] Undo/redo round-trips every operation (property test). (`crates/parble-core/tests/edit.rs` `full_undo_restores_original_bytes`, 512 cases)
 
 ### P4 — Audio
 

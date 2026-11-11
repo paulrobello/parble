@@ -125,6 +125,10 @@ struct EditVisuals {
 
 pub struct KitEditPlugin;
 
+/// The PostUpdate set that despawns and respawns edited chunks ([`apply_edits`]).
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ChunkRebuild;
+
 impl Plugin for KitEditPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<KitEdits>()
@@ -134,7 +138,13 @@ impl Plugin for KitEditPlugin {
             .add_systems(Startup, setup_visuals)
             .add_systems(
                 PostUpdate,
-                (apply_edits, apply_slice, show_ghost, show_marks).chain(),
+                (
+                    apply_edits.in_set(ChunkRebuild),
+                    apply_slice,
+                    show_ghost,
+                    show_marks,
+                )
+                    .chain(),
             );
     }
 }

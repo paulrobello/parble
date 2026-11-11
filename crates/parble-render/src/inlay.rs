@@ -205,7 +205,14 @@ pub struct InlayPlugin;
 impl Plugin for InlayPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<InlayFrame>()
-            .add_systems(PostUpdate, (attach_inlays, drive_inlays).chain());
+            // After the chunk rebuild: it despawns the inlays of a chunk it respawns, and an insert
+            // queued on one of them would be applied after the despawn and panic.
+            .add_systems(
+                PostUpdate,
+                (attach_inlays, drive_inlays)
+                    .chain()
+                    .after(crate::kit::edit::ChunkRebuild),
+            );
     }
 }
 

@@ -1,0 +1,72 @@
+{
+  "task": "P3-T6 editor end-to-end acceptance (PRD \u00a76 P3)",
+  "date": "2026-11-11",
+  "host": {
+    "name": "gpu-host-a",
+    "cpu": "Apple M4 Max",
+    "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "renderer": "ANGLE Metal (Apple M4 Max), GPU Chromium headless"
+  },
+  "build": "main 5ca4cbb plus the P3-T6 commit (glow inlays attach after the chunk rebuild)",
+  "acceptance": {
+    "build200AndRun": {
+      "spec": "e2e/tests/editor-acceptance.spec.mjs",
+      "pieces": 200,
+      "route": 52,
+      "offRoute": 148,
+      "pieceTypes": 34,
+      "placeOpsMs": 3819,
+      "validationIssues": 443,
+      "run": {
+        "ticks": 2402,
+        "marbles": 6,
+        "queue": 10
+      },
+      "consoleErrors": 0,
+      "note": "The route is the 52-placement all-pieces track; the other 148 pieces stand off the route, so validation reports them as unreachable or unlinked (warnings in the panel, not console errors)."
+    },
+    "exportImportHash": {
+      "spec": "e2e/tests/editor-acceptance.spec.mjs (200-piece track) and e2e/tests/persistence.spec.mjs (demo fixture against the native runHash)",
+      "exportBytes": 29743,
+      "secondExportIdentical": true,
+      "runHash": "541c9402839f7ec6",
+      "rerunHash": "541c9402839f7ec6",
+      "runTicks": 2400
+    },
+    "edit2000InBudget": {
+      "spec": "e2e/tests/editor-perf.spec.mjs (make web-editor-perf)",
+      "loadBefore": 13.275390625,
+      "loadAfter": 10.01171875,
+      "taken": true,
+      "pieces": 2000,
+      "edits": 150,
+      "budgetMs": 16.666666666666668,
+      "worstFrameRebuildMs": 10.899999994,
+      "colliderFrameMsMax": 9.3
+    },
+    "runBuild2000NoDroppedFrame": {
+      "spec": "e2e/tests/editor-perf.spec.mjs",
+      "taken": true,
+      "loadBefore": 10.01171875,
+      "loadAfter": 10.1484375,
+      "refreshMs": 16.699999999999818,
+      "droppedMs": 25.049999999999727,
+      "run": {
+        "worstFrameMs": 16.80000000000291,
+        "meanWorstFrameMs": 16.800000000002,
+        "buildMs": [
+          876.50006,
+          878.4999,
+          898.09955,
+          881.7003
+        ],
+        "droppedFrames": 0
+      }
+    },
+    "undoRedoProperty": {
+      "test": "crates/parble-core/tests/edit.rs full_undo_restores_original_bytes",
+      "cases": 512,
+      "result": "21 passed"
+    }
+  }
+}
