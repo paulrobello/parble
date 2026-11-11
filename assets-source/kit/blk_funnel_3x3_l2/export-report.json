@@ -12,7 +12,7 @@
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
+      "sha256": "dc5e4354830f2f6d50756485cd133bbd220e6033f9901f815880958c55fc99b7"
     },
     {
       "path": "blender/kit/kitfunnel.py",

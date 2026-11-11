@@ -21,7 +21,7 @@
     },
     {
       "path": "blender/kit/kitblocks.py",
-      "sha256": "55f54c2ba6736f6e5a65aaa51e14aa993cf0c8d71bb60529bfb55af68acd5a42"
+      "sha256": "dc5e4354830f2f6d50756485cd133bbd220e6033f9901f815880958c55fc99b7"
     },
     {
       "path": "blender/kit/kitfunnel.py",
@@ -198,6 +198,10 @@
       "gltf-validator reimport (meshopt GLB)",
       "blender reimport (meshopt GLB)"
     ]
+  },
+  "reproducibility": {
+    "deterministic": false,
+    "notes": "Multi-threaded generator runs give two stage GLBs (8 runs, 4 each, 2026-11-11). They differ only in LOD0 TANGENT z at vertex 3706, 0.9567 vs 0.9566: Blender's threaded tangent computation lands on either side of the glTF exporter's 4-decimal rounding. In the runtime GLB that is 4 bytes of the meshopt-encoded LOD0 TANGENT stream. Positions, normals, UVs, the sidecar and the collider are identical in both. The shipped GLB is the variant that every single-threaded (-t 1) run produces (10/10). The generator is not run with -t 1 because single-threaded UV packing re-lays out blk_redirect_l2/l3 under their baked maps."
   },
   "approvals": [
     {
