@@ -518,10 +518,11 @@ pub fn lod_ranges(fov_y: f32) -> [VisibilityRange; LODS] {
     ]
 }
 
+/// Kept in the main world too: a renderer rebuilt after a lost GPU device uploads it again.
 pub fn lod_render_mesh(m: &LodMesh) -> Mesh {
     Mesh::new(
         bevy::mesh::PrimitiveTopology::TriangleList,
-        bevy::asset::RenderAssetUsages::RENDER_WORLD,
+        bevy::asset::RenderAssetUsages::default(),
     )
     .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, m.positions.clone())
     .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, m.normals.clone())

@@ -61,6 +61,8 @@ export function pageDiag() {
     pipelines: s.pipelines || null,
     kit: s.kit ? { family: s.kit.family, deviceBc: s.kit.deviceBc, deviceAstc: s.kit.deviceAstc, textures: tex.length } : null,
     texturesNotLoaded: tex.filter(function (t) { return t.state !== "loaded"; }),
+    gpuRecoveries: s.gpuRecoveries,
+    gpu: window.__parbleGpu || null,
     errors: errors,
     fatal: fatal,
   };

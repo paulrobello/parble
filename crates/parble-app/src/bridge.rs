@@ -122,6 +122,12 @@ pub enum Event {
         instance: [i32; 3],
         marble: u32,
     },
+    /// The renderer was rebuilt after a lost GPU device; `count` recoveries so far
+    /// ([`crate::gpu_recovery`]). The sim and the track are untouched. Older drainers skip the
+    /// unknown tag, so it needs no protocol bump.
+    GpuRecovered {
+        count: u32,
+    },
 }
 
 /// One [`Event::Split`] per checkpoint `split` signal in `events`, in order.
@@ -168,6 +174,7 @@ impl Event {
         "bridgeError",
         "audioFrame",
         "split",
+        "gpuRecovered",
     ];
 
     pub fn tag(&self) -> &'static str {
@@ -181,6 +188,7 @@ impl Event {
             Event::BridgeError { .. } => "bridgeError",
             Event::AudioFrame(_) => "audioFrame",
             Event::Split { .. } => "split",
+            Event::GpuRecovered { .. } => "gpuRecovered",
         }
     }
 }

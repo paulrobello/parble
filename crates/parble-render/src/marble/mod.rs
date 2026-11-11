@@ -259,6 +259,7 @@ impl Plugin for MarblePlugin {
     }
 }
 
+/// Kept in the main world too: a renderer rebuilt after a lost GPU device uploads it again.
 fn vane_image(png: &[u8]) -> Image {
     Image::from_buffer(
         png,
@@ -266,7 +267,7 @@ fn vane_image(png: &[u8]) -> Image {
         CompressedImageFormats::NONE,
         true,
         ImageSampler::linear(),
-        RenderAssetUsages::RENDER_WORLD,
+        RenderAssetUsages::default(),
     )
     .expect("embedded marble PNG decodes")
 }

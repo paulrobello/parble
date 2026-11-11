@@ -27,6 +27,7 @@ use serde::Serialize;
 
 use crate::SimClock;
 use crate::editor::EditorDiag;
+use crate::gpu_recovery::GpuRecovery;
 use crate::playback::Playback;
 
 /// Looks of the all-pieces marbles in release order, repeated: glass types only, since the run
@@ -785,6 +786,8 @@ struct DiagState<'a> {
     pipelines: Option<PipelineCounts>,
     /// The loading warm-up READY waits for.
     warmup: &'a Warmup,
+    /// Renderer rebuilds after a lost GPU device ([`crate::gpu_recovery`]).
+    gpu_recoveries: u32,
     exited: bool,
 }
 
@@ -872,6 +875,7 @@ fn diag<'a>(
         },
         pipelines: None,
         warmup,
+        gpu_recoveries: 0,
         exited: rt.exiting,
     }
 }
@@ -1136,6 +1140,7 @@ fn auto_exit(
     playback: Res<Playback>,
     pipelines: Res<PipelineStats>,
     warmup: Res<Warmup>,
+    gpu: Option<Res<GpuRecovery>>,
     mut rt: ResMut<AgentRuntime>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -1182,6 +1187,7 @@ fn auto_exit(
         );
         state.sensors = sensors_diag(&sensor_overlay, &sensor_frame);
         state.pipelines = Some(pipelines.counts());
+        state.gpu_recoveries = gpu.map_or(0, |g| g.recoveries);
         let json = serde_json::to_string(&state).unwrap_or_default();
         #[cfg(not(target_arch = "wasm32"))]
         println!("{json}");
@@ -1206,6 +1212,7 @@ fn publish(
     playback: Res<Playback>,
     pipelines: Res<PipelineStats>,
     warmup: Res<Warmup>,
+    gpu: Option<Res<GpuRecovery>>,
 ) {
     use js_sys::{JSON, JsString, Reflect};
     let mut state = diag(
@@ -1213,6 +1220,7 @@ fn publish(
     );
     state.sensors = sensors_diag(&sensor_overlay, &sensor_frame);
     state.pipelines = Some(pipelines.counts());
+    state.gpu_recoveries = gpu.map_or(0, |g| g.recoveries);
     let Ok(json) = serde_json::to_string(&state) else {
         return;
     };

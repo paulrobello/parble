@@ -19,7 +19,14 @@ export type BridgeEvent =
   | { type: "trackExported"; name: string; json: string }
   | { type: "bridgeError"; command: string; message: string }
   | AudioFrame
-  | SplitEvent;
+  | SplitEvent
+  | GpuRecoveredEvent;
+
+/** The renderer was rebuilt after a lost GPU device (crates/parble-app/src/gpu_recovery.rs); `count` recoveries so far. */
+export interface GpuRecoveredEvent {
+  type: "gpuRecovered";
+  count: number;
+}
 
 /** A checkpoint pass: `tick` is sim ticks since the run started (240 Hz), `instance` the checkpoint's anchor cell. */
 export interface SplitEvent {
@@ -123,6 +130,7 @@ export const EVENT_TYPES = [
   "bridgeError",
   "audioFrame",
   "split",
+  "gpuRecovered",
 ] as const satisfies readonly BridgeEvent["type"][];
 
 /** The wasm-bindgen class as Trunk exposes it on `window.wasmBindings`. */
@@ -327,6 +335,8 @@ export function decodeEvent(v: unknown): BridgeEvent | null {
         isU32(v.marble)
         ? { type: "split", tick: v.tick, instance: [...v.instance], marble: v.marble }
         : null;
+    case "gpuRecovered":
+      return hasOnly(v, ["type", "count"]) && isU32(v.count) ? { type: "gpuRecovered", count: v.count } : null;
     default:
       return null;
   }

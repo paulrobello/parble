@@ -162,12 +162,18 @@
       "tick": 131,
       "instance": [4, 0, -9],
       "marble": 2
+    },
+    {
+      "type": "gpuRecovered",
+      "count": 1
     }
   ],
   "rejectedEvents": [
     { "type": "split", "tick": 131, "instance": [3, 0], "marble": 2 },
     { "type": "split", "tick": -1, "instance": [3, 0, -4], "marble": 2 },
     { "type": "split", "tick": 131, "instance": [3, 0, -4], "marble": 2, "pass": 1 },
+    { "type": "gpuRecovered", "count": -1 },
+    { "type": "gpuRecovered" },
     {
       "type": "frame",
       "tick": 1,

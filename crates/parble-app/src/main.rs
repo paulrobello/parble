@@ -8,6 +8,7 @@ mod agent;
 mod audio;
 mod bridge;
 mod editor;
+mod gpu_recovery;
 mod persist;
 mod playback;
 mod zones;
@@ -94,6 +95,7 @@ fn main() {
                 }),
         )
         .add_plugins(ParbleRenderPlugin)
+        .add_plugins(gpu_recovery::GpuRecoveryPlugin)
         .add_plugins(AgentPlugin(opts.clone()))
         .add_plugins(DirectorPlugin {
             mode: opts.camera.mode(),

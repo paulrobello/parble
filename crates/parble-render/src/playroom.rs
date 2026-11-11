@@ -475,7 +475,8 @@ fn sampler(repeat: bool) -> ImageSampler {
     })
 }
 
-/// An embedded KTX2 (RGBA8, zstd, full mip chain; blender/playroom/encode.sh).
+/// An embedded KTX2 (RGBA8, zstd, full mip chain; blender/playroom/encode.sh), kept in the
+/// main world too: a renderer rebuilt after a lost GPU device uploads it again.
 pub fn ktx2_image(bytes: &[u8], srgb: bool, repeat: bool) -> Image {
     Image::from_buffer(
         bytes,
@@ -483,7 +484,7 @@ pub fn ktx2_image(bytes: &[u8], srgb: bool, repeat: bool) -> Image {
         CompressedImageFormats::NONE,
         srgb,
         sampler(repeat),
-        RenderAssetUsages::RENDER_WORLD,
+        RenderAssetUsages::default(),
     )
     .expect("embedded playroom KTX2 decodes")
 }
@@ -500,7 +501,8 @@ pub const fn cube_bytes(size: u32, levels: u32) -> usize {
     total
 }
 
-/// A raw RGBA16F cubemap in layer-major order (blender/playroom/probe.py).
+/// A raw RGBA16F cubemap in layer-major order (blender/playroom/probe.py), kept in the
+/// main world too: a renderer rebuilt after a lost GPU device uploads it again.
 pub fn cube_image(bytes: &[u8], size: u32, levels: u32) -> Image {
     assert_eq!(bytes.len(), cube_bytes(size, levels), "probe cubemap size");
     let mut img = Image {
@@ -520,7 +522,6 @@ pub fn cube_image(bytes: &[u8], size: u32, levels: u32) -> Image {
         dimension: Some(TextureViewDimension::Cube),
         ..default()
     });
-    img.asset_usage = RenderAssetUsages::RENDER_WORLD;
     img
 }
 

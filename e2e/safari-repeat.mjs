@@ -18,6 +18,9 @@
 //   PARBLE_REPEAT_QUERY    extra URL query, default "quality=high&mute=1".
 //   PARBLE_REPEAT_SECONDS  READY timeout per load, default 50.
 //   PARBLE_REPEAT_ADAPTER  "0" skips the adapter request after navigating (default on, as the gate).
+//   PARBLE_REPEAT_LOSE     "1": after READY, lose the GPU device (`window.__parbleLoseGpu()`) and
+//                          wait for READY again with one more recovery (`gpuRecoveries`). With
+//                          `gpu_lose_once_ms` in the query this tests a loss while loading instead.
 //   PARBLE_REPEAT_OUT      output path, default target/perf/safari-repeat.json.
 //   PARBLE_PERF_PORT       static server port, default 5313 (the perf gate's).
 //   PARBLE_PERF_DIST       build to serve, default target/web-dist.
@@ -36,6 +39,7 @@ const QUERY = process.env.PARBLE_REPEAT_QUERY ?? "quality=high&mute=1";
 // Below the session's 60 s script timeout (perf-helpers.mjs openSafari).
 const SECONDS = Math.min(55, Number(process.env.PARBLE_REPEAT_SECONDS ?? 50));
 const ADAPTER_PROBE = process.env.PARBLE_REPEAT_ADAPTER !== "0";
+const LOSE = process.env.PARBLE_REPEAT_LOSE === "1";
 const OUT = resolve(ROOT, process.env.PARBLE_REPEAT_OUT ?? "target/perf/safari-repeat.json");
 const PORT = Number(process.env.PARBLE_PERF_PORT ?? 5313);
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -70,6 +74,8 @@ function waiter(ms, done, diag) {
   })();
 }
 const WAIT = `(${waiter.toString()})(${SECONDS * 1000}, arguments[arguments.length - 1], ${pageDiag.toString()});`;
+// As `WAIT`, but READY only counts once `gpuRecoveries` has passed `__BEFORE__`.
+const WAIT_RECOVERED = `(${waiter.toString().replace("p && p.ready && !fatal", "p && p.ready && p.gpuRecoveries > __BEFORE__ && !fatal")})(${SECONDS * 1000}, arguments[arguments.length - 1], ${pageDiag.toString()});`;
 
 async function load(i, scene) {
   const loadBefore = +load1().toFixed(2);
@@ -78,15 +84,24 @@ async function load(i, scene) {
     const t0 = Date.now();
     await b.goto(`${BASE}/?scenario=${scene}&${QUERY}`);
     const adapter = ADAPTER_PROBE ? (await b.async(ADAPTER).catch((e) => ({ error: String(e) }))).adapter : undefined;
-    const d = await b.async(WAIT).catch((e) => ({ scriptError: String(e?.message ?? e) }));
+    let d = await b.async(WAIT).catch((e) => ({ scriptError: String(e?.message ?? e) }));
+    let lost = null;
+    if (LOSE && d.ready && !d.fatal) {
+      const before = d.gpuRecoveries ?? 0;
+      const tLose = Date.now();
+      await b.sync("window.__parbleLoseGpu();");
+      // READY drops once the loss is handled; wait for the rebuilt renderer's READY.
+      d = await b.async(WAIT_RECOVERED.replace("__BEFORE__", String(before))).catch((e) => ({ scriptError: String(e?.message ?? e) }));
+      lost = { before, after: d.gpuRecoveries ?? null, recoveredMs: Date.now() - tLose };
+    }
     const ms = Date.now() - t0;
-    const ok = !!d.ready && !d.fatal;
-    const r = { i, scene, ok, ms, adapter, loadBefore, loadAfter: +load1().toFixed(2), fatal: d.fatal ?? null, errors: d.errors ?? null };
+    const ok = !!d.ready && !d.fatal && (!LOSE || (lost !== null && lost.after === lost.before + 1));
+    const r = { i, scene, ok, ms, adapter, loadBefore, loadAfter: +load1().toFixed(2), gpuRecoveries: d.gpuRecoveries ?? null, gpu: d.gpu ?? null, lost, fatal: d.fatal ?? null, errors: d.errors ?? null };
     if (!ok) {
       r.diag = d;
       writeFileSync(OUT.replace(/\.json$/, `-${i}.png`), await b.shot().catch(() => Buffer.alloc(0)));
     }
-    console.log(`${i} ${scene}: ${ok ? `READY at ${ms} ms` : `FAILED after ${ms} ms\n  ${diagSummary(d)}${d.fatal ? `\n  fatal stack:\n${d.fatal.stack}${d.fatal.deviceLost ? `\n  then: ${d.fatal.deviceLost}` : ""}` : ""}`} (load ${r.loadBefore} -> ${r.loadAfter})`);
+    console.log(`${i} ${scene}: ${ok ? `READY at ${ms} ms${d.gpuRecoveries ? `, ${d.gpuRecoveries} GPU recovery(ies)${lost ? ` (mid-run loss recovered in ${lost.recoveredMs} ms)` : ""}` : ""}` : `FAILED after ${ms} ms\n  ${diagSummary(d)}${d.fatal ? `\n  fatal stack:\n${d.fatal.stack}${d.fatal.deviceLost ? `\n  then: ${d.fatal.deviceLost}` : ""}` : ""}`} (load ${r.loadBefore} -> ${r.loadAfter})`);
     return r;
   } finally {
     await b.close();

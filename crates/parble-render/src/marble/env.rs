@@ -116,6 +116,7 @@ pub fn pack_rgb9e5(c: Vec3) -> u32 {
     q(r) | (q(g) << 9) | (q(b) << 18) | ((e as u32) << 27)
 }
 
+/// Kept in the main world too: a renderer rebuilt after a lost GPU device uploads it again.
 fn cubemap(size: u32, mips: u32, mip_kr: impl Fn(u32) -> f32) -> Image {
     let mut data = Vec::new();
     for face in 0..6 {
@@ -139,7 +140,7 @@ fn cubemap(size: u32, mips: u32, mip_kr: impl Fn(u32) -> f32) -> Image {
         TextureDimension::D2,
         &[0; 4],
         TextureFormat::Rgb9e5Ufloat,
-        RenderAssetUsages::RENDER_WORLD,
+        RenderAssetUsages::default(),
     );
     image.texture_descriptor.mip_level_count = mips;
     image.data = Some(data);

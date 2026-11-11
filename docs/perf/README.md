@@ -205,15 +205,15 @@ What loses the device in the real failures is not proven. No WebKit GPU process 
 
 The fix (`index.html`):
 
-- `GPUBuffer.prototype.getMappedRange` returns a scratch `ArrayBuffer` of the asked size when Safari's is shorter, as the spec does. The upload no longer throws, and Bevy's own device-lost path runs: it logs `Caught DeviceLost error` and quits the app.
+- `GPUBuffer.prototype.getMappedRange` returns a scratch `ArrayBuffer` of the asked size when Safari's is shorter, as the spec does. The upload no longer throws, and Bevy's own device-lost path runs: it logs `Caught DeviceLost error` and hands the loss to the app's render error handler.
 - A device that the page did not destroy itself becomes a fatal page error, `WebGPU device lost (<reason>): <message>`, in `window.__parble.fatal` (see `docs/agent-operability.md`). So does any uncaught error or wasm rejection, with its stack. `perf-gate.mjs` fails a sample at once on `fatal` instead of waiting 180 s.
 - Kit textures that fail to load are named in `warmup.texturesFailed`.
 
-A lost device still ends the load. Recovering from it, by Bevy's `RenderErrorPolicy::Recover` or a page reload, is not built.
+A lost device no longer ends the load: the renderer is rebuilt with Bevy's `RenderErrorPolicy::Recover` and READY comes once the rebuilt pipelines are warm (`docs/agent-operability.md`, GPU device loss). Only a 4th loss within 30 s is fatal. The Safari runs are in the table below.
 
 #### Safari READY repeat harness
 
-`e2e/safari-repeat.mjs` loads a scene `PARBLE_REPEAT_N` times in real Safari (default 20), each in a fresh safaridriver session, muted and sized like the gate. Like the gate, it asks for an adapter after navigating and then waits for READY inside the page. A load fails on its timeout or 1 s after a `fatal`. It writes `target/perf/safari-repeat.json`, with the page error log and the loading state of every failed load, and a screenshot of each. `PARBLE_REPEAT_SCENES=stress2000,showcase` alternates scenes as the gate's Safari samples do. `PARBLE_REPEAT_QUERY="quality=high&mute=1&gpu_lose_ms=300"` forces the loss.
+`e2e/safari-repeat.mjs` loads a scene `PARBLE_REPEAT_N` times in real Safari (default 20), each in a fresh safaridriver session, muted and sized like the gate. Like the gate, it asks for an adapter after navigating and then waits for READY inside the page. A load fails on its timeout or 1 s after a `fatal`. It writes `target/perf/safari-repeat.json`, with the page error log and the loading state of every failed load, and a screenshot of each. `PARBLE_REPEAT_SCENES=stress2000,showcase` alternates scenes as the gate's Safari samples do. `PARBLE_REPEAT_QUERY="quality=high&mute=1&gpu_lose_ms=300"` loses every device (the retry bound ends the load), `gpu_lose_once_ms=300` one device while loading, and `PARBLE_REPEAT_LOSE=1` one device after READY.
 
 ```bash
 #!/bin/bash
@@ -230,5 +230,15 @@ gpu-host-a, Safari 27.2, 2026-11-10, 1-minute load 38 to 178 (the host was share
 | After the fix, showcase | 24 | 0 |
 | After the fix, showcase with `gpu_lose_ms=300` | 3 | 3, each fatal `WebGPU device lost (destroyed)` at 1.1 to 1.4 s, no RangeError |
 
-The natural failure did not reproduce on gpu-host-a in 74 showcase loads, so the clean after-fix runs do not show that the fix works. The forced-loss runs do: the hang turns into a named fatal error within about 1.4 s. `e2e/tests/fatal.spec.mjs` (`make web-e2e`, GPU Chromium) checks the forced loss and that a device the page destroys itself, as the title's GPU check does, is not fatal.
+With recovery (`gpu_recovery.rs`), gpu-host-a, Safari 27.2, 2026-11-10, 1-minute load 64 to 199. `PARBLE_REPEAT_LOSE=1` loses the device after READY (`window.__parbleLoseGpu()`) and waits for READY again with one more recovery:
+
+| Build | Loads | Result |
+|---|---|---|
+| Recovery, showcase with `gpu_lose_once_ms=300` (loss while loading) | 3 | 3 READY with `gpuRecoveries` 1, at 2.8 to 20.5 s; the new device came 28 to 30 ms after the loss |
+| Recovery, showcase, `PARBLE_REPEAT_LOSE=1` (loss mid-run) | 5 | 5 READY again 1.3 to 17.5 s after the loss; the new device came 4 to 10 ms after it, the rest is the warm-up recompiling pipelines on a loaded host |
+| Recovery, showcase with `gpu_lose_ms=300` (every device lost) | 1 | fatal on the 4th loss at 21 s, `recovery` names the bound; 4 devices, no 5th requested |
+
+A first mid-run batch showed Safari reporting `Validation failure.` from the lost device while the new one was being requested, which quit the app in 1 of 3 loads. The page now drops a lost device's error hook, and an error during a rebuild only restarts it.
+
+The natural failure did not reproduce on gpu-host-a in 74 showcase loads, so the clean after-fix runs do not show that the fix works. The forced-loss runs do: the hang turns into a named fatal error within about 1.4 s. `e2e/tests/gpu-recovery.spec.mjs` (`make web-e2e`, GPU Chromium) checks recovery from a loss while loading and one mid-run; `e2e/tests/fatal.spec.mjs` checks the retry bound and that a device the page destroys itself, as the title's GPU check does, is not fatal.
 

@@ -64,11 +64,18 @@
           log.push("unhandledrejection: " + e.reason + stack(e.reason));
           if (/wasm/.test(stack(e.reason))) fatal("unhandledrejection: " + e.reason, e.reason);
         });
-        // A lost WebGPU device is fatal too, unless the page destroyed it (the title's GPU check does).
+        // A lost WebGPU device the page did not destroy itself (the title's GPU check does) is logged
+        // and counted in `window.__parbleGpu`, with the times of the last device and the last loss.
+        // The app rebuilds its renderer after a loss
+        // (crates/parble-app/src/gpu_recovery.rs): once its wasm has set `__parbleGpuRecovery` the
+        // loss waits for its verdict, `__parbleGpuRecovering` (recovered, not fatal) or
+        // `__parbleGpuGaveUp` (past its retry bound: fatal). A loss before that, or one the app never
+        // answers within 15 s of visible time, is fatal as before.
         // Safari maps a buffer of a lost device to zero bytes, so the app's next buffer upload throws
-        // "RangeError: Length out of range of buffer" from inside wasm: this names the cause first.
+        // "RangeError: Length out of range of buffer" from inside wasm: the shim below prevents that.
         // `?gpu_lose_ms=N` (agent switch, docs/agent-operability.md) loses each device N ms after it
-        // is created, to reproduce that on demand.
+        // is created; `?gpu_lose_once_ms=N` loses only the first device still alive N ms after its
+        // creation; `window.__parbleLoseGpu()` loses every live device now (a loss mid-run, on cue).
         if (window.GPUAdapter && window.GPUDevice && window.GPUBuffer) {
           // The spec gives a lost device's mapping a scratch buffer of the asked size whose writes are
           // dropped. Safari 27 returns 0 bytes instead, and wgpu's view over it throws through wasm,
@@ -79,20 +86,54 @@
             var want = size === undefined ? this.size - (offset || 0) : size;
             return r.byteLength < want ? new ArrayBuffer(want) : r;
           };
+          var gpu = (window.__parbleGpu = { devices: 0, losses: 0, recovered: 0 });
+          var pending = null;
+          window.__parbleGpuRecovering = function (count) { pending = null; gpu.recovered = count; };
+          window.__parbleGpuGaveUp = function (why) {
+            var m = pending || "WebGPU device lost";
+            pending = null;
+            fatal(m, null);
+            if (window.__parbleFatal) window.__parbleFatal.recovery = String(why);
+          };
+          function unanswered(m) {
+            if (pending !== m) return;
+            if (document.hidden) { setTimeout(function () { unanswered(m); }, 15000); return; }
+            pending = null;
+            fatal(m + " (the app did not recover)", null);
+          }
           var requestDevice = GPUAdapter.prototype.requestDevice, destroy = GPUDevice.prototype.destroy;
-          var loseMs = Number(new URLSearchParams(location.search).get("gpu_lose_ms"));
+          var query = new URLSearchParams(location.search);
+          var loseMs = Number(query.get("gpu_lose_ms")), loseOnceMs = Number(query.get("gpu_lose_once_ms")), lostOnce = false;
+          var live = [];
+          window.__parbleLoseGpu = function () { live.forEach(function (d) { destroy.call(d); }); };
           GPUDevice.prototype.destroy = function () { this.__parbleDestroyed = true; return destroy.call(this); };
           GPUAdapter.prototype.requestDevice = function () {
             return requestDevice.apply(this, arguments).then(function (d) {
+              gpu.devices++;
+              gpu.deviceAtMs = Math.round(performance.now());
+              live.push(d);
               d.lost.then(function (i) {
+                live.splice(live.indexOf(d), 1);
                 if (d.__parbleDestroyed) return;
                 var m = "WebGPU device lost (" + i.reason + "): " + (i.message || "no message");
                 log.push(m);
+                gpu.losses++;
+                gpu.lostAtMs = Math.round(performance.now());
                 // The loss is the cause even when a throw it caused was recorded first.
                 if (window.__parbleFatal) window.__parbleFatal.deviceLost = m;
-                fatal(m, null);
+                if (!window.__parbleGpuRecovery) { fatal(m, null); return; }
+                // Safari still reports validation errors from a lost device; the app would take the
+                // next one for a new error and quit while its renderer is being rebuilt.
+                d.onuncapturederror = null;
+                pending = m;
+                setTimeout(function () { unanswered(m); }, 15000);
               });
               if (loseMs > 0) setTimeout(function () { destroy.call(d); }, loseMs);
+              if (loseOnceMs > 0) setTimeout(function () {
+                if (lostOnce || d.__parbleDestroyed) return;
+                lostOnce = true;
+                destroy.call(d);
+              }, loseOnceMs);
               return d;
             });
           };

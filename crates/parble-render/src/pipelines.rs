@@ -105,7 +105,8 @@ pub struct WaitingPipeline {
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PipelineCounts {
-    /// Render frames that have run.
+    /// Render frames that have run since the renderer started, or restarted after a lost device
+    /// ([`restart`]).
     pub render_frame: u64,
     pub total: usize,
     pub ok: usize,
@@ -252,6 +253,19 @@ impl PipelineStats {
             .counts
             .clone()
     }
+}
+
+/// Starts the readiness tracking over for a renderer rebuilt after a lost device. The rebuilt
+/// [`PipelineCache`] is empty and numbers its pipelines from 0 again, and every pipeline is created
+/// anew, so the counts, the warm-up and READY start from scratch: the warm-up runs again, its
+/// ceiling counted from the restart.
+pub fn restart(main_world: &mut World) {
+    *main_world
+        .resource::<PipelineStats>()
+        .0
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner) = Shared::default();
+    *main_world.resource_mut::<Warmup>() = Warmup::default();
 }
 
 pub struct PipelineStatsPlugin;
