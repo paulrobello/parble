@@ -21,15 +21,15 @@
     "cpu": "Apple M4",
     "cores": 10
   },
-  "when": "2026-11-10T15:08:08.441Z",
+  "when": "2026-11-11T07:51:21.081Z",
   "samples": [
     {
       "browser": "safari",
       "scene": "showcase",
       "attempt": 1,
       "taken": true,
-      "loadBefore": 2.95,
-      "loadAfter": 3.37,
+      "loadBefore": 3.59,
+      "loadAfter": 3.57,
       "mode": "headed (Safari)",
       "adapter": "apple apple apple",
       "renderer": null,
@@ -43,30 +43,31 @@
         1280,
         720
       ],
-      "readyMs": 1421,
+      "readyMs": 1670,
       "state": {
         "scenario": "showcase",
         "errors": [],
         "kitChunks": 5,
-        "tick": 2825,
-        "fps": 60.181587,
+        "tick": 2856,
+        "fps": 60.095215,
         "marbles": 6,
         "kitPieces": 52,
         "quality": "high"
       },
       "errors": [],
       "warmup": {
-        "doneFrame": 22,
+        "doneFrame": 24,
         "texturesLoading": 0,
         "stuck": [],
         "endedBy": "quiet",
-        "loadedFrame": 12,
+        "loadedFrame": 14,
+        "texturesFailed": [],
         "done": true,
         "waitingOn": "nothing"
       },
       "pipelines": {
         "stuck": 0,
-        "total": 63,
+        "total": 66,
         "recentCreated": [
           [
             3,
@@ -122,6 +123,14 @@
           ],
           [
             3,
+            "depth of field pipeline bevy_post_process/dof/dof.wesl []"
+          ],
+          [
+            3,
+            "depth of field pipeline bevy_post_process/dof/dof.wesl [DUAL_INPUT]"
+          ],
+          [
+            3,
             "clustering Z slicing pipeline bevy_pbr/cluster/cluster_z_slice.wesl []"
           ],
           [
@@ -141,37 +150,29 @@
             "clustering populate pipeline bevy_pbr/cluster/cluster_raster.wesl [POPULATE_PASS]"
           ],
           [
-            3,
-            "depth of field pipeline bevy_post_process/dof/dof.wesl []"
-          ],
-          [
-            3,
-            "depth of field pipeline bevy_post_process/dof/dof.wesl [DUAL_INPUT]"
-          ],
-          [
-            3,
+            5,
             "pbr_prepass_pipeline bevy_pbr/render/pbr_prepass.wesl [PREPASS_PIPELINE MATERIAL_BIND_GROUP=3 VERTEX_OUTPUT_INSTANCE_INDEX VIEW_PROJECTION_NONSTANDARD DEPTH_PREPASS VERTEX_POSITIONS VERTEX_UVS VERTEX_UVS_A NORMAL_PREPASS NORMAL_PREPASS_OR_DEFERRED_PREPASS VERTEX_NORMALS VERTEX_TANGENTS MOTION_VECTOR_PREPASS_OR_DEFERRED_PREPASS MOTION_VECTOR_PREPASS VISIBILITY_RANGE_DITHER PREPASS_FRAGMENT STANDARD_MATERIAL_NORMAL_MAP]"
           ],
           [
-            3,
+            5,
             "pbr_prepass_pipeline bevy_pbr/prepass/prepass.wesl [PREPASS_PIPELINE MATERIAL_BIND_GROUP=3 VERTEX_OUTPUT_INSTANCE_INDEX VIEW_PROJECTION_ORTHOGRAPHIC DEPTH_PREPASS VERTEX_POSITIONS VERTEX_UVS VERTEX_UVS_A]"
           ],
           [
-            3,
+            5,
             "pbr_prepass_pipeline bevy_pbr/prepass/prepass.wesl [PREPASS_PIPELINE MATERIAL_BIND_GROUP=3 VERTEX_OUTPUT_INSTANCE_INDEX VIEW_PROJECTION_PERSPECTIVE DEPTH_PREPASS VERTEX_POSITIONS VERTEX_UVS VERTEX_UVS_A]"
           ],
           [
-            3,
+            5,
             "pbr_opaque_mesh_pipeline parble_render/kit/wood.wesl [MESH_PIPELINE VERTEX_OUTPUT_INSTANCE_INDEX VERTEX_POSITIONS VERTEX_NORMALS VERTEX_UVS VERTEX_UVS_A VERTEX_TANGENTS NORMAL_PREPASS DEPTH_PREPASS SCREEN_SPACE_AMBIENT_OCCLUSION MOTION_VECTOR_PREPASS LOAD_PREPASS_NORMALS VIEW_PROJECTION_PERSPECTIVE ENVIRONMENT_MAP TEMPORAL_JITTER SHADOW_FILTER_METHOD_GAUSSIAN VIEW_TRANSMISSION_TEXTURE SCREEN_SPACE_SPECULAR_TRANSMISSION_BLUR_TAPS=8 VISIBILITY_RANGE_DITHER MATERIAL_BIND_GROUP=3 STANDARD_MATERIAL_NORMAL_MAP]"
           ]
         ],
         "pending": 0,
         "failures": [],
-        "renderFrame": 685,
-        "ok": 63,
-        "lastCreatedFrame": 3,
+        "renderFrame": 689,
+        "ok": 66,
+        "lastCreatedFrame": 5,
         "created": [],
-        "createdTotal": 63,
+        "createdTotal": 66,
         "failed": 0,
         "waiting": []
       },
@@ -195,8 +196,8 @@
       "scene": "stress2000",
       "attempt": 1,
       "taken": true,
-      "loadBefore": 3.37,
-      "loadAfter": 2.91,
+      "loadBefore": 3.57,
+      "loadAfter": 3.21,
       "mode": "headed (Safari)",
       "adapter": "apple apple apple",
       "renderer": null,
@@ -210,24 +211,25 @@
         1280,
         720
       ],
-      "readyMs": 3402,
+      "readyMs": 3192,
       "state": {
         "scenario": "stress2000",
         "errors": [],
         "kitChunks": 41,
-        "tick": 2832,
-        "fps": 60.427673,
+        "tick": 2851,
+        "fps": 60.000744,
         "marbles": 6,
         "kitPieces": 2000,
         "quality": "high"
       },
       "errors": [],
       "warmup": {
-        "doneFrame": 24,
+        "doneFrame": 25,
         "texturesLoading": 0,
         "stuck": [],
         "endedBy": "quiet",
-        "loadedFrame": 14,
+        "loadedFrame": 15,
+        "texturesFailed": [],
         "done": true,
         "waitingOn": "nothing"
       },
@@ -320,23 +322,23 @@
             "clustering populate pipeline bevy_pbr/cluster/cluster_raster.wesl [POPULATE_PASS]"
           ],
           [
-            4,
+            5,
             "pbr_prepass_pipeline bevy_pbr/render/pbr_prepass.wesl [PREPASS_PIPELINE MATERIAL_BIND_GROUP=3 VERTEX_OUTPUT_INSTANCE_INDEX VIEW_PROJECTION_NONSTANDARD DEPTH_PREPASS VERTEX_POSITIONS VERTEX_UVS VERTEX_UVS_A NORMAL_PREPASS NORMAL_PREPASS_OR_DEFERRED_PREPASS VERTEX_NORMALS VERTEX_TANGENTS MOTION_VECTOR_PREPASS_OR_DEFERRED_PREPASS MOTION_VECTOR_PREPASS VISIBILITY_RANGE_DITHER PREPASS_FRAGMENT STANDARD_MATERIAL_NORMAL_MAP]"
           ],
           [
-            4,
+            5,
             "pbr_opaque_mesh_pipeline parble_render/kit/wood.wesl [MESH_PIPELINE VERTEX_OUTPUT_INSTANCE_INDEX VERTEX_POSITIONS VERTEX_NORMALS VERTEX_UVS VERTEX_UVS_A VERTEX_TANGENTS NORMAL_PREPASS DEPTH_PREPASS SCREEN_SPACE_AMBIENT_OCCLUSION MOTION_VECTOR_PREPASS LOAD_PREPASS_NORMALS VIEW_PROJECTION_PERSPECTIVE ENVIRONMENT_MAP TEMPORAL_JITTER SHADOW_FILTER_METHOD_GAUSSIAN VIEW_TRANSMISSION_TEXTURE SCREEN_SPACE_SPECULAR_TRANSMISSION_BLUR_TAPS=8 VISIBILITY_RANGE_DITHER MATERIAL_BIND_GROUP=3 STANDARD_MATERIAL_NORMAL_MAP]"
           ],
           [
-            5,
+            6,
             "pbr_prepass_pipeline bevy_pbr/prepass/prepass.wesl [PREPASS_PIPELINE MATERIAL_BIND_GROUP=3 VERTEX_OUTPUT_INSTANCE_INDEX VIEW_PROJECTION_ORTHOGRAPHIC DEPTH_PREPASS VERTEX_POSITIONS VERTEX_UVS VERTEX_UVS_A]"
           ]
         ],
         "pending": 0,
         "failures": [],
-        "renderFrame": 686,
+        "renderFrame": 689,
         "ok": 53,
-        "lastCreatedFrame": 5,
+        "lastCreatedFrame": 6,
         "created": [],
         "createdTotal": 53,
         "failed": 0,
@@ -344,7 +346,7 @@
       },
       "frameTimes": {
         "frames": 600,
-        "meanMs": 16.666666666666668,
+        "meanMs": 16.668333333333333,
         "p50Ms": 17,
         "p95Ms": 17,
         "p99Ms": 18,
