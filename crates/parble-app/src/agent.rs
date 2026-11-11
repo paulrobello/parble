@@ -1217,7 +1217,14 @@ fn publish(
         return;
     };
     if let Ok(v) = JSON::parse(&json) {
-        let _ = Reflect::set(&js_sys::global(), &JsString::from("__parble"), &v);
+        // index.html's record of a fatal page error, so a READY wait sees it in `__parble`.
+        let global = js_sys::global();
+        if let Ok(fatal) = Reflect::get(&global, &JsString::from("__parbleFatal"))
+            && !fatal.is_undefined()
+        {
+            let _ = Reflect::set(&v, &JsString::from("fatal"), &fatal);
+        }
+        let _ = Reflect::set(&global, &JsString::from("__parble"), &v);
     }
 }
 

@@ -156,6 +156,9 @@ pub struct Warmup {
     pub waiting_on: &'static str,
     /// Kit textures still loading on its last frame.
     pub textures_loading: usize,
+    /// Kit textures whose load failed, as `path: error`. A failed texture does not hold the
+    /// warm-up (it is drawn without its map), so READY still comes and this names what is missing.
+    pub textures_failed: Vec<String>,
     /// The first render frame of the current run with every texture loaded (or failed).
     pub loaded_frame: Option<u64>,
     /// Pipelines it stopped waiting for ([`STUCK_FRAMES`]), as `name (error)`.
@@ -276,7 +279,25 @@ fn update_warmup(stats: Res<PipelineStats>, kit: Res<KitDiag>, mut warmup: ResMu
         .iter()
         .filter(|t| matches!(t.state, "loading" | "notLoaded"))
         .count();
+    let failed = failed_textures(&kit);
+    if failed.len() > warmup.textures_failed.len() {
+        warn!(
+            "warm-up: {} kit texture(s) failed to load: {}",
+            failed.len(),
+            failed.join("; ")
+        );
+    }
+    warmup.textures_failed = failed;
     warmup.update(&stats.counts(), loading);
+}
+
+/// The kit textures whose load failed, as `path: error`.
+fn failed_textures(kit: &KitDiag) -> Vec<String> {
+    kit.textures
+        .iter()
+        .filter(|t| t.state == "failed")
+        .map(|t| format!("{}: {}", t.path, t.error.as_deref().unwrap_or("no error")))
+        .collect()
 }
 
 fn describe(d: &PipelineDescriptor) -> String {
@@ -532,6 +553,29 @@ mod tests {
             (w.ended_by, w.waiting_on),
             (Some("ceiling"), "pending"),
             "a pipeline that keeps waiting"
+        );
+    }
+
+    #[test]
+    fn failed_textures_are_named_with_their_error() {
+        let tex = |path: &str, state: &'static str, error: Option<&str>| crate::kit::TextureDiag {
+            path: path.into(),
+            kind: "baked",
+            state,
+            format: None,
+            error: error.map(String::from),
+        };
+        let kit = KitDiag {
+            textures: vec![
+                tex("kit/a_lod0_ao.png", "loaded", None),
+                tex("kit/b_lod0_normal.png", "failed", Some("HTTP 404")),
+                tex("kit/c_lod1_ao.png", "loading", None),
+            ],
+            ..Default::default()
+        };
+        assert_eq!(
+            failed_textures(&kit),
+            vec!["kit/b_lod0_normal.png: HTTP 404".to_string()]
         );
     }
 

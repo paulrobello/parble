@@ -64,6 +64,8 @@ function sampler(frames, settle, done, diag) {
   var t0 = performance.now();
   function waitReady() {
     var p = window.__parble;
+    var fatal = (p && p.fatal) || window.__parbleFatal;
+    if (fatal) return done({ error: "fatal page error before READY: " + fatal.message + (fatal.stack ? "\n" + fatal.stack : ""), diag: diag() });
     if (!(p && p.ready)) {
       if (performance.now() - t0 > 180000) return done({ error: "READY never came", diag: diag() });
       return setTimeout(waitReady, 100);

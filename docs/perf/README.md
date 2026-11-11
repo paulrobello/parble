@@ -183,3 +183,52 @@ gpu-host-b, Safari 27.2, main 9e4b2fb, 7:05 AM PST, load 1.4 to 3.4, screen unlo
 
 The 1.1 s frame is gone: the worst Safari frame is 19 ms on both scenes, against 1103 and 1115 ms before the warm-up.
 
+### Safari showcase hung before READY after a device loss (2026-11-10)
+
+About 1 in 8 Safari showcase loads, across the gpu-host-b and gpu-host-a, never reached READY. They stopped at `tick` 24 and render frame 3, with `waitingOn: "textures"`, about 155 kit textures still `loading`, 20 bloom and post-processing pipelines queued, and one page error: `RangeError: Length out of range of buffer`. Chromium never showed it.
+
+The throw is the one 3-argument `new Uint8Array(buffer, offset, length)` in the wasm-bindgen glue. Only wgpu's `WebBuffer::get_mapped_range` calls it, building a view over the `ArrayBuffer` that `GPUBuffer.getMappedRange` returned. Here is the stack from a forced loss on a build that keeps wasm names (`?gpu_lose_ms=300`, before the fix):
+
+```
+RangeError: Length out of range of buffer
+Uint8Array@[native code]
+__wbg_new_with_byte_offset_and_length_…@parble-….js:910
+<wgpu::backend::webgpu::WebBuffer as wgpu::dispatch::BufferInterface>::get_mapped_range
+<wgpu::api::buffer::BufferSlice>::get_mapped_range_mut
+<bevy_render::renderer::render_device::RenderDevice>::create_buffer_with_data
+FunctionSystem<fn(Commands, ResMut<TextureCache>, Res<RenderDevice>, …)>  (a render-world prepare system)
+```
+
+The cause is Safari 27.2 on a lost WebGPU device. The spec gives a buffer mapped at creation a scratch range of the full size. Safari returns a 0-byte `ArrayBuffer` instead, which a standalone probe confirms (`liveByteLength 64`, `lostByteLength 0`, then `RangeError: Length out of range of buffer` for the 64-byte view). The same zero-byte mapping after a lost device is reported by other WebGPU apps on Safari 27. The throw unwinds through wasm without running Rust's drops, in the middle of the render schedule, and the app never draws another frame. The textures and pipelines then wait forever, which is why the hang looked like a texture-loading problem. A forced loss 300 ms after the device is created reproduces every field of the reported state.
+
+What loses the device in the real failures is not proven. No WebKit GPU process crash report exists on either host. On the gpu-host-b, WindowServer logged GPU restarts (`firmware-detected lockup`, `BIF0 page fault`) at 7:36 PM PST, but no Safari run was going then.
+
+The fix (`index.html`):
+
+- `GPUBuffer.prototype.getMappedRange` returns a scratch `ArrayBuffer` of the asked size when Safari's is shorter, as the spec does. The upload no longer throws, and Bevy's own device-lost path runs: it logs `Caught DeviceLost error` and quits the app.
+- A device that the page did not destroy itself becomes a fatal page error, `WebGPU device lost (<reason>): <message>`, in `window.__parble.fatal` (see `docs/agent-operability.md`). So does any uncaught error or wasm rejection, with its stack. `perf-gate.mjs` fails a sample at once on `fatal` instead of waiting 180 s.
+- Kit textures that fail to load are named in `warmup.texturesFailed`.
+
+A lost device still ends the load. Recovering from it, by Bevy's `RenderErrorPolicy::Recover` or a page reload, is not built.
+
+#### Safari READY repeat harness
+
+`e2e/safari-repeat.mjs` loads a scene `PARBLE_REPEAT_N` times in real Safari (default 20), each in a fresh safaridriver session, muted and sized like the gate. Like the gate, it asks for an adapter after navigating and then waits for READY inside the page. A load fails on its timeout or 1 s after a `fatal`. It writes `target/perf/safari-repeat.json`, with the page error log and the loading state of every failed load, and a screenshot of each. `PARBLE_REPEAT_SCENES=stress2000,showcase` alternates scenes as the gate's Safari samples do. `PARBLE_REPEAT_QUERY="quality=high&mute=1&gpu_lose_ms=300"` forces the loss.
+
+```bash
+#!/bin/bash
+make build-web && node e2e/safari-repeat.mjs
+```
+
+gpu-host-a, Safari 27.2, 2026-11-10, 1-minute load 38 to 178 (the host was shared and never under the gate's 15):
+
+| Build | Loads | Failed READY |
+|---|---|---|
+| Before the fix, showcase (harness and gate smoke runs) | 74 | 0 |
+| Before the fix, stress2000 (alternating with showcase) | 32 | 0 |
+| Before the fix, showcase with `gpu_lose_ms=300` | 3 | 3, each `RangeError: Length out of range of buffer` at about 1.4 s, `tick` 24, render frame 3 |
+| After the fix, showcase | 24 | 0 |
+| After the fix, showcase with `gpu_lose_ms=300` | 3 | 3, each fatal `WebGPU device lost (destroyed)` at 1.1 to 1.4 s, no RangeError |
+
+The natural failure did not reproduce on gpu-host-a in 74 showcase loads, so the clean after-fix runs do not show that the fix works. The forced-loss runs do: the hang turns into a named fatal error within about 1.4 s. `e2e/tests/fatal.spec.mjs` (`make web-e2e`, GPU Chromium) checks the forced loss and that a device the page destroys itself, as the title's GPU check does, is not fatal.
+

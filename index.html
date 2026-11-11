@@ -47,8 +47,56 @@
         var err = console.error, info = console.log;
         console.error = function () { keep(arguments); return err.apply(console, arguments); };
         console.log = function () { if (/%cERROR%c/.test(String(arguments[0]))) keep(arguments); return info.apply(console, arguments); };
-        addEventListener("error", function (e) { keep([e.message || "error event"]); });
-        addEventListener("unhandledrejection", function (e) { keep(["unhandledrejection: " + e.reason]); });
+        // Uncaught errors keep their stack (up to 2,000 characters): a throw inside a wasm call is only
+        // findable from its frames.
+        function stack(x) { return x && x.stack ? ("\n" + String(x.stack)).slice(0, 2000) : ""; }
+        // The first uncaught error, and the first rejection thrown through wasm frames, is fatal: the
+        // throw skipped Rust's unwinding, so the app may never draw another frame and READY never
+        // comes. `window.__parbleFatal` is copied into `window.__parble.fatal` (here, and by the
+        // app's own publish while it still runs), so a READY wait can stop on it.
+        function fatal(message, x) {
+          if (window.__parbleFatal) return;
+          var f = (window.__parbleFatal = { message: String(message), stack: x && x.stack ? String(x.stack).slice(0, 2000) : null, atMs: Math.round(performance.now()) });
+          if (window.__parble) window.__parble.fatal = f;
+        }
+        addEventListener("error", function (e) { log.push((e.message || "error event") + stack(e.error)); fatal(e.message || "error event", e.error); });
+        addEventListener("unhandledrejection", function (e) {
+          log.push("unhandledrejection: " + e.reason + stack(e.reason));
+          if (/wasm/.test(stack(e.reason))) fatal("unhandledrejection: " + e.reason, e.reason);
+        });
+        // A lost WebGPU device is fatal too, unless the page destroyed it (the title's GPU check does).
+        // Safari maps a buffer of a lost device to zero bytes, so the app's next buffer upload throws
+        // "RangeError: Length out of range of buffer" from inside wasm: this names the cause first.
+        // `?gpu_lose_ms=N` (agent switch, docs/agent-operability.md) loses each device N ms after it
+        // is created, to reproduce that on demand.
+        if (window.GPUAdapter && window.GPUDevice && window.GPUBuffer) {
+          // The spec gives a lost device's mapping a scratch buffer of the asked size whose writes are
+          // dropped. Safari 27 returns 0 bytes instead, and wgpu's view over it throws through wasm,
+          // so the app dies before Bevy handles the loss. Hand back the spec's scratch buffer.
+          var getMappedRange = GPUBuffer.prototype.getMappedRange;
+          GPUBuffer.prototype.getMappedRange = function (offset, size) {
+            var r = getMappedRange.apply(this, arguments);
+            var want = size === undefined ? this.size - (offset || 0) : size;
+            return r.byteLength < want ? new ArrayBuffer(want) : r;
+          };
+          var requestDevice = GPUAdapter.prototype.requestDevice, destroy = GPUDevice.prototype.destroy;
+          var loseMs = Number(new URLSearchParams(location.search).get("gpu_lose_ms"));
+          GPUDevice.prototype.destroy = function () { this.__parbleDestroyed = true; return destroy.call(this); };
+          GPUAdapter.prototype.requestDevice = function () {
+            return requestDevice.apply(this, arguments).then(function (d) {
+              d.lost.then(function (i) {
+                if (d.__parbleDestroyed) return;
+                var m = "WebGPU device lost (" + i.reason + "): " + (i.message || "no message");
+                log.push(m);
+                // The loss is the cause even when a throw it caused was recorded first.
+                if (window.__parbleFatal) window.__parbleFatal.deviceLost = m;
+                fatal(m, null);
+              });
+              if (loseMs > 0) setTimeout(function () { destroy.call(d); }, loseMs);
+              return d;
+            });
+          };
+        }
         // Browser extensions injecting inline scripts are blocked too; that is theirs, not the page's.
         addEventListener("securitypolicyviolation", function (e) {
           if (/^[a-z-]+-extension:/.test(e.sourceFile || "")) return;
