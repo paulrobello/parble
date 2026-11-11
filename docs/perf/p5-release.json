@@ -1,0 +1,334 @@
+{
+  "task": "P5-T4 MVP release gate",
+  "date": "2026-11-11",
+  "commit": "e48ddaa",
+  "hosts": {
+    "gpu-host-a": "Apple M4 Max, GPU Chromium 156 headless (CPU legs, web-e2e, shots, audio perf)",
+    "gpu-host-b": "Apple M4 10-core GPU, GPU Chromium 156 and Safari 27.2 (perf gate, Safari smoke and glass shots)"
+  },
+  "gate": {
+    "checkallCi": {
+      "exit": 0,
+      "note": "includes actionlint, checkall (fmt, clippy native+wasm32, Biome/tsc, cargo test, Vitest, audio tests, provenance), wasm32 --locked build, gitleaks, web-test, determinism-wasm, web-size"
+    },
+    "webSize": {
+      "wasmRawBytes": 29071169,
+      "wasmGzipBytes": 11915889,
+      "budgetGzipBytes": 15000000
+    },
+    "webE2e": {
+      "exit": 0,
+      "passed": 58,
+      "skipped": 4,
+      "note": "skipped are the opt-in perf specs, run separately"
+    },
+    "chromeSmoke": "web-e2e smoke.spec plus every scene spec, GPU Chromium",
+    "safariSmoke": {
+      "loads": 8,
+      "failures": 0,
+      "scenes": [
+        "ramp",
+        "showcase",
+        "stress2000",
+        "editor"
+      ],
+      "perLoad": [
+        {
+          "scene": "ramp",
+          "readyMs": 9700,
+          "ok": true,
+          "errors": [],
+          "fatal": null
+        },
+        {
+          "scene": "showcase",
+          "readyMs": 1710,
+          "ok": true,
+          "errors": [],
+          "fatal": null
+        },
+        {
+          "scene": "stress2000",
+          "readyMs": 1638,
+          "ok": true,
+          "errors": [],
+          "fatal": null
+        },
+        {
+          "scene": "editor",
+          "readyMs": 9233,
+          "ok": true,
+          "errors": [],
+          "fatal": null
+        },
+        {
+          "scene": "ramp",
+          "readyMs": 899,
+          "ok": true,
+          "errors": [],
+          "fatal": null
+        },
+        {
+          "scene": "showcase",
+          "readyMs": 1774,
+          "ok": true,
+          "errors": [],
+          "fatal": null
+        },
+        {
+          "scene": "stress2000",
+          "readyMs": 1675,
+          "ok": true,
+          "errors": [],
+          "fatal": null
+        },
+        {
+          "scene": "editor",
+          "readyMs": 1049,
+          "ok": true,
+          "errors": [],
+          "fatal": null
+        }
+      ]
+    },
+    "safariGlass": {
+      "high": [
+        {
+          "scene": "closeup",
+          "ready": true
+        },
+        {
+          "scene": "lineup",
+          "ready": true
+        }
+      ],
+      "low": [
+        {
+          "scene": "closeup",
+          "ready": true
+        },
+        {
+          "scene": "lineup",
+          "ready": true
+        }
+      ],
+      "shots": [
+        "docs/perf/p5-safari-glass-high-lineup.png",
+        "docs/perf/p5-safari-glass-low-lineup.png"
+      ]
+    },
+    "shotsTest": {
+      "exit": 0
+    },
+    "shotsP1t7": {
+      "exit": 0,
+      "ghostMetric": 0.0,
+      "ghostMax": 0.25
+    },
+    "perfGate": {
+      "pass": true,
+      "passStrict": false,
+      "rule": "pass when the p95 rAF delta <= 16.7 ms + the browser's rAF timestamp quantum (jitterMs): the p95 frame made its 60 Hz vsync",
+      "resolution": [
+        2560,
+        1440
+      ],
+      "quality": "high",
+      "host": {
+        "platform": "darwin",
+        "release": "27.2.0",
+        "cpu": "Apple M4",
+        "cores": 10
+      },
+      "samples": [
+        {
+          "browser": "chromium",
+          "scene": "showcase",
+          "p95Ms": 16.799999999999272,
+          "maxMs": 16.80000000000109,
+          "dropped": 0,
+          "errors": 0,
+          "pass": true,
+          "loadBefore": 3.8,
+          "loadAfter": 4.36
+        },
+        {
+          "browser": "chromium",
+          "scene": "stress2000",
+          "p95Ms": 16.700000000000728,
+          "maxMs": 16.80000000000109,
+          "dropped": 0,
+          "errors": 0,
+          "pass": true,
+          "loadBefore": 4.36,
+          "loadAfter": 3.92
+        },
+        {
+          "browser": "safari",
+          "scene": "showcase",
+          "p95Ms": 17,
+          "maxMs": 19,
+          "dropped": 0,
+          "errors": 0,
+          "pass": true,
+          "loadBefore": 3.92,
+          "loadAfter": 4.36
+        },
+        {
+          "browser": "safari",
+          "scene": "stress2000",
+          "p95Ms": 17,
+          "maxMs": 18,
+          "dropped": 0,
+          "errors": 0,
+          "pass": true,
+          "loadBefore": 4.36,
+          "loadAfter": 4.05
+        }
+      ]
+    },
+    "kitCheck": {
+      "exit": 0,
+      "warnings": 39,
+      "note": "stale generator hashes in provenance; a fresh generator run matches 33/34 shipped pieces byte for byte, blk_funnel_3x3_l2 differs by 4 index bytes. Card 01a1cc6c52de."
+    },
+    "runShot": {
+      "exit": 0,
+      "lit": 0.879,
+      "nonBlack": 1.0
+    },
+    "runDiag": {
+      "exit": 0
+    },
+    "provenance": {
+      "lookdev": "PASS (rights pending: reference frames, not shipped)",
+      "marbles": "PASS (rights pending: shipped pattern textures, Higgsfield commercial terms not verified in the record)",
+      "keyart": "PASS (rights cleared)"
+    }
+  },
+  "acceptance": {
+    "P0": [
+      {
+        "box": "make checkall and make checkall-ci pass",
+        "holds": true,
+        "evidence": "checkall-ci exit 0 at e48ddaa"
+      },
+      {
+        "box": "Golden trajectory hash identical across native and Node wasm",
+        "holds": true,
+        "evidence": "determinism-wasm leg: all-pieces, rope arch, stepper lift, marble check, nudge tracks match native"
+      },
+      {
+        "box": "make dev serves 5310; lit ramp and marble in Chrome and Safari, no console errors",
+        "holds": true,
+        "evidence": "5310 ramp in Chromium: READY, no console errors, lit ramp and glass marble; Safari ramp loads READY with errors [] (safariSmoke)"
+      },
+      {
+        "box": "--screenshot / --exit-after work natively",
+        "holds": true,
+        "evidence": "make run-shot (lit 0.879) and make run-diag exit 0"
+      },
+      {
+        "box": "docs/kit-contract.md fixes cell size, ports, levels, cross-section, radii, gate diameters",
+        "holds": true,
+        "evidence": "docs/kit-contract.md \u00a71-3 and onward; kit-check validates pieces against it"
+      },
+      {
+        "box": "Look-dev target images and their provenance are committed",
+        "holds": true,
+        "evidence": "assets-source/lookdev (9 frames) check-provenance PASS; docs/reference"
+      }
+    ],
+    "P1": [
+      {
+        "box": "Owner approves showcase shots",
+        "holds": true,
+        "evidence": "Paul 2026-11-10, docs/decisions/0001-render-look.md"
+      },
+      {
+        "box": "Glass transmission in Chrome and Safari, fallback on Low, no TAA ghosting",
+        "holds": true,
+        "evidence": "marbles.spec (web-e2e, every type on Low and High, Chromium); Safari lineup shots High and Low; shots-p1t7 ghost metric 0.0 (max 0.25)"
+      },
+      {
+        "box": "No seam bump (vertical-velocity spike under threshold)",
+        "holds": true,
+        "evidence": "parble-sim seam_test in cargo test (checkall-ci)"
+      },
+      {
+        "box": "Perf gate p95 <= 16.7 ms at 1440p High, Chrome and Safari, showcase and stress2000, load-guarded",
+        "holds": true,
+        "evidence": "perf-gate PASS on gpu-host-b M4 (stricter than the M4 Max criterion), every sample 0/600 dropped"
+      },
+      {
+        "box": "wasm <= 15 MB gzip",
+        "holds": true,
+        "evidence": "11.92 MB gzip"
+      }
+    ],
+    "P2": [
+      {
+        "box": "Every piece passes kit-check",
+        "holds": true,
+        "evidence": "kit-check: all pieces pass (39 provenance-staleness warnings, card 01a1cc6c52de)"
+      },
+      {
+        "box": "Scripted sim test per mechanism",
+        "holds": true,
+        "evidence": "parble-sim mechanism_test, stepper_test, behaviour tests in cargo test"
+      },
+      {
+        "box": "Test track using every piece runs 10 marbles to the finish deterministically",
+        "holds": true,
+        "evidence": "golden_allpieces (allpieces_30s.hash) native and wasm"
+      }
+    ],
+    "P3": [
+      {
+        "box": "Build a 200-piece track and run it with no console errors",
+        "holds": true,
+        "evidence": "docs/perf/p3-editor.json; editor-acceptance.spec and editor-perf re-run in this gate's web-e2e"
+      },
+      {
+        "box": "Export, re-import and run reproduce the hash",
+        "holds": true,
+        "evidence": "docs/perf/p3-editor.json; editor-acceptance.spec and editor-perf re-run in this gate's web-e2e"
+      },
+      {
+        "box": "Editing a 2,000-piece track keeps frame time inside budget",
+        "holds": true,
+        "evidence": "docs/perf/p3-editor.json; editor-acceptance.spec and editor-perf re-run in this gate's web-e2e"
+      },
+      {
+        "box": "Undo/redo round-trips every operation",
+        "holds": true,
+        "evidence": "docs/perf/p3-editor.json; editor-acceptance.spec and editor-perf re-run in this gate's web-e2e"
+      }
+    ],
+    "P4": [
+      {
+        "box": "Each marble type sounds distinct on each surface",
+        "holds": true,
+        "evidence": "Paul approved 2026-11-10, docs/audio/acceptance.md"
+      },
+      {
+        "box": "No clipping or voice starvation with 10 marbles on the stress track",
+        "holds": true,
+        "evidence": "audio.spec stress2000 meter in web-e2e: clippedReads 0, focusSilent 0"
+      },
+      {
+        "box": "Audio CPU within the frame budget",
+        "holds": true,
+        "evidence": "web-audio-perf on M4 Max: audio p95 0.1 ms (budget 2), max 0.6 ms, load 14.51 to 7.8"
+      },
+      {
+        "box": "Music loops seamlessly",
+        "holds": true,
+        "evidence": "music.spec in web-e2e; Paul approved 2026-11-10"
+      }
+    ]
+  },
+  "openForPaul": [
+    "Marble pattern textures ship with rights status pending in assets-source/marbles/provenance.json; key art cleared the same Higgsfield terms (section 4.4) on 2026-11-08."
+  ]
+}

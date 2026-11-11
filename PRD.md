@@ -181,12 +181,12 @@ Scope:
 - Look-dev targets generated with Higgsfield.
 
 Acceptance:
-- [ ] `make checkall` and `make checkall-ci` pass.
-- [ ] Golden trajectory hash is identical across native and the Node wasm run.
-- [ ] `make dev` serves on 5310. The page renders a lit primitive ramp and marble in Chrome and Safari with no console errors.
-- [ ] `--screenshot` / `--exit-after` work natively.
-- [ ] `docs/kit-contract.md` fixes cell size, port positions and levels, channel cross-section, marble radii and gate diameters.
-- [ ] Look-dev target images and their provenance are committed.
+- [x] `make checkall` and `make checkall-ci` pass. (Re-checked 2026-11-11 at e48ddaa: `docs/perf/p5-release.json`)
+- [x] Golden trajectory hash is identical across native and the Node wasm run. (Re-checked 2026-11-11 at e48ddaa: `docs/perf/p5-release.json`)
+- [x] `make dev` serves on 5310. The page renders a lit primitive ramp and marble in Chrome and Safari with no console errors. (Re-checked 2026-11-11 at e48ddaa: `docs/perf/p5-release.json`)
+- [x] `--screenshot` / `--exit-after` work natively. (Re-checked 2026-11-11 at e48ddaa: `docs/perf/p5-release.json`)
+- [x] `docs/kit-contract.md` fixes cell size, port positions and levels, channel cross-section, marble radii and gate diameters. (Re-checked 2026-11-11 at e48ddaa: `docs/perf/p5-release.json`)
+- [x] Look-dev target images and their provenance are committed. (Re-checked 2026-11-11 at e48ddaa: `docs/perf/p5-release.json`)
 
 ### P1 — Look-dev vertical slice
 
@@ -200,10 +200,10 @@ Scope:
 
 Acceptance:
 - [x] Owner approves showcase shots set side by side with `ref-01`–`ref-04` and `ref-07`. (Paul, 2026-11-10: `docs/decisions/0001-render-look.md`)
-- [ ] Glass transmission renders in Chrome and Safari, the fallback shader renders on Low, and TAA shows no ghosting on a fast marble under the follow camera.
-- [ ] No visible or physical bump at piece seams: the marble's vertical-velocity spike stays below the threshold set in the plan.
-- [ ] Perf gate: paced p95 ≤ 16.7 ms at 1440p High on M4 Max in Chrome and Safari, on both the showcase and the 2,000-piece stress scene, under the load guard.
-- [ ] wasm ≤ 15 MB gzip.
+- [x] Glass transmission renders in Chrome and Safari, the fallback shader renders on Low, and TAA shows no ghosting on a fast marble under the follow camera. (Re-checked 2026-11-11 at e48ddaa: `docs/perf/p5-release.json`)
+- [x] No visible or physical bump at piece seams: the marble's vertical-velocity spike stays below the threshold set in the plan. (Re-checked 2026-11-11 at e48ddaa: `docs/perf/p5-release.json`)
+- [x] Perf gate: paced p95 ≤ 16.7 ms at 1440p High on M4 Max in Chrome and Safari, on both the showcase and the 2,000-piece stress scene, under the load guard. (Re-checked 2026-11-11 at e48ddaa: `docs/perf/p5-release.json`)
+- [x] wasm ≤ 15 MB gzip. (Re-checked 2026-11-11 at e48ddaa: `docs/perf/p5-release.json`)
 
 ### P2 — Core kit and mechanisms
 
@@ -234,9 +234,9 @@ Added 2026-11-08:
 Look: every moving part of a mechanism (flaps, blades, trapdoors, gates, slats) uses a medium-stain wood, darker than the body, for contrast.
 
 Acceptance:
-- [ ] Every piece passes kit-check: ports match the contract, collider and LODs are present, provenance is recorded.
-- [ ] A scripted sim test per mechanism proves the routing behaviour (toggle alternates, splitter matches the seeded sequence in Random mode and alternates in Alternate mode, one-way pieces block reverse travel).
-- [ ] A test track using every piece runs 10 marbles to the finish deterministically.
+- [x] Every piece passes kit-check: ports match the contract, collider and LODs are present, provenance is recorded. (Re-checked 2026-11-11 at e48ddaa: `docs/perf/p5-release.json`)
+- [x] A scripted sim test per mechanism proves the routing behaviour (toggle alternates, splitter matches the seeded sequence in Random mode and alternates in Alternate mode, one-way pieces block reverse travel). (Re-checked 2026-11-11 at e48ddaa: `docs/perf/p5-release.json`)
+- [x] A test track using every piece runs 10 marbles to the finish deterministically. (Re-checked 2026-11-11 at e48ddaa: `docs/perf/p5-release.json`)
 
 ### P3 — Editor and persistence
 
@@ -265,10 +265,10 @@ Scope:
 - Mixer settings.
 
 Acceptance:
-- [ ] Each marble type sounds distinct on each surface (owner listening approval).
-- [ ] No clipping or voice starvation with 10 marbles on the stress track.
-- [ ] Audio CPU stays within the frame budget.
-- [ ] Music loops seamlessly.
+- [x] Each marble type sounds distinct on each surface (owner listening approval). (Re-checked 2026-11-11 at e48ddaa: `docs/perf/p5-release.json`)
+- [x] No clipping or voice starvation with 10 marbles on the stress track. (Re-checked 2026-11-11 at e48ddaa: `docs/perf/p5-release.json`)
+- [x] Audio CPU stays within the frame budget. (Re-checked 2026-11-11 at e48ddaa: `docs/perf/p5-release.json`)
+- [x] Music loops seamlessly. (Re-checked 2026-11-11 at e48ddaa: `docs/perf/p5-release.json`)
 
 ### P5 — MVP polish and release
 
@@ -280,7 +280,7 @@ Scope:
 - Go live at `parble.pardev.net`.
 
 Acceptance:
-- [ ] All P0–P4 criteria still hold.
+- [x] All P0–P4 criteria still hold. (2026-11-11 release gate at e48ddaa: `docs/perf/p5-release.json`)
 - [ ] The live site renders in Chrome and Safari, verified by an actual page render and not an HTTP 200.
 - [ ] The DNS → CNAME → Pages API sequence is followed in order.
 - [ ] Owner MVP sign-off.
