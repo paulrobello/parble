@@ -189,8 +189,8 @@
     },
     "kitCheck": {
       "exit": 0,
-      "warnings": 39,
-      "note": "stale generator hashes in provenance; a fresh generator run matches 33/34 shipped pieces byte for byte, blk_funnel_3x3_l2 differs by 4 index bytes. Card 01a1cc6c52de."
+      "warnings": 0,
+      "note": "First run at e48ddaa: 39 stale generator-hash warnings (a fresh generator run matched 33/34 shipped pieces byte for byte; blk_funnel_3x3_l2 differed by 4 index bytes). Rerun after a00044a refreshed the provenance hashes (no GLB, map or sidecar changed): 0 warnings, all pieces pass."
     },
     "runShot": {
       "exit": 0,
@@ -270,7 +270,7 @@
       {
         "box": "Every piece passes kit-check",
         "holds": true,
-        "evidence": "kit-check: all pieces pass (39 provenance-staleness warnings, card 01a1cc6c52de)"
+        "evidence": "kit-check: all pieces pass, 0 warnings after a00044a (card 01a1cc6c52de)"
       },
       {
         "box": "Scripted sim test per mechanism",
