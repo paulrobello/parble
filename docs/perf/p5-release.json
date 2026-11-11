@@ -202,7 +202,7 @@
     },
     "provenance": {
       "lookdev": "PASS (rights pending: reference frames, not shipped)",
-      "marbles": "PASS (rights pending: shipped pattern textures, Higgsfield commercial terms not verified in the record)",
+      "marbles": "PASS (rights cleared by Paul 2026-11-11, Higgsfield Terms of Use section 4.4)",
       "keyart": "PASS (rights cleared)"
     }
   },
@@ -328,7 +328,5 @@
       }
     ]
   },
-  "openForPaul": [
-    "Marble pattern textures ship with rights status pending in assets-source/marbles/provenance.json; key art cleared the same Higgsfield terms (section 4.4) on 2026-11-08."
-  ]
+  "openForPaul": []
 }

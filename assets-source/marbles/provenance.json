@@ -103,14 +103,14 @@
   ],
   "rights": {
     "generatedOn": "Paul's Higgsfield plus plan",
-    "terms": "commercial terms not verified",
+    "terms": "Higgsfield Terms of Use section 4.4 (https://higgsfield.ai/terms-of-use-agreement, checked 2026-11-08 for the key art on the same plan): Higgsfield claims no ownership of inputs or outputs and does not restrict commercial use of outputs.",
     "references": "none: text-only prompts, no reference images uploaded",
-    "status": "pending"
+    "status": "cleared"
   },
   "gates": {
     "technical": "pass (node assets-source/marbles/check-provenance.mjs)",
     "creative": "pending Paul's review",
-    "rights": "pending",
+    "rights": "cleared by Paul 2026-11-11 under Higgsfield Terms of Use section 4.4",
     "owner": "pending"
   }
 }

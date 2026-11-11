@@ -21,5 +21,5 @@ The sources are stored exactly as delivered. The runtime derivatives are `assets
 |---|---|
 | Technical (`node assets-source/marbles/check-provenance.mjs`) | pass |
 | Creative | pending Paul's review against frame 01 |
-| Rights | pending. Generated on Paul's Higgsfield plus plan. Commercial terms were not verified. The prompts were text only, with no reference images. |
+| Rights | cleared by Paul, 2026-11-11. Generated on Paul's Higgsfield plus plan, whose Terms of Use section 4.4 claims no ownership of outputs and does not restrict their commercial use. The prompts were text only, with no reference images. |
 | Owner | pending |
