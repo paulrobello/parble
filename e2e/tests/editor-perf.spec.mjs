@@ -156,12 +156,14 @@ test("editing a 2,000-piece track keeps the chunk rebuild inside one frame", asy
 // P3-T5 run-build latency: pressing Run (and Stop) on the same 2,000-piece fill, plus a hopper at
 // [0, 0, 0] (the fill starts at z −5). Each sample is the longest rAF delta while the run swaps in,
 // and the engine's own timing around the build and install (`editor.lastRun.buildMs`, absent on
-// engines that predate it). The bar is the frame budget (PRD §6 P3: edits ≤ 1 frame amortized).
+// engines that predate it). The bar is no dropped frame (PRD §6 P3: edits ≤ 1 frame amortized):
+// every rAF delta under 1.5 × the display's refresh interval, measured idle on the same page, since
+// a 59.5 Hz display's 16.80 ms refresh is itself over 1000 / 60 (decided by Paul 2026-11-11).
 // Writes target/perf/p3t5-run-build.json before asserting, so a miss still records its numbers.
 const RUN_OUT = new URL("../../target/perf/p3t5-run-build.json", import.meta.url);
 const RUN_SAMPLES = 4;
 
-test("Run on a 2,000-piece track builds the run inside one frame", async ({ page }) => {
+test("Run on a 2,000-piece track builds the run without dropping a frame", async ({ page }) => {
   mkdirSync(new URL(".", RUN_OUT), { recursive: true });
   const diagRun = process.env.PARBLE_PERF_DIAG === "1";
   const loadBefore = diagRun ? loadavg()[0] : await waitForLoad();
@@ -183,6 +185,22 @@ test("Run on a 2,000-piece track builds the run inside one frame", async ({ page
   expect((await edit(page, { op: "place", piece: "mech_hopper", cell: [0, 0, 0] })).ok).toBe(true);
   await edit(page, { op: "camera", target: [1.5, 0, -1.55], yaw: -0.4, pitch: 0.85, radius: 3.4 });
   await settle(page);
+  const idle = await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const ft = [];
+        let last = null;
+        const loop = (t) => {
+          if (last !== null) ft.push(t - last);
+          last = t;
+          if (ft.length < 120) requestAnimationFrame(loop);
+          else resolve(ft);
+        };
+        requestAnimationFrame(loop);
+      }),
+  );
+  const refreshMs = [...idle].sort((a, b) => a - b)[Math.floor(idle.length / 2)];
+  const droppedMs = 1.5 * refreshMs;
   const sample = async (action, done) => {
     await page.evaluate(() => {
       window.__ft = [];
@@ -206,7 +224,7 @@ test("Run on a 2,000-piece track builds the run inside one frame", async ({ page
       return window.__ft.splice(0);
     });
     const lastRun = await page.evaluate(() => window.__parble.editor.lastRun ?? null);
-    return { op: action.op, worstFrameMs: Math.max(...ft), roundTripMs, buildMs: lastRun?.buildMs ?? null, lastRun };
+    return { op: action.op, worstFrameMs: Math.max(...ft), droppedFrames: ft.filter((v) => v >= droppedMs).length, roundTripMs, buildMs: lastRun?.buildMs ?? null, lastRun };
   };
   const samples = [];
   for (let i = 0; i < RUN_SAMPLES; i++) {
@@ -222,10 +240,14 @@ test("Run on a 2,000-piece track builds the run inside one frame", async ({ page
     userAgent: await page.evaluate(() => navigator.userAgent),
     pieces: (await state(page)).pieces,
     budgetMs: BUDGET_MS,
+    refreshMs,
+    droppedMs,
+    idleMaxMs: Math.max(...idle),
     run: {
       worstFrameMs: Math.max(...runs.map((s) => s.worstFrameMs)),
       meanWorstFrameMs: runs.reduce((a, s) => a + s.worstFrameMs, 0) / runs.length,
       buildMs: runs.map((s) => s.buildMs),
+      droppedFrames: samples.reduce((a, s) => a + s.droppedFrames, 0),
     },
     samples,
   };
@@ -233,5 +255,5 @@ test("Run on a 2,000-piece track builds the run inside one frame", async ({ page
   console.log(JSON.stringify(result, null, 2));
   expect(errors).toEqual([]);
   if (!result.taken) console.log(`NOT TAKEN: load ${loadBefore.toFixed(2)} before, ${loadAfter.toFixed(2)} after (max ${LOAD_MAX})`);
-  expect(result.run.worstFrameMs).toBeLessThan(BUDGET_MS);
+  expect(result.run.worstFrameMs).toBeLessThan(droppedMs);
 });
