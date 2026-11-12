@@ -102,6 +102,8 @@ export interface EditorOverlay {
   update(d: EditorDiag | null, events?: readonly BridgeEvent[]): void;
   /** Handle one key event (also wired to the window). Returns whether it was used. */
   key(e: KeyboardEvent): boolean;
+  /** Whether the track has edits not saved to the library. */
+  dirty(): boolean;
 }
 
 const h = <K extends keyof HTMLElementTagNameMap>(
@@ -1410,5 +1412,5 @@ ${groupActs}
     if (key(e)) e.preventDefault();
   });
 
-  return { root, update, key };
+  return { root, update, key, dirty };
 }

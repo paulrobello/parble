@@ -8,6 +8,7 @@ import { Library } from "./library";
 import { mountFlyPointerLock } from "./pointer-lock";
 import { titleWanted } from "./title/store";
 import { type TitleHandle, mountTitle } from "./title/title";
+import { UpdateNote, watchVersion } from "./update-note";
 
 declare global {
   interface Window {
@@ -30,6 +31,12 @@ const title = titleWanted(location.search)
   ? mountTitle({ doc: document, win: window, storage: storageOf(window) })
   : null;
 if (title) window.__parbleTitle = title;
+
+// The new-version notice polls from first paint, title screen included; the editor, once mounted,
+// tells it about unsaved edits.
+let editorDirty = (): boolean => false;
+const updateNote = new UpdateNote(document, () => editorDirty());
+watchVersion(updateNote);
 
 type CameraState = { mode?: string; flyOnly?: boolean; orbit?: Orbit };
 type ParbleState = { camera?: CameraState; editor?: EditorDiag };
@@ -61,6 +68,7 @@ function start(bindings: WasmBindings): void {
           cameraMode: () => cameraState()?.mode ?? null,
         })
       : null;
+  if (editor) editorDirty = editor.dirty;
   const files = editor ? null : mountFiles(document, (cmd) => bridge.post(cmd), library);
   const audio = startAudio(window);
   if (title) {
@@ -79,6 +87,7 @@ function start(bindings: WasmBindings): void {
     if (text !== shown) el.textContent = shown = text;
     const hintText = controlsHint(cameraState()?.flyOnly === true);
     if (hint.textContent !== hintText) hint.textContent = hintText;
+    updateNote.sync();
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
