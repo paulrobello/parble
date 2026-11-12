@@ -24,6 +24,8 @@ Output: `docs/perf/p1-gate.json`. `make perf-gate-smoke` (`PARBLE_PERF_SMOKE=1`)
 
 ## Hardware
 
+Host labels (`gpu-host-a`, `gpu-host-b`), `<user>` and `<ssh-key>` map to real machines and credentials in the gitignored `hosts.local.md` at the repo root.
+
 The PRD criterion is "on M4 Max". gpu-host-a is the M4 Max but is usually far above load 15. gpu-host-b is an Apple **M4** (10-core GPU), not an M4 Max: a pass there is a stricter result than the criterion asks for, but a fail there does not disprove the M4 Max criterion. Record which host a result came from (`host.cpu` in the JSON).
 
 ## Running it on gpu-host-b
