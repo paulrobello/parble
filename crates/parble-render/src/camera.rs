@@ -321,6 +321,10 @@ pub struct FlyOnly(pub bool);
 
 /// Free-fly speed at entry (m/s), its wheel range, and the factor per wheel line.
 pub const FLY_SPEED_M_S: f32 = 0.3;
+/// Fly focuses this far when the view centre meets no track, marble or floor (metres).
+pub const FLY_FAR_FOCUS_M: f32 = 3.0;
+/// Fly's focus eases to a new distance with this time constant (seconds).
+const FLY_FOCUS_EASE_S: f32 = 0.15;
 pub const FLY_SPEED_RANGE: (f32, f32) = (0.02, 5.0);
 const FLY_WHEEL_STEP: f32 = 1.25;
 /// Look sensitivity, radians per pixel of drag.
@@ -461,6 +465,8 @@ struct DirectorState {
     trail: VecDeque<[f32; 2]>,
     /// The mode last framed, to reset TAA when the mode changes.
     framed: Option<CameraMode>,
+    /// Fly's eased focus distance (metres); 0 until fly first frames.
+    fly_focus: f32,
 }
 
 /// The camera's state for the state JSON (`camera`).
@@ -844,12 +850,26 @@ fn direct(
         .copied();
     let depth = match *mode {
         CameraMode::Director => pose.focus,
-        // Orbit and fly focus on the marble, or on the orbit pivot without one.
-        _ => {
+        // Fly focuses on what the view centre looks at.
+        CameraMode::Fly => {
+            let target = fly_focus(pose.eye, forward, &obstacles.solids, &marbles);
+            st.fly_focus = if st.fly_focus > 0.0 {
+                let k = 1.0 - (-clock.dt.max(0.0) / FLY_FOCUS_EASE_S).exp();
+                st.fly_focus + (target - st.fly_focus) * k
+            } else {
+                target
+            };
+            st.fly_focus
+        }
+        // Orbit focuses on the marble, or on its pivot without one.
+        CameraMode::Orbit => {
             let p = followed.map_or(st.orbit.target, |m| m.p);
             (p - pose.eye).dot(forward).max(0.01)
         }
     };
+    if *mode != CameraMode::Fly {
+        st.fly_focus = 0.0;
+    }
     let mut dof = dof;
     if let Some(d) = dof.as_deref_mut() {
         d.focal_distance = depth;
@@ -894,9 +914,72 @@ fn direct(
     diag.post.taa = has_taa;
 }
 
+/// Distance along the view ray from `eye` (unit `forward`) to the first track solid, marble or the
+/// floor (y = 0) it meets, or [`FLY_FAR_FOCUS_M`] when it meets none nearer.
+pub fn fly_focus(eye: Vec3, forward: Vec3, solids: &[Solid], marbles: &[MarbleIn]) -> f32 {
+    let mut t = FLY_FAR_FOCUS_M;
+    if forward.y < -1e-6 && eye.y > 0.0 {
+        t = t.min(eye.y / -forward.y);
+    }
+    // A box the eye is inside (flying through track) would focus at zero.
+    for b in solids.iter().filter(|b| !b.contains(eye)) {
+        let (mut t0, mut t1) = (0.0f32, t);
+        let mut hit = true;
+        for i in 0..3 {
+            let (o, d, lo, hi) = (eye[i], forward[i], b.min[i], b.max[i]);
+            if d.abs() < 1e-9 {
+                if o < lo || o > hi {
+                    hit = false;
+                    break;
+                }
+            } else {
+                let (ta, tb) = ((lo - o) / d, (hi - o) / d);
+                t0 = t0.max(ta.min(tb));
+                t1 = t1.min(ta.max(tb));
+                if t0 > t1 {
+                    hit = false;
+                    break;
+                }
+            }
+        }
+        if hit {
+            t = t.min(t0);
+        }
+    }
+    let r = scene::standard_marble_radius_m();
+    for m in marbles {
+        let along = (m.p - eye).dot(forward);
+        if along > 0.0 && along < t && (m.p - eye).length_squared() - along * along <= r * r {
+            t = along;
+        }
+    }
+    t.max(0.01)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fly_focus_meets_the_nearest_thing_ahead_or_the_far_distance() {
+        let eye = Vec3::new(0.0, 0.5, 0.0);
+        let solid = Solid {
+            min: Vec3::new(-0.1, 0.0, -1.1),
+            max: Vec3::new(0.1, 1.0, -1.0),
+        };
+        let marble = MarbleIn {
+            p: Vec3::new(0.0, 0.5, -0.4),
+            v: Vec3::ZERO,
+        };
+        // Straight ahead: the solid, or the marble in front of it.
+        assert!((fly_focus(eye, Vec3::NEG_Z, &[solid], &[]) - 1.0).abs() < 1e-4);
+        assert!((fly_focus(eye, Vec3::NEG_Z, &[solid], &[marble]) - 0.4).abs() < 0.02);
+        // Looking away from the marble: not focused on it.
+        assert!((fly_focus(eye, Vec3::Z, &[solid], &[marble]) - FLY_FAR_FOCUS_M).abs() < 1e-4);
+        // Looking down 45 degrees at the floor.
+        let down = Vec3::new(0.0, -1.0, 1.0).normalize();
+        assert!((fly_focus(eye, down, &[], &[]) - 0.5 * 2f32.sqrt()).abs() < 1e-4);
+    }
 
     #[test]
     fn cues_pick_the_latest_started_shot() {

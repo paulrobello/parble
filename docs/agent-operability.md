@@ -181,6 +181,8 @@ Every scenario, `kit2000` and `lineup` included, has a free-fly camera (`Fly` in
 | `G` | Mechanism sensor overlay on or off, in every camera mode (see `--sensors`). |
 | `V` | Camera zone overlay on or off, in every camera mode (see `--zones`). |
 
+In fly, depth of field focuses on what the centre of the view looks at: the first track piece, marble or floor along the view ray, or 3 m when there is none (`camera::fly_focus`), eased over 0.15 s. Orbit focuses on the followed marble.
+
 The camera moves only on input and uses real time, so it keeps working while `--lockstep-after` holds the sim. With no input it never leaves the director, so `--screenshot`, `--exit-after`, `?screenshot=` and `window.__parble` runs frame exactly as before. Keys typed into the HUD (the Import, Export, Run and Save controls) stay there, because the browser only delivers keys to the canvas while it has focus. The HUD shows the controls in its bottom-left line. `make web-e2e` drives the fly camera with the keyboard and mouse in GPU Chromium (`e2e/tests/flycam.spec.mjs`).
 
 ### Fly-only camera
@@ -197,6 +199,8 @@ Shot rules:
 - `frame`: pull back and fit a target with the marble: the marble alone, a point, or a vertical axis segment (a drop or a future helix). The axis stays centred and the distance follows the marble, never faster than 1 m/s, so the whole segment and the marble stay in view. The view looks down at a set elevation, from a set bearing or from the bearing the camera had when the shot began. Focus goes to the marble or the target.
 - `orbit`: circle a point at a radius and height, starting from the camera's current bearing.
 - `fixed`: a fixed eye and look point (the scripted `fixed` and `set` cues are fixed rules).
+
+The director follows one marble at a time: it stays on the marble while it moves and through pauses under 1 s, and when that marble finishes (rests 1 s) it moves on to the newest moving marble, which has the most of its run ahead. In the 30 s `showcase` run that is three marbles, each from its release to its cup.
 
 Blends: every shot change blends, whether it is a cue change (0.8 s), a zone entry or exit (the zone's blend-in and blend-out), a change of followed marble, or a run restart (1 s each). The eye is interpolated, the view direction's bearing (the short way round) and elevation interpolated apart, so a blend between views facing apart turns level instead of tipping over the top, and the field of view and focus distance interpolated, with a smootherstep weight. Both sides stay live during a blend. A blend that starts during another keeps the one in flight as its source (three deep, after which the oldest freezes), and a restart freezes the outgoing view first so the teleported marble cannot drag it. The only snaps are the director's first frame and a camera mode switch (`C`, `F`, `Esc`).
 
