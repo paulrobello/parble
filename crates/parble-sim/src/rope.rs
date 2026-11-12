@@ -240,10 +240,10 @@ impl RopeChain {
     /// so its nearest point moves radially out to the disc's edge.
     fn clear(&mut self, discs: &[Disc]) {
         let mut top = (0.0_f32, 0.0_f32);
-        for j in 0..SEGMENTS {
+        for angle in &mut self.angle {
             for disc in discs {
                 let q = (disc.u, disc.y);
-                let d = (libm::sinf(self.angle[j]), -libm::cosf(self.angle[j]));
+                let d = (libm::sinf(*angle), -libm::cosf(*angle));
                 let (t, c) = closest(top, d, q);
                 if t <= 0.0 {
                     // The top joint itself is inside: only the segments above can move it.
@@ -265,11 +265,11 @@ impl RopeChain {
                 };
                 let target = (q.0 + n.0 * disc.rho, q.1 + n.1 * disc.rho);
                 let a = libm::atan2f(target.0 - top.0, -(target.1 - top.1));
-                self.angle[j] = a.clamp(-MAX_ANGLE, MAX_ANGLE);
+                *angle = a.clamp(-MAX_ANGLE, MAX_ANGLE);
             }
             top = (
-                top.0 + SEGMENT_M * libm::sinf(self.angle[j]),
-                top.1 - SEGMENT_M * libm::cosf(self.angle[j]),
+                top.0 + SEGMENT_M * libm::sinf(*angle),
+                top.1 - SEGMENT_M * libm::cosf(*angle),
             );
         }
     }

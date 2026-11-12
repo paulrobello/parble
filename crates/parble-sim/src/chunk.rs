@@ -1808,14 +1808,12 @@ impl ChunkColliders {
             mesh.ends
                 .extend(ChannelStraight::end_of(piece, &placed.placement));
         }
-        if from.saturating_add(count) < members.len() {
-            return false;
-        }
+        let done = from.saturating_add(count) >= members.len();
         #[cfg(test)]
-        if chunk == CellCoord::new(0, 0, 0) {
+        if done && chunk == CellCoord::new(0, 0, 0) {
             mesh.push_welded(weld, &self.extra_triangles);
         }
-        true
+        done
     }
 
     /// [`Self::chunk_mesh`]'s last stage, after [`ChunkMesh::simplify_flat`]: the stitched-edge,
