@@ -7,7 +7,7 @@
   "valid": [
     {
       "name": "demo",
-      "runHash": "9073836a6de37697",
+      "runHash": "bacb07e201a52ca4",
       "file": {
         "format": "parble",
         "schema": 1,
@@ -122,7 +122,7 @@
     },
     {
       "name": "release-all",
-      "runHash": "902374096dd88d22",
+      "runHash": "857a57e9070c14b6",
       "file": {
         "format": "parble",
         "schema": 1,
@@ -295,7 +295,7 @@
     },
     {
       "name": "release-sequential",
-      "runHash": "de12b5936e8313fb",
+      "runHash": "07c76084e2b65016",
       "file": {
         "format": "parble",
         "schema": 1,

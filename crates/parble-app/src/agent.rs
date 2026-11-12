@@ -71,7 +71,7 @@ pub enum Scenario {
     /// Marble lineup (P5-T1): every type side by side at rest on the floor in front of the tray,
     /// with a mini and a shooter at the ends ([`marble::LINEUP`]). Ignores `--marble`.
     Lineup,
-    /// The in-engine editor (P3-T4): the tray, no marble, an orbit camera and kit pieces edited in
+    /// The in-engine editor (P3-T4): the open floor, no marble, an orbit camera and kit pieces edited in
     /// place ([`crate::editor`]). Never restarts, so edits keep their incremental colliders.
     Editor,
     /// Mechanism showcase (P2-T6): a toggle lane and a one-way gate lane behind the tray, one cat's
@@ -143,7 +143,7 @@ impl Scenario {
             Self::Playroom => Sim::playroom_scene(),
             Self::Closeup => Sim::closeup_scene(spec),
             Self::Lineup => Sim::lineup_scene(),
-            Self::Editor => Sim::tray_scene(),
+            Self::Editor => Sim::track_floor_scene(),
             Self::Mechanisms => Sim::mech_showcase_scene(),
             Self::Funnel { inlet } => Sim::funnel_scene(inlet, spec),
             Self::AllPieces | Self::Showcase | Self::Stress2000 => {

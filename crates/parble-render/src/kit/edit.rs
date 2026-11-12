@@ -16,9 +16,9 @@ use super::{
     cell_origin, pair_draws, spawn_parts, variant_of,
 };
 
-/// Floor under the editor area, min and max (x, z) corners in metres: room for the 2,000-piece
-/// fill grid behind the tray.
-pub const EDITOR_FLOOR_M: ([f32; 2], [f32; 2]) = ([-1.2, -3.2], [3.6, 1.2]);
+/// Floor under the editor area, min and max (x, z) corners in metres: the track floor the sim
+/// runs on ([`parble_sim::scene::TRACK_FLOOR_M`]), drawn.
+pub const EDITOR_FLOOR_M: ([f32; 2], [f32; 2]) = parble_sim::scene::TRACK_FLOOR_M;
 /// Selection marks drawn at most (a larger selection still edits; only the marks are capped).
 pub const MAX_MARKS: usize = 1024;
 /// Port hint markers drawn at most.

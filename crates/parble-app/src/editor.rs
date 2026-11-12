@@ -3520,7 +3520,7 @@ mod tests {
     fn run_ops_swap_the_sim_and_keep_the_edits_and_undo() {
         let mut st = EditState::new();
         let mut clock = SimClock {
-            sim: TrackRun::from_sim(parble_sim::Sim::tray_scene()),
+            sim: TrackRun::from_sim(parble_sim::Sim::track_floor_scene()),
             scenario: crate::agent::Scenario::Editor,
             tracks: Default::default(),
             marble: None,
@@ -3628,7 +3628,7 @@ mod tests {
             let (frame, playback) = Default::default();
             Self {
                 clock: SimClock {
-                    sim: TrackRun::from_sim(parble_sim::Sim::tray_scene()),
+                    sim: TrackRun::from_sim(parble_sim::Sim::track_floor_scene()),
                     scenario: crate::agent::Scenario::Editor,
                     tracks: Default::default(),
                     marble: None,

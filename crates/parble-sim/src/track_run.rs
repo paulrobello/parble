@@ -1,6 +1,7 @@
 //! Running a loaded [`Track`] (P3-T3, P2-T5).
 //!
-//! A track runs in the P0 tray with its placements merged in as kit chunk colliders
+//! A track runs on the open track floor ([`scene::track_floor_collider`]) with its placements
+//! merged in as kit chunk colliders
 //! ([`crate::chunk`], [`Sim::place_piece`]). Every placement id goes through [`kit_binding`]: a
 //! [`parble_kit::builtin`] id places that piece, an id in [`KIT_ALIASES`] places its kit piece, an
 //! id in [`NO_COLLIDER`] is a piece without a static collider yet, and any other id refuses the
@@ -10,11 +11,12 @@
 //!
 //! Marbles spawn in the bowl of the hopper placement ([`parble_core::HopperConfig::placement`])
 //! when it is a `mech_hopper`, rolling toward its exit at [`HOPPER_KICK_M_S`], and the hopper's
-//! gate opens for each one on its release tick. Without a hopper they spawn on the tray ramp.
+//! gate opens for each one on its release tick. Without a hopper they spawn in the air where the P0
+//! tray ramp's top was and drop onto the floor.
 //!
 //! In [`ReleaseMode::Sequential`] (the default) the next marble spawns only once no released
 //! marble is still moving ([`MarbleMotion`]): each one is counted at a finish, lost below
-//! [`LOST_Y_UM`], off the track on the tray floor, or slower than [`SETTLE_SPEED_UM_S`] for
+//! [`LOST_Y_UM`], off the track on the floor, or slower than [`SETTLE_SPEED_UM_S`] for
 //! [`SETTLE_HOLD_TICKS`] ticks in a row.
 //!
 //! Releases happen between steps, on whole ticks, so a run is a pure function of the track and the
@@ -132,12 +134,11 @@ pub const SETTLE_SPEED_UM_S: i64 = 5_000;
 /// Sequential release: ticks in a row a marble must stay still to count as at rest (0.5 s), long
 /// enough that the top of a bounce or a rocker's turn does not count.
 pub const SETTLE_HOLD_TICKS: u32 = 120;
-/// Sequential release: a marble whose centre is below this height, µm (1 m under the tray floor),
+/// Sequential release: a marble whose centre is below this height, µm (1 m under the floor),
 /// has fallen off the world and is lost.
 pub const LOST_Y_UM: i64 = -1_000_000;
 /// Sequential release: a marble whose centre is within this distance of its resting height on the
-/// tray floor (one radius), µm, and over no placement's footprint, has left the track onto the
-/// tray floor.
+/// floor (one radius), µm, and over no placement's footprint, has left the track onto the floor.
 pub const OFF_TRACK_CLEARANCE_UM: i64 = 1_000;
 
 /// Whether a released marble still holds back a sequential release, and if not, why.
@@ -148,9 +149,9 @@ pub enum MarbleMotion {
     Moving { still: u32 },
     /// Below [`SETTLE_SPEED_UM_S`] for [`SETTLE_HOLD_TICKS`] ticks. Moves again if knocked.
     AtRest,
-    /// On the tray floor ([`OFF_TRACK_CLEARANCE_UM`]) over no placement's footprint: it has left
+    /// On the floor ([`OFF_TRACK_CLEARANCE_UM`]) over no placement's footprint: it has left
     /// the track, rolling or not. A marble on the open floor need not stop for the run to go on
-    /// (a frictionless-in-rolling tray marble rolls on for tens of seconds). Moves again if it
+    /// (a marble without rolling resistance rolls on for tens of seconds). Moves again if it
     /// climbs back onto a piece.
     OffTrack,
     /// Counted by a finish cup. Final.
@@ -242,7 +243,7 @@ impl TrackRun {
         }
     }
 
-    /// `track` in the tray with its placements as [`parble_kit::builtin`] chunk colliders and the
+    /// `track` on the track floor with its placements as [`parble_kit::builtin`] chunk colliders and the
     /// kit behaviours ([`behaviour::registry`]), at tick 0 with its tick-0 releases in and sampled.
     pub fn new(track: &Track) -> Result<Self, TrackRunError> {
         Self::with_kit(track, parble_kit::builtin())
@@ -282,13 +283,13 @@ impl TrackRun {
         kind: Option<MarbleKind>,
     ) -> Result<Self, TrackRunError> {
         let mut sim = Sim::empty();
-        sim.world.colliders.insert(scene::tray_collider());
+        sim.world.colliders.insert(scene::track_floor_collider());
         let mut plan = Plan::default();
         for i in 0..track.placements.len() {
             plan.place(&mut sim, kit, registry, track, i)?;
         }
         // A piece-free world never rebuilds: rebuilding switches off contact clustering, which
-        // would move tray-only runs off the ramp golden.
+        // would change piece-free runs for nothing.
         if plan.placed > 0 {
             sim.rebuild_chunks(kit)
                 .map_err(|error| TrackRunError::Chunk {
@@ -621,7 +622,7 @@ impl<'k> TrackRunBuild<'k> {
         kind: Option<MarbleKind>,
     ) -> Self {
         let mut sim = Sim::empty();
-        sim.world.colliders.insert(scene::tray_collider());
+        sim.world.colliders.insert(scene::track_floor_collider());
         Self {
             kit,
             registry: registry.clone(),
@@ -884,13 +885,33 @@ mod tests {
         );
     }
 
+    /// No hopper: the marble spawns where the tray ramp's top was and drops onto the open floor
+    /// ([`scene::track_floor_collider`]), where it has left the track.
     #[test]
-    fn one_standard_marble_matches_the_ramp_golden() {
-        let t = track(vec![MarbleSize::Standard], ReleaseMode::One);
-        assert_eq!(
-            run_hash(&t, crate::golden::RAMP_10S_TICKS),
-            Ok(crate::golden::ramp_10s_hash())
+    fn a_hopperless_marble_drops_onto_the_floor_and_is_off_the_track() {
+        let t = track(vec![MarbleSize::Standard], ReleaseMode::Sequential);
+        let mut run = TrackRun::new(&t).unwrap();
+        run.tick(240);
+        let m = run.marbles()[0];
+        assert!(
+            (m.position[1] - marble_radius_m(MarbleSize::Standard)).abs() < 0.001,
+            "{:?}",
+            m.position
         );
+        assert_eq!(run.motion()[0], MarbleMotion::OffTrack);
+    }
+
+    /// A hopper at L1 feeding five straights: the run on to the end and off it.
+    fn fed_straights(end: bool) -> Track {
+        let mut p = vec![(behaviour::HOPPER, [0, 1, 0], 0)];
+        p.extend((1..6).map(|x| ("blk_straight_l3", [x, 0, 0], 0)));
+        if end {
+            // The end stop's closed end (yaw 2: port on +X) faces the run. Cell 6 spans x 330..390 mm.
+            p.push(("blk_end_l3", [6, 0, 0], 2));
+        }
+        let mut t = with_pieces(&p);
+        t.hopper.placement = Some(0);
+        t
     }
 
     /// The all-pieces track with a `n`-marble queue released in `release` mode.
@@ -1003,10 +1024,9 @@ mod tests {
     }
 
     #[test]
-    fn sequential_release_waits_for_a_marble_to_leave_the_ramp() {
-        // No hopper placement: the marbles spawn on the tray ramp, and the second spawns only
-        // once the first has rolled down it onto the tray floor. The tray marble has no rolling
-        // resistance, so it would roll on along the floor for tens of seconds before it stopped.
+    fn sequential_release_waits_for_a_marble_to_leave_the_track() {
+        // No hopper placement: the marbles spawn in the air and drop onto the open floor, and the
+        // second spawns only once the first is down there, off the track.
         let t = track(vec![MarbleSize::Standard; 2], ReleaseMode::Sequential);
         let (run, at) = spawns(&t, 2, 20_000);
         assert_eq!(at.len(), 2, "the second marble never spawned");
@@ -1017,8 +1037,8 @@ mod tests {
         assert_eq!(run.motion()[0], MarbleMotion::OffTrack);
         let first = run.marbles()[0];
         assert!(
-            first.position[0] >= scene::ramp_run_m() - marble_radius_m(MarbleSize::Standard),
-            "spawned at tick {} with the first still on the ramp at {:?}",
+            (first.position[1] - marble_radius_m(MarbleSize::Standard)).abs() < 0.001,
+            "spawned at tick {} with the first not yet on the floor at {:?}",
             at[1],
             first.position
         );
@@ -1159,18 +1179,13 @@ mod tests {
         let bare = with_pieces(&[]);
         let run = TrackRun::new(&bare).unwrap();
         assert_eq!(run.sim.pieces.chunks().count(), 0);
-        assert_eq!(
-            run_hash(&bare, crate::golden::RAMP_10S_TICKS),
-            Ok(crate::golden::ramp_10s_hash())
-        );
 
-        // An end stop on the tray floor with its closed end (yaw 2: port on +X) facing the ramp.
-        // Cell 6 spans x 330..390 mm.
-        let stop = with_pieces(&[("blk_end_l3", [6, 0, 0], 2)]);
+        // The same fed run with and without an end stop after it.
+        let (stop, open) = (fed_straights(true), fed_straights(false));
         let mut run = TrackRun::new(&stop).unwrap();
-        assert_eq!(run.sim.pieces.chunks().count(), 1);
-        assert_ne!(run_hash(&stop, 2_400), run_hash(&bare, 2_400));
-        let mut free = TrackRun::new(&bare).unwrap();
+        assert!(run.sim.pieces.chunks().count() >= 1);
+        assert_ne!(run_hash(&stop, 2_400), run_hash(&open, 2_400));
+        let mut free = TrackRun::new(&open).unwrap();
         let mut furthest = [0.0f32; 2];
         for _ in 0..2_400 {
             run.tick(1);
@@ -1185,7 +1200,7 @@ mod tests {
         );
         assert!(
             furthest[1] > 0.390,
-            "tray-only marble stopped early: x = {}",
+            "the marble without the stop stopped early: x = {}",
             furthest[1]
         );
     }
@@ -1224,7 +1239,7 @@ mod tests {
     }
 
     /// `rail_curve_90` runs as the shipped rail curve: its collider is in the run, placed exactly
-    /// as the kit id is, and a marble rolling down the tray meets it.
+    /// as the kit id is, and a marble off the end of a fed run meets it.
     #[test]
     fn rail_curve_90_runs_as_the_shipped_rail_curve_with_its_collider() {
         assert!(NO_COLLIDER.is_empty());
@@ -1233,12 +1248,19 @@ mod tests {
             kit_binding(kit, &id("rail_curve_90")),
             Some(KitBinding::Kit(id("rail_curve90_r90_l2")))
         );
-        let saved = with_pieces(&[("rail_curve_90", [5, 0, 0], 0)]);
-        let shipped = with_pieces(&[("rail_curve90_r90_l2", [5, 0, 0], 0)]);
-        let run = TrackRun::new(&saved).unwrap();
-        assert_eq!(run.sim.pieces.chunks().count(), 1);
+        let with = |piece: &'static str| {
+            let mut t = fed_straights(false);
+            let one = with_pieces(&[(piece, [6, 0, 0], 0)]);
+            t.placements.extend(one.placements);
+            t
+        };
+        let (saved, shipped) = (with("rail_curve_90"), with("rail_curve90_r90_l2"));
+        TrackRun::new(&saved).unwrap();
         assert_eq!(run_hash(&saved, 2_400), run_hash(&shipped, 2_400));
-        assert_ne!(run_hash(&saved, 2_400), run_hash(&with_pieces(&[]), 2_400));
+        assert_ne!(
+            run_hash(&saved, 2_400),
+            run_hash(&fed_straights(false), 2_400)
+        );
     }
 
     /// `track` built with [`TrackRunBuild`] one unit per call, and the number of calls.
@@ -1267,7 +1289,7 @@ mod tests {
     /// P3-T5: a track's run is the same whether [`TrackRun::new`] builds it in one go, a
     /// [`TrackRunBuild`] finishes it in one call, or the build is stepped one unit at a time over
     /// many calls (the editor's frames): same chunk colliders, same trajectory and mechanism
-    /// hashes. Covers the mechanism-heavy all-pieces track, a tray-only track (no rebuild) and a
+    /// hashes. Covers the mechanism-heavy all-pieces track, a piece-free track (no rebuild) and a
     /// small mixed track.
     #[test]
     fn a_stepped_build_runs_like_the_one_step_build() {
@@ -1285,7 +1307,7 @@ mod tests {
         let cases = [
             ("allpieces", crate::allpieces::track(), 2_400),
             (
-                "tray",
+                "piece-free",
                 track(vec![MarbleSize::Standard], ReleaseMode::One),
                 crate::golden::RAMP_10S_TICKS,
             ),
@@ -1301,12 +1323,6 @@ mod tests {
             assert_eq!(many, whole, "{name}: stepped over {calls} calls");
             eprintln!("{name}: {calls} units, hash {:016x}", whole.0);
         }
-        // The tray-only track is the ramp golden, stepped or not.
-        let (run, _) = stepped(&track(vec![MarbleSize::Standard], ReleaseMode::One));
-        assert_eq!(
-            fingerprint(run, crate::golden::RAMP_10S_TICKS).0,
-            crate::golden::ramp_10s_hash()
-        );
     }
 
     #[test]

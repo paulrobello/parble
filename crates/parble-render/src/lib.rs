@@ -154,7 +154,8 @@ fn spawn_scene(
     // The playroom (P1-T5) lays its own rug and floor here, brings its own lights below, and runs
     // its kit-piece run instead of the tray.
     let plain = *env == Environment::Plain;
-    if plain {
+    // Tracks run on the open floor; the editor builds one, so it shows no tray.
+    if plain && *kit_scene != kit::KitScene::Editor {
         commands.spawn((
             Name::new("tray"),
             Mesh3d(meshes.add(tray_render_mesh())),

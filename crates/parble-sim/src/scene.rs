@@ -161,6 +161,21 @@ pub fn floor_collider() -> Collider {
         .build()
 }
 
+/// The open floor every track runs on, min and max (x, z) corners in metres: the editor's drawn
+/// floor, with room for its 2,000-piece fill grid. A marble past its edge falls and is lost.
+pub const TRACK_FLOOR_M: ([f32; 2], [f32; 2]) = ([-1.2, -3.2], [3.6, 1.2]);
+
+/// The track floor ([`TRACK_FLOOR_M`]): a 0.1 m wood slab with its top at y = 0.
+pub fn track_floor_collider() -> Collider {
+    let ([x0, z0], [x1, z1]) = TRACK_FLOOR_M;
+    ColliderBuilder::cuboid((x1 - x0) / 2.0, 0.05, (z1 - z0) / 2.0)
+        .translation(Vector::new((x0 + x1) / 2.0, -0.05, (z0 + z1) / 2.0))
+        .friction(WOOD_FRICTION)
+        .restitution(WOOD_RESTITUTION)
+        .collision_groups(crate::mechanism::fixed_groups())
+        .build()
+}
+
 /// A standard 16 mm glass marble body (CCD on, never sleeps) and its collider, with the
 /// [`crate::marble::P0_LEGACY`] parameters.
 pub fn standard_marble(at: Vector) -> (RigidBody, Collider) {

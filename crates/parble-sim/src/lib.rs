@@ -187,11 +187,11 @@ impl Sim {
 
     /// Look-dev close-up (P1-T6): the tray with one marble of the given spec resting on the flat
     /// floor at [`scene::closeup_marble_m`], so a fixed close camera can frame it.
-    /// The P0 tray and no marble: the editor's world (P3-T4), with kit pieces placed and removed
-    /// in place.
-    pub fn tray_scene() -> Self {
+    /// The open track floor ([`scene::track_floor_collider`]) and no marble: the editor's world
+    /// (P3-T4), with kit pieces placed and removed in place, the same world a track runs in.
+    pub fn track_floor_scene() -> Self {
         let mut sim = Self::empty();
-        sim.world.colliders.insert(scene::tray_collider());
+        sim.world.colliders.insert(scene::track_floor_collider());
         sim.sample();
         sim
     }

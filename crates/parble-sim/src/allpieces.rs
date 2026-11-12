@@ -618,7 +618,7 @@ mod tests {
                 Ok(()),
                 Err(Failure::Short {
                     cups: vec![2, 1, 2, 3],
-                    stuck: vec![(7, Some(51)), (9, Some(39))],
+                    stuck: vec![(7, Some(48)), (9, Some(3))],
                 }),
             ]
         } else {
