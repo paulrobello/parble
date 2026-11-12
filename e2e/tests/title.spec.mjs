@@ -136,3 +136,35 @@ test("unsupported page: static, styled, key art and favicon load", async ({ page
   await page.screenshot({ path: new URL("unsupported-1440x900.png", SHOTS).pathname });
   expect(errors).toEqual([]);
 });
+
+test("title: Back from the showcase shows the title again, and the showcase's Title button opens it", async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/?mute=1&title=1");
+  await expect(page.locator("#pt")).toBeVisible();
+  await page.locator('#pt [data-a="watch"]').click();
+  await page.waitForURL(/scenario=showcase/);
+  await page.waitForFunction(() => window.__parble?.ready === true, null, { timeout: 60_000 });
+  await expect(page.locator("#pt")).toHaveCount(0);
+  const home = page.locator("#parble-home");
+  await expect(home).toHaveText("Title");
+
+  // Back: the title, faded fully in, whether the page comes from the back/forward cache or reloads.
+  await page.goBack();
+  await expect(page.locator("#pt")).toBeVisible();
+  await expect(page.locator("#pt")).not.toHaveClass(/leaving/);
+  await expect(page.locator("#pt")).toHaveCSS("opacity", "1");
+  await expect(page.locator("#pt h1")).toHaveText("parble");
+  await page.screenshot({ path: new URL("title-back.png", SHOTS).pathname });
+
+  // Forward to the showcase, then its Title button.
+  await page.goForward();
+  await page.waitForURL(/scenario=showcase/);
+  await page.waitForFunction(() => window.__parble?.ready === true, null, { timeout: 60_000 });
+  await page.locator("#parble-home").click();
+  await page.waitForURL(/\?title=1&mute=1$/);
+  await expect(page.locator("#pt")).toBeVisible();
+  await expect(page.locator("#pt")).toHaveCSS("opacity", "1");
+  await expect(page.locator("#parble-home")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

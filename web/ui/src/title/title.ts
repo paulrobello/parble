@@ -317,6 +317,11 @@ export function mountTitle(deps: TitleDeps): TitleHandle {
     root.classList.add("leaving");
     go(launchQuery(kind, settings, win.location.search));
   };
+  // Back from a scene can restore this page from the back/forward cache as it was mid-launch,
+  // faded out over the bare default scene: show the title again.
+  win.addEventListener("pageshow", (e) => {
+    if ((e as PageTransitionEvent).persisted) root.classList.remove("leaving");
+  });
 
   root.addEventListener("click", (e) => {
     const b = (e.target as Element).closest("button");

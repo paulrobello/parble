@@ -66,7 +66,12 @@ export interface FilesPanel {
 
 type Post = (cmd: BridgeCommand) => void;
 
-export function mountFiles(doc: Document, post: Post, library: Promise<Library> | null): FilesPanel {
+export function mountFiles(
+  doc: Document,
+  post: Post,
+  library: Promise<Library> | null,
+  home: (() => void) | null = null,
+): FilesPanel {
   const root = doc.createElement("div");
   root.id = "parble-files";
   Object.assign(root.style, {
@@ -103,6 +108,7 @@ export function mountFiles(doc: Document, post: Post, library: Promise<Library> 
     pending.push(why);
     post({ type: "exportTrack" });
   };
+  if (home) root.append(button("parble-home", "Title", home));
   root.append(
     input,
     button("parble-import-button", "Import", () => input.click()),

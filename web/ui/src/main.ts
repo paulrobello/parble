@@ -6,7 +6,7 @@ import { mountFiles } from "./files";
 import { applyEvents, controlsHint, emptyHud, formatHud, mountControlsHint, mountHud } from "./hud";
 import { Library } from "./library";
 import { mountFlyPointerLock } from "./pointer-lock";
-import { titleWanted } from "./title/store";
+import { titleQuery, titleWanted } from "./title/store";
 import { type TitleHandle, mountTitle } from "./title/title";
 import { UpdateNote, watchVersion } from "./update-note";
 
@@ -69,7 +69,14 @@ function start(bindings: WasmBindings): void {
         })
       : null;
   if (editor) editorDirty = editor.dirty;
-  const files = editor ? null : mountFiles(document, (cmd) => bridge.post(cmd), library);
+  const files = editor
+    ? null
+    : mountFiles(
+        document,
+        (cmd) => bridge.post(cmd),
+        library,
+        title ? null : () => location.assign(`${location.pathname}${titleQuery(location.search)}`),
+      );
   const audio = startAudio(window);
   if (title) {
     title.setMixerSink(audio.setMixer);

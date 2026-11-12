@@ -12,6 +12,7 @@ import {
   effectiveTier,
   launchQuery,
   parseSettings,
+  titleQuery,
   titleWanted,
 } from "../src/title/store";
 import { MARBLE_INFO, mountTitle } from "../src/title/title";
@@ -195,5 +196,17 @@ describe("mountTitle", () => {
     expect((root.querySelector("#pt-marbles") as HTMLElement).hidden).toBe(true);
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "w" }));
     expect(go).toHaveBeenCalledWith("?scenario=showcase&quality=medium");
+    // Back from the showcase restores this page from the back/forward cache: the title shows again.
+    expect(root.classList.contains("leaving")).toBe(true);
+    const restored = new Event("pageshow") as PageTransitionEvent;
+    Object.defineProperty(restored, "persisted", { value: true });
+    window.dispatchEvent(restored);
+    expect(root.classList.contains("leaving")).toBe(false);
+  });
+
+  it("a scene's way back opens the title, keeping mute", () => {
+    expect(titleQuery("?scenario=showcase&quality=high")).toBe("?title=1");
+    expect(titleQuery("?scenario=showcase&mute=1")).toBe("?title=1&mute=1");
+    for (const s of ["?scenario=showcase", "?scenario=editor&mute=1"]) expect(titleWanted(titleQuery(s))).toBe(true);
   });
 });

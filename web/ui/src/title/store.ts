@@ -131,6 +131,11 @@ export function titleWanted(search: string): boolean {
   return [...q.keys()].length === 0;
 }
 
+/** The query that opens the title from a scene: `title=1`, carrying `mute=1`. */
+export function titleQuery(search: string): string {
+  return new URLSearchParams(search).get("mute") === "1" ? "?title=1&mute=1" : "?title=1";
+}
+
 export type Launch = "build" | "watch";
 
 /**
