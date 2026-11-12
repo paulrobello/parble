@@ -1307,7 +1307,9 @@ impl Director {
     }
 
     /// The followed marble: the current one while it moves or has rested under [`REST_S`];
-    /// otherwise the first moving marble (the lead, in normal play the only one).
+    /// otherwise the newest moving marble. The newest has the most of its run ahead, so the shot
+    /// stays on one marble from release to finish; the oldest is about to finish too, and one
+    /// bumped in a finish cup counts as moving.
     fn pick_marble(&mut self, f: &Frame) -> Option<usize> {
         let moving = |m: &MarbleIn| m.v.length() > REST_SPEED;
         match self.followed.and_then(|i| f.marbles.get(i).map(|m| (i, m))) {
@@ -1320,7 +1322,7 @@ impl Director {
                 if self.rest_s < REST_S {
                     return Some(i);
                 }
-                match f.marbles.iter().position(moving) {
+                match f.marbles.iter().rposition(moving) {
                     Some(j) => {
                         self.rest_s = 0.0;
                         Some(j)
@@ -1332,7 +1334,7 @@ impl Director {
                 self.rest_s = 0.0;
                 f.marbles
                     .iter()
-                    .position(moving)
+                    .rposition(moving)
                     .or((!f.marbles.is_empty()).then_some(0))
             }
         }
@@ -2158,6 +2160,53 @@ mod tests {
     /// A tall piece stands where the plain follow view of the corner would look through it. With
     /// the solids known, the camera rises or swings ahead of the blockage, within the follow rate
     /// limits, and sees the marble in at least 95% of frames.
+    /// When the followed marble finishes, the director moves on to the newest moving marble (the
+    /// most run ahead), not the oldest, and stays on it while older ones finish or get bumped.
+    #[test]
+    fn a_finished_marble_hands_over_to_the_newest_moving_one() {
+        let mut d = Director::default();
+        let fwd = Vec3::new(0.3, 0.0, 0.0);
+        let mut ms = vec![
+            MarbleIn {
+                p: Vec3::ZERO,
+                v: fwd,
+            },
+            MarbleIn {
+                p: Vec3::new(0.5, 0.0, 0.0),
+                v: fwd,
+            },
+            MarbleIn {
+                p: Vec3::new(1.0, 0.0, 0.0),
+                v: fwd,
+            },
+        ];
+        let step = |d: &mut Director, ms: &[MarbleIn]| {
+            d.update(
+                &Frame {
+                    marbles: ms,
+                    dt: 1.0 / 60.0,
+                    aspect: 16.0 / 9.0,
+                    ..Default::default()
+                },
+                Some((0, Rule::FOLLOW)),
+                &[],
+            );
+            d.diag.followed
+        };
+        assert_eq!(step(&mut d, &ms), Some(2), "newest moving at the start");
+        // Marble 2 finishes: rests past REST_S while 0 and 1 still move.
+        ms[2].v = Vec3::ZERO;
+        let mut f = None;
+        for _ in 0..((REST_S * 60.0) as usize + 2) {
+            f = step(&mut d, &ms);
+        }
+        assert_eq!(f, Some(1), "hands over to the newest still moving");
+        // Marble 0 finishes and gets bumped (moving again): the shot stays on 1.
+        for _ in 0..120 {
+            assert_eq!(step(&mut d, &ms), Some(1));
+        }
+    }
+
     #[test]
     fn a_tall_piece_never_hides_the_followed_marble() {
         let path = corner_path(0.5, 60, 120);
