@@ -58,6 +58,9 @@ pub use nudge::NudgeDiag;
 
 /// Largest `fill` (and `--editor-fill`).
 pub const MAX_FILL: u32 = 4_000;
+/// The highest level `]` slices to. The slice is also the ground plane new pieces land on, so
+/// past the top piece `]` raises the build level (web: `BUILD_LEVEL_MAX` in `web/ui/src/editor/model.ts`).
+pub const BUILD_LEVEL_MAX: i32 = 15;
 /// Collider rebuild time per frame. A rebuild stage that starts inside it always finishes, so a
 /// frame's rebuild is at most this plus one stage (gather, simplify, tag or install of one chunk).
 pub const COLLIDER_BUDGET_MS: f32 = 4.0;
@@ -2395,7 +2398,11 @@ fn key_actions(st: &EditState, k: &ButtonInput<KeyCode>, shift: bool) -> Vec<Act
                 level: Some((st.slice.unwrap_or(max_level + 1) - 1).max(0)),
             }),
             KeyCode::BracketRight => out.push(Action::Slice {
-                level: st.slice.map(|s| s + 1).filter(|&s| s <= max_level),
+                level: Some(
+                    st.slice
+                        .map_or(max_level + 1, |s| s + 1)
+                        .min(BUILD_LEVEL_MAX),
+                ),
             }),
             KeyCode::KeyX => out.push(Action::Slice { level: None }),
             KeyCode::Escape => out.push(Action::ClearSelection {}),

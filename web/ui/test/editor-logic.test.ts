@@ -30,6 +30,7 @@ import {
   runTime,
   sliceDown,
   sliceUp,
+  BUILD_LEVEL_MAX,
   strokeText,
   zoneOf,
 } from "../src/editor/model";
@@ -88,8 +89,12 @@ describe("editor model", () => {
     expect(sliceDown(null, 4)).toBe(4);
     expect(sliceDown(0, 4)).toBe(0);
     expect(sliceUp(3, 4)).toBe(4);
-    expect(sliceUp(4, 4)).toBeNull();
-    expect(sliceUp(null, 4)).toBeNull();
+    // Past the top piece `]` keeps raising the build level, from all to one above the top.
+    expect(sliceUp(4, 4)).toBe(5);
+    expect(sliceUp(null, 4)).toBe(5);
+    expect(sliceUp(null, 0)).toBe(1);
+    expect(sliceUp(BUILD_LEVEL_MAX, 4)).toBe(BUILD_LEVEL_MAX);
+    expect(levelLabel(6, 0)).toBe("L6");
   });
 
   it("formats ports, families, the ghost tip and run time", () => {

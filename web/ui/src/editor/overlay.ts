@@ -51,6 +51,7 @@ import {
   type Send,
   sliceDown,
   sliceUp,
+  START_LEVEL,
   strokeText,
   TICK_HZ,
   type Vec3i,
@@ -944,7 +945,7 @@ ${nzRow("Push", [
     }
     if (s.pieces === 0 && !deletedNote) {
       selSec.innerHTML = `<h2><span class="sc">Start here</span></h2>
-<ol class="steps"><li${s.hoppers ? ' class="done"' : ""}><span>Place a <b>Hopper</b>: Mechanisms, first tile. It holds the marbles.</span></li>
+<ol class="steps"><li${s.hoppers ? ' class="done"' : ""}><span>Place a <b>Hopper</b>: Mechanisms, first tile. It holds the marbles. New pieces land on the build level, L${START_LEVEL} to start: <kbd>[</kbd> and <kbd>]</kbd> lower and raise it, <kbd>X</kbd> shows every level.</span></li>
 <li><span>Lay a downhill run of blocks and rails from the hopper's spout.</span></li>
 <li${s.finishes ? ' class="done"' : ""}><span>End it in <b>Finish cups</b>, then press <b>Run</b>.</span></li></ol>
 <p class="note">Click a tile, then a cell in the scene. R turns the piece before you place it.</p>`;
@@ -1320,6 +1321,7 @@ ${groupActs}
       if (next.pieces === 0) {
         family = "mechanisms";
         pick("mech_hopper");
+        act({ op: "slice", level: START_LEVEL });
       } else family = familyOf(next.brush.piece);
     }
     stepFly();

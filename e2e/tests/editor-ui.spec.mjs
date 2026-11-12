@@ -37,7 +37,9 @@ async function openEditor(page, errors) {
   await page.waitForFunction(() => window.__parble?.ready === true && window.__parble.editor && window.__parble.frame > 10, null, {
     timeout: 60_000,
   });
-  await page.waitForFunction(() => window.__parble.editor.keys === false);
+  await page.waitForFunction(() => window.__parble.editor.keys === false && window.__parble.editor.slice === 6);
+  // An empty board starts building at L6; these walkthroughs build from the floor.
+  await edit(page, { op: "slice", level: null });
   await edit(page, { op: "camera", target: [0.36, 0.03, -0.36], yaw: -0.5, pitch: 0.85, radius: 1.25 });
   await frames(page, 3);
 }
@@ -74,7 +76,12 @@ test("editor overlay: drawer place, select, slice, show an issue, run, fade and 
   await edit(page, { op: "camera", target: [0.36, 0.03, -0.36], yaw: -0.5, pitch: 0.85, radius: 1.25 });
   await frames(page, 3);
   await page.mouse.move(720, 470);
+  // An empty board builds at L6, so the hopper has levels to fall through; the step says so.
+  await page.waitForFunction(() => window.__parble.editor.slice === 6 && window.__parble.editor.hover?.target?.[1] === 6);
+  await expect(page.locator('[data-k="sel"]')).toContainText("L6 to start");
   await shot(page, "first-run");
+  // The rest of this walkthrough builds from the floor.
+  await edit(page, { op: "slice", level: null });
 
   // Place the hopper through the drawer tile and a click on the canvas.
   await page.locator('[data-piece="mech_hopper"]').click();
