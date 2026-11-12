@@ -37,8 +37,8 @@ PRD: `PRD.md` §6 P5. Phase goal: a polished sandbox live at https://parble.pard
 1. Create the GitHub repo `paulrobello/parble` and push after Paul approves.
 2. Watch CI to green (`gh run watch` with the full SHA).
 3. Cloudflare DNS-only CNAME `parble.pardev.net` → `paulrobello.github.io` (token from parvault).
-4. Only after DNS exists, commit `public/CNAME` (or the Trunk dist equivalent).
-5. `PUT /repos/paulrobello/parble/pages` with the custom domain.
+4. Only after DNS exists, enable Pages (`POST .../pages -f build_type=workflow`) and set the domain with `PUT /repos/paulrobello/parble/pages -f cname=parble.pardev.net`. No CNAME file: Actions-built Pages takes the domain from the API. Setting the domain before the DNS record exists stalls the certificate; removing and re-adding it restarts issuance.
+5. Enforce HTTPS once the certificate is approved.
 6. Wait out Let's Encrypt `authorization_pending`.
 
 - Verify: a live render of https://parble.pardev.net in Chrome and Safari via Playwright/agentchrome, with canvas pixels non-black and no console errors. An HTTP 200 alone does not count.

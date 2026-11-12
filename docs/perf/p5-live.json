@@ -1,0 +1,14 @@
+{
+  "task": "P5-T5 go live",
+  "date": "2026-11-11",
+  "url": "https://parble.pardev.net/",
+  "commit": "0aff82a379bf77d93f94a27bc6ce42262fe9c57b",
+  "liveVersionId": "a75a11d7d4",
+  "ci": { "run": 43132520646, "conclusion": "success", "jobs": ["actionlint", "fmt", "lint", "test", "web", "determinism-wasm", "gitleaks"] },
+  "deploy": [{ "run": 43133562409, "sha": "1af5fa7", "conclusion": "success" }, { "run": 43134347092, "sha": "0aff82a", "conclusion": "success" }],
+  "dns": { "type": "CNAME", "name": "parble.pardev.net", "content": "paulrobello.github.io", "proxied": false, "recordId": "52541b28a7030cc3d1f945943e1020fa" },
+  "pages": { "buildType": "workflow", "cname": "parble.pardev.net", "certificate": "approved, expires 2027-02-09", "httpsEnforced": true, "httpRedirect": "301 -> https://parble.pardev.net/" },
+  "sequence": "Pages was enabled with the custom domain before the DNS record existed, and no certificate request started in 40 minutes. After the CNAME existed the custom domain was removed and set again, and the certificate was approved within 30 seconds. No CNAME file is committed: with build_type workflow GitHub takes the domain from the Pages API and ignores a CNAME file in the artifact.",
+  "chrome": { "script": "e2e/web-smoke.cjs", "query": "?scenario=showcase&mute=1", "result": "PASS", "canvas": { "nonBlack": 0.984, "lit": 0.265, "colors": 239 }, "hud": "fps 60, tick advancing", "adapter": "apple metal-3 (M4 Max)", "consoleErrors": 0, "shot": "docs/perf/p5-live-chrome-showcase.png" },
+  "safari": { "script": "e2e/safari-smoke.cjs", "query": "?scenario=showcase&mute=1", "result": "PASS", "pageErrors": 0, "gpu": true, "hud": "fps 59", "loadBefore": 14.36, "loadAfter": 14.42, "shot": "docs/perf/p5-live-safari-showcase.png", "note": "A first attempt at load 17.9 timed out on the WebDriver screenshot call after reading state with no errors; rerun once load fell under 15." }
+}

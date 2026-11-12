@@ -281,8 +281,8 @@ Scope:
 
 Acceptance:
 - [x] All P0–P4 criteria still hold. (2026-11-11 release gate at e48ddaa: `docs/perf/p5-release.json`)
-- [ ] The live site renders in Chrome and Safari, verified by an actual page render and not an HTTP 200.
-- [ ] The DNS → CNAME → Pages API sequence is followed in order.
+- [x] The live site renders in Chrome and Safari, verified by an actual page render and not an HTTP 200. (2026-11-11: `docs/perf/p5-live.json`, Chromium and Safari smoke PASS on https://parble.pardev.net)
+- [x] The DNS → CNAME → Pages API sequence is followed in order. (2026-11-11: the domain set before DNS stalled the certificate; it was set again after the CNAME and issued. No CNAME file with Actions Pages. `docs/perf/p5-live.json`)
 - [ ] Owner MVP sign-off.
 
 ### P6 — Procedural generation
