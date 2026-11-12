@@ -155,7 +155,11 @@ fn spawn_scene(
     // its kit-piece run instead of the tray.
     let plain = *env == Environment::Plain;
     if plain {
-        commands.spawn((Mesh3d(meshes.add(tray_render_mesh())), MeshMaterial3d(wood)));
+        commands.spawn((
+            Name::new("tray"),
+            Mesh3d(meshes.add(tray_render_mesh())),
+            MeshMaterial3d(wood),
+        ));
     }
 
     let floor = materials.add(StandardMaterial {
@@ -188,6 +192,7 @@ fn spawn_scene(
         }
         let (size, centre) = (max - min, (min + max) / 2.0);
         commands.spawn((
+            Name::new("floor"),
             Mesh3d(meshes.add(Plane3d::default().mesh().size(size.x, size.y))),
             MeshMaterial3d(floor),
             Transform::from_xyz(centre.x, -0.0005, centre.y),

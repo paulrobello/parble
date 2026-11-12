@@ -182,7 +182,7 @@ Every scenario, `kit2000` and `lineup` included, has a free-fly camera (`Fly` in
 | `G` | Mechanism sensor overlay on or off, in every camera mode (see `--sensors`). |
 | `V` | Camera zone overlay on or off, in every camera mode (see `--zones`). |
 
-In fly, depth of field focuses on what the centre of the view looks at: the first track piece, marble or floor along the view ray, or 3 m when there is none (`camera::fly_focus`), eased over 0.15 s. Orbit focuses on the followed marble.
+In fly, depth of field focuses on what the centre of the view looks at: the first drawn mesh (track piece, mechanism, marble, floor or set dressing) along the view ray, cast against the rendered meshes with Bevy's mesh picking (`camera::fly_focus_ray`). With no mesh within 3 m it falls back to the floor plane, the camera obstacles and the marbles (`camera::fly_focus`), else 3 m, eased over 0.15 s. `camera.flyFocus` reports `targetM`, the eased `focusM` and `hit` (`floor`, `tray`, `kit piece`, `marble` or `other`, `null` when the ray met nothing). Orbit focuses on the followed marble.
 
 The camera moves only on input and uses real time, so it keeps working while `--lockstep-after` holds the sim. With no input it never leaves the director, so `--screenshot`, `--exit-after`, `?screenshot=` and `window.__parble` runs frame exactly as before. Keys typed into the HUD (the Import, Export, Run and Save controls) stay there, because the browser only delivers keys to the canvas while it has focus. The HUD shows the controls in its bottom-left line. `make web-e2e` drives the fly camera with the keyboard and mouse in GPU Chromium (`e2e/tests/flycam.spec.mjs`).
 

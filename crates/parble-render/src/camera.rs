@@ -467,6 +467,9 @@ struct DirectorState {
     framed: Option<CameraMode>,
     /// Fly's eased focus distance (metres); 0 until fly first frames.
     fly_focus: f32,
+    /// This frame's view-centre mesh hit in fly: distance (metres) and what it hit,
+    /// from [`fly_focus_ray`].
+    fly_hit: Option<(f32, String)>,
 }
 
 /// The camera's state for the state JSON (`camera`).
@@ -497,6 +500,19 @@ pub struct CameraDiag {
     pub marble_radius_px: f32,
     pub post: post::LivePost,
     pub orbit: OrbitDiag,
+    /// Fly's focus this frame, `None` outside fly.
+    pub fly_focus: Option<FlyFocusDiag>,
+}
+
+/// What fly focuses on: the distance it eases towards, the eased distance, and the mesh the view
+/// centre hit (its `Name`, `kit piece`, `marble` or `other`), `None` when the ray met nothing
+/// within reach.
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FlyFocusDiag {
+    pub target_m: f32,
+    pub focus_m: f32,
+    pub hit: Option<String>,
 }
 
 /// Spawn the main camera with its tier's post stack. The director moves it from the first frame.
@@ -545,7 +561,12 @@ impl Plugin for DirectorPlugin {
                 Update,
                 (toggle_mode, fly_toggle, orbit_input, fly_input).chain(),
             )
-            .add_systems(PostUpdate, direct.before(TransformSystems::Propagate));
+            .add_systems(
+                PostUpdate,
+                (fly_focus_ray, direct)
+                    .chain()
+                    .before(TransformSystems::Propagate),
+            );
     }
 }
 
@@ -738,6 +759,44 @@ fn orbit_input(
     }
 }
 
+/// In fly, casts the view-centre ray against the visible meshes (track, marbles, playroom) and keeps
+/// the nearest hit's distance for [`direct`]'s focus. The mesh transforms are last frame's, which a
+/// focus that eases over [`FLY_FOCUS_EASE_S`] cannot show.
+fn fly_focus_ray(
+    mode: Res<CameraMode>,
+    mut st: ResMut<DirectorState>,
+    mut ray: MeshRayCast,
+    what: Query<(
+        Option<&Name>,
+        Has<crate::kit::KitInstance>,
+        Option<&ChildOf>,
+    )>,
+    marbles: Query<(), With<crate::MarbleVisual>>,
+) {
+    if *mode != CameraMode::Fly {
+        st.fly_hit = None;
+        return;
+    }
+    let eye = st.fly.eye;
+    let Ok(dir) = Dir3::new(st.fly.rotation() * Vec3::NEG_Z) else {
+        st.fly_hit = None;
+        return;
+    };
+    st.fly_hit = ray
+        .cast_ray(Ray3d::new(eye, dir), &MeshRayCastSettings::default())
+        .first()
+        .filter(|(_, hit)| hit.distance > 0.0 && hit.distance < FLY_FAR_FOCUS_M)
+        .map(|(e, hit)| {
+            let kind = match what.get(*e) {
+                Ok((Some(n), ..)) => n.as_str().to_string(),
+                Ok((None, true, _)) => "kit piece".into(),
+                Ok((None, false, Some(p))) if marbles.contains(p.parent()) => "marble".into(),
+                _ => "other".into(),
+            };
+            (hit.distance, kind)
+        });
+}
+
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
 fn direct(
     mode: Res<CameraMode>,
@@ -848,17 +907,26 @@ fn direct(
         .and_then(|i| marbles.get(i))
         .or(marbles.first())
         .copied();
+    diag.fly_focus = None;
     let depth = match *mode {
         CameraMode::Director => pose.focus,
         // Fly focuses on what the view centre looks at.
         CameraMode::Fly => {
-            let target = fly_focus(pose.eye, forward, &obstacles.solids, &marbles);
+            let target = st.fly_hit.as_ref().map_or_else(
+                || fly_focus(pose.eye, forward, &obstacles.solids, &marbles),
+                |h| h.0,
+            );
             st.fly_focus = if st.fly_focus > 0.0 {
                 let k = 1.0 - (-clock.dt.max(0.0) / FLY_FOCUS_EASE_S).exp();
                 st.fly_focus + (target - st.fly_focus) * k
             } else {
                 target
             };
+            diag.fly_focus = Some(FlyFocusDiag {
+                target_m: target,
+                focus_m: st.fly_focus,
+                hit: st.fly_hit.as_ref().map(|h| h.1.clone()),
+            });
             st.fly_focus
         }
         // Orbit focuses on the marble, or on its pivot without one.

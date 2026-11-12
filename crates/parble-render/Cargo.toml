@@ -22,6 +22,8 @@ bevy = { workspace = true, features = [
     # P1-T5 playroom textures: KTX2 with zstd supercompression (pure-Rust zstd builds for wasm32).
     "ktx2",
     "zstd_rust",
+    # Fly-camera autofocus: one ray per frame against the visible meshes (camera::fly_focus_ray).
+    "mesh_picking",
 ] }
 serde_json = { workspace = true }
 
