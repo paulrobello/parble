@@ -503,6 +503,8 @@ test("nudge zones: add, size, aim, move, switch mode, undo and redo from the pan
   await wait(() => window.__parble.editor.nudges.count === 1);
   await nz.locator('[data-nzsel="0"]').click();
   await wait(() => window.__parble.editor.nudges.selected === 0);
+  // The overlay reads the engine's state on its own frame: let it see the selection before the key.
+  await frames(page, 2);
   await page.keyboard.press("Backspace");
   await wait(() => window.__parble.editor.nudges.count === 0);
   await expect(nz.locator('[data-k="nzh"]')).toHaveText("none");

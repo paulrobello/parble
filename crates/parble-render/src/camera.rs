@@ -432,20 +432,53 @@ impl Default for Orbit {
 
 impl Orbit {
     pub fn eye(&self) -> Vec3 {
+        self.target + self.radius * orbit_frame(self.yaw, self.pitch).0
+    }
+
+    /// This orbit turned to `yaw` and `pitch` about `pivot` instead of its target: eye and target
+    /// both swing round the pivot, so the pivot holds its place on screen.
+    pub fn turned_about(self, pivot: Vec3, yaw: f32, pitch: f32) -> Self {
+        let (d0, r0, u0) = orbit_frame(self.yaw, self.pitch);
+        let v = self.target - pivot;
+        let (d1, r1, u1) = orbit_frame(yaw, pitch);
+        Self {
+            target: pivot + v.dot(d0) * d1 + v.dot(r0) * r1 + v.dot(u0) * u1,
+            yaw,
+            pitch,
+            ..self
+        }
+    }
+
+    /// Moves the target along the ground: `right` along the view's right, `ahead` away from the eye.
+    pub fn pan_ground(&mut self, right: f32, ahead: f32) {
         let (sy, cy) = self.yaw.sin_cos();
-        let (sp, cp) = self.pitch.sin_cos();
-        self.target + self.radius * Vec3::new(cp * sy, sp, cp * cy)
+        self.target += Vec3::new(cy, 0.0, -sy) * right + Vec3::new(-sy, 0.0, -cy) * ahead;
     }
 }
 
+/// The orbit's orthonormal frame at `yaw` and `pitch`: target-to-eye direction, right and up.
+fn orbit_frame(yaw: f32, pitch: f32) -> (Vec3, Vec3, Vec3) {
+    let (sy, cy) = yaw.sin_cos();
+    let (sp, cp) = pitch.sin_cos();
+    let dir = Vec3::new(cp * sy, sp, cp * cy);
+    let right = Vec3::new(cy, 0.0, -sy);
+    (dir, right, dir.cross(right))
+}
+
 /// Editor camera input (P3-T4). When `active`, the orbit camera leaves the left button to the
-/// editor tools: right drag orbits, middle drag or Shift + right drag pans along the ground, and
-/// the wheel zooms. `set` replaces the orbit once (the agent's `camera` action).
+/// editor tools: right drag orbits about `pivot` (the editor sets it when the drag starts: the
+/// selection, else the point under the cursor), middle drag or Shift + right drag pans along the
+/// ground, W/A/S/D pan too, and the wheel zooms. `set` replaces the orbit once (the agent's
+/// `camera` action).
 #[derive(Resource, Debug, Default, Clone, Copy)]
 pub struct EditorCamera {
     pub active: bool,
     pub set: Option<Orbit>,
+    pub pivot: Option<Vec3>,
 }
+
+/// Editor W/A/S/D pan speed, in orbit radii per second.
+const EDITOR_PAN_RADII_PER_S: f32 = 0.8;
 
 /// The orbit state in the state JSON (`camera.orbit`).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize)]
@@ -694,6 +727,7 @@ fn fly_input(
 #[allow(clippy::too_many_arguments)]
 fn orbit_input(
     mode: Res<CameraMode>,
+    time: Res<Time<Real>>,
     buttons: Option<Res<ButtonInput<MouseButton>>>,
     keys: Option<Res<ButtonInput<KeyCode>>>,
     motion: Option<Res<AccumulatedMouseMotion>>,
@@ -733,11 +767,37 @@ fn orbit_input(
                 let k = o.radius * 0.0015;
                 o.target += (-right_v * d.x + fwd * d.y) * k;
             } else {
-                o.yaw -= d.x * 0.005;
-                o.pitch = (o.pitch + d.y * 0.005).clamp(0.05, 1.5);
+                let yaw = o.yaw - d.x * 0.005;
+                let pitch = (o.pitch + d.y * 0.005).clamp(0.05, 1.5);
+                *o = match editor.pivot {
+                    Some(p) => o.turned_about(p, yaw, pitch),
+                    None => Orbit { yaw, pitch, ..*o },
+                };
             }
         }
         *last_cursor = if dragging { cursor } else { None };
+        if let Some(k) = keys.as_ref().filter(|k| {
+            !k.any_pressed([
+                KeyCode::ControlLeft,
+                KeyCode::ControlRight,
+                KeyCode::SuperLeft,
+                KeyCode::SuperRight,
+                KeyCode::AltLeft,
+                KeyCode::AltRight,
+            ])
+        }) {
+            let axis = |pos: KeyCode, neg: KeyCode| {
+                f32::from(u8::from(k.pressed(pos))) - f32::from(u8::from(k.pressed(neg)))
+            };
+            let step = st.orbit.radius * EDITOR_PAN_RADII_PER_S * time.delta_secs().min(0.1);
+            let (right, ahead) = (
+                axis(KeyCode::KeyD, KeyCode::KeyA),
+                axis(KeyCode::KeyW, KeyCode::KeyS),
+            );
+            if right != 0.0 || ahead != 0.0 {
+                st.orbit.pan_ground(right * step, ahead * step);
+            }
+        }
         if let Some(s) = scroll {
             let lines = match s.unit {
                 bevy::input::mouse::MouseScrollUnit::Line => s.delta.y,
@@ -1027,6 +1087,47 @@ pub fn fly_focus(eye: Vec3, forward: Vec3, solids: &[Solid], marbles: &[MarbleIn
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The pivot's position in the camera's frame (right, up, along the view).
+    fn in_view(o: &Orbit, p: Vec3) -> Vec3 {
+        let (d, r, u) = orbit_frame(o.yaw, o.pitch);
+        let v = p - o.eye();
+        Vec3::new(v.dot(r), v.dot(u), v.dot(d))
+    }
+
+    #[test]
+    fn turning_about_a_pivot_keeps_it_in_place_on_screen() {
+        let o = Orbit {
+            target: Vec3::new(1.2, 0.0, -1.2),
+            yaw: -0.5,
+            pitch: 0.95,
+            radius: 2.6,
+        };
+        let pivot = Vec3::new(0.4, 0.09, -0.3);
+        let t = o.turned_about(pivot, 0.3, 0.6);
+        assert_eq!((t.yaw, t.pitch, t.radius), (0.3, 0.6, 2.6));
+        assert!(in_view(&o, pivot).distance(in_view(&t, pivot)) < 1e-4);
+        assert!((o.eye().distance(pivot) - t.eye().distance(pivot)).abs() < 1e-4);
+        // About its own target it is a plain yaw and pitch change.
+        let same = o.turned_about(o.target, 0.3, 0.6);
+        assert!(same.target.distance(o.target) < 1e-5);
+    }
+
+    #[test]
+    fn ground_pan_moves_ahead_away_from_the_eye_and_right_along_the_view() {
+        let mut o = Orbit::default();
+        let eye = o.eye();
+        let before = o.target;
+        o.pan_ground(0.0, 0.1);
+        let ahead = o.target - before;
+        assert!(ahead.y.abs() < 1e-6 && (ahead.length() - 0.1).abs() < 1e-5);
+        let flat = |v: Vec3| Vec3::new(v.x, 0.0, v.z);
+        assert!(flat(o.target - eye).length() > flat(before - eye).length());
+        let mid = o.target;
+        o.pan_ground(0.1, 0.0);
+        let r = in_view(&Orbit { target: mid, ..o }, o.target);
+        assert!(r.x > 0.099 && r.y.abs() < 1e-5);
+    }
 
     #[test]
     fn fly_focus_meets_the_nearest_thing_ahead_or_the_far_distance() {

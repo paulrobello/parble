@@ -433,6 +433,16 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     if (laying === "open") act({ op: "stroke", phase: "end" });
     laying = false;
   });
+  // A mouse click on a strip, drawer or panel button hands the keys back to the scene: Bevy hears
+  // its keys only while the canvas has focus. Keyboard activation (detail 0) keeps focus for Tab
+  // navigation, and the buttons that open the rename field, the library or the interval menu keep it.
+  const keepsFocus = new Set(["rename", "library", "interval"]);
+  const refocus = (e: MouseEvent): void => {
+    const b = (e.target as HTMLElement | null)?.closest<HTMLElement>("button");
+    if (e.detail === 0 || !b || keepsFocus.has(b.dataset.k ?? "") || b.closest('[role="menu"]')) return;
+    canvas()?.focus({ preventScroll: true });
+  };
+  for (const el of [top, tray, side]) el.addEventListener("click", refocus);
   // Drag-to-lay from the drawer: pressing a tile picks its piece and opens a stroke; while the
   // button is held, the engine lays one piece per cell the pointer enters on the scene, and the
   // release ends the stroke as one undo step. Pointer events only (no HTML drag and drop, which

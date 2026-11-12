@@ -2276,6 +2276,7 @@ impl Plugin for EditorPlugin {
                     pitch: 0.95,
                     radius: 2.6,
                 }),
+                pivot: None,
             })
             .add_systems(
                 Update,
@@ -2286,10 +2287,48 @@ impl Plugin for EditorPlugin {
                     step_check,
                     update_hover,
                     rebuild_colliders,
+                    orbit_pivot,
                 )
                     .chain(),
             );
     }
+}
+
+/// When a right drag starts, sets the orbit pivot: the selection's centre, else the centre of the
+/// piece or ground cell under the cursor, else none (the orbit turns about its own target).
+fn orbit_pivot(
+    st: Res<EditState>,
+    buttons: Option<Res<ButtonInput<MouseButton>>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    cams: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    mut editor_cam: ResMut<EditorCamera>,
+) {
+    if !buttons.is_some_and(|b| b.just_pressed(MouseButton::Right)) {
+        return;
+    }
+    let placements = &st.editor.track().placements;
+    let centre = |ps: &mut dyn Iterator<Item = &Placement>| {
+        ps.filter_map(|p| footprint_box(st.kit, p))
+            .reduce(|(lo, hi), (l, h)| (lo.min(l), hi.max(h)))
+            .map(|(lo, hi)| (lo + hi) * 0.5)
+    };
+    let selected = centre(
+        &mut st
+            .editor
+            .selection
+            .iter()
+            .filter_map(|i| placements.get(i as usize)),
+    );
+    editor_cam.pivot = selected.or_else(|| {
+        let (cam, gt) = cams.single().ok()?;
+        let px = windows.single().ok()?.cursor_position()?;
+        match st.pick_ray(cam.viewport_to_world(gt, px).ok()?)? {
+            Hit::Piece { anchor, .. } => {
+                centre(&mut placements.iter().filter(|p| p.anchor == anchor))
+            }
+            Hit::Ground { cell } => Some(cell_floor_m(cell)),
+        }
+    });
 }
 
 fn mouse_and_keys(

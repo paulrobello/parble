@@ -203,6 +203,26 @@ describe("editor overlay", () => {
     expect(ui.root.classList.contains("tray-closed")).toBe(true);
   });
 
+  it("a mouse click on a tile or tool hands the keys back to the canvas; keyboard activation does not", () => {
+    ui.update(diag());
+    const cv = $("#parble");
+    cv.tabIndex = 0;
+    const tile = $('[data-piece="blk_end_l3"]');
+    tile.focus();
+    tile.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+    expect(document.activeElement).toBe(cv);
+    const rotate = $('[data-k="rotate"]');
+    rotate.focus();
+    rotate.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 }));
+    expect(document.activeElement).toBe(rotate);
+    rotate.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+    expect(document.activeElement).toBe(cv);
+    const lib = $('[data-k="library"]');
+    lib.focus();
+    lib.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+    expect(document.activeElement).not.toBe(cv);
+  });
+
   it("the first run opens on Mechanisms with the Hopper picked and shows Start here", () => {
     ui.update(diag({ pieces: 0, hoppers: 0, finishes: 0, edits: 0 }));
     expect(sent).toContainEqual({ op: "brush", piece: "mech_hopper", yaw: 0, mirror: false });

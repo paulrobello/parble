@@ -136,6 +136,30 @@ pub fn tray_render_mesh() -> Mesh {
     .with_inserted_indices(Indices::U32((0..count).collect()))
 }
 
+/// The editor floor's cell grid as a line list at the cell edges over `min`..`max` (x, z metres):
+/// every `every`-th line when `every` > 1, else all of them. Cell `c` spans `(c ± 0.5) * CELL_M`.
+pub fn floor_grid_mesh(min: Vec2, max: Vec2, every: i32, y: f32) -> Mesh {
+    let cell = kit::CELL_M;
+    let edges = |lo: f32, hi: f32| {
+        let (a, b) = (
+            (lo / cell - 0.5).ceil() as i32,
+            (hi / cell - 0.5).floor() as i32,
+        );
+        (a..=b)
+            .filter(move |i| i.rem_euclid(every.max(1)) == 0)
+            .map(move |i| (i as f32 + 0.5) * cell)
+    };
+    let mut positions: Vec<[f32; 3]> = Vec::new();
+    for x in edges(min.x, max.x) {
+        positions.extend([[x, y, min.y], [x, y, max.y]]);
+    }
+    for z in edges(min.y, max.y) {
+        positions.extend([[min.x, y, z], [max.x, y, z]]);
+    }
+    Mesh::new(PrimitiveTopology::LineList, RenderAssetUsages::default())
+        .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
+}
+
 fn spawn_scene(
     mut commands: Commands,
     quality: Res<Quality>,
@@ -188,8 +212,23 @@ fn spawn_scene(
         }
         if *kit_scene == kit::KitScene::Editor {
             let (a, b) = kit::edit::EDITOR_FLOOR_M;
-            min = min.min(Vec2::from_array(a));
-            max = max.max(Vec2::from_array(b));
+            let (a, b) = (Vec2::from_array(a), Vec2::from_array(b));
+            min = min.min(a);
+            max = max.max(b);
+            // Cell lines, and every fifth one stronger, just above the floor plane.
+            for (every, alpha, y) in [(1, 0.10, 0.0002), (5, 0.24, 0.0003)] {
+                commands.spawn((
+                    Name::new("floor grid"),
+                    Mesh3d(meshes.add(floor_grid_mesh(a, b, every, y))),
+                    MeshMaterial3d(materials.add(StandardMaterial {
+                        base_color: Color::srgba(0.62, 0.78, 1.0, alpha),
+                        unlit: true,
+                        alpha_mode: AlphaMode::Blend,
+                        ..default()
+                    })),
+                    Pickable::IGNORE,
+                ));
+            }
         }
         let (size, centre) = (max - min, (min + max) / 2.0);
         commands.spawn((
@@ -309,6 +348,31 @@ fn sync_marbles(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_floor_grid_lines_sit_on_cell_edges_with_every_fifth_marked() {
+        let positions = |m: &Mesh| {
+            m.attribute(Mesh::ATTRIBUTE_POSITION)
+                .unwrap()
+                .as_float3()
+                .unwrap()
+                .to_vec()
+        };
+        let (min, max) = (Vec2::new(-0.3, -0.12), Vec2::new(0.3, 0.12));
+        let all = positions(&floor_grid_mesh(min, max, 1, 0.0));
+        // x edges at -0.27 ..= 0.27 (10), z edges at -0.09 ..= 0.09 (4); two points a line.
+        assert_eq!(all.len(), 2 * (10 + 4));
+        for p in &all {
+            let off = |v: f32| ((v / kit::CELL_M - 0.5).round() - (v / kit::CELL_M - 0.5)).abs();
+            assert!(
+                off(p[0]) < 1e-4 || off(p[2]) < 1e-4,
+                "{p:?} is off a cell edge"
+            );
+        }
+        let major = positions(&floor_grid_mesh(min, max, 5, 0.0));
+        // Edge indices -5 and 0 on x, 0 on z.
+        assert_eq!(major.len(), 2 * (2 + 1));
+    }
     use bevy::mesh::VertexAttributeValues;
 
     #[test]
