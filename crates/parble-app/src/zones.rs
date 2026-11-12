@@ -300,7 +300,7 @@ pub fn allpieces_demo() -> CameraZone {
         },
         priority: 10,
         blend_in_ms: 800,
-        blend_out_ms: 1_400,
+        blend_out_ms: 1_800,
         hold_ms: 800,
     }
 }
@@ -576,5 +576,57 @@ mod tests {
         );
         assert!(frames > 30, "the zone plays with the marble in sight");
         assert!(steepest <= std::f32::consts::FRAC_PI_3 + 0.01, "{steepest}");
+    }
+
+    /// The showcase director stays calm: in the 30 s all-pieces run it changes shot at most 12
+    /// times (22 before piece hints waited [`parble_render::director::MIN_SHOT_S`]) and the view never turns
+    /// faster than 200 °/s from one frame to the next (a retarget once flipped 32° in a frame).
+    #[test]
+    fn the_allpieces_director_changes_shot_rarely_and_turns_smoothly() {
+        assert_eq!(
+            parble_render::director::HINT_PRIORITY,
+            camera_zone::HINT_PRIORITY
+        );
+        let t = scenario_track(Scenario::AllPieces).unwrap();
+        let zones = zones_for(&t);
+        let o = obstacles_for(&t);
+        let interest = interest_for(&t);
+        let mut run = parble_sim::allpieces::run().unwrap();
+        let mut d = Director::default();
+        let mut prev: Option<parble_render::director::Pose> = None;
+        let mut max_turn = 0.0_f32;
+        for _ in 0..(parble_sim::allpieces::RUN_TICKS / 4) {
+            run.tick(4);
+            let marbles: Vec<MarbleIn> = run
+                .marbles()
+                .iter()
+                .map(|s| MarbleIn {
+                    p: Vec3::from_array(s.position),
+                    v: Vec3::from_array(s.linvel),
+                })
+                .collect();
+            let frame = Frame {
+                marbles: &marbles,
+                dt: 1.0 / 60.0,
+                aspect: 16.0 / 9.0,
+                run: 0,
+                interest: &interest,
+                hidden: &o.hidden,
+                solids: &o.solids,
+            };
+            let Some(pose) = d.update(&frame, Some((0, Rule::FOLLOW)), &zones) else {
+                continue;
+            };
+            if let Some(p) = prev {
+                max_turn = max_turn.max(p.forward.angle_between(pose.forward).to_degrees() * 60.0);
+            }
+            prev = Some(pose);
+        }
+        println!(
+            "allpieces director: {} shot changes, peak turn {max_turn:.0} deg/s",
+            d.diag.blends
+        );
+        assert!(d.diag.blends <= 12, "{} shot changes", d.diag.blends);
+        assert!(max_turn < 200.0, "turned {max_turn} deg/s in one frame");
     }
 }

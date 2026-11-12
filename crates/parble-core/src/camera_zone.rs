@@ -319,8 +319,8 @@ pub fn hint_zones(track: &Track, catalog: &impl PieceCatalog) -> Vec<CameraZone>
                     fov_mdeg: None,
                 },
                 priority: HINT_PRIORITY,
-                blend_in_ms: 450,
-                blend_out_ms: 800,
+                blend_in_ms: 1_200,
+                blend_out_ms: 1_400,
                 hold_ms: BEAT_HOLD_MS,
             },
             CameraHint::Axis => {
@@ -343,8 +343,8 @@ pub fn hint_zones(track: &Track, catalog: &impl PieceCatalog) -> Vec<CameraZone>
                         fov_mdeg: None,
                     },
                     priority: HINT_PRIORITY,
-                    blend_in_ms: 700,
-                    blend_out_ms: 1_000,
+                    blend_in_ms: 1_600,
+                    blend_out_ms: 1_600,
                     hold_ms: 300,
                 }
             }

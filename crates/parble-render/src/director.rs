@@ -28,7 +28,7 @@
 //!
 //! Every change of shot blends: a cue change, entering or leaving a zone, a change of followed
 //! marble, a run restart. A blend mixes the outgoing [`Layer`] and the incoming shot, both still
-//! evaluated live, with a smootherstep weight over the blend time: the eye is interpolated, the
+//! evaluated live, with a smoothstep weight over the blend time: the eye is interpolated, the
 //! forward direction's bearing and elevation interpolated, the field of view and focus distance interpolated. A blend that
 //! starts during another keeps the one in flight as its source (nested up to [`MAX_DEPTH`], past
 //! which the oldest freezes at its last pose), so retargeting never stops the camera dead. A run
@@ -44,7 +44,9 @@
 //! against every zone each frame; a zone it is inside stays inside until the marble is
 //! [`EXIT_MARGIN_M`] past its boundary, and active [`Zone::hold_s`] longer, unless the marble has
 //! sat past [`HOLD_FRAME_NDC`] of the frame for [`HOLD_EXIT_S`]. The active zone with
-//! the highest priority (ties to the earlier zone) wins; with none, the scenario's cue plays. The
+//! the highest priority (ties to the earlier zone) wins; with none, the scenario's cue plays. A
+//! piece hint (priority [`HINT_PRIORITY`] or below) only takes the shot while the marble is inside
+//! it and [`MIN_SHOT_S`] after the last shot change, so a busy run never chains cut into cut. The
 //! zones read the marble positions the app already copies out of the sim, so they cannot reach the
 //! sim or a trajectory hash.
 
@@ -161,7 +163,12 @@ pub const FOLLOW_FIT_MARGIN: f32 = 1.15;
 /// Blend time of a scripted cue change (seconds).
 pub const CUE_BLEND_S: f32 = 0.8;
 /// Blend time when the followed marble changes or a run restarts (seconds).
-pub const RETARGET_BLEND_S: f32 = 1.0;
+pub const RETARGET_BLEND_S: f32 = 2.5;
+/// A piece hint (a zone at [`HINT_PRIORITY`] or below) only takes the shot this long after the
+/// last shot change, so hints along a busy run never chain cut into cut.
+pub const MIN_SHOT_S: f32 = 2.0;
+/// The priority of the zones parble-core derives from the pieces (`camera_zone::HINT_PRIORITY`).
+pub const HINT_PRIORITY: i32 = 1;
 /// The shortest blend: a zone's 0 ms still eases (seconds).
 pub const MIN_BLEND_S: f32 = 0.15;
 /// Nested blends kept live; deeper sources freeze.
@@ -279,10 +286,11 @@ impl Pose {
     }
 }
 
-/// Smootherstep: zero first and second derivative at both ends. Its peak slope is 1.875.
+/// Smoothstep: zero slope at both ends. Its peak slope is 1.5, so a blend turns at most 1.5× its
+/// mean rate (smootherstep's 1.875 whipped the view through the middle of a short blend).
 pub fn ease(t: f32) -> f32 {
     let t = t.clamp(0.0, 1.0);
-    t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
+    t * t * (3.0 - 2.0 * t)
 }
 
 /// Spherical interpolation of unit vectors.
@@ -310,6 +318,29 @@ pub fn slerp_dir(a: Vec3, b: Vec3, t: f32) -> Vec3 {
 /// interpolated apart, so a blend between views facing apart turns level and never tips over the
 /// top through a steeper view than either end. A straight-down end has no bearing: slerp then.
 pub fn mix_dir(a: Vec3, b: Vec3, t: f32) -> Vec3 {
+    let mut prev = f32::NAN;
+    mix_dir_turning(a, b, t, &mut prev)
+}
+
+/// The bearing difference `d` (wrapped to ±π) taken the way that keeps it nearest `prev`, the
+/// difference used last frame, and `prev` updated. A blend between views about half a turn apart
+/// would otherwise flip from turning one way to the other the frame the difference crosses π.
+fn turn_near(d: f32, prev: &mut f32) -> f32 {
+    let d = wrap_angle(d);
+    let d = if prev.is_nan() {
+        d
+    } else {
+        [d, d + std::f32::consts::TAU, d - std::f32::consts::TAU]
+            .into_iter()
+            .min_by(|x, y| (x - *prev).abs().total_cmp(&(y - *prev).abs()))
+            .unwrap_or(d)
+    };
+    *prev = d;
+    d
+}
+
+/// [`mix_dir`], turning the way it turned last frame (`prev`, NaN for the first frame).
+fn mix_dir_turning(a: Vec3, b: Vec3, t: f32, prev: &mut f32) -> Vec3 {
     if a.y.abs() > 0.999 || b.y.abs() > 0.999 {
         return slerp_dir(a, b, t);
     }
@@ -317,14 +348,18 @@ pub fn mix_dir(a: Vec3, b: Vec3, t: f32) -> Vec3 {
     let el = |f: Vec3| (-f.y).clamp(-1.0, 1.0).asin();
     let (aa, ab) = (az(a), az(b));
     let (ea, eb) = (el(a), el(b));
-    forward_of(aa + wrap_angle(ab - aa) * t, ea + (eb - ea) * t)
+    forward_of(aa + turn_near(ab - aa, prev) * t, ea + (eb - ea) * t)
 }
 
 /// The pose `t` of the way from `a` to `b`.
 pub fn mix(a: &Pose, b: &Pose, t: f32) -> Pose {
+    mix_turning(a, b, t, &mut [f32::NAN; 2])
+}
+
+fn mix_turning(a: &Pose, b: &Pose, t: f32, turn: &mut [f32; 2]) -> Pose {
     Pose {
         eye: a.eye.lerp(b.eye, t),
-        forward: mix_dir(a.forward, b.forward, t),
+        forward: mix_dir_turning(a.forward, b.forward, t, &mut turn[0]),
         fov: a.fov + (b.fov - a.fov) * t,
         focus: a.focus + (b.focus - a.focus) * t,
     }
@@ -335,6 +370,17 @@ pub fn mix(a: &Pose, b: &Pose, t: f32) -> Pose {
 /// the chord between the two eyes (through the track between them). The elevation follows
 /// `rise` instead of `t`.
 pub fn mix_around(a: &Pose, b: &Pose, t: f32, rise: f32, pivot: Vec3) -> Pose {
+    mix_around_turning(a, b, t, rise, pivot, &mut [f32::NAN; 2])
+}
+
+fn mix_around_turning(
+    a: &Pose,
+    b: &Pose,
+    t: f32,
+    rise: f32,
+    pivot: Vec3,
+    turn: &mut [f32; 2],
+) -> Pose {
     let polar = |e: Vec3| {
         let o = e - pivot;
         let r = o.length().max(1e-4);
@@ -342,14 +388,14 @@ pub fn mix_around(a: &Pose, b: &Pose, t: f32, rise: f32, pivot: Vec3) -> Pose {
     };
     let ((aa, ea, ra), (ab, eb, rb)) = (polar(a.eye), polar(b.eye));
     let (az, el, r) = (
-        aa + wrap_angle(ab - aa) * t,
+        aa + turn_near(ab - aa, &mut turn[1]) * t,
         ea + (eb - ea) * rise,
         ra + (rb - ra) * t,
     );
     let o = Vec3::new(el.cos() * az.sin(), el.sin(), el.cos() * az.cos()) * r;
     Pose {
         eye: pivot + o,
-        forward: mix_dir(a.forward, b.forward, t),
+        forward: mix_dir_turning(a.forward, b.forward, t, &mut turn[0]),
         fov: a.fov + (b.fov - a.fov) * t,
         focus: a.focus + (b.focus - a.focus) * t,
     }
@@ -1133,6 +1179,9 @@ enum Layer {
         /// A retarget blend's pivot, the incoming marble's latest position: the eye swings round
         /// it ([`mix_around`]) rather than along the chord from the old marble's view.
         around: Option<Vec3>,
+        /// The bearing turns (view, eye about the pivot) the blend made last frame, so it keeps
+        /// turning the same way ([`turn_near`]); NaN until its first frame.
+        turn: [f32; 2],
     },
 }
 
@@ -1165,8 +1214,9 @@ impl Layer {
                 t,
                 dur,
                 around,
+                turn,
             } => match (from.last_pose(), to.last) {
-                (Some(a), Some(b)) => Some(blend(&a, &b, *t / *dur, *around)),
+                (Some(a), Some(b)) => Some(blend(&a, &b, *t / *dur, *around, &mut turn.clone())),
                 (a, b) => b.or(a),
             },
         }
@@ -1183,6 +1233,7 @@ impl Layer {
                 t,
                 dur,
                 around,
+                turn,
             } => {
                 let a = from.eval(f, None);
                 let b = to.eval(f, a.as_ref().or(start));
@@ -1194,7 +1245,7 @@ impl Layer {
                     *around = Some(m.p);
                 }
                 let pose = match (a, b) {
-                    (Some(a), Some(b)) => Some(blend(&a, &b, progress, *around)),
+                    (Some(a), Some(b)) => Some(blend(&a, &b, progress, *around, turn)),
                     (a, b) => b.or(a),
                 };
                 if *t >= *dur {
@@ -1217,14 +1268,14 @@ impl Layer {
 /// ([`mix_around`]), else along the chord, both eased. About a pivot the elevation leads on an
 /// ease-out: an old view level with the new marble looks through the track around it, and
 /// rising first clears it soonest.
-fn blend(a: &Pose, b: &Pose, progress: f32, around: Option<Vec3>) -> Pose {
+fn blend(a: &Pose, b: &Pose, progress: f32, around: Option<Vec3>, turn: &mut [f32; 2]) -> Pose {
     let w = ease(progress);
     match around {
         Some(pivot) => {
             let u = 1.0 - progress;
-            mix_around(a, b, w, 1.0 - u * u * u, pivot)
+            mix_around_turning(a, b, w, 1.0 - u * u * u, pivot, turn)
         }
-        None => mix(a, b, w),
+        None => mix_turning(a, b, w, turn),
     }
 }
 
@@ -1289,6 +1340,8 @@ pub struct Director {
     since: Vec<f32>,
     /// Seconds the followed marble has sat past [`HOLD_FRAME_NDC`] in a row.
     out_of_frame_s: f32,
+    /// Seconds since the shot last changed (see [`MIN_SHOT_S`]).
+    shot_s: f32,
     pub diag: DirectorDiag,
     /// The rise applied to the mixed pose when a blend between two clear shots still looks
     /// through solid track: the move in play, its eased state, and the plain view's clear time.
@@ -1403,7 +1456,14 @@ impl Director {
         let active = zones
             .iter()
             .enumerate()
-            .filter(|(i, z)| self.since[*i] <= z.hold_s.max(MIN_BLEND_S))
+            .filter(|(i, z)| {
+                let current = self.key == Some(Key::Zone(*i));
+                self.since[*i] <= z.hold_s.max(MIN_BLEND_S)
+                    && (current
+                        || self.key.is_none()
+                        || z.priority > HINT_PRIORITY
+                        || (self.inside[*i] && self.shot_s >= MIN_SHOT_S))
+            })
             .max_by(|(i, a), (j, b)| a.priority.cmp(&b.priority).then(j.cmp(i)))
             .map(|(i, _)| i);
 
@@ -1457,10 +1517,14 @@ impl Director {
                         t: 0.0,
                         dur,
                         around,
+                        turn: [f32::NAN; 2],
                     }
                 }
             });
             self.key = Some(key);
+            self.shot_s = 0.0;
+        } else {
+            self.shot_s += dt;
         }
         let start = self.layer.as_ref().and_then(Layer::last_pose);
         let pose = self.layer.as_mut()?.eval(f, start.as_ref());
@@ -1650,6 +1714,26 @@ mod tests {
         }
     }
 
+    /// Two moving views about half a turn apart: the blend keeps turning the way it started
+    /// instead of flipping to "the short way round" the frame their bearings cross 180°.
+    #[test]
+    fn a_blend_across_half_a_turn_never_flips_direction() {
+        let mut prev = f32::NAN;
+        let mut last: Option<Vec3> = None;
+        for k in 0..=60 {
+            let t = k as f32 / 60.0;
+            // `b` drifts from 175° to 185° away from `a` while the blend runs.
+            let a = forward_of(0.0, 0.3);
+            let b = forward_of(175f32.to_radians() + 10f32.to_radians() * t, 0.3);
+            let f = mix_dir_turning(a, b, ease(t), &mut prev);
+            if let Some(l) = last {
+                let step = l.angle_between(f).to_degrees();
+                assert!(step < 6.0, "the view jumped {step}° at t={t}");
+            }
+            last = Some(f);
+        }
+    }
+
     #[test]
     fn ease_and_slerp_hit_their_ends() {
         assert_eq!(ease(0.0), 0.0);
@@ -1677,7 +1761,7 @@ mod tests {
     }
 
     /// A cue change between two fixed shots 1 m apart: the eye never moves more per frame than
-    /// smootherstep's peak slope allows, and the first and last frames sit on the two shots.
+    /// smoothstep's peak slope allows, and the first and last frames sit on the two shots.
     #[test]
     fn a_cue_blend_bounds_the_per_frame_change() {
         let a = fixed([0.0, 0.5, 1.0], [0.0, 0.0, 0.0]);
@@ -1698,7 +1782,7 @@ mod tests {
             assert!(da < 0.05, "turned {da} rad in one frame");
             last = p;
         }
-        let bound = 1.875 * 1.0 / (CUE_BLEND_S / DT);
+        let bound = 1.5 * 1.0 / (CUE_BLEND_S / DT);
         assert!(peak <= bound * 1.02, "peak {peak} > {bound}");
         assert!(peak > bound * 0.8, "the blend took its whole time");
         assert!(last.eye.distance(Vec3::new(1.0, 0.5, 1.0)) < 1e-4);
@@ -1763,10 +1847,10 @@ mod tests {
             d.diag.blends, 6,
             "enter, exit, re-enter, exit, retarget, restart"
         );
-        // The worst case is the analytic blend bound: smootherstep peaks at 1.875× the mean rate,
+        // The worst case is the analytic blend bound: smoothstep peaks at 1.5× the mean rate,
         // so a ~0.7 m pull-back over 0.9 s moves the eye at most ~0.025 m a frame, and the second
         // exit (the marble now heading −X) turns the view half round over the 1.2 s blend-out.
-        let half_turn = 1.875 * std::f32::consts::PI / (1.2 / DT);
+        let half_turn = 1.5 * std::f32::consts::PI / (1.2 / DT);
         assert!(max.0 < 0.03, "eye jumped {} m in one frame", max.0);
         assert!(
             max.1 < half_turn + 0.01,
@@ -1839,7 +1923,7 @@ mod tests {
     #[test]
     fn overlapping_zones_resolve_by_priority_and_hold() {
         let mut low = axis_zone();
-        low.priority = 1;
+        low.priority = HINT_PRIORITY + 1;
         low.name = "low".into();
         low.volume = Volume::Box {
             min: [0.0, 0.0, -0.1],
