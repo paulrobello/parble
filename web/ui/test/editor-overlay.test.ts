@@ -126,19 +126,22 @@ describe("editor overlay", () => {
     expect($<HTMLButtonElement>('[data-k="redo"]').disabled).toBe(true);
   });
 
-  it("the level stepper slices down and up and toggles all levels", () => {
+  it("the build stepper moves the build level and X toggles the shown levels", () => {
     ui.update(diag());
     expect($('[data-k="sliceToggle"]').textContent).toBe("L0–L4");
+    // The arrows step the build level and leave the shown levels alone.
+    ui.update(diag({ buildLevel: 2 }));
+    expect($('[data-k="buildLevel"]').textContent).toBe("L2");
     click('[data-k="down"]');
-    expect(sent.at(-1)).toEqual({ op: "slice", level: 4 });
+    expect(sent.at(-1)).toEqual({ op: "buildStep", by: -1 });
+    click('[data-k="up"]');
+    expect(sent.at(-1)).toEqual({ op: "buildStep", by: 1 });
     ui.update(diag({ slice: 2 }));
     expect($('[data-k="sliceToggle"]').textContent).toBe("≤ L2");
-    click('[data-k="up"]');
-    expect(sent.at(-1)).toEqual({ op: "slice", level: 3 });
     click('[data-k="sliceToggle"]');
     expect(sent.at(-1)).toEqual({ op: "slice", level: null });
-    ui.update(diag({ slice: null, buildLevel: 2 }));
-    expect($('[data-k="sliceToggle"]').getAttribute("aria-label")).toBe("All levels shown, building on L2");
+    ui.update(diag({ slice: null }));
+    expect($('[data-k="sliceToggle"]').getAttribute("aria-label")).toBe("All levels shown");
     expect(press("KeyX")).toBe(true);
     expect(sent.at(-1)).toEqual({ op: "slice", level: 2 });
   });

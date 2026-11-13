@@ -226,8 +226,8 @@ The live sim can be paused, stepped and slowed in every scenario, the editor's r
 | Key | Effect |
 |---|---|
 | `P` | Pause or resume. Paused, no ticks run and the accumulator is kept, so the frame freezes exactly where it was and resuming does not jump. |
-| `,` | Slower: 1 → 0.5 → 0.25 → 0.1 (stops at 0.1). Works while paused. |
-| `.` | Faster: back toward 1 (stops at 1). Works while paused. |
+| `,` | Slower: 1 → 0.5 → 0.25 → 0.1 (stops at 0.1). Works while paused. Not with Shift, which is the editor's `<`. |
+| `.` | Faster: back toward 1 (stops at 1). Works while paused. Not with Shift, which is the editor's `>`. |
 | `N` | While paused, run one step of 4 ticks (1/60 s, one 60 Hz roll sample). Ignored while running. |
 
 The keys are ignored while Ctrl or Super is held (browser print and preferences). On the web, click the scene first. The camera (director, orbit, fly), the sensor overlay (`G`), the HUD and the editor keep working while paused or slowed: they run on real time, not on sim ticks. The HUD readout appends `  paused` and the time scale (`  0.25x`) only when they apply, so at 1x it stays `fps N  tick N`; the bridge `frame` event carries `paused` and `timeScale` only when not the defaults (bridge protocol 3). Its bottom-left controls line lists the keys.
@@ -259,10 +259,11 @@ Mouse and keys (click the canvas first):
 | `R`, `M`, `Tab` | Rotate and mirror (chiral pieces only) the brush in the place tool, the selection in the others, next palette piece. |
 | `Delete` or `Backspace`, `Esc` | Remove the selection, clear it. |
 | `Ctrl`/`Cmd` + `Z`, + `Shift` + `Z` or + `Y` | Undo, redo. |
-| `[`, `]`, `X` | Slice one level down, up, show all. The slice is also the ground plane new pieces land on, so past the top piece `]` keeps raising that build level, up to L15 (`BUILD_LEVEL_MAX`); from all levels it goes one above the top piece. `X` keeps the build level at the last slice, so the ghost stays on that level while every level shows. The web overlay starts an empty board at L6 (`START_LEVEL` in `web/ui/src/editor/model.ts`) so the hopper has room to fall. |
+| `[`, `]` | Build level one down, one up: the ground plane new pieces land on, L0 to L15 (`BUILD_LEVEL_MAX`). It never changes which levels show. The web overlay starts an empty board at build level L6 (`START_LEVEL` in `web/ui/src/editor/model.ts`) so the hopper has room to fall. |
+| `<`, `>`, `X` | Slice one level down, one level up, toggle (`<` and `>` are Shift with `,` and `.`). `<` from all levels starts one below the top piece; `>` up to the top piece shows all. `X` shows all (native); on the web it toggles between the last slice and all. The slice never moves the build level. |
 | `H` | Ground columns on or off (`columns`). |
 
-Picking walks the camera ray through the occupied cells, skipping pieces above the slice. With the Place tool it otherwise lands on the ground plane at the build level: the slice, or the last slice while all levels show (0 before any slice). Select and Delete look through that plane to the visible pieces below it, landing on the floor at level 0. The place target is the empty cell in front of the hit face, or the ground cell. The ghost is the brush there, green when `Editor::check` accepts the placement and red when not, with one dot per port: green when a mating port across links, amber when nothing is across, red for a fault.
+Picking walks the camera ray through the occupied cells, skipping pieces above the slice. With the Place tool it otherwise lands on the ground plane at the build level (`[` `]`), whatever the slice shows. Select and Delete look through that plane to the visible pieces below it, landing on the floor at level 0. The place target is the empty cell in front of the hit face, or the ground cell. The ghost is the brush there, green when `Editor::check` accepts the placement and red when not, with one dot per port: green when a mating port across links, amber when nothing is across, red for a fault.
 
 Agent actions: `window.wasmBindings.parbleEdit(json)` queues one action for the next frame. It throws on JSON that is not an action. Each action is an object with an `op` and an optional `id`. Pixels are CSS pixels from the canvas's top-left corner.
 
@@ -278,7 +279,10 @@ Agent actions: `window.wasmBindings.parbleEdit(json)` queues one action for the 
 | `drag` | `x0`, `y0`, `x1`, `y1` | Move-group drag between two pixels. |
 | `move`, `rotate`, `mirror`, `remove`, `clearSelection` | `offset` / `by` | Act on the selection (`rotate` and `mirror` act on the brush in the place tool). |
 | `undo`, `redo` | | |
-| `slice` | `level` (or `null`) | Show levels at most `level`; a number also sets the build level Place lands on, and `null` (all levels) keeps it. |
+| `slice` | `level` (or `null`) | Show levels at most `level`; `null` shows all. The build level is untouched. |
+| `buildLevel` | `level` | The level Place lands on, clamped to 0 to 15. What is shown is untouched. |
+| `sliceStep` | `by` | Step the slice `by` levels from the engine's current slice (`<` sends -1, `>` +1), so quick presses add up. Down from all starts at the top piece, never below 0; up to the top piece shows all. |
+| `buildStep` | `by` | Step the build level `by` levels from its current value (`[` sends -1, `]` +1), clamped to 0 to 15. |
 | `camera` | `target`, `yaw`, `pitch`, `radius` | Set the orbit. |
 | `project` | `cells` | Answer `last.projected`: `[centreX, centreY, floorX, floorY]` per cell, or `null`. |
 | `fill` | `count` | The `--editor-fill` grid as one undoable paste. |

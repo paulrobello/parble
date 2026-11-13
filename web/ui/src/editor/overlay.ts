@@ -53,7 +53,6 @@ import {
   runTime,
   type Send,
   sliceDown,
-  sliceUp,
   START_LEVEL,
   strokeText,
   TICK_HZ,
@@ -190,10 +189,11 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
  <button class="t" data-k="undo" title="Undo (⌘Z)">${icon("und")}<span>Undo <kbd>⌘Z</kbd></span></button>
  <button class="t" data-k="redo" title="Redo (⇧⌘Z)">${icon("red")}<span>Redo <kbd>⇧⌘Z</kbd></span></button>
 </div><i class="sep"></i>
-<div class="sl build"><span class="sc">Levels</span>
- <button data-k="down" aria-label="Show one level less ([)" title="Show one level less ([)">${icon("chl")}<kbd>[</kbd></button>
- <button class="v" data-k="sliceToggle" title="Toggle the slice and all levels (X)"></button>
- <button data-k="up" aria-label="Show one level more (])" title="Show one level more (])">${icon("chr")}<kbd>]</kbd></button>
+<div class="sl build"><span class="sc">Build</span>
+ <button data-k="down" aria-label="Build one level lower ([)" title="Build one level lower ([)">${icon("chl")}<kbd>[</kbd></button>
+ <span class="v" data-k="buildLevel" title="The level new pieces land on"></span>
+ <button data-k="up" aria-label="Build one level higher (])" title="Build one level higher (])">${icon("chr")}<kbd>]</kbd></button>
+ <button class="v vw" data-k="sliceToggle" title="Shown levels: X toggles the slice and all levels, &lt; and &gt; step the slice">${icon("eye")}<span data-k="sliceVal"></span></button>
  <button class="cl on" data-k="columns" aria-label="Ground columns" aria-keyshortcuts="H" aria-pressed="true" title="Ground columns: project the hovered and selected pieces down to the floor (H)">${icon("col")}<kbd>H</kbd></button>
 </div>
 <span class="sp"></span>
@@ -217,6 +217,8 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
   const pausePin = new Pin(doc, runGrp, 5, 4);
   const followPin = new Pin(doc, runGrp, 5, 4);
   const sliceBtn = q<HTMLButtonElement>(top, '[data-k="sliceToggle"]');
+  const sliceVal = q(top, '[data-k="sliceVal"]');
+  const buildEl = q(top, '[data-k="buildLevel"]');
   const runBtn = q<HTMLButtonElement>(top, '[data-k="run"]');
   const countEl = q(top, '[data-k="count"]');
   const pinsEl = q(top, '[data-k="pins"]');
@@ -689,8 +691,8 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     mirror: () => act({ op: "mirror" }),
     undo: () => act({ op: "undo" }),
     redo: () => act({ op: "redo" }),
-    down: () => d && act({ op: "slice", level: sliceDown(d.slice, d.maxLevel) }),
-    up: () => d && act({ op: "slice", level: sliceUp(d.slice, d.maxLevel) }),
+    down: () => act({ op: "buildStep", by: -1 }),
+    up: () => act({ op: "buildStep", by: 1 }),
     sliceToggle: toggleSlice,
     columns: toggleColumns,
     fits: () => toggleFits(),
@@ -1081,7 +1083,7 @@ ${nzRow("Push", [
     }
     if (s.pieces === 0 && !deletedNote) {
       selSec.innerHTML = `<h2><span class="sc">Start here</span></h2>
-<ol class="steps"><li${s.hoppers ? ' class="done"' : ""}><span>Place a <b>Hopper</b>: Mechanisms, first tile. It holds the marbles. New pieces land on the build level, L${START_LEVEL} to start: <kbd>[</kbd> and <kbd>]</kbd> lower and raise it, <kbd>X</kbd> shows every level.</span></li>
+<ol class="steps"><li${s.hoppers ? ' class="done"' : ""}><span>Place a <b>Hopper</b>: Mechanisms, first tile. It holds the marbles. New pieces land on the build level, L${START_LEVEL} to start: <kbd>[</kbd> and <kbd>]</kbd> lower and raise it.</span></li>
 <li><span>Lay a downhill run of blocks and rails from the hopper's spout.</span></li>
 <li${s.finishes ? ' class="done"' : ""}><span>End it in <b>Finish cups</b>, then press <b>Run</b>.</span></li></ol>
 <p class="note">Click a tile, then a cell in the scene. R turns the piece before you place it.</p>`;
@@ -1243,11 +1245,10 @@ ${groupActs}
     }
     q<HTMLButtonElement>(top, '[data-k="undo"]').disabled = !s.canUndo;
     q<HTMLButtonElement>(top, '[data-k="redo"]').disabled = !s.canRedo;
-    sliceBtn.textContent = levelLabel(s.slice, s.maxLevel);
-    sliceBtn.setAttribute(
-      "aria-label",
-      s.slice === null ? `All levels shown, building on L${s.buildLevel}` : `Levels up to ${s.slice} shown`,
-    );
+    sliceVal.textContent = levelLabel(s.slice, s.maxLevel);
+    buildEl.textContent = `L${s.buildLevel}`;
+    buildEl.setAttribute("aria-label", `Build level ${s.buildLevel}`);
+    sliceBtn.setAttribute("aria-label", s.slice === null ? "All levels shown" : `Levels up to ${s.slice} shown`);
     columnsBtn.classList.toggle("on", columnsOn);
     columnsBtn.setAttribute("aria-pressed", String(columnsOn));
     const noHopper = s.hoppers === 0;
@@ -1292,7 +1293,8 @@ ${groupActs}
     if (s.pieces >= 2 && announce("multi"))
       next = "Shift-drag on empty space with Select to box-select several pieces, then move them as one.";
     else if (s.maxLevel >= 1 && announce("slice"))
-      next = "Pieces stack in levels. X slices the view at a level so lower ones are easy to reach.";
+      next =
+        "Pieces stack in levels. < and > hide the levels above a slice so lower ones are easy to reach; X toggles it.";
     else if (s.pieces >= 20 && announce("nudge"))
       next = "With pieces selected, the arrow keys nudge them one cell and PgUp or PgDn one level.";
     else if (s.run.active && announce("interval"))
@@ -1464,7 +1466,7 @@ ${groupActs}
       if (next.pieces === 0) {
         family = "mechanisms";
         pick("mech_hopper");
-        act({ op: "slice", level: START_LEVEL });
+        act({ op: "buildLevel", level: START_LEVEL });
       } else family = familyOf(next.brush.piece);
     }
     stepFly();
@@ -1504,7 +1506,7 @@ ${groupActs}
       setSheet(false);
       return true;
     }
-    const r = keyResult(e, d);
+    const r = keyResult(e);
     if (!r) return false;
     const active = doc.activeElement;
     const focusFree = !active || active === doc.body || active === canvas();

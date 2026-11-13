@@ -226,6 +226,9 @@ export type Action =
   | { op: "undo" }
   | { op: "redo" }
   | { op: "slice"; level: number | null }
+  | { op: "buildLevel"; level: number }
+  | { op: "sliceStep"; by: number }
+  | { op: "buildStep"; by: number }
   | { op: "move"; offset: Vec3i }
   | { op: "boxSelect"; a: Vec3i; b: Vec3i; shift?: boolean }
   | { op: "camera"; target: [number, number, number]; yaw: number; pitch: number; radius: number }
@@ -437,23 +440,19 @@ export function checkReleaseText(r: CheckRelease): string {
   return `${mode} · ${queue} · seed ${r.seed}`;
 }
 
-/** The highest level `]` reaches: the slice is also the ground plane new pieces land on. */
-export const BUILD_LEVEL_MAX = 15;
 /** An empty board starts building here, so the hopper has levels to fall through below it
  *  (the showcase's hopper stands at L7). */
 export const START_LEVEL = 6;
 
-/** The stepper's value: "L0–L4" for all levels, "≤ L2" when sliced, "L6" above every piece. */
+/** The shown levels: "L0–L4" for all levels, "≤ L2" when sliced, "L6" above every piece. */
 export function levelLabel(slice: number | null, maxLevel: number): string {
   if (slice === null) return `L0–L${Math.max(maxLevel, 0)}`;
   return slice > maxLevel ? `L${slice}` : `≤ L${slice}`;
 }
 
-/** `[` one level down from all or the slice; never below 0. */
+/** One level less than all or the slice, never below 0: where X slices to the first time. `<` and `>`
+ *  send `sliceStep` instead, so the engine steps from its own state and quick presses add up. */
 export const sliceDown = (slice: number | null, maxLevel: number): number => Math.max((slice ?? maxLevel + 1) - 1, 0);
-/** `]` one level up, from all to one above the top piece, at most [`BUILD_LEVEL_MAX`]. X shows all. */
-export const sliceUp = (slice: number | null, maxLevel: number): number =>
-  Math.min(slice === null ? Math.max(maxLevel, -1) + 1 : slice + 1, BUILD_LEVEL_MAX);
 
 /** Ports as "In N · Out E, W". */
 export function portsText(ports: { face: Face; flow: string }[]): string {

@@ -32,8 +32,6 @@ import {
   portsText,
   runTime,
   sliceDown,
-  sliceUp,
-  BUILD_LEVEL_MAX,
   strokeText,
   zoneOf,
 } from "../src/editor/model";
@@ -103,12 +101,6 @@ describe("editor model", () => {
     expect(levelLabel(2, 4)).toBe("≤ L2");
     expect(sliceDown(null, 4)).toBe(4);
     expect(sliceDown(0, 4)).toBe(0);
-    expect(sliceUp(3, 4)).toBe(4);
-    // Past the top piece `]` keeps raising the build level, from all to one above the top.
-    expect(sliceUp(4, 4)).toBe(5);
-    expect(sliceUp(null, 4)).toBe(5);
-    expect(sliceUp(null, 0)).toBe(1);
-    expect(sliceUp(BUILD_LEVEL_MAX, 4)).toBe(BUILD_LEVEL_MAX);
     expect(levelLabel(6, 0)).toBe("L6");
   });
 
@@ -239,55 +231,59 @@ describe("marble check text", () => {
 });
 
 describe("editor keyboard map", () => {
-  const d = { slice: null, maxLevel: 3 };
   it("maps tools, transforms, history and slicing to actions", () => {
-    expect(keyResult(key("Digit1"), d)).toEqual({ kind: "actions", actions: [{ op: "tool", tool: "select" }] });
-    expect(keyResult(key("Digit2"), d)).toEqual({ kind: "actions", actions: [{ op: "tool", tool: "place" }] });
-    expect(keyResult(key("Digit3"), d)).toEqual({ kind: "actions", actions: [{ op: "tool", tool: "delete" }] });
-    expect(keyResult(key("KeyR"), d)).toEqual({ kind: "actions", actions: [{ op: "rotate", by: 1 }] });
-    expect(keyResult(key("KeyR", { shiftKey: true }), d)).toEqual({
+    expect(keyResult(key("Digit1"))).toEqual({ kind: "actions", actions: [{ op: "tool", tool: "select" }] });
+    expect(keyResult(key("Digit2"))).toEqual({ kind: "actions", actions: [{ op: "tool", tool: "place" }] });
+    expect(keyResult(key("Digit3"))).toEqual({ kind: "actions", actions: [{ op: "tool", tool: "delete" }] });
+    expect(keyResult(key("KeyR"))).toEqual({ kind: "actions", actions: [{ op: "rotate", by: 1 }] });
+    expect(keyResult(key("KeyR", { shiftKey: true }))).toEqual({
       kind: "actions",
       actions: [{ op: "rotate", by: 3 }],
     });
-    expect(keyResult(key("KeyZ", { metaKey: true }), d)).toEqual({ kind: "actions", actions: [{ op: "undo" }] });
-    expect(keyResult(key("KeyZ", { ctrlKey: true, shiftKey: true }), d)).toEqual({
+    expect(keyResult(key("KeyZ", { metaKey: true }))).toEqual({ kind: "actions", actions: [{ op: "undo" }] });
+    expect(keyResult(key("KeyZ", { ctrlKey: true, shiftKey: true }))).toEqual({
       kind: "actions",
       actions: [{ op: "redo" }],
     });
-    expect(keyResult(key("BracketLeft"), d)).toEqual({ kind: "actions", actions: [{ op: "slice", level: 3 }] });
-    expect(keyResult(key("BracketRight"), { slice: 1, maxLevel: 3 })).toEqual({
+    // `[` `]` step the build level and never the slice; `<` `>` (Shift , .) step the slice.
+    expect(keyResult(key("BracketLeft"))).toEqual({ kind: "actions", actions: [{ op: "buildStep", by: -1 }] });
+    expect(keyResult(key("BracketRight"))).toEqual({ kind: "actions", actions: [{ op: "buildStep", by: 1 }] });
+    expect(keyResult(key("Comma", { shiftKey: true }))).toEqual({
       kind: "actions",
-      actions: [{ op: "slice", level: 2 }],
+      actions: [{ op: "sliceStep", by: -1 }],
     });
-    expect(keyResult(key("PageUp"), d)).toEqual({ kind: "actions", actions: [{ op: "move", offset: [0, 1, 0] }] });
-    expect(keyResult(key("ArrowLeft"), d)).toEqual({ kind: "actions", actions: [{ op: "move", offset: [-1, 0, 0] }] });
+    expect(keyResult(key("Period", { shiftKey: true }))).toEqual({
+      kind: "actions",
+      actions: [{ op: "sliceStep", by: 1 }],
+    });
+    expect(keyResult(key("PageUp"))).toEqual({ kind: "actions", actions: [{ op: "move", offset: [0, 1, 0] }] });
+    expect(keyResult(key("ArrowLeft"))).toEqual({ kind: "actions", actions: [{ op: "move", offset: [-1, 0, 0] }] });
   });
 
   it("hands overlay commands back and leaves browser and engine keys alone", () => {
-    expect(keyResult(key("Space"), d)).toEqual({ kind: "ui", command: "space" });
-    expect(keyResult(key("Escape"), d)).toEqual({ kind: "ui", command: "escape" });
-    expect(keyResult(key("Backspace"), d)).toEqual({ kind: "ui", command: "remove" });
-    expect(keyResult(key("KeyH"), d)).toEqual({ kind: "ui", command: "columns" });
-    expect(keyResult(key("Tab"), d)).toEqual({ kind: "ui", command: "drawer" });
-    expect(keyResult(key("Backslash"), d)).toEqual({ kind: "ui", command: "panel" });
-    expect(keyResult(key("KeyX"), d)).toEqual({ kind: "ui", command: "sliceToggle" });
-    expect(keyResult(key("Tab", { shiftKey: true }), d)).toBeNull();
-    expect(keyResult(key("KeyN"), d)).toBeNull();
-    expect(keyResult(key("Comma"), d)).toBeNull();
-    expect(keyResult(key("KeyC", { metaKey: true }), d)).toBeNull();
+    expect(keyResult(key("Space"))).toEqual({ kind: "ui", command: "space" });
+    expect(keyResult(key("Escape"))).toEqual({ kind: "ui", command: "escape" });
+    expect(keyResult(key("Backspace"))).toEqual({ kind: "ui", command: "remove" });
+    expect(keyResult(key("KeyH"))).toEqual({ kind: "ui", command: "columns" });
+    expect(keyResult(key("Tab"))).toEqual({ kind: "ui", command: "drawer" });
+    expect(keyResult(key("Backslash"))).toEqual({ kind: "ui", command: "panel" });
+    expect(keyResult(key("KeyX"))).toEqual({ kind: "ui", command: "sliceToggle" });
+    expect(keyResult(key("Tab", { shiftKey: true }))).toBeNull();
+    expect(keyResult(key("KeyN"))).toBeNull();
+    expect(keyResult(key("Comma"))).toBeNull();
+    expect(keyResult(key("KeyC", { metaKey: true }))).toBeNull();
     expect(ownsKeys({ tagName: "INPUT" } as unknown as EventTarget)).toBe(true);
     expect(ownsKeys({ tagName: "BUTTON" } as unknown as EventTarget)).toBe(false);
   });
 });
 
 describe("engine keys", () => {
-  const d = { slice: null, maxLevel: 0 };
   it("P pauses, C toggles the follow cam and F hands fly to the engine", () => {
     expect([...ENGINE_KEYS].sort()).toEqual(["KeyC", "KeyF", "KeyP"]);
-    expect(keyResult(key("KeyP"), d)).toEqual({ kind: "actions", actions: [{ op: "pause" }] });
-    expect(keyResult(key("KeyC"), d)).toEqual({ kind: "ui", command: "follow" });
-    expect(keyResult(key("KeyF"), d)).toEqual({ kind: "ui", command: "fly" });
-    expect(keyResult(key("KeyP", { ctrlKey: true }), d)).toBeNull();
+    expect(keyResult(key("KeyP"))).toEqual({ kind: "actions", actions: [{ op: "pause" }] });
+    expect(keyResult(key("KeyC"))).toEqual({ kind: "ui", command: "follow" });
+    expect(keyResult(key("KeyF"))).toEqual({ kind: "ui", command: "fly" });
+    expect(keyResult(key("KeyP", { ctrlKey: true }))).toBeNull();
   });
 });
 

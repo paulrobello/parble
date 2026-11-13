@@ -60,8 +60,9 @@ State is a brass pin, never a fill. When the active tool, family tab, tile or se
 - The Delete tool removes the piece under each click. `⌫` removes the selection.
 - Deleting more than 50 pieces asks once, inline in the panel, with Undo offered after.
 
-### Levels (slice)
-- The stepper shows `L0–L4` (all levels) or `≤ L2` (sliced). `[` and `]` step it (`Slice`). `X` toggles between the last slice and all levels. Showing all levels keeps the build level, so the ghost stays on the last slice's level.
+### Levels (build level and slice)
+- The Build stepper shows the build level, the level new pieces land on (`L2`). Its arrows and `[` `]` step it (`BuildStep`), L0 to L15. It never changes which levels show.
+- The eye button shows the shown levels: `L0–L4` (all) or `≤ L2` (sliced). Clicking it or `X` toggles between the last slice and all levels (`Slice`). `<` and `>` step the slice (`SliceStep`). They are the one key pair without a button of its own, since the strip has no room for a second stepper at 1180 px; the eye button's tooltip names them.
 - Levels above the slice are hidden and cannot be picked, so they are never touched by mistake. Levels below it stay visible, and Select and Delete pick them through the build level.
 
 ### Validation
@@ -105,7 +106,8 @@ Every action has a visible button. Keys only shorten them.
 | `R` / `⇧R` | Rotate a quarter turn clockwise / anticlockwise |
 | `M` | Mirror |
 | `⌘Z` / `⇧⌘Z` | Undo / Redo |
-| `[` `]` / `X` | Slice down / up / toggle |
+| `[` `]` | Build level down / up |
+| `<` `>` / `X` | Slice down / up / toggle |
 | `H` | Ground columns on / off (on at start) |
 | Arrows, `PgUp` `PgDn` | Nudge the selection |
 | `⌫` | Delete the selection |

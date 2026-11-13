@@ -62,6 +62,8 @@ export const CSS = `
 #pe .sl{flex:none;white-space:nowrap;display:flex;align-items:center;gap:2px}
 #pe .sl .v{font-size:15px;font-weight:700;padding:0 4px;font-variant-numeric:lining-nums tabular-nums;min-width:48px;text-align:center}
 #pe .sl button{display:flex;align-items:center;gap:3px;padding:6px 5px}
+#pe .sl span.v{min-width:34px;padding:0}
+#pe .sl .vw{margin-left:4px;min-width:0}
 #pe .sl .cl{margin-left:6px;border:1px solid transparent}
 #pe .sl .cl.on{background:var(--r);border-color:var(--b)}
 #pe .sp{flex:1}
@@ -241,6 +243,10 @@ body.parble-editor #parble-hud,body.parble-editor #parble-controls{display:none}
   #pe .track{max-width:110px}
   #pe .sl>.sc{display:none}
   #pe .sl .cl{margin-left:2px}
+  #pe .sl svg.i{width:14px;height:14px}
+  #pe .sl .vw{margin-left:0;padding:6px 2px;gap:1px}
+  #pe .sl span.v{min-width:0;padding:0 2px}
+  #pe .sl button{padding:6px 3px}
 }
 @media (prefers-reduced-motion:reduce){
   #pe .travel,#pe .inlay,#pe .hair,#pe .build,body.parble-editor #parble-mixer{transition:none}

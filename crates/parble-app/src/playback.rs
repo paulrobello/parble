@@ -111,10 +111,14 @@ pub fn playback_keys(keys: Option<Res<ButtonInput<KeyCode>>>, mut pb: ResMut<Pla
     if keys.just_pressed(KeyCode::KeyP) {
         pb.toggle_pause();
     }
-    if keys.just_pressed(KeyCode::Comma) {
+    // Shift with `,` and `.` is the editor's slice stepper (`<` `>`). A Shift pressed and released
+    // inside one frame (a quick tap, or a synthetic key) has already let go by now, so it counts too.
+    let shifts = [KeyCode::ShiftLeft, KeyCode::ShiftRight];
+    let shift = keys.any_pressed(shifts) || keys.any_just_pressed(shifts);
+    if keys.just_pressed(KeyCode::Comma) && !shift {
         pb.slower();
     }
-    if keys.just_pressed(KeyCode::Period) {
+    if keys.just_pressed(KeyCode::Period) && !shift {
         pb.faster();
     }
     if keys.just_pressed(KeyCode::KeyN) {
@@ -153,6 +157,33 @@ mod tests {
             assert!(frame < 100_000, "the run never finished");
         }
         (sim.trajectory_hash(), frame)
+    }
+
+    /// `<` and `>` (Shift with `,` and `.`) are the editor's, even when Shift goes up in the same frame.
+    #[test]
+    fn shifted_comma_and_period_leave_the_time_scale() {
+        let mut app = App::new();
+        app.init_resource::<ButtonInput<KeyCode>>()
+            .init_resource::<Playback>()
+            .add_systems(Update, playback_keys);
+        let tap = |app: &mut App, shift: bool, key: KeyCode| {
+            let mut k = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+            k.clear();
+            if shift {
+                k.press(KeyCode::ShiftLeft);
+            }
+            k.press(key);
+            k.release(key);
+            if shift {
+                k.release(KeyCode::ShiftLeft);
+            }
+            app.update();
+            app.world().resource::<Playback>().scale()
+        };
+        assert_eq!(tap(&mut app, true, KeyCode::Comma), 1.0);
+        assert_eq!(tap(&mut app, false, KeyCode::Comma), 0.5);
+        assert_eq!(tap(&mut app, true, KeyCode::Period), 0.5);
+        assert_eq!(tap(&mut app, false, KeyCode::Period), 1.0);
     }
 
     #[test]

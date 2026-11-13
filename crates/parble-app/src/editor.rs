@@ -14,8 +14,8 @@
 //!   built that way, an edit also adds and removes the changed placements' mechanism instances,
 //!   so a mechanism moved mid-run works at its new cell (P3-T5).
 //! - Picking: a voxel walk of the camera ray through the occupied cells (pieces above the height
-//!   slice are skipped), else the ground plane at the build level ([`pick`]): the slice, or the
-//!   last slice while all levels show.
+//!   slice are skipped), else the ground plane at the build level ([`pick`]) for Place and at
+//!   level 0 for Select and Delete.
 //! - Ghost: the brush at the picked cell, valid or invalid by [`Editor::check`], with one hint per
 //!   port: linked, open, or a fault against the piece across.
 //! - Actions: `window.wasmBindings.parbleEdit(json)` on the web queues one action for the next
@@ -62,8 +62,7 @@ pub use nudge::NudgeDiag;
 
 /// Largest `fill` (and `--editor-fill`).
 pub const MAX_FILL: u32 = 4_000;
-/// The highest level `]` slices to. The slice also sets the ground plane new pieces land on, so
-/// past the top piece `]` raises the build level (web: `BUILD_LEVEL_MAX` in `web/ui/src/editor/model.ts`).
+/// The highest build level `]` reaches.
 pub const BUILD_LEVEL_MAX: i32 = 15;
 /// Collider rebuild time per frame. A rebuild stage that starts inside it always finishes, so a
 /// frame's rebuild is at most this plus one stage (gather, simplify, tag or install of one chunk).
@@ -185,9 +184,23 @@ pub enum Action {
     ClearSelection {},
     Undo {},
     Redo {},
-    /// Show only levels at most `level`; `null` shows all.
+    /// Show only levels at most `level`; `null` shows all. The build level is untouched.
     Slice {
         level: Option<i32>,
+    },
+    /// The level Place lands on, 0 to [`BUILD_LEVEL_MAX`]. What is shown is untouched.
+    BuildLevel {
+        level: i32,
+    },
+    /// Step the slice `by` levels from where it is now (`<` is -1, `>` +1), so quick presses add
+    /// up whatever the caller last saw. Down from all starts at the top piece; up to the top shows all.
+    SliceStep {
+        by: i32,
+    },
+    /// Step the build level `by` levels from where it is now (`[` is -1, `]` +1), 0 to
+    /// [`BUILD_LEVEL_MAX`].
+    BuildStep {
+        by: i32,
     },
     Camera {
         target: [f32; 3],
@@ -614,7 +627,7 @@ pub struct EditorDiag {
     /// Pieces at or below the slice.
     pub visible_pieces: usize,
     pub slice: Option<i32>,
-    /// The level Place lands on: the slice, or the last slice while all levels show.
+    /// The level Place lands on, set by `[` `]` apart from the slice.
     pub build_level: i32,
     pub selection: usize,
     /// Up to 64 selected anchors.
@@ -978,7 +991,7 @@ struct EditState {
     tool: Tool,
     brush: Brush,
     slice: Option<i32>,
-    /// The last slice level; Place keeps landing there after X shows all levels.
+    /// The level Place lands on (`[` `]`), apart from the slice (`<` `>`, `X`), which only hides.
     build_level: i32,
     /// Anchor → placement, mirrored from the track after every edit.
     by_anchor: BTreeMap<CellCoord, Placement>,
@@ -1158,6 +1171,21 @@ impl EditState {
         self.stroke = None;
     }
 
+    /// The slice `by` levels on: down from all starts at the top piece, never below 0; up to the
+    /// top piece shows all.
+    fn slice_stepped(&self, by: i32) -> Option<i32> {
+        let top = self.by_anchor.keys().map(|a| a.y).max().unwrap_or(0);
+        let mut slice = self.slice;
+        for _ in 0..by.unsigned_abs() {
+            slice = if by < 0 {
+                Some((slice.unwrap_or(top + 1) - 1).max(0))
+            } else {
+                slice.map(|s| s + 1).filter(|&s| s < top)
+            };
+        }
+        slice
+    }
+
     fn visible(&self, anchor: CellCoord) -> bool {
         self.slice.is_none_or(|s| anchor.y <= s)
     }
@@ -1169,12 +1197,11 @@ impl EditState {
             .filter(|a| self.visible(*a))
     }
 
-    /// The piece or ground cell under `ray`. Place lands on the build level's floor (the slice, or
-    /// the last slice while all levels show);
+    /// The piece or ground cell under `ray`. Place lands on the build level's floor (`[` `]`);
     /// Select and Delete look through it to the visible pieces below, down to the floor at 0.
     fn pick_ray(&self, ray: Ray3d) -> Option<Hit> {
         let ground = match self.tool {
-            Tool::Place => self.slice.unwrap_or(self.build_level).max(0),
+            Tool::Place => self.build_level,
             Tool::Select | Tool::Delete => 0,
         };
         pick(ray.origin, *ray.direction, ground, |c| self.occupant(c))
@@ -1408,6 +1435,9 @@ fn op_name(a: &Action) -> &'static str {
         Action::Undo {} => "undo",
         Action::Redo {} => "redo",
         Action::Slice { .. } => "slice",
+        Action::BuildLevel { .. } => "buildLevel",
+        Action::SliceStep { .. } => "sliceStep",
+        Action::BuildStep { .. } => "buildStep",
         Action::Camera { .. } => "camera",
         Action::Project { .. } => "project",
         Action::Fill { .. } => "fill",
@@ -2012,10 +2042,17 @@ fn apply_action(st: &mut EditState, ctx: &mut Ctx, action: Action) -> Result<Las
         }
         Action::Slice { level } => {
             st.slice = level;
-            if let Some(l) = level {
-                st.build_level = l.max(0);
-            }
             ctx.edits.slice = level;
+        }
+        Action::BuildLevel { level } => {
+            st.build_level = level.clamp(0, BUILD_LEVEL_MAX);
+        }
+        Action::SliceStep { by } => {
+            st.slice = st.slice_stepped(by);
+            ctx.edits.slice = st.slice;
+        }
+        Action::BuildStep { by } => {
+            st.build_level = (st.build_level + by).clamp(0, BUILD_LEVEL_MAX);
         }
         Action::Camera {
             target,
@@ -2521,9 +2558,11 @@ fn mouse_and_keys(
         return;
     }
     let mut out: Vec<Action> = Vec::new();
+    // A Shift pressed and released inside this frame counts as held (see `playback_keys`).
+    let shifts = [KeyCode::ShiftLeft, KeyCode::ShiftRight];
     let shift = keys
         .as_ref()
-        .is_some_and(|k| k.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]));
+        .is_some_and(|k| k.any_pressed(shifts) || k.any_just_pressed(shifts));
     if let (Some(b), Some(c)) = (buttons.as_ref(), cursor) {
         if b.just_pressed(MouseButton::Left) {
             st.press = Some((c, Press::Box));
@@ -2592,7 +2631,6 @@ fn key_actions(st: &EditState, k: &ButtonInput<KeyCode>, shift: bool) -> Vec<Act
         KeyCode::SuperLeft,
         KeyCode::SuperRight,
     ]);
-    let max_level = st.by_anchor.keys().map(|a| a.y).max().unwrap_or(0);
     for key in k.get_just_pressed() {
         match key {
             KeyCode::Digit1 => out.push(Action::Tool { tool: Tool::Place }),
@@ -2604,16 +2642,10 @@ fn key_actions(st: &EditState, k: &ButtonInput<KeyCode>, shift: bool) -> Vec<Act
             KeyCode::KeyZ if ctrl && shift => out.push(Action::Redo {}),
             KeyCode::KeyZ if ctrl => out.push(Action::Undo {}),
             KeyCode::KeyY if ctrl => out.push(Action::Redo {}),
-            KeyCode::BracketLeft => out.push(Action::Slice {
-                level: Some((st.slice.unwrap_or(max_level + 1) - 1).max(0)),
-            }),
-            KeyCode::BracketRight => out.push(Action::Slice {
-                level: Some(
-                    st.slice
-                        .map_or(max_level + 1, |s| s + 1)
-                        .min(BUILD_LEVEL_MAX),
-                ),
-            }),
+            KeyCode::BracketLeft => out.push(Action::BuildStep { by: -1 }),
+            KeyCode::BracketRight => out.push(Action::BuildStep { by: 1 }),
+            KeyCode::Comma if shift => out.push(Action::SliceStep { by: -1 }),
+            KeyCode::Period if shift => out.push(Action::SliceStep { by: 1 }),
             KeyCode::KeyX => out.push(Action::Slice { level: None }),
             KeyCode::KeyH => out.push(Action::Columns { on: !st.columns }),
             KeyCode::Escape => out.push(Action::ClearSelection {}),
@@ -3146,7 +3178,7 @@ mod tests {
         let p = placed("blk_straight_l3", c(0, 0, 0));
         st.by_anchor.insert(p.anchor, p.clone());
         st.occupancy.insert(p.anchor, p.anchor);
-        st.slice = Some(2);
+        st.build_level = 2;
         let ray = Ray3d::new(centre(c(0, 6, 0)), Dir3::NEG_Y);
         st.tool = Tool::Place;
         assert_eq!(st.pick_ray(ray), Some(Hit::Ground { cell: c(0, 2, 0) }));
@@ -3367,6 +3399,69 @@ mod tests {
             parse(r#"{"op":"columns","on":false}"#),
             Action::Columns { on: false }
         );
+    }
+
+    /// `[` `]` step the build level and leave the slice; `<` `>` (shift `,` `.`) step the slice.
+    #[test]
+    fn brackets_move_the_build_level_and_angle_brackets_the_slice() {
+        let mut st = EditState::new();
+        st.build_level = 2;
+        let press = |code: KeyCode| {
+            let mut k = ButtonInput::<KeyCode>::default();
+            k.press(code);
+            k
+        };
+        let keys =
+            |st: &EditState, code: KeyCode, shift: bool| key_actions(st, &press(code), shift);
+        assert_eq!(
+            keys(&st, KeyCode::BracketRight, false),
+            [Action::BuildStep { by: 1 }]
+        );
+        assert_eq!(
+            keys(&st, KeyCode::BracketLeft, false),
+            [Action::BuildStep { by: -1 }]
+        );
+        assert!(keys(&st, KeyCode::Comma, false).is_empty());
+        assert_eq!(
+            keys(&st, KeyCode::Comma, true),
+            [Action::SliceStep { by: -1 }]
+        );
+        assert_eq!(
+            keys(&st, KeyCode::Period, true),
+            [Action::SliceStep { by: 1 }]
+        );
+        // Down from all starts at the top piece, never below 0; up to the top shows all.
+        let p = placed("blk_straight_l3", c(0, 4, 0));
+        st.by_anchor.insert(p.anchor, p);
+        assert_eq!(st.slice_stepped(-1), Some(4));
+        assert_eq!(st.slice_stepped(-9), Some(0));
+        assert_eq!(st.slice_stepped(1), None);
+        st.slice = Some(2);
+        assert_eq!(st.slice_stepped(1), Some(3));
+        assert_eq!(st.slice_stepped(2), None);
+        assert_eq!(
+            parse(r#"{"op":"buildLevel","level":4}"#),
+            Action::BuildLevel { level: 4 }
+        );
+    }
+
+    /// Two steps sent before either is seen both count: each applies to the state the last left.
+    #[test]
+    fn quick_steps_add_up() {
+        let mut rig = Rig::new();
+        let mut st = EditState::new();
+        let ctx = &mut rig.ctx();
+        let st = &mut st;
+        let p = placed("blk_straight_l3", c(0, 2, 0));
+        st.by_anchor.insert(p.anchor, p);
+        for _ in 0..2 {
+            act(st, ctx, r#"{"op":"sliceStep","by":-1}"#).unwrap();
+            act(st, ctx, r#"{"op":"buildStep","by":1}"#).unwrap();
+        }
+        assert_eq!(st.slice, Some(1));
+        assert_eq!(st.build_level, 2);
+        act(st, ctx, r#"{"op":"buildStep","by":-5}"#).unwrap();
+        assert_eq!(st.build_level, 0);
     }
 
     #[test]
@@ -3644,22 +3739,29 @@ mod tests {
         apply_action(st, ctx, parse(json))
     }
 
-    /// X (all levels) keeps Place on the last slice's floor; only a new slice moves it.
+    /// The slice only hides levels; Place stays on the build level whatever is shown.
     #[test]
-    fn showing_all_levels_keeps_the_build_level() {
+    fn the_slice_never_moves_the_build_level() {
         let mut rig = Rig::new();
         let mut st = EditState::new();
         let ctx = &mut rig.ctx();
         let st = &mut st;
         let ray = Ray3d::new(centre(c(0, 8, 0)), Dir3::NEG_Y);
         assert_eq!(st.pick_ray(ray), Some(Hit::Ground { cell: c(0, 0, 0) }));
-        act(st, ctx, r#"{"op":"slice","level":3}"#).unwrap();
-        act(st, ctx, r#"{"op":"slice","level":null}"#).unwrap();
-        assert_eq!(st.slice, None);
+        act(st, ctx, r#"{"op":"buildLevel","level":3}"#).unwrap();
         assert_eq!(st.pick_ray(ray), Some(Hit::Ground { cell: c(0, 3, 0) }));
-        act(st, ctx, r#"{"op":"slice","level":1}"#).unwrap();
-        act(st, ctx, r#"{"op":"slice","level":null}"#).unwrap();
-        assert_eq!(st.pick_ray(ray), Some(Hit::Ground { cell: c(0, 1, 0) }));
+        for slice in ["1", "5", "null"] {
+            act(st, ctx, &format!(r#"{{"op":"slice","level":{slice}}}"#)).unwrap();
+            assert_eq!(
+                st.pick_ray(ray),
+                Some(Hit::Ground { cell: c(0, 3, 0) }),
+                "{slice}"
+            );
+        }
+        act(st, ctx, r#"{"op":"buildLevel","level":99}"#).unwrap();
+        assert_eq!(st.build_level, BUILD_LEVEL_MAX);
+        act(st, ctx, r#"{"op":"buildLevel","level":-2}"#).unwrap();
+        assert_eq!(st.build_level, 0);
     }
 
     /// The marble check runs the release named in the action once per marble spec, reports a stall

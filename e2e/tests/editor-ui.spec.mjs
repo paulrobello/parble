@@ -37,11 +37,9 @@ async function openEditor(page, errors) {
   await page.waitForFunction(() => window.__parble?.ready === true && window.__parble.editor && window.__parble.frame > 10, null, {
     timeout: 60_000,
   });
-  await page.waitForFunction(() => window.__parble.editor.keys === false && window.__parble.editor.slice === 6);
-  // An empty board starts building at L6; these walkthroughs build from the floor with every
-  // level shown (all levels keep the last slice's build level).
-  await edit(page, { op: "slice", level: 0 });
-  await edit(page, { op: "slice", level: null });
+  await page.waitForFunction(() => window.__parble.editor.keys === false && window.__parble.editor.buildLevel === 6);
+  // An empty board starts building at L6; these walkthroughs build from the floor.
+  await edit(page, { op: "buildLevel", level: 0 });
   await edit(page, { op: "camera", target: [0.36, 0.03, -0.36], yaw: -0.5, pitch: 0.85, radius: 1.25 });
   await frames(page, 3);
 }
@@ -79,12 +77,15 @@ test("editor overlay: drawer place, select, slice, show an issue, run, fade and 
   await frames(page, 3);
   await page.mouse.move(720, 470);
   // An empty board builds at L6, so the hopper has levels to fall through; the step says so.
-  await page.waitForFunction(() => window.__parble.editor.slice === 6 && window.__parble.editor.hover?.target?.[1] === 6);
+  await page.waitForFunction(() => window.__parble.editor.buildLevel === 6 && window.__parble.editor.slice === null && window.__parble.editor.hover?.target?.[1] === 6);
   await expect(page.locator('[data-k="sel"]')).toContainText("L6 to start");
   await shot(page, "first-run");
-  // The rest of this walkthrough builds from the floor with every level shown.
-  await edit(page, { op: "slice", level: 0 });
-  await edit(page, { op: "slice", level: null });
+  // The rest of this walkthrough builds from the floor: `[` steps the build level down and shows
+  // every level as it was.
+  await page.locator('[data-k="down"]').click();
+  await page.waitForFunction(() => window.__parble.editor.buildLevel === 5);
+  expect((await state(page)).slice).toBeNull();
+  await edit(page, { op: "buildLevel", level: 0 });
 
   // Place the hopper through the drawer tile and a click on the canvas.
   await page.locator('[data-piece="mech_hopper"]').click();
@@ -163,13 +164,19 @@ test("editor overlay: drawer place, select, slice, show an issue, run, fade and 
   expect((await ghost.getAttribute("d")).match(/M/g)).toHaveLength(12);
   await shot(page, "building");
 
-  // Slice with the stepper, then a 14-piece group selection under the slice (spec frame 3).
+  // Slice with `<`, then a 14-piece group selection under the slice (spec frame 3). The build
+  // level stays where it was, and Shift , never slows the playback.
   await page.keyboard.press("Escape");
   await page.waitForFunction(() => window.__parble.editor.tool === "select");
   expect((await state(page)).maxLevel).toBe(2);
-  await page.locator('[data-k="down"]').click();
-  await page.locator('[data-k="down"]').click();
+  const buildBefore = (await state(page)).buildLevel;
+  const scaleBefore = await page.evaluate(() => window.__parble.playback.timeScale);
+  // Two quick presses both count: each steps from the engine's own slice.
+  await page.keyboard.press("Shift+Comma");
+  await page.keyboard.press("Shift+Comma");
   await page.waitForFunction(() => window.__parble.editor.slice === 1);
+  expect((await state(page)).buildLevel).toBe(buildBefore);
+  expect(await page.evaluate(() => window.__parble.playback.timeScale)).toBe(scaleBefore);
   await expect(page.locator('[data-k="sliceToggle"]')).toHaveText("≤ L1");
   await edit(page, { op: "boxSelect", a: [0, 0, -12], b: [12, 1, 0] });
   s = await state(page);

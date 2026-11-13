@@ -20,6 +20,7 @@ const SYMBOLS: Record<string, string> = {
   chl: '<path d="M12 5l-5 5 5 5"/>',
   chr: '<path d="M8 5l5 5-5 5"/>',
   chd: '<path d="M5 8l5 5 5-5"/>',
+  eye: '<path d="M2.5 10s2.8-4.5 7.5-4.5 7.5 4.5 7.5 4.5-2.8 4.5-7.5 4.5S2.5 10 2.5 10z"/><circle cx="10" cy="10" r="2.2"/>',
   snd: '<path d="M3 8v4h3l4 3V5L6 8z M13 7.5a3.5 3.5 0 0 1 0 5 M15.5 5a7 7 0 0 1 0 10"/>',
   play: '<path d="M6 4l10 6-10 6z" fill="currentColor"/>',
   stop: '<path d="M5 5h10v10H5z" fill="currentColor"/>',

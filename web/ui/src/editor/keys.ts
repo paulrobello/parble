@@ -3,9 +3,9 @@
 // here only shortens a visible button. `P` (pause), `C` (follow cam) and `F` (fly) are the engine's
 // own keys: Bevy only hears them while the canvas has focus, so the overlay answers them when focus
 // is elsewhere (a strip button, the drawer) and leaves them to the engine otherwise. `,`, `.` and
-// `N` stay with the engine alone.
+// `N` stay with the engine alone; with Shift, `,` and `.` are `<` and `>`, the slice stepper here.
 
-import { type Action, type EditorDiag, sliceDown, sliceUp } from "./model";
+import type { Action } from "./model";
 
 export interface KeyLike {
   key: string;
@@ -40,7 +40,7 @@ const ui = (command: UiCommand): KeyResult => ({
   command,
 });
 
-export function keyResult(e: KeyLike, d: Pick<EditorDiag, "slice" | "maxLevel">): KeyResult {
+export function keyResult(e: KeyLike): KeyResult {
   const mod = e.metaKey || e.ctrlKey;
   if (e.altKey) return null;
   if (mod) {
@@ -65,10 +65,15 @@ export function keyResult(e: KeyLike, d: Pick<EditorDiag, "slice" | "maxLevel">)
       return ui("follow");
     case "KeyF":
       return ui("fly");
+    // Relative steps: the engine applies each to its own state, so two quick presses both count.
     case "BracketLeft":
-      return acts({ op: "slice", level: sliceDown(d.slice, d.maxLevel) });
+      return acts({ op: "buildStep", by: -1 });
     case "BracketRight":
-      return acts({ op: "slice", level: sliceUp(d.slice, d.maxLevel) });
+      return acts({ op: "buildStep", by: 1 });
+    case "Comma":
+      return e.shiftKey ? acts({ op: "sliceStep", by: -1 }) : null;
+    case "Period":
+      return e.shiftKey ? acts({ op: "sliceStep", by: 1 }) : null;
     case "KeyX":
       return ui("sliceToggle");
     case "KeyH":
