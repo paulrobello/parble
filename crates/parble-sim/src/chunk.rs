@@ -2482,6 +2482,21 @@ impl PhysicsHooks for ChunkColliders {
         if let Some((slopes, slope_of)) = self.slopes.get(&handle.into_raw_parts())
             && let Some(tagged) = slope_of.get(tri as usize)
             && !tagged.is_empty()
+            && slopes
+                .iter()
+                .position(|s| s.covers(centre, 0.0))
+                .is_some_and(|k| !tagged.contains(&(k as u32)))
+        {
+            // A ball centred over one slope's cell belongs to that slope's contact, so the
+            // triangles of the slope it has just left drop their raw mesh contact. Off
+            // rail_slope_gentle_l3 onto blk_slope_gentle_l2 the rail slope's last section kept one
+            // and threw the ball up 32.7 mm/s (measured 2026-11-13).
+            rigid.solver_contacts.clear();
+            return;
+        }
+        if let Some((slopes, slope_of)) = self.slopes.get(&handle.into_raw_parts())
+            && let Some(tagged) = slope_of.get(tri as usize)
+            && !tagged.is_empty()
             && let Some(k) = slopes
                 .iter()
                 .position(|s| s.covers(centre, 0.0))

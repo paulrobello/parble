@@ -696,7 +696,9 @@ fn a_fast_shooter_stays_in_the_rail_curve_at_every_level() {
 
 /// The rail slope chains, entered from two `L3` blocks at x 0..1 and left by two `L1` blocks:
 /// gentle `L3` → `L2` → `L1` (cells x 2 and 3, then a rail straight at x 4), and steep `L3` →
-/// `L1` (cell x 2, then a rail straight at x 3). Each with its seam windows (15 mm either side of
+/// `L1` (cell x 2, then a rail straight at x 3), and the gentle chain with one slope a block
+/// either way round (rail `L3` slope onto a block `L2` slope, block `L3` onto rail `L2`). Each with
+/// its seam windows (15 mm either side of
 /// every seam from the first block one to the last, as plan x and z ranges) and slope interiors.
 type SlopeRun = (
     &'static str,
@@ -705,7 +707,7 @@ type SlopeRun = (
     Vec<[f32; 2]>,
 );
 
-fn rail_slope_runs() -> [SlopeRun; 2] {
+fn rail_slope_runs() -> [SlopeRun; 4] {
     let seam = |x: f32| [x - 0.015, x + 0.015];
     [
         (
@@ -743,6 +745,39 @@ fn rail_slope_runs() -> [SlopeRun; 2] {
                 ("rail to block (x 210 mm)", seam(0.21)),
             ],
             vec![[0.105, 0.135]],
+        ),
+        (
+            "rail then block slope",
+            vec![
+                place("blk_straight_l3", 0, 0, 0),
+                place("blk_straight_l3", 1, 0, 0),
+                place("rail_slope_gentle_l3", 2, 0, 0),
+                place("blk_slope_gentle_l2", 3, 0, 0),
+                place("blk_straight_l1", 4, 0, 0),
+                place("blk_straight_l1", 5, 0, 0),
+            ],
+            vec![
+                ("rail slope to block slope (x 150 mm)", seam(0.15)),
+                ("block slope to block (x 210 mm)", seam(0.21)),
+            ],
+            vec![[0.165, 0.195]],
+        ),
+        (
+            "block then rail slope",
+            vec![
+                place("blk_straight_l3", 0, 0, 0),
+                place("blk_straight_l3", 1, 0, 0),
+                place("blk_slope_gentle_l3", 2, 0, 0),
+                place("rail_slope_gentle_l2", 3, 0, 0),
+                place("rail_straight_l1", 4, 0, 0),
+                place("blk_straight_l1", 5, 0, 0),
+                place("blk_straight_l1", 6, 0, 0),
+            ],
+            vec![
+                ("block slope to rail slope (x 150 mm)", seam(0.15)),
+                ("rail slope to rail (x 210 mm)", seam(0.21)),
+            ],
+            vec![[0.165, 0.195]],
         ),
     ]
 }

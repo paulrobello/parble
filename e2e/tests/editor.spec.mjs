@@ -426,6 +426,7 @@ test("editor: a block, a mechanism and a rail from the full palette place and re
     { piece: "blk_redirect_l3", cell: [4, 1, -6], cells: [[4, 1, -6], [4, 0, -6]] },
     { piece: "mech_toggle_l3", cell: [8, 0, -6], cells: [[8, 0, -6]] },
     { piece: "rail_s_1x3_l2", cell: [11, 0, -6], cells: [[11, 0, -6], [13, 0, -7]] },
+    { piece: "rail_slope_gentle_l3", cell: [6, 0, -6], cells: [[6, 0, -6], [6, 1, -6]] },
   ];
   await edit(page, { op: "camera", target: [0.48, 0.02, -0.38], yaw: 0.3, pitch: 0.95, radius: 0.75 });
   await page.mouse.move(box.x + 5, box.y + 5);

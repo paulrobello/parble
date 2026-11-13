@@ -295,7 +295,7 @@ Slope pieces join side ports. Every side port has a level (horizontal) floor tan
 | `rail_slope_gentle_l2` | `L2` | `L1` | 1 cell |
 | `rail_slope_steep_l3` | `L3` | `L1` | 1 × 2 × 1 |
 
-- A rail slope rides like its block twin: every seam and interior of the rail chains stays within the block chain's kick plus the kick margin, and under the seam spike on upward speed (`rail_slopes_descend_to_l1_with_their_seams_under_the_thresholds` in `crates/parble-sim/src/rail_test.rs`).
+- A rail slope rides like its block twin, chained with rail or block slopes either way round: every seam and interior of the rail chains stays within the block chain's kick plus the kick margin, and under the seam spike on upward speed (`rail_slopes_descend_to_l1_with_their_seams_under_the_thresholds` in `crates/parble-sim/src/rail_test.rs`).
 - A 2-tall block piece is two stacked cubes with the channel carved from the top of the upper cube, the same rule as 1-cell pieces, so its channel can be up to 90 mm deep (`blk_slope_steep_l0` exit, floor 30 mm below the upper cube's bottom). See §16, Q5.
 - There is no `blk_straight_l0` or `blk_curve90_l0`. A run that reaches `L0` keeps descending through `blk_slope_gentle_l0` or `blk_slope_steep_l0`.
 - 25% is far steeper than most real wooden runs. Long gentle chains build speed. P2 sim tests must cover exit speed after a chain of at least 8 gentle slopes (§16, Q4).
