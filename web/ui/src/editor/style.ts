@@ -231,6 +231,8 @@ body.parble-editor #parble-hud,body.parble-editor #parble-controls{display:none}
   #pe .hint{display:none}
   #pe .build kbd,#pe .run kbd{display:none}
   #pe .track{max-width:110px}
+  #pe .sl>.sc{display:none}
+  #pe .sl .cl{margin-left:2px}
 }
 @media (prefers-reduced-motion:reduce){
   #pe .travel,#pe .inlay,#pe .hair,#pe .build,body.parble-editor #parble-mixer{transition:none}
