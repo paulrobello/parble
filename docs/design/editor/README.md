@@ -61,7 +61,7 @@ State is a brass pin, never a fill. When the active tool, family tab, tile or se
 - Deleting more than 50 pieces asks once, inline in the panel, with Undo offered after.
 
 ### Levels (slice)
-- The stepper shows `L0–L4` (all levels) or `≤ L2` (sliced). `[` and `]` step it (`Slice`). `X` toggles between the last slice and all levels.
+- The stepper shows `L0–L4` (all levels) or `≤ L2` (sliced). `[` and `]` step it (`Slice`). `X` toggles between the last slice and all levels. Showing all levels keeps the build level, so the ghost stays on the last slice's level.
 - Levels above the slice are hidden and cannot be picked, so they are never touched by mistake. Levels below it stay visible, and Select and Delete pick them through the build level.
 
 ### Validation

@@ -1230,7 +1230,7 @@ ${groupActs}
   const renderTop = (s: EditorDiag): void => {
     const r = s.run;
     const columnsOn = s.columns?.on ?? true;
-    const key = `${s.tool}|${s.canUndo}|${s.canRedo}|${s.slice}|${s.maxLevel}|${columnsOn}|${s.name}|${r.active}|${r.paused}|${r.follow}|${r.queue}|${r.release}|${s.hoppers}|${intervalS}`;
+    const key = `${s.tool}|${s.canUndo}|${s.canRedo}|${s.slice}|${s.buildLevel}|${s.maxLevel}|${columnsOn}|${s.name}|${r.active}|${r.paused}|${r.follow}|${r.queue}|${r.release}|${s.hoppers}|${intervalS}`;
     if (key === topKey) return;
     topKey = key;
     if (trackBtn.textContent !== s.name) trackBtn.textContent = s.name;
@@ -1244,7 +1244,10 @@ ${groupActs}
     q<HTMLButtonElement>(top, '[data-k="undo"]').disabled = !s.canUndo;
     q<HTMLButtonElement>(top, '[data-k="redo"]').disabled = !s.canRedo;
     sliceBtn.textContent = levelLabel(s.slice, s.maxLevel);
-    sliceBtn.setAttribute("aria-label", s.slice === null ? "All levels shown" : `Levels up to ${s.slice} shown`);
+    sliceBtn.setAttribute(
+      "aria-label",
+      s.slice === null ? `All levels shown, building on L${s.buildLevel}` : `Levels up to ${s.slice} shown`,
+    );
     columnsBtn.classList.toggle("on", columnsOn);
     columnsBtn.setAttribute("aria-pressed", String(columnsOn));
     const noHopper = s.hoppers === 0;

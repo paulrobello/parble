@@ -38,7 +38,9 @@ async function openEditor(page, errors) {
     timeout: 60_000,
   });
   await page.waitForFunction(() => window.__parble.editor.keys === false && window.__parble.editor.slice === 6);
-  // An empty board starts building at L6; these walkthroughs build from the floor.
+  // An empty board starts building at L6; these walkthroughs build from the floor with every
+  // level shown (all levels keep the last slice's build level).
+  await edit(page, { op: "slice", level: 0 });
   await edit(page, { op: "slice", level: null });
   await edit(page, { op: "camera", target: [0.36, 0.03, -0.36], yaw: -0.5, pitch: 0.85, radius: 1.25 });
   await frames(page, 3);
@@ -80,7 +82,8 @@ test("editor overlay: drawer place, select, slice, show an issue, run, fade and 
   await page.waitForFunction(() => window.__parble.editor.slice === 6 && window.__parble.editor.hover?.target?.[1] === 6);
   await expect(page.locator('[data-k="sel"]')).toContainText("L6 to start");
   await shot(page, "first-run");
-  // The rest of this walkthrough builds from the floor.
+  // The rest of this walkthrough builds from the floor with every level shown.
+  await edit(page, { op: "slice", level: 0 });
   await edit(page, { op: "slice", level: null });
 
   // Place the hopper through the drawer tile and a click on the canvas.

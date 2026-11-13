@@ -14,7 +14,8 @@
 //!   built that way, an edit also adds and removes the changed placements' mechanism instances,
 //!   so a mechanism moved mid-run works at its new cell (P3-T5).
 //! - Picking: a voxel walk of the camera ray through the occupied cells (pieces above the height
-//!   slice are skipped), else the ground plane at the slice level ([`pick`]).
+//!   slice are skipped), else the ground plane at the build level ([`pick`]): the slice, or the
+//!   last slice while all levels show.
 //! - Ghost: the brush at the picked cell, valid or invalid by [`Editor::check`], with one hint per
 //!   port: linked, open, or a fault against the piece across.
 //! - Actions: `window.wasmBindings.parbleEdit(json)` on the web queues one action for the next
@@ -61,7 +62,7 @@ pub use nudge::NudgeDiag;
 
 /// Largest `fill` (and `--editor-fill`).
 pub const MAX_FILL: u32 = 4_000;
-/// The highest level `]` slices to. The slice is also the ground plane new pieces land on, so
+/// The highest level `]` slices to. The slice also sets the ground plane new pieces land on, so
 /// past the top piece `]` raises the build level (web: `BUILD_LEVEL_MAX` in `web/ui/src/editor/model.ts`).
 pub const BUILD_LEVEL_MAX: i32 = 15;
 /// Collider rebuild time per frame. A rebuild stage that starts inside it always finishes, so a
@@ -343,7 +344,7 @@ mod web {
 }
 
 /// A camera ray hit: a piece cell (with the face normal the ray entered through) or the ground
-/// plane cell at the slice level.
+/// plane cell at the build level.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Hit {
     Piece {
@@ -613,6 +614,8 @@ pub struct EditorDiag {
     /// Pieces at or below the slice.
     pub visible_pieces: usize,
     pub slice: Option<i32>,
+    /// The level Place lands on: the slice, or the last slice while all levels show.
+    pub build_level: i32,
     pub selection: usize,
     /// Up to 64 selected anchors.
     pub selected: Vec<[i32; 3]>,
@@ -975,6 +978,8 @@ struct EditState {
     tool: Tool,
     brush: Brush,
     slice: Option<i32>,
+    /// The last slice level; Place keeps landing there after X shows all levels.
+    build_level: i32,
     /// Anchor → placement, mirrored from the track after every edit.
     by_anchor: BTreeMap<CellCoord, Placement>,
     /// Covered cell → anchor.
@@ -1079,6 +1084,7 @@ impl EditState {
                 mirror: false,
             },
             slice: None,
+            build_level: 0,
             by_anchor: BTreeMap::new(),
             occupancy: BTreeMap::new(),
             by_chunk: BTreeMap::new(),
@@ -1163,11 +1169,12 @@ impl EditState {
             .filter(|a| self.visible(*a))
     }
 
-    /// The piece or ground cell under `ray`. Place lands on the build level's floor (the slice);
+    /// The piece or ground cell under `ray`. Place lands on the build level's floor (the slice, or
+    /// the last slice while all levels show);
     /// Select and Delete look through it to the visible pieces below, down to the floor at 0.
     fn pick_ray(&self, ray: Ray3d) -> Option<Hit> {
         let ground = match self.tool {
-            Tool::Place => self.slice.unwrap_or(0).max(0),
+            Tool::Place => self.slice.unwrap_or(self.build_level).max(0),
             Tool::Select | Tool::Delete => 0,
         };
         pick(ray.origin, *ray.direction, ground, |c| self.occupant(c))
@@ -2005,6 +2012,9 @@ fn apply_action(st: &mut EditState, ctx: &mut Ctx, action: Action) -> Result<Las
         }
         Action::Slice { level } => {
             st.slice = level;
+            if let Some(l) = level {
+                st.build_level = l.max(0);
+            }
             ctx.edits.slice = level;
         }
         Action::Camera {
@@ -2715,6 +2725,7 @@ fn apply_actions(
     d.palette = palette();
     d.pieces = st.by_anchor.len();
     d.slice = st.slice;
+    d.build_level = st.build_level;
     d.visible_pieces = st.by_anchor.keys().filter(|a| st.visible(**a)).count();
     d.selection = st.editor.selection.len();
     let placements = &st.editor.track().placements;
@@ -3631,6 +3642,24 @@ mod tests {
 
     fn act(st: &mut EditState, ctx: &mut Ctx, json: &str) -> Result<LastAction, String> {
         apply_action(st, ctx, parse(json))
+    }
+
+    /// X (all levels) keeps Place on the last slice's floor; only a new slice moves it.
+    #[test]
+    fn showing_all_levels_keeps_the_build_level() {
+        let mut rig = Rig::new();
+        let mut st = EditState::new();
+        let ctx = &mut rig.ctx();
+        let st = &mut st;
+        let ray = Ray3d::new(centre(c(0, 8, 0)), Dir3::NEG_Y);
+        assert_eq!(st.pick_ray(ray), Some(Hit::Ground { cell: c(0, 0, 0) }));
+        act(st, ctx, r#"{"op":"slice","level":3}"#).unwrap();
+        act(st, ctx, r#"{"op":"slice","level":null}"#).unwrap();
+        assert_eq!(st.slice, None);
+        assert_eq!(st.pick_ray(ray), Some(Hit::Ground { cell: c(0, 3, 0) }));
+        act(st, ctx, r#"{"op":"slice","level":1}"#).unwrap();
+        act(st, ctx, r#"{"op":"slice","level":null}"#).unwrap();
+        assert_eq!(st.pick_ray(ray), Some(Hit::Ground { cell: c(0, 1, 0) }));
     }
 
     /// The marble check runs the release named in the action once per marble spec, reports a stall

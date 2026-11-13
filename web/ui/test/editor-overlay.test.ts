@@ -23,6 +23,7 @@ function diag(over: Partial<EditorDiag> = {}): EditorDiag {
     pieces: 3,
     visiblePieces: 3,
     slice: null,
+    buildLevel: 0,
     selection: 0,
     selected: [],
     canUndo: true,
@@ -136,7 +137,8 @@ describe("editor overlay", () => {
     expect(sent.at(-1)).toEqual({ op: "slice", level: 3 });
     click('[data-k="sliceToggle"]');
     expect(sent.at(-1)).toEqual({ op: "slice", level: null });
-    ui.update(diag({ slice: null }));
+    ui.update(diag({ slice: null, buildLevel: 2 }));
+    expect($('[data-k="sliceToggle"]').getAttribute("aria-label")).toBe("All levels shown, building on L2");
     expect(press("KeyX")).toBe(true);
     expect(sent.at(-1)).toEqual({ op: "slice", level: 2 });
   });

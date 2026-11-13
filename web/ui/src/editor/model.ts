@@ -140,6 +140,8 @@ export interface EditorDiag {
   pieces: number;
   visiblePieces: number;
   slice: number | null;
+  /** The level Place lands on: the slice, or the last slice while all levels show. */
+  buildLevel: number;
   selection: number;
   selected: Vec3i[];
   canUndo: boolean;

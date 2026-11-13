@@ -192,6 +192,14 @@ test("editor: ghost, picking, slicing, box select and move drag over 50 placed p
   await edit(page, { op: "boxSelect", a: [0, 0, -5], b: [9, 1, -5] });
   expect((await state(page)).selection).toBe(20);
   await edit(page, { op: "clearSelection" });
+  // Showing all levels keeps the build level: the ghost stays on the last slice's floor.
+  await edit(page, { op: "slice", level: 2 });
+  await edit(page, { op: "slice", level: null });
+  expect((await state(page)).buildLevel).toBe(2);
+  const [upPx] = await project(page, box, [[5, 2, -10]]);
+  expect((await hoverAt(page, upPx.floor, [5, 2, -10])).hit).toBe("ground");
+  await edit(page, { op: "slice", level: 0 });
+  await edit(page, { op: "slice", level: null });
 
   // Straight down for the drags, so the stacked row in front never hides row z = −6.
   await edit(page, { op: "camera", target: [0.42, 0, -0.42], yaw: 0, pitch: 1.45, radius: 1.5 });
