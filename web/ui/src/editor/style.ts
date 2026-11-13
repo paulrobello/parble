@@ -214,6 +214,12 @@ body.parble-editor #parble-hud,body.parble-editor #parble-controls{display:none}
 #pe .kv .seg.opt button{display:flex;align-items:center;justify-content:center;gap:6px;padding:5px 8px}
 #pe .kv .seg.opt button .pin{margin-left:-2px}
 #pe-sheet .thumb svg{display:block}
+#pe-compass{left:24px;bottom:calc(var(--tray-h) + 24px);width:66px;height:66px;padding:0;border-radius:50%;pointer-events:none}
+#pe-compass::before{border-radius:50%}
+#pe-compass .ring{fill:none;stroke:var(--line)}
+#pe-compass .needle{stroke:var(--b);stroke-width:2;stroke-linecap:round}
+#pe-compass text{fill:var(--m);font:700 11px "Alegreya Sans",ui-sans-serif,sans-serif;text-anchor:middle;dominant-baseline:central}
+#pe-compass [data-c="N"]{fill:var(--b)}
 #pe-tt{left:0;top:0;display:none;align-items:center;gap:7px;padding:5px 10px;white-space:nowrap;pointer-events:none;z-index:6;transition:none}
 #pe-tt.show{display:flex}
 #pe.faded #pe-tt{display:none}

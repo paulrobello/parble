@@ -38,7 +38,7 @@ let editorDirty = (): boolean => false;
 const updateNote = new UpdateNote(document, () => editorDirty());
 watchVersion(updateNote);
 
-type CameraState = { mode?: string; flyOnly?: boolean; orbit?: Orbit };
+type CameraState = { mode?: string; flyOnly?: boolean; orbit?: Orbit; forward?: [number, number, number] };
 type ParbleState = { camera?: CameraState; editor?: EditorDiag };
 const parbleState = (): ParbleState | undefined => (window as unknown as { __parble?: ParbleState }).__parble;
 const cameraState = (): CameraState | undefined => parbleState()?.camera;
@@ -66,6 +66,7 @@ function start(bindings: WasmBindings): void {
           library,
           orbit: () => cameraState()?.orbit ?? null,
           cameraMode: () => cameraState()?.mode ?? null,
+          forward: () => cameraState()?.forward ?? null,
         })
       : null;
   if (editor) editorDirty = editor.dirty;

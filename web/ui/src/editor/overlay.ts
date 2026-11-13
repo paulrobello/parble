@@ -19,6 +19,7 @@ import {
   checkText,
   cellText,
   countBadge,
+  dialPoint,
   type EditorDiag,
   FAMILIES,
   type Family,
@@ -55,6 +56,7 @@ import {
   strokeText,
   TICK_HZ,
   type Vec3i,
+  viewBearingDeg,
   zoneOf,
 } from "./model";
 import { CSS, fontFaces, THUMB_DIR, versioned } from "./style";
@@ -83,6 +85,8 @@ export interface EditorDeps {
   orbit?: () => Orbit | null;
   /** The camera mode now (`window.__parble.camera.mode`): in `fly` the engine owns every key. */
   cameraMode?: () => string | null;
+  /** The camera's unit view direction now (`window.__parble.camera.forward`), for the compass. */
+  forward?: () => readonly [number, number, number] | null;
 }
 
 /** Folded run controls (below 1280 px): the tooltip's label and key cap. */
@@ -394,8 +398,42 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
   nzLayer.append(nzBoxes, nzArrows, nzSelBox, nzSelArrow);
   // Folded run controls (below 1280 px) show their label and key cap in this inlay tooltip.
   const tt = h(doc, "div", { id: "pe-tt", class: "inlay", role: "tooltip" });
+  // The compass: the dial's top is the way the camera looks; N, E, S, W sit where those world
+  // directions are (east +x, north −z, the words the validation list and the ports line use).
+  const COMPASS: readonly [string, number, string][] = [
+    ["N", 0, "north"],
+    ["E", 90, "east"],
+    ["S", 180, "south"],
+    ["W", 270, "west"],
+  ];
+  const compass = h(
+    doc,
+    "div",
+    { id: "pe-compass", class: "inlay", role: "img", "aria-label": "Compass" },
+    `<svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="27"/><line class="needle" x1="32" y1="32" x2="32" y2="17"/>${COMPASS.map(
+      ([l]) => `<text data-c="${l}" x="32" y="32">${l}</text>`,
+    ).join("")}</svg>`,
+  );
+  const needle = q(compass, ".needle");
+  let compassAt: number | null = null;
+  const renderCompass = (): void => {
+    const view = viewBearingDeg(deps.forward?.());
+    if (view === null || (compassAt !== null && Math.abs(view - compassAt) < 0.25)) return;
+    compassAt = view;
+    for (const [l, deg] of COMPASS) {
+      const [x, y] = dialPoint(deg, view);
+      const t = q(compass, `[data-c="${l}"]`);
+      t.setAttribute("x", (32 + 20 * x).toFixed(2));
+      t.setAttribute("y", (32 + 20 * y).toFixed(2));
+    }
+    const [nx, ny] = dialPoint(0, view);
+    needle.setAttribute("x2", (32 + 11 * nx).toFixed(2));
+    needle.setAttribute("y2", (32 + 11 * ny).toFixed(2));
+    const facing = COMPASS[Math.round(view / 90) % 4]?.[2] ?? "north";
+    compass.setAttribute("aria-label", `Compass: the view faces ${facing}`);
+  };
 
-  root.append(nzLayer, ghost, top, side, tray, tip, marq, mlabel, cap, ...hairs, sheet, tt);
+  root.append(nzLayer, ghost, top, side, tray, tip, marq, mlabel, cap, ...hairs, sheet, tt, compass);
   doc.body.append(root);
 
   const narrow = (): boolean => win.matchMedia?.("(max-width: 1279px)").matches ?? false;
@@ -1342,6 +1380,7 @@ ${groupActs}
 
   let firstRun = true;
   const update = (next: EditorDiag | null, events: readonly BridgeEvent[] = []): void => {
+    renderCompass();
     for (const e of events) {
       if (e.type === "trackExported") {
         const why = pending.shift();

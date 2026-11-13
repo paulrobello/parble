@@ -10,7 +10,9 @@ import {
   checkReleaseText,
   checkText,
   countBadge,
+  dialPoint,
   faceWord,
+  viewBearingDeg,
   focusOrbit,
   ghostText,
   issueText,
@@ -147,6 +149,20 @@ describe("editor model", () => {
     expect(strokeText(7)).toBe("Laying a run · 7 pieces · release to finish");
     expect(faceWord("+x")).toBe("East");
     expect(faceWord("-z")).toBe("North");
+  });
+
+  it("the compass bearing matches the face words: north is -z, east is +x", () => {
+    expect(viewBearingDeg([0, -0.5, -1])).toBeCloseTo(0);
+    expect(viewBearingDeg([1, 0, 0])).toBeCloseTo(90);
+    expect(viewBearingDeg([0, 0, 1])).toBeCloseTo(180);
+    expect(viewBearingDeg([-1, 0, 0])).toBeCloseTo(270);
+    expect(viewBearingDeg([0, -1, 0])).toBeNull();
+    expect(viewBearingDeg(null)).toBeNull();
+    // Looking north, east is on the right; looking east, north is on the left.
+    const [ex, ey] = dialPoint(90, 0);
+    expect([ex, ey].map((v) => Math.round(v) + 0)).toEqual([1, 0]);
+    const [nx, ny] = dialPoint(0, 90);
+    expect([nx, ny].map((v) => Math.round(v) + 0)).toEqual([-1, 0]);
   });
 
   it("draws a Library plan thumbnail from the saved placements, top level last", () => {

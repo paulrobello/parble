@@ -494,6 +494,20 @@ export function focusOrbit(
   };
 }
 
+/** The view's compass heading: degrees clockwise from north (−z) towards east (+x); null looking straight up or down. */
+export function viewBearingDeg(forward: readonly [number, number, number] | null | undefined): number | null {
+  if (!forward) return null;
+  const [x, , z] = forward;
+  if (Math.hypot(x, z) < 1e-4) return null;
+  return ((Math.atan2(x, -z) * 180) / Math.PI + 360) % 360;
+}
+
+/** Where world bearing `worldDeg` sits on a dial whose top is the view's heading: a unit vector, y down. */
+export function dialPoint(worldDeg: number, viewDeg: number): [number, number] {
+  const a = ((worldDeg - viewDeg) * Math.PI) / 180;
+  return [Math.sin(a), -Math.cos(a)];
+}
+
 /** Compass word for a side face, as the ports line uses (`+x` east, `-z` north). */
 export const faceWord = (f: Face): string => FACE[f].replace(/^./, (c) => c.toUpperCase());
 
