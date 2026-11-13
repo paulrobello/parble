@@ -262,7 +262,7 @@ Mouse and keys (click the canvas first):
 | `[`, `]`, `X` | Slice one level down, up, show all. The slice is also the ground plane new pieces land on, so past the top piece `]` keeps raising that build level, up to L15 (`BUILD_LEVEL_MAX`); from all levels it goes one above the top piece. The web overlay starts an empty board at L6 (`START_LEVEL` in `web/ui/src/editor/model.ts`) so the hopper has room to fall. |
 | `H` | Ground columns on or off (`columns`). |
 
-Picking walks the camera ray through the occupied cells, skipping pieces above the slice, and otherwise lands on the ground plane at the slice level. The place target is the empty cell in front of the hit face, or the ground cell. The ghost is the brush there, green when `Editor::check` accepts the placement and red when not, with one dot per port: green when a mating port across links, amber when nothing is across, red for a fault.
+Picking walks the camera ray through the occupied cells, skipping pieces above the slice. With the Place tool it otherwise lands on the ground plane at the slice level. Select and Delete look through that plane to the visible pieces below it, landing on the floor at level 0. The place target is the empty cell in front of the hit face, or the ground cell. The ghost is the brush there, green when `Editor::check` accepts the placement and red when not, with one dot per port: green when a mating port across links, amber when nothing is across, red for a fault.
 
 Agent actions: `window.wasmBindings.parbleEdit(json)` queues one action for the next frame. It throws on JSON that is not an action. Each action is an object with an `op` and an optional `id`. Pixels are CSS pixels from the canvas's top-left corner.
 

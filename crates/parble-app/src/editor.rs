@@ -1163,13 +1163,14 @@ impl EditState {
             .filter(|a| self.visible(*a))
     }
 
+    /// The piece or ground cell under `ray`. Place lands on the build level's floor (the slice);
+    /// Select and Delete look through it to the visible pieces below, down to the floor at 0.
     fn pick_ray(&self, ray: Ray3d) -> Option<Hit> {
-        pick(
-            ray.origin,
-            *ray.direction,
-            self.slice.unwrap_or(0).max(0),
-            |c| self.occupant(c),
-        )
+        let ground = match self.tool {
+            Tool::Place => self.slice.unwrap_or(0).max(0),
+            Tool::Select | Tool::Delete => 0,
+        };
+        pick(ray.origin, *ray.direction, ground, |c| self.occupant(c))
     }
 
     fn placement_at(&self, target: CellCoord) -> Placement {
@@ -3124,6 +3125,30 @@ mod tests {
             Some(c(1, 3, 1))
         );
         assert_eq!(plane_cell(centre(c(1, 6, 1)), Vec3::Y, 3), None);
+    }
+
+    #[test]
+    fn select_and_delete_pick_pieces_below_the_build_level() {
+        // Building at L2, a piece on L0 is visible; Select and Delete reach it through the build
+        // level's floor, while Place still lands on that floor.
+        let mut st = EditState::new();
+        let p = placed("blk_straight_l3", c(0, 0, 0));
+        st.by_anchor.insert(p.anchor, p.clone());
+        st.occupancy.insert(p.anchor, p.anchor);
+        st.slice = Some(2);
+        let ray = Ray3d::new(centre(c(0, 6, 0)), Dir3::NEG_Y);
+        st.tool = Tool::Place;
+        assert_eq!(st.pick_ray(ray), Some(Hit::Ground { cell: c(0, 2, 0) }));
+        for tool in [Tool::Select, Tool::Delete] {
+            st.tool = tool;
+            assert!(
+                matches!(st.pick_ray(ray), Some(Hit::Piece { anchor, .. }) if anchor == c(0, 0, 0)),
+                "{tool:?}"
+            );
+        }
+        // Off the piece, Select falls through to the floor at 0.
+        let beside = Ray3d::new(centre(c(3, 6, 0)), Dir3::NEG_Y);
+        assert_eq!(st.pick_ray(beside), Some(Hit::Ground { cell: c(3, 0, 0) }));
     }
 
     #[test]

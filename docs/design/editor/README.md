@@ -62,7 +62,7 @@ State is a brass pin, never a fill. When the active tool, family tab, tile or se
 
 ### Levels (slice)
 - The stepper shows `L0–L4` (all levels) or `≤ L2` (sliced). `[` and `]` step it (`Slice`). `X` toggles between the last slice and all levels.
-- Levels above the slice are hidden and cannot be picked, so they are never touched by mistake.
+- Levels above the slice are hidden and cannot be picked, so they are never touched by mistake. Levels below it stay visible, and Select and Delete pick them through the build level.
 
 ### Validation
 - Issues update after every edit. Each row shows its cell, a plain sentence and **Show**.
