@@ -141,6 +141,17 @@ describe("editor overlay", () => {
     expect(sent.at(-1)).toEqual({ op: "slice", level: 2 });
   });
 
+  it("the Columns button and H toggle the ground columns, shown pressed while on", () => {
+    ui.update(diag({ columns: { on: true, hover: 0, selected: 0 } }));
+    expect($('[data-k="columns"]').getAttribute("aria-pressed")).toBe("true");
+    click('[data-k="columns"]');
+    expect(sent.at(-1)).toEqual({ op: "columns", on: false });
+    ui.update(diag({ columns: { on: false, hover: 0, selected: 0 } }));
+    expect($('[data-k="columns"]').getAttribute("aria-pressed")).toBe("false");
+    expect(press("KeyH")).toBe(true);
+    expect(sent.at(-1)).toEqual({ op: "columns", on: true });
+  });
+
   it("run controls release, pause, reset and follow; Run becomes Stop during a run", () => {
     ui.update(diag());
     click('[data-k="one"]');

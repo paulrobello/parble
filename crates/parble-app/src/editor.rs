@@ -36,7 +36,10 @@ use parble_render::{
     camera::{CameraMode, EditorCamera, MainCamera, Orbit},
     kit::{
         self, CELL_M,
-        edit::{EditPiece, KitEdits, KitGhost, KitMarks, MAX_MARKS, PortHint, chunk_of_cell},
+        edit::{
+            ColumnTint, EditPiece, KitColumns, KitEdits, KitGhost, KitMarks, MAX_COLUMNS,
+            MAX_MARKS, PortHint, chunk_of_cell,
+        },
         parts::PartFrame,
     },
 };
@@ -204,6 +207,10 @@ pub enum Action {
     /// The editor's keyboard shortcuts on or off; the mouse is unaffected.
     Keys {
         enabled: bool,
+    },
+    /// Ground columns under the hovered piece and the selection on or off (on at start).
+    Columns {
+        on: bool,
     },
     /// Queue `count` standard marbles in the hopper (one undoable command).
     Marbles {
@@ -647,6 +654,70 @@ pub struct EditorDiag {
     pub check: CheckDiag,
     /// Nudge zones ([`nudge`]): the count, the selected one and each one projected, every frame.
     pub nudges: NudgeDiag,
+    pub columns: ColumnsDiag,
+}
+
+/// Ground columns: on or off, and how many cell columns the hovered piece and the selection draw.
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ColumnsDiag {
+    pub on: bool,
+    pub hover: usize,
+    pub selected: usize,
+}
+
+/// What the ground columns were drawn for: (on, edits, selection, drag offset, selection tint,
+/// hovered piece and its tint).
+type ColumnsKey = (
+    bool,
+    u64,
+    Selection,
+    CellCoord,
+    ColumnTint,
+    Option<(Placement, ColumnTint)>,
+);
+
+/// The lowest cell of each footprint cell column of `hover`, then of `selected` shifted by
+/// `offset`, hovered columns first and at most [`MAX_COLUMNS`]. A column the hovered piece has
+/// keeps the hover tint; cells below the floor (level < 0) have none.
+fn ground_columns<'a>(
+    kit: &KitCatalog,
+    hover: Option<(&Placement, ColumnTint)>,
+    selected: impl IntoIterator<Item = &'a Placement>,
+    offset: CellCoord,
+    tint: ColumnTint,
+) -> Vec<(IVec3, ColumnTint)> {
+    let mut lowest: BTreeMap<(i32, i32), (i32, ColumnTint)> = BTreeMap::new();
+    let pieces = hover
+        .map(|(p, t)| (p, CellCoord::ORIGIN, t))
+        .into_iter()
+        .chain(selected.into_iter().map(|p| (p, offset, tint)));
+    for (p, shift, t) in pieces {
+        let Some(def) = kit.get(&p.piece) else {
+            continue;
+        };
+        for c in p.world_cells(def) {
+            let (x, y, z) = (c.x + shift.x, c.y + shift.y, c.z + shift.z);
+            if y < 0 {
+                continue;
+            }
+            lowest
+                .entry((x, z))
+                .and_modify(|e| {
+                    if e.1 == t && y < e.0 {
+                        e.0 = y;
+                    }
+                })
+                .or_insert((y, t));
+        }
+    }
+    let mut out: Vec<_> = lowest
+        .into_iter()
+        .map(|((x, z), (y, t))| (IVec3::new(x, y, z), t))
+        .collect();
+    out.sort_by_key(|(_, t)| matches!(t, ColumnTint::Selected | ColumnTint::SelectedBad));
+    out.truncate(MAX_COLUMNS);
+    out
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -844,6 +915,9 @@ struct EditState {
     restarts: u64,
     /// The editor's keyboard shortcuts are on (`keys`).
     keys: bool,
+    /// Ground columns are drawn (`columns`).
+    columns: bool,
+    columns_key: Option<ColumnsKey>,
     /// The marble runs release: this type, every queued marble at this size. `None`: the queued
     /// sizes as legacy marbles.
     marble: Option<(MarbleKind, SimMarbleSize)>,
@@ -937,6 +1011,8 @@ impl EditState {
             marks_key: None,
             restarts: 0,
             keys: true,
+            columns: true,
+            columns_key: None,
             marble: None,
             name: UNTITLED.to_owned(),
             run: RunState {
@@ -1247,6 +1323,7 @@ fn op_name(a: &Action) -> &'static str {
         Action::Fill { .. } => "fill",
         Action::Clear {} => "clear",
         Action::Keys { .. } => "keys",
+        Action::Columns { .. } => "columns",
         Action::Marbles { .. } => "marbles",
         Action::Run { .. } => "run",
         Action::Stop {} => "stop",
@@ -1892,6 +1969,7 @@ fn apply_action(st: &mut EditState, ctx: &mut Ctx, action: Action) -> Result<Las
             run_command(st, ctx, "clear", EditCommand::Remove(all))?;
         }
         Action::Keys { enabled } => st.keys = enabled,
+        Action::Columns { on } => st.columns = on,
         Action::Marbles { count } => {
             let hopper = marbles_hopper(st.editor.track(), count)?;
             run_command(st, ctx, "marbles", EditCommand::SetHopper(hopper))?;
@@ -2444,6 +2522,7 @@ fn key_actions(st: &EditState, k: &ButtonInput<KeyCode>, shift: bool) -> Vec<Act
                 ),
             }),
             KeyCode::KeyX => out.push(Action::Slice { level: None }),
+            KeyCode::KeyH => out.push(Action::Columns { on: !st.columns }),
             KeyCode::Escape => out.push(Action::ClearSelection {}),
             KeyCode::Tab => {
                 let next = (st.brush.piece + 1) % kit::PIECES.len();
@@ -2566,6 +2645,7 @@ fn apply_actions(
     d.can_undo = st.editor.can_undo();
     d.can_redo = st.editor.can_redo();
     d.keys = st.keys;
+    d.columns.on = st.columns;
     d.name.clone_from(&st.name);
     d.run = RunDiag {
         active: st.run.active,
@@ -2619,6 +2699,7 @@ fn update_hover(
     mut diag: ResMut<EditorDiag>,
     mut ghost: ResMut<KitGhost>,
     mut marks: ResMut<KitMarks>,
+    mut columns: ResMut<KitColumns>,
     windows: Query<&Window, With<PrimaryWindow>>,
     cams: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
 ) {
@@ -2770,6 +2851,75 @@ fn update_hover(
             .collect();
         marks.offset = ivec(offset);
         marks.valid = drag.as_ref().is_none_or(|d| d.valid);
+    }
+
+    // Ground columns: the ghost (by its validity), else the piece under the cursor when it is not
+    // selected (red for the delete tool), and the selection where a move drag would put it.
+    let hover_piece = if hover_known {
+        None
+    } else if let Some(t) = target {
+        let tint = if ghost.valid {
+            ColumnTint::Hover
+        } else {
+            ColumnTint::HoverBad
+        };
+        Some((st.placement_at(t), tint))
+    } else {
+        match hit {
+            Some(Hit::Piece { anchor, .. })
+                if st.stroke.is_none()
+                    && !st
+                        .index_of
+                        .get(&anchor)
+                        .is_some_and(|&i| st.editor.selection.contains(i)) =>
+            {
+                let tint = if st.tool == Tool::Delete {
+                    ColumnTint::HoverBad
+                } else {
+                    ColumnTint::Hover
+                };
+                st.by_anchor.get(&anchor).map(|p| (p.clone(), tint))
+            }
+            _ => None,
+        }
+    };
+    let sel_tint = if drag.as_ref().is_none_or(|d| d.valid) {
+        ColumnTint::Selected
+    } else {
+        ColumnTint::SelectedBad
+    };
+    let ckey: ColumnsKey = (
+        st.columns,
+        edits,
+        st.editor.selection.clone(),
+        offset,
+        sel_tint,
+        hover_piece,
+    );
+    if st.columns_key.as_ref() != Some(&ckey) {
+        columns.cells = if st.columns {
+            let placements = &st.editor.track().placements;
+            ground_columns(
+                st.kit,
+                ckey.5.as_ref().map(|(p, t)| (p, *t)),
+                st.editor
+                    .selection
+                    .iter()
+                    .filter_map(|i| placements.get(i as usize)),
+                offset,
+                sel_tint,
+            )
+        } else {
+            Vec::new()
+        };
+        let hovered = columns
+            .cells
+            .iter()
+            .filter(|(_, t)| matches!(t, ColumnTint::Hover | ColumnTint::HoverBad))
+            .count();
+        diag.columns.hover = hovered;
+        diag.columns.selected = columns.cells.len() - hovered;
+        st.columns_key = Some(ckey);
     }
     diag.drag = drag;
 }
@@ -3039,6 +3189,65 @@ mod tests {
 
     fn parse(json: &str) -> Action {
         serde_json::from_str::<Envelope>(json).unwrap().action
+    }
+
+    #[test]
+    fn ground_columns_take_the_lowest_cell_and_keep_the_hover_tint() {
+        let st = EditState::new();
+        let kit = st.kit;
+        let low = placed("blk_straight_l3", c(0, 2, 0));
+        let high = placed("blk_straight_l3", c(0, 5, 0));
+        let cells = low.world_cells(kit.get(&low.piece).unwrap());
+        // A stacked selection: one column per footprint cell, at the lower piece's level.
+        let cols = ground_columns(
+            kit,
+            None,
+            [&high, &low],
+            CellCoord::ORIGIN,
+            ColumnTint::Selected,
+        );
+        assert_eq!(cols.len(), cells.len());
+        assert!(
+            cols.iter()
+                .all(|&(c, t)| c.y == 2 && t == ColumnTint::Selected)
+        );
+        // A move drag shifts the selection's columns; a level below the floor draws none.
+        let moved = ground_columns(kit, None, [&low], c(1, -3, 0), ColumnTint::SelectedBad);
+        assert!(moved.is_empty());
+        let moved = ground_columns(kit, None, [&low], c(1, 0, 0), ColumnTint::SelectedBad);
+        assert!(
+            moved
+                .iter()
+                .all(|&(m, _)| cells.iter().any(|o| o.x + 1 == m.x && o.z == m.z))
+        );
+        // The hovered piece's columns come first and keep their tint where they overlap.
+        let cols = ground_columns(
+            kit,
+            Some((&high, ColumnTint::Hover)),
+            [&low],
+            CellCoord::ORIGIN,
+            ColumnTint::Selected,
+        );
+        assert_eq!(cols.len(), cells.len());
+        assert!(
+            cols.iter()
+                .all(|&(c, t)| c.y == 5 && t == ColumnTint::Hover)
+        );
+    }
+
+    #[test]
+    fn h_toggles_the_ground_columns() {
+        let mut st = EditState::new();
+        assert!(st.columns, "columns start on");
+        let mut k = ButtonInput::<KeyCode>::default();
+        k.press(KeyCode::KeyH);
+        assert_eq!(key_actions(&st, &k, false), [Action::Columns { on: false }]);
+        st.columns = false;
+        assert_eq!(key_actions(&st, &k, false), [Action::Columns { on: true }]);
+        assert_eq!(
+            parse(r#"{"op":"columns","on":false}"#),
+            Action::Columns { on: false }
+        );
     }
 
     #[test]

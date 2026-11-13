@@ -105,6 +105,7 @@ Every action has a visible button. Keys only shorten them.
 | `M` | Mirror |
 | `⌘Z` / `⇧⌘Z` | Undo / Redo |
 | `[` `]` / `X` | Slice down / up / toggle |
+| `H` | Ground columns on / off (on at start) |
 | Arrows, `PgUp` `PgDn` | Nudge the selection |
 | `⌫` | Delete the selection |
 | `Esc` | Drop the brush, clear the selection, or stop the run |

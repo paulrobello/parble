@@ -1,5 +1,5 @@
 //! Editor-placed kit pieces (P3-T4): incremental chunk respawn, height slicing, the ghost preview
-//! with port hints, and selection marks.
+//! with port hints, selection marks, and ground columns under the hovered and selected pieces.
 //!
 //! The app owns the track. After an edit it writes the full new content of every chunk the edit
 //! touched to [`KitEdits::pending`]; [`apply_edits`] despawns those [`KitChunk`] entities and
@@ -21,6 +21,8 @@ use super::{
 pub const EDITOR_FLOOR_M: ([f32; 2], [f32; 2]) = parble_sim::scene::TRACK_FLOOR_M;
 /// Selection marks drawn at most (a larger selection still edits; only the marks are capped).
 pub const MAX_MARKS: usize = 1024;
+/// Ground columns drawn at most, hovered piece first.
+pub const MAX_COLUMNS: usize = 1024;
 /// Port hint markers drawn at most.
 const MAX_PORTS: usize = 8;
 
@@ -98,6 +100,28 @@ pub struct KitMarks {
     pub valid: bool,
 }
 
+/// Which piece a ground column belongs to, and whether its edit would land.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ColumnTint {
+    Hover,
+    HoverBad,
+    Selected,
+    SelectedBad,
+}
+
+/// Ground columns: for each footprint cell column of the hovered piece and of the selection, a
+/// translucent box from the floor (y = 0) up to the bottom of its lowest cell, so pieces line up
+/// across levels. A cell on level 0 shows as a footprint on the floor.
+#[derive(Resource, Debug, Default, Clone)]
+pub struct KitColumns {
+    /// The lowest cell of each column (its x and z name the column), and its tint.
+    pub cells: Vec<(IVec3, ColumnTint)>,
+}
+
+/// A ground column entity; the fly focus ray looks through these.
+#[derive(Component, Debug, Clone, Copy)]
+pub struct GroundColumn;
+
 /// Editor piece counts for the diag (`kit.edit`).
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -121,6 +145,9 @@ struct EditVisuals {
     marks: Vec<Entity>,
     mark_ok: Handle<StandardMaterial>,
     mark_bad: Handle<StandardMaterial>,
+    columns: Vec<Entity>,
+    /// Indexed by [`ColumnTint`].
+    column_mats: [Handle<StandardMaterial>; 4],
 }
 
 pub struct KitEditPlugin;
@@ -134,6 +161,7 @@ impl Plugin for KitEditPlugin {
         app.init_resource::<KitEdits>()
             .init_resource::<KitGhost>()
             .init_resource::<KitMarks>()
+            .init_resource::<KitColumns>()
             .init_resource::<EditVisuals>()
             .add_systems(Startup, setup_visuals)
             .add_systems(
@@ -143,6 +171,7 @@ impl Plugin for KitEditPlugin {
                     apply_slice,
                     show_ghost,
                     show_marks,
+                    show_columns,
                 )
                     .chain(),
             );
@@ -181,6 +210,12 @@ fn setup_visuals(
     ];
     vis.mark_ok = tint(&mut materials, Color::srgba(0.659, 0.784, 0.847, 0.28));
     vis.mark_bad = tint(&mut materials, Color::srgba(0.878, 0.439, 0.353, 0.28));
+    vis.column_mats = [
+        tint(&mut materials, Color::srgba(0.769, 0.604, 0.322, 0.16)),
+        tint(&mut materials, Color::srgba(0.878, 0.439, 0.353, 0.16)),
+        tint(&mut materials, Color::srgba(0.659, 0.784, 0.847, 0.14)),
+        tint(&mut materials, Color::srgba(0.878, 0.439, 0.353, 0.14)),
+    ];
     let dot = meshes.add(Sphere::new(0.006).mesh().ico(2).expect("ico sphere"));
     vis.ports = (0..MAX_PORTS)
         .map(|_| {
@@ -202,6 +237,20 @@ fn setup_visuals(
                 .spawn((
                     Mesh3d(cube.clone()),
                     MeshMaterial3d(vis.mark_ok.clone()),
+                    Transform::default(),
+                    Visibility::Hidden,
+                ))
+                .id()
+        })
+        .collect();
+    let unit = meshes.add(Cuboid::new(1.0, 1.0, 1.0));
+    vis.columns = (0..MAX_COLUMNS)
+        .map(|_| {
+            commands
+                .spawn((
+                    GroundColumn,
+                    Mesh3d(unit.clone()),
+                    MeshMaterial3d(vis.column_mats[0].clone()),
                     Transform::default(),
                     Visibility::Hidden,
                 ))
@@ -476,6 +525,54 @@ fn show_marks(
     }
 }
 
+/// Lift off the floor so a column's foot never z-fights it.
+const COLUMN_FOOT_M: f32 = 0.001;
+/// Column width as a share of a cell, so neighbouring columns read as separate cells.
+const COLUMN_WIDTH: f32 = 0.94;
+
+/// The transform of the column under `cell`: from just above the floor up to the cell's bottom.
+fn column_transform(cell: IVec3) -> Transform {
+    let base = cell_origin(cell);
+    let h = (base.y - COLUMN_FOOT_M).max(COLUMN_FOOT_M);
+    let w = super::CELL_M * COLUMN_WIDTH;
+    Transform::from_translation(Vec3::new(base.x, COLUMN_FOOT_M + h * 0.5, base.z))
+        .with_scale(Vec3::new(w, h, w))
+}
+
+fn show_columns(
+    columns: Res<KitColumns>,
+    vis: Res<EditVisuals>,
+    mut q: Query<(
+        &mut Transform,
+        &mut Visibility,
+        &mut MeshMaterial3d<StandardMaterial>,
+    )>,
+) {
+    if !columns.is_changed() {
+        return;
+    }
+    for (i, &e) in vis.columns.iter().enumerate() {
+        let Ok((mut tf, mut v, mut m)) = q.get_mut(e) else {
+            continue;
+        };
+        match columns.cells.get(i) {
+            Some(&(c, tint)) => {
+                *tf = column_transform(c);
+                *v = Visibility::Inherited;
+                let mat = &vis.column_mats[tint as usize];
+                if m.0 != *mat {
+                    m.0 = mat.clone();
+                }
+            }
+            None => {
+                if *v != Visibility::Hidden {
+                    *v = Visibility::Hidden;
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -497,6 +594,22 @@ mod tests {
         };
         let v = p.transform().transform_point(Vec3::X);
         assert!((v - Vec3::Z).length() < 1e-5, "{v}");
+    }
+
+    #[test]
+    fn a_column_runs_from_the_floor_to_the_cell_bottom() {
+        let t = column_transform(IVec3::new(2, 3, -1));
+        let base = cell_origin(IVec3::new(2, 3, -1));
+        let (lo, hi) = (
+            t.translation.y - t.scale.y * 0.5,
+            t.translation.y + t.scale.y * 0.5,
+        );
+        assert!((lo - COLUMN_FOOT_M).abs() < 1e-6, "{lo}");
+        assert!((hi - base.y).abs() < 1e-6, "{hi} vs {}", base.y);
+        assert_eq!((t.translation.x, t.translation.z), (base.x, base.z));
+        // Level 0: a thin footprint just above the floor.
+        let f = column_transform(IVec3::new(0, 0, 0));
+        assert!(f.scale.y <= COLUMN_FOOT_M + 1e-6 && f.translation.y > 0.0);
     }
 
     #[test]

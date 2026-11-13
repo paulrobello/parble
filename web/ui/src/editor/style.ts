@@ -62,6 +62,8 @@ export const CSS = `
 #pe .sl{flex:none;white-space:nowrap;display:flex;align-items:center;gap:2px}
 #pe .sl .v{font-size:15px;font-weight:700;padding:0 4px;font-variant-numeric:lining-nums tabular-nums;min-width:48px;text-align:center}
 #pe .sl button{display:flex;align-items:center;gap:3px;padding:6px 5px}
+#pe .sl .cl{margin-left:6px;border:1px solid transparent}
+#pe .sl .cl.on{background:var(--r);border-color:var(--b)}
 #pe .sp{flex:1}
 #pe .build{transition:opacity .2s}
 #pe.running .build{opacity:.45}

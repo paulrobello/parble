@@ -832,6 +832,7 @@ fn fly_focus_ray(
         Option<&ChildOf>,
     )>,
     marbles: Query<(), With<crate::MarbleVisual>>,
+    columns: Query<(), With<crate::kit::edit::GroundColumn>>,
 ) {
     if *mode != CameraMode::Fly {
         st.fly_hit = None;
@@ -843,7 +844,10 @@ fn fly_focus_ray(
         return;
     };
     st.fly_hit = ray
-        .cast_ray(Ray3d::new(eye, dir), &MeshRayCastSettings::default())
+        .cast_ray(
+            Ray3d::new(eye, dir),
+            &MeshRayCastSettings::default().with_filter(&|e| !columns.contains(e)),
+        )
         .first()
         .filter(|(_, hit)| hit.distance > 0.0 && hit.distance < FLY_FAR_FOCUS_M)
         .map(|(e, hit)| {

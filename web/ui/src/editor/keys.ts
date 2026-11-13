@@ -19,7 +19,17 @@ export interface KeyLike {
 /** What a key does: engine actions, or an overlay command. */
 export type KeyResult = { kind: "actions"; actions: Action[] } | { kind: "ui"; command: UiCommand } | null;
 
-export type UiCommand = "drawer" | "panel" | "run" | "space" | "escape" | "remove" | "sliceToggle" | "follow" | "fly";
+export type UiCommand =
+  | "drawer"
+  | "panel"
+  | "run"
+  | "space"
+  | "escape"
+  | "remove"
+  | "sliceToggle"
+  | "columns"
+  | "follow"
+  | "fly";
 
 /** The engine's own keys (playback and camera), which Bevy handles itself while the canvas has focus. */
 export const ENGINE_KEYS: ReadonlySet<string> = new Set(["KeyP", "KeyC", "KeyF"]);
@@ -61,6 +71,8 @@ export function keyResult(e: KeyLike, d: Pick<EditorDiag, "slice" | "maxLevel">)
       return acts({ op: "slice", level: sliceUp(d.slice, d.maxLevel) });
     case "KeyX":
       return ui("sliceToggle");
+    case "KeyH":
+      return ui("columns");
     case "ArrowLeft":
       return acts({ op: "move", offset: [-1, 0, 0] });
     case "ArrowRight":

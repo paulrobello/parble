@@ -238,6 +238,7 @@ describe("editor keyboard map", () => {
     expect(keyResult(key("Space"), d)).toEqual({ kind: "ui", command: "space" });
     expect(keyResult(key("Escape"), d)).toEqual({ kind: "ui", command: "escape" });
     expect(keyResult(key("Backspace"), d)).toEqual({ kind: "ui", command: "remove" });
+    expect(keyResult(key("KeyH"), d)).toEqual({ kind: "ui", command: "columns" });
     expect(keyResult(key("Tab"), d)).toEqual({ kind: "ui", command: "drawer" });
     expect(keyResult(key("Backslash"), d)).toEqual({ kind: "ui", command: "panel" });
     expect(keyResult(key("KeyX"), d)).toEqual({ kind: "ui", command: "sliceToggle" });

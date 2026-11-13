@@ -174,6 +174,8 @@ export interface EditorDiag {
   check?: CheckDiag;
   /** Nudge zones; absent from builds before them. */
   nudges?: NudgeDiag;
+  /** Ground columns under the hovered piece and the selection (cell columns drawn); absent from builds before them. */
+  columns?: { on: boolean; hover: number; selected: number };
 }
 
 /** One nudge zone as `editor.nudges` lists it: its track fields in camelCase and where it is on screen. */
@@ -216,6 +218,7 @@ export type Action =
   | { op: "boxSelect"; a: Vec3i; b: Vec3i; shift?: boolean }
   | { op: "camera"; target: [number, number, number]; yaw: number; pitch: number; radius: number }
   | { op: "keys"; enabled: boolean }
+  | { op: "columns"; on: boolean }
   | { op: "marbles"; count: number }
   | { op: "run"; release: Release; intervalTicks?: number }
   | { op: "stop" }

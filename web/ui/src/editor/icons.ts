@@ -16,6 +16,7 @@ const SYMBOLS: Record<string, string> = {
   pau: '<path d="M7 4v12 M13 4v12"/>',
   rst: '<path d="M4 10a6 6 0 1 0 2-4.5 M4 3v3.5h3.5"/>',
   cam: '<path d="M3 6h3l1.5-2h5L14 6h3v10H3z"/><circle cx="10" cy="11" r="2.5"/>',
+  col: '<path d="M7 3h6v4H7z M8 7v8 M12 7v8 M4 17h12"/>',
   chl: '<path d="M12 5l-5 5 5 5"/>',
   chr: '<path d="M8 5l5 5-5 5"/>',
   chd: '<path d="M5 8l5 5 5-5"/>',
