@@ -302,6 +302,19 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     b.addEventListener("click", () => setFamily(f.id));
     tabs.append(b);
   }
+  const fitsTab = h(
+    doc,
+    "button",
+    {
+      role: "tab",
+      class: "fit",
+      "data-k": "fits",
+      "aria-selected": "false",
+      title: "Only the pieces that attach to the selected piece, turned to fit",
+    },
+    "Fits selection",
+  );
+  tabs.append(fitsTab);
   const collapse = h(
     doc,
     "button",
@@ -326,6 +339,8 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     { passive: false },
   );
   let family: Family = "blocks";
+  /** The Fits selection tab: the drawer lists `editor.attach` in place of a family. */
+  let fitsOnly = false;
   let tileFor = "";
   let countFor = "";
 
@@ -636,6 +651,7 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     up: () => d && act({ op: "slice", level: sliceUp(d.slice, d.maxLevel) }),
     sliceToggle: toggleSlice,
     columns: toggleColumns,
+    fits: () => toggleFits(),
     one: () => run("one"),
     all: () => run("all"),
     interval: () => setMenu(!menu.classList.contains("open")),
@@ -759,7 +775,10 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
   };
 
   const pick = (piece: string): void => {
-    act({ op: "brush", piece, yaw: d?.brush.piece === piece ? d.brush.yaw : 0, mirror: false });
+    // From Fits selection, the brush takes the turn (and mirror) that links to the selection.
+    const fit = fitsOnly ? d?.attach?.find((f) => f.piece === piece) : undefined;
+    if (fit) act({ op: "brush", piece, yaw: fit.yaw, mirror: fit.mirror });
+    else act({ op: "brush", piece, yaw: d?.brush.piece === piece ? d.brush.yaw : 0, mirror: false });
     act({ op: "tool", tool: "place" });
   };
 
@@ -788,23 +807,39 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
 
   const setFamily = (f: Family): void => {
     family = f;
+    fitsOnly = false;
+    tileFor = "";
+    if (d) renderTiles(d);
+  };
+  const toggleFits = (): void => {
+    fitsOnly = !fitsOnly;
     tileFor = "";
     if (d) renderTiles(d);
   };
 
   // ---- renders ---------------------------------------------------------------------------
   const renderTiles = (s: EditorDiag): void => {
-    const key = `${family}|${s.palette.length}`;
+    const fits = fitsOnly ? (s.attach?.map((f) => f.piece) ?? null) : null;
+    const key = fitsOnly ? `fits|${fits?.join() ?? "-"}` : `${family}|${s.palette.length}`;
     if (key !== tileFor) {
       tileFor = key;
-      tiles.innerHTML = piecesOf(s.palette, family)
-        .map(
-          (
-            p,
-          ) => `<div class="pc"><button class="tile" role="option" data-piece="${p}" aria-selected="false" title="${esc(pieceName(p))}">
+      const note = !fitsOnly
+        ? null
+        : fits === null
+          ? "Select one piece to see what attaches to it."
+          : fits.length === 0
+            ? "Nothing attaches to its open ports."
+            : null;
+      tiles.innerHTML = note
+        ? `<p class="fit-note">${note}</p>`
+        : (fits ?? piecesOf(s.palette, family))
+            .map(
+              (
+                p,
+              ) => `<div class="pc"><button class="tile" role="option" data-piece="${p}" aria-selected="false" title="${esc(pieceName(p))}">
 <img alt="" src="${versioned(win, `${THUMB_DIR}${p}.png`)}" width="80" height="80" decoding="async" draggable="false"><b class="ct" data-ct="${p}"></b></button><span class="nm">${esc(pieceName(p))}</span></div>`,
-        )
-        .join("");
+            )
+            .join("");
       tiles.append(tilePin.el);
       tiles.scrollLeft = 0;
       edgeCue();
@@ -823,11 +858,14 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
       }
     }
     for (const t of tabs.querySelectorAll<HTMLElement>("[data-f]")) {
-      const on = t.dataset.f === family;
+      const on = !fitsOnly && t.dataset.f === family;
       t.classList.toggle("on", on);
       t.setAttribute("aria-selected", String(on));
       if (on) tabPin.to(t);
     }
+    fitsTab.classList.toggle("on", fitsOnly);
+    fitsTab.setAttribute("aria-selected", String(fitsOnly));
+    if (fitsOnly) tabPin.to(fitsTab);
     let active: HTMLElement | null = null;
     for (const t of tiles.querySelectorAll<HTMLElement>("[data-piece]")) {
       const on = s.tool === "place" && t.dataset.piece === s.brush.piece;

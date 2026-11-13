@@ -655,6 +655,88 @@ pub struct EditorDiag {
     /// Nudge zones ([`nudge`]): the count, the selected one and each one projected, every frame.
     pub nudges: NudgeDiag,
     pub columns: ColumnsDiag,
+    /// What attaches to the one selected piece ([`attach_fits`]); `null` unless exactly one piece
+    /// is selected. Computed when the selection or the track changes.
+    pub attach: Option<Vec<AttachFit>>,
+}
+
+/// A palette piece that attaches to the selected piece, and the first placement that does.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AttachFit {
+    pub piece: &'static str,
+    pub anchor: [i32; 3],
+    pub yaw: u8,
+    pub mirror: bool,
+}
+
+/// Every palette piece that can be placed across one of the selected piece's open ports so that
+/// the two ports link ([`link_fault`] finds nothing) and [`Editor::check`] accepts the placement,
+/// with the first such placement (quarter turns 0 to 3, then mirrored for a chiral piece). `None`
+/// unless exactly one piece is selected.
+fn attach_fits(st: &EditState) -> Option<Vec<AttachFit>> {
+    let i = match st.editor.selection.iter().collect::<Vec<_>>()[..] {
+        [i] => i,
+        _ => return None,
+    };
+    let p = st.editor.track().placements.get(i as usize)?;
+    let def = st.kit.get(&p.piece)?;
+    let open: Vec<_> = def
+        .ports
+        .iter()
+        .map(|port| {
+            let mut wp = port.transformed(p.orientation());
+            wp.cell = wp.cell + p.anchor;
+            wp
+        })
+        .filter(|wp| !st.occupancy.contains_key(&(wp.cell + wp.face.normal())))
+        .collect();
+    let mut fits = Vec::new();
+    for id in palette() {
+        let Some(piece) = piece_index(id).map(pid) else {
+            continue;
+        };
+        let Some(d) = st.kit.get(&piece) else {
+            continue;
+        };
+        let turns = if d.chiral { 8 } else { 4 };
+        let fit = (0..turns).find_map(|k| {
+            let (yaw, mirror) = (k % 4, k >= 4);
+            let o = Orientation::new(Yaw4::new(yaw), mirror_of(mirror));
+            d.ports.iter().find_map(|q| {
+                let qt = q.transformed(o);
+                open.iter().find_map(|wp| {
+                    if qt.face != wp.face.opposite() {
+                        return None;
+                    }
+                    let across = wp.cell + wp.face.normal();
+                    let mut qw = qt;
+                    qw.cell = across;
+                    if link_fault(wp, &qw).is_some() {
+                        return None;
+                    }
+                    let anchor = CellCoord::new(
+                        across.x - qt.cell.x,
+                        across.y - qt.cell.y,
+                        across.z - qt.cell.z,
+                    );
+                    let place =
+                        Placement::new(piece.clone(), anchor, Yaw4::new(yaw), mirror_of(mirror));
+                    st.editor
+                        .check(st.kit, EditCommand::Place(place))
+                        .is_ok()
+                        .then_some(AttachFit {
+                            piece: id,
+                            anchor: cell_arr(anchor),
+                            yaw,
+                            mirror,
+                        })
+                })
+            })
+        });
+        fits.extend(fit);
+    }
+    Some(fits)
 }
 
 /// Ground columns: on or off, and how many cell columns the hovered piece and the selection draw.
@@ -2690,6 +2772,7 @@ fn apply_actions(
     {
         st.selection_at = Some((d.edits, st.editor.selection.clone()));
         d.selection_info = selection_diag(st);
+        d.attach = attach_fits(st);
     }
 }
 
@@ -4006,6 +4089,58 @@ mod tests {
         act(st, ctx, r#"{"op":"stroke","phase":"start"}"#).unwrap();
         act(st, ctx, r#"{"op":"stroke","phase":"end"}"#).unwrap();
         assert!(st.editor.track().placements.is_empty());
+    }
+
+    #[test]
+    fn attach_lists_the_pieces_that_link_to_the_selected_piece() {
+        let mut rig = Rig::new();
+        let mut st = EditState::new();
+        let ctx = &mut rig.ctx();
+        let st = &mut st;
+        act(
+            st,
+            ctx,
+            r#"{"op":"place","piece":"rail_s_1x3_l2","cell":[0,3,0]}"#,
+        )
+        .unwrap();
+        act(st, ctx, r#"{"op":"clearSelection"}"#).unwrap();
+        assert_eq!(attach_fits(st), None, "nothing selected");
+        act(st, ctx, r#"{"op":"boxSelect","a":[0,3,0],"b":[0,3,0]}"#).unwrap();
+        let fits = attach_fits(st).unwrap();
+        let ids: Vec<_> = fits.iter().map(|f| f.piece).collect();
+        // The S-bend's ports are channel ports at L2: L2 rails link, L1 rails do not.
+        for id in ["rail_straight_l2", "rail_curve90_r90_l2", "rail_s_1x3_l2"] {
+            assert!(ids.contains(&id), "{id} fits: {ids:?}");
+        }
+        assert!(!ids.contains(&"rail_straight_l1"), "{ids:?}");
+        // Each fit is a placement the editor takes, and its port then links.
+        for f in &fits {
+            let i = piece_index(f.piece).unwrap();
+            let p = Placement::new(
+                pid(i),
+                arr_cell(f.anchor),
+                Yaw4::new(f.yaw),
+                mirror_of(f.mirror),
+            );
+            assert!(
+                st.editor
+                    .check(st.kit, EditCommand::Place(p.clone()))
+                    .is_ok()
+            );
+            assert!(
+                st.port_hints(&p).iter().any(|h| h.hint == PortHint::Linked),
+                "{f:?}"
+            );
+        }
+        // Two selected: no list.
+        act(
+            st,
+            ctx,
+            r#"{"op":"place","piece":"rail_straight_l2","cell":[5,3,5]}"#,
+        )
+        .unwrap();
+        act(st, ctx, r#"{"op":"boxSelect","a":[0,3,0],"b":[5,3,5]}"#).unwrap();
+        assert_eq!(attach_fits(st), None);
     }
 
     #[test]

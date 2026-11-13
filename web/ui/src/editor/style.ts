@@ -128,6 +128,8 @@ export const CSS = `
 #pe-tray{left:12px;right:12px;bottom:12px;height:var(--tray-h);overflow:hidden;transition:opacity .4s ease-out}
 #pe .tabs{position:relative;display:flex;height:36px;border-bottom:1px solid var(--line);padding:0 14px;gap:2px;align-items:flex-end}
 #pe .tabs button{position:relative;border-radius:4px 4px 0 0;padding:6px 16px 7px 22px;font-size:14px;border-bottom:0;color:var(--m)}
+#pe .tabs .fit{margin-left:10px}
+#pe .fit-note{margin:auto 0;padding:0 8px;color:var(--m);font-size:14px}
 #pe .tabs .on{background:var(--r);border-color:var(--line);color:var(--c);font-weight:700}
 #pe .tabs .collapse{margin-left:auto;align-self:center;display:flex;gap:6px;align-items:center;padding:4px 8px;font-size:12px;border-radius:4px}
 #pe .body{display:flex;height:138px;padding:9px 18px 0;gap:14px}

@@ -176,6 +176,16 @@ export interface EditorDiag {
   nudges?: NudgeDiag;
   /** Ground columns under the hovered piece and the selection (cell columns drawn); absent from builds before them. */
   columns?: { on: boolean; hover: number; selected: number };
+  /** What attaches to the one selected piece; null unless exactly one is selected, absent from builds before it. */
+  attach?: AttachFit[] | null;
+}
+
+/** A piece that attaches to the selected piece, and the first placement (anchor, turn, mirror) that links. */
+export interface AttachFit {
+  piece: string;
+  anchor: Vec3i;
+  yaw: number;
+  mirror: boolean;
 }
 
 /** One nudge zone as `editor.nudges` lists it: its track fields in camelCase and where it is on screen. */

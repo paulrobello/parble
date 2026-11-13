@@ -214,6 +214,34 @@ describe("editor overlay", () => {
     expect(ui.root.classList.contains("tray-closed")).toBe(true);
   });
 
+  it("Fits selection lists what attaches to the selected piece and picks it turned to fit", () => {
+    ui.update(diag());
+    click('[data-k="fits"]');
+    expect($('[data-k="fits"]').getAttribute("aria-selected")).toBe("true");
+    expect($('[data-f="blocks"]').getAttribute("aria-selected")).toBe("false");
+    expect(document.querySelectorAll("[data-piece]").length).toBe(0);
+    expect($(".fit-note").textContent).toBe("Select one piece to see what attaches to it.");
+    const attach = [
+      { piece: "rail_straight_l2", anchor: [1, 0, 0] as [number, number, number], yaw: 2, mirror: false },
+      { piece: "blk_curve90_l3", anchor: [1, 0, 0] as [number, number, number], yaw: 1, mirror: true },
+    ];
+    ui.update(diag({ selection: 1, attach }));
+    expect([...document.querySelectorAll<HTMLElement>("[data-piece]")].map((t) => t.dataset.piece)).toEqual([
+      "rail_straight_l2",
+      "blk_curve90_l3",
+    ]);
+    click('[data-piece="blk_curve90_l3"]');
+    expect(sent.slice(-2)).toEqual([
+      { op: "brush", piece: "blk_curve90_l3", yaw: 1, mirror: true },
+      { op: "tool", tool: "place" },
+    ]);
+    ui.update(diag({ selection: 1, attach: [] }));
+    expect($(".fit-note").textContent).toBe("Nothing attaches to its open ports.");
+    click('[data-f="rails"]');
+    expect($('[data-k="fits"]').getAttribute("aria-selected")).toBe("false");
+    expect(document.querySelectorAll("[data-piece]").length).toBe(1);
+  });
+
   it("a mouse click on a tile or tool hands the keys back to the canvas; keyboard activation does not", () => {
     ui.update(diag());
     const cv = $("#parble");

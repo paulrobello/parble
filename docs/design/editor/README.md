@@ -29,7 +29,7 @@ All chrome is inset 12 px from the canvas edges and sits on walnut at 90% opacit
    - Selection, which shows piece properties, the group actions, or Start here when the track is empty.
    - Validation, which lists the issues.
    The panel collapses to a 28 px spine with a toggle (`\`) for builders who want the whole scene.
-3. **Bottom drawer, 174 px.** It holds family tabs (Blocks, Rails, Mechanisms, Supports), 96 px tiles and a hint column. The drawer collapses to its 36 px tab row with `Tab`.
+3. **Bottom drawer, 174 px.** It holds family tabs (Blocks, Rails, Mechanisms, Supports), a Fits selection tab (only the pieces that attach to the one selected piece, picked already turned to fit), 96 px tiles and a hint column. The drawer collapses to its 36 px tab row with `Tab`.
 4. **Sound** sits above the drawer at the right. It is the existing mixer, restyled into the walnut set.
 
 Below 1280 px wide, the run-control labels fold into icons with tooltips (key caps stay visible in the tooltips), and the hint column leaves the drawer. Desktop only, with no touch layout.
