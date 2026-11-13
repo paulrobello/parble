@@ -20,6 +20,7 @@ import {
   cellText,
   countBadge,
   dialPoint,
+  drawerTiles,
   type EditorDiag,
   FAMILIES,
   type Family,
@@ -30,6 +31,7 @@ import {
   ghostText,
   INTERVALS,
   issueText,
+  levelBase,
   levelLabel,
   MAX_MARBLES,
   type NudgeEdit,
@@ -345,6 +347,8 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
   let family: Family = "blocks";
   /** The Fits selection tab: the drawer lists `editor.attach` in place of a family. */
   let fitsOnly = false;
+  /** The height last picked for each multi-level rail tile, by level base (`rail_straight`). */
+  const heightPick = new Map<string, string>();
   let tileFor = "";
   let countFor = "";
 
@@ -815,7 +819,11 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
   const pick = (piece: string): void => {
     // From Fits selection, the brush takes the turn (and mirror) that links to the selection.
     const fit = fitsOnly ? d?.attach?.find((f) => f.piece === piece) : undefined;
+    if (familyOf(piece) === "rails") heightPick.set(levelBase(piece), piece);
+    const b = d?.brush;
     if (fit) act({ op: "brush", piece, yaw: fit.yaw, mirror: fit.mirror });
+    else if (b && b.piece !== piece && familyOf(piece) === "rails" && levelBase(b.piece) === levelBase(piece))
+      act({ op: "brush", piece, yaw: b.yaw, mirror: b.mirror });
     else act({ op: "brush", piece, yaw: d?.brush.piece === piece ? d.brush.yaw : 0, mirror: false });
     act({ op: "tool", tool: "place" });
   };
@@ -856,6 +864,12 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
   };
 
   // ---- renders ---------------------------------------------------------------------------
+  const shownVariant = (g: readonly string[], s: EditorDiag): string => {
+    if (g.includes(s.brush.piece)) return s.brush.piece;
+    const picked = heightPick.get(levelBase(g[0] ?? ""));
+    if (picked && g.includes(picked)) return picked;
+    return g.find((v) => v.endsWith("_l2")) ?? g[0] ?? "";
+  };
   const renderTiles = (s: EditorDiag): void => {
     const fits = fitsOnly ? (s.attach?.map((f) => f.piece) ?? null) : null;
     const key = fitsOnly ? `fits|${fits?.join() ?? "-"}` : `${family}|${s.palette.length}`;
@@ -868,15 +882,27 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
           : fits.length === 0
             ? "Nothing attaches to its open ports."
             : null;
+      // Fits selection lists concrete variants; a family groups each multi-level rail into one
+      // tile whose height picker holds the variants (each chip picks and lays like a tile).
+      const groups = fits ? fits.map((p) => [p]) : drawerTiles(piecesOf(s.palette, family));
       tiles.innerHTML = note
         ? `<p class="fit-note">${note}</p>`
-        : (fits ?? piecesOf(s.palette, family))
-            .map(
-              (
-                p,
-              ) => `<div class="pc"><button class="tile" role="option" data-piece="${p}" aria-selected="false" title="${esc(pieceName(p))}">
-<img alt="" src="${versioned(win, `${THUMB_DIR}${p}.png`)}" width="80" height="80" decoding="async" draggable="false"><b class="ct" data-ct="${p}"></b></button><span class="nm">${esc(pieceName(p))}</span></div>`,
-            )
+        : groups
+            .map((g) => {
+              const p = shownVariant(g, s);
+              const name = g.length > 1 ? pieceName(levelBase(p)) : pieceName(p);
+              const picker =
+                g.length > 1
+                  ? `<span class="hts" role="radiogroup" aria-label="${esc(name)} height">${g
+                      .map(
+                        (v) =>
+                          `<button class="ht" role="radio" data-piece="${v}" aria-checked="false" title="${esc(pieceName(v))}">${esc(/_l(\d)$/.exec(v)?.[1] ?? "")}</button>`,
+                      )
+                      .join("")}</span>`
+                  : "";
+              return `<div class="pc"${g.length > 1 ? ` data-g="${g.join(",")}"` : ""}><button class="tile" role="option" data-piece="${p}" aria-selected="false" title="${esc(pieceName(p))}">
+<img alt="" src="${versioned(win, `${THUMB_DIR}${p}.png`)}" width="80" height="80" decoding="async" draggable="false"><b class="ct" data-ct="${g.join(",")}"></b></button>${picker}<span class="nm">${esc(name)}</span></div>`;
+            })
             .join("");
       tiles.append(tilePin.el);
       tiles.scrollLeft = 0;
@@ -889,7 +915,10 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     if (ck !== countFor) {
       countFor = ck;
       for (const b of tiles.querySelectorAll<HTMLElement>("[data-ct]")) {
-        const n = counts[b.dataset.ct ?? ""];
+        const ids = (b.dataset.ct ?? "").split(",");
+        const n = ids.some((id) => counts[id] !== undefined)
+          ? ids.reduce((t, id) => t + (counts[id] ?? 0), 0)
+          : undefined;
         const text = countBadge(n);
         if (b.textContent !== text) b.textContent = text;
         b.setAttribute("aria-label", n ? `${n} placed` : "");
@@ -904,8 +933,23 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     fitsTab.classList.toggle("on", fitsOnly);
     fitsTab.setAttribute("aria-selected", String(fitsOnly));
     if (fitsOnly) tabPin.to(fitsTab);
+    // A height tile shows the variant in the brush, else the one last picked, else L2.
+    for (const pc of tiles.querySelectorAll<HTMLElement>(".pc[data-g]")) {
+      const shown = shownVariant((pc.dataset.g ?? "").split(","), s);
+      const tile = pc.querySelector<HTMLElement>(".tile");
+      if (tile && tile.dataset.piece !== shown) {
+        tile.dataset.piece = shown;
+        tile.title = pieceName(shown);
+        tile.querySelector("img")?.setAttribute("src", versioned(win, `${THUMB_DIR}${shown}.png`));
+      }
+      for (const c of pc.querySelectorAll<HTMLElement>(".ht")) {
+        const on = c.dataset.piece === shown;
+        c.classList.toggle("on", on);
+        c.setAttribute("aria-checked", String(on));
+      }
+    }
     let active: HTMLElement | null = null;
-    for (const t of tiles.querySelectorAll<HTMLElement>("[data-piece]")) {
+    for (const t of tiles.querySelectorAll<HTMLElement>(".tile[data-piece]")) {
       const on = s.tool === "place" && t.dataset.piece === s.brush.piece;
       t.classList.toggle("on", on);
       t.setAttribute("aria-selected", String(on));

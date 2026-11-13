@@ -242,6 +242,38 @@ describe("editor overlay", () => {
     expect(document.querySelectorAll("[data-piece]").length).toBe(1);
   });
 
+  it("a rail that comes at several levels is one tile with a height picker", () => {
+    const palette = [...PALETTE, "rail_joint_l1", "rail_straight_l1", "rail_straight_l3"].sort();
+    ui.update(diag({ palette }));
+    click('[data-f="rails"]');
+    const tiles = () => [...document.querySelectorAll<HTMLElement>(".tile")].map((t) => t.dataset.piece);
+    expect(tiles()).toEqual(["rail_joint_l1", "rail_straight_l2"]);
+    expect([...document.querySelectorAll(".pc .nm")].map((n) => n.textContent)).toEqual(["Rail joint · 1", "Straight"]);
+    const heights = () =>
+      [...document.querySelectorAll<HTMLElement>(".ht")].map((c) => [c.textContent, c.getAttribute("aria-checked")]);
+    expect(heights()).toEqual([
+      ["1", "false"],
+      ["2", "true"],
+      ["3", "false"],
+    ]);
+    // A height chip picks that variant like a tile, keeping the turn of the brush's own variant.
+    click('.ht[data-piece="rail_straight_l3"]');
+    expect(sent.slice(-2)).toEqual([
+      { op: "brush", piece: "rail_straight_l3", yaw: 0, mirror: false },
+      { op: "tool", tool: "place" },
+    ]);
+    ui.update(diag({ palette, tool: "place", brush: { piece: "rail_straight_l3", yaw: 1, mirror: false } }));
+    expect(tiles()).toEqual(["rail_joint_l1", "rail_straight_l3"]);
+    expect($('.tile[data-piece="rail_straight_l3"]').getAttribute("aria-selected")).toBe("true");
+    expect(heights().map(([, on]) => on)).toEqual(["false", "false", "true"]);
+    click('.ht[data-piece="rail_straight_l1"]');
+    expect(sent.at(-2)).toEqual({ op: "brush", piece: "rail_straight_l1", yaw: 1, mirror: false });
+    // The tile remembers the last height picked once the brush moves on.
+    ui.update(diag({ palette, tool: "place", brush: { piece: "rail_joint_l1", yaw: 0, mirror: false } }));
+    expect(tiles()).toEqual(["rail_joint_l1", "rail_straight_l1"]);
+    expect($('.tile[data-piece="rail_straight_l1"]').getAttribute("aria-selected")).toBe("false");
+  });
+
   it("a mouse click on a tile or tool hands the keys back to the canvas; keyboard activation does not", () => {
     ui.update(diag());
     const cv = $("#parble");

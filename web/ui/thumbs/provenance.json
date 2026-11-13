@@ -1,8 +1,8 @@
 {
   "generator": "blender/kit/thumbnails.py",
   "blender": "Blender 5.2.2 LTS",
-  "git_head": "c300195b4b8650a9499aa3f9aff80e9fbbdccd7a",
-  "date": "2026-11-09",
+  "git_head": "4df4b436544e7d7464e55982371bbd849a226c27",
+  "date": "2026-11-12",
   "render": {
     "engine": "BLENDER_EEVEE",
     "samples": 64,
@@ -250,12 +250,28 @@
       "bytes": 3412
     },
     {
+      "id": "rail_curve90_r90_l1",
+      "source_glb": "assets/kit/rail_curve90_r90_l1/rail_curve90_r90_l1.glb",
+      "source_glb_sha256": "3effbf74ddcd438ee3bca5b3f26c387decf78471ae40f1347552b6605c1c3f54",
+      "png": "rail_curve90_r90_l1.png",
+      "png_sha256": "49a4c13aa8a2e1af2aac9fc2eb8c28e524e2f84d018810b359d37b6def71fe2d",
+      "bytes": 2500
+    },
+    {
       "id": "rail_curve90_r90_l2",
       "source_glb": "assets/kit/rail_curve90_r90_l2/rail_curve90_r90_l2.glb",
       "source_glb_sha256": "081f282c028d5212adeed69f5af61e63f9478e5e1ec517265d1bf2dfb9755341",
       "png": "rail_curve90_r90_l2.png",
       "png_sha256": "fd35a7799d49ae72d426f32fec1e5281acec8b7b82b0c3a2d2ac0c61f0f88cdd",
       "bytes": 2504
+    },
+    {
+      "id": "rail_curve90_r90_l3",
+      "source_glb": "assets/kit/rail_curve90_r90_l3/rail_curve90_r90_l3.glb",
+      "source_glb_sha256": "6e7e0238ee7759b12c0017e10831c8ca4e658ccc214c2c64b67fe69b0365fe85",
+      "png": "rail_curve90_r90_l3.png",
+      "png_sha256": "a1a14951bbdca866294b9c74b3fe4a6415e64d39e9594acfb262f49f3d1940c9",
+      "bytes": 2498
     },
     {
       "id": "rail_joint_l1",
@@ -266,12 +282,28 @@
       "bytes": 2882
     },
     {
+      "id": "rail_s_1x3_l1",
+      "source_glb": "assets/kit/rail_s_1x3_l1/rail_s_1x3_l1.glb",
+      "source_glb_sha256": "a0d8a25e464ec059e0f570e7ef3b05cc66995c85c58ee8f71b363a03f76ede5d",
+      "png": "rail_s_1x3_l1.png",
+      "png_sha256": "1479c60a956ee399e2273f1b872f956d8c935f549b98e6539248577574626e12",
+      "bytes": 2375
+    },
+    {
       "id": "rail_s_1x3_l2",
       "source_glb": "assets/kit/rail_s_1x3_l2/rail_s_1x3_l2.glb",
       "source_glb_sha256": "c38f7e68dcc9691319875468b1b7081e35f876d25d5a9211c4d156cdcb3f80a7",
       "png": "rail_s_1x3_l2.png",
       "png_sha256": "dad7b5c7ba0f241c4b693c1e03f10fd7bf45dcaff0d3330178a5a0934b90ae6a",
       "bytes": 2376
+    },
+    {
+      "id": "rail_s_1x3_l3",
+      "source_glb": "assets/kit/rail_s_1x3_l3/rail_s_1x3_l3.glb",
+      "source_glb_sha256": "8c144962b470a4669adcf0d5ead26da0c85bb5c86fc08b456fec6cdb1a8baf5c",
+      "png": "rail_s_1x3_l3.png",
+      "png_sha256": "de96fc80571265eaf986ad0ab9e243cbc2692eaee8401655f87cd0dd9e84fe51",
+      "bytes": 2373
     },
     {
       "id": "rail_straight_l1",
@@ -288,6 +320,14 @@
       "png": "rail_straight_l2.png",
       "png_sha256": "6306d584f5f39b34c828814200af7504a123e03e34f7881fdcf23c66cb447521",
       "bytes": 3052
+    },
+    {
+      "id": "rail_straight_l3",
+      "source_glb": "assets/kit/rail_straight_l3/rail_straight_l3.glb",
+      "source_glb_sha256": "660db007559a90c410b76ecc66e27b9cbfc91413608d131d2ff63c1057455894",
+      "png": "rail_straight_l3.png",
+      "png_sha256": "b7bc4a79427491f5d42f844e3bfadfe405e75819181d12308b1e985eb869f696",
+      "bytes": 2822
     }
   ]
 }

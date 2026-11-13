@@ -3,7 +3,7 @@
 //! `seam_test` are gated at every seam against the seamless `L2` block channel.
 
 use crate::chunk::{ChunkMesh, placed_triangles};
-use crate::marble::CATS_EYE;
+use crate::marble::{CATS_EYE, MarbleKind, MarbleSize, MarbleSpec};
 use crate::seam_test::{kick, upward};
 use crate::{MarbleState, Sim};
 use parble_core::{CellCoord, PieceId, Placement, Yaw4};
@@ -30,10 +30,14 @@ fn place(piece: &str, x: i32, y: i32, z: i32) -> Placement {
 }
 
 fn launch(sim: &mut Sim, at: Vector, dir: Vector, speed: f32) {
-    let (mut body, collider) = CATS_EYE.build(at);
+    launch_with(sim, &CATS_EYE, at, dir, speed);
+}
+
+fn launch_with(sim: &mut Sim, spec: &MarbleSpec, at: Vector, dir: Vector, speed: f32) {
+    let (mut body, collider) = spec.build(at);
     body.set_linvel(dir * speed, true);
     if speed > 0.0 {
-        body.set_angvel(Vector::Y.cross(dir) * (speed / CATS_EYE.radius_m), true);
+        body.set_angvel(Vector::Y.cross(dir) * (speed / spec.radius_m), true);
     }
     let h = sim.world.bodies.insert(body);
     sim.world
@@ -490,4 +494,202 @@ fn rail_contacts_report_rail_and_block_contacts_wood_with_the_run_unchanged() {
     );
     trace(&mut sim, 60);
     assert_eq!(first_static(&sim.drain_events()), Some(rail));
+}
+
+/// Centre height of a standard marble resting on an `L1`, `L2` or `L3` floor in cell layer 0.
+const REST_AT: [f32; 4] = [0.0, 0.015 + 0.008, 0.030 + 0.008, 0.045 + 0.008];
+
+/// [`seamless_l2`] at any level: `blk_straight_l<level>` stretched over 20 cells.
+fn seamless_at(level: usize) -> (f32, f32) {
+    let kit = parble_kit::builtin();
+    let one = place(&format!("blk_straight_l{level}"), 0, 0, 0);
+    let tris: Vec<[[i64; 3]; 3]> = placed_triangles(kit.piece(&one.piece).unwrap(), &one)
+        .into_iter()
+        .map(|t| t.map(|v| [(v[0] + 30_000) * 20 - 30_000, v[1], v[2]]))
+        .collect();
+    let mut sim = Sim::empty();
+    sim.world.integration_parameters.contact_clustering = false;
+    sim.world.colliders.insert(
+        ChunkMesh::from_triangles(&tris)
+            .collider([0, 0, 0])
+            .unwrap(),
+    );
+    launch(
+        &mut sim,
+        Vector::new(-0.02, REST_AT[level], 0.0),
+        Vector::X,
+        SPEED,
+    );
+    let tr = trace(&mut sim, TICKS);
+    let in_run = |m: &MarbleState| (0.03..1.14).contains(&m.position[0]);
+    (peak(&tr, in_run), kick(&tr, in_run))
+}
+
+/// [`rail_layout`]'s run with every piece at `level`.
+fn rail_layout_at(level: usize) -> Vec<Placement> {
+    let at = |s: &str, x, z| place(&format!("{s}_l{level}"), x, 0, z);
+    vec![
+        at("blk_straight", 0, 0),
+        at("blk_straight", 1, 0),
+        at("rail_straight", 2, 0),
+        at("rail_straight", 3, 0),
+        at("rail_s_1x3", 4, 0),
+        at("blk_straight", 7, -1),
+        at("blk_straight", 8, -1),
+    ]
+}
+
+/// [`rail_curve_run`]'s layout with every piece at `level`.
+fn rail_curve_layout_at(level: usize) -> Vec<Placement> {
+    let straight = format!("blk_straight_l{level}");
+    let turned = |x: i32, z: i32| {
+        Placement::new(
+            PieceId::new(&straight).unwrap(),
+            CellCoord::new(x, 0, z),
+            Yaw4::new(1),
+            false.into(),
+        )
+    };
+    vec![
+        place(&straight, 0, 0, 0),
+        place(&straight, 1, 0, 0),
+        place(&format!("rail_curve90_r90_l{level}"), 2, 0, 0),
+        turned(3, -2),
+        turned(3, -3),
+    ]
+}
+
+#[test]
+fn rails_at_l1_and_l3_keep_their_seams_under_the_thresholds() {
+    // The L2 seam gates above, run with every piece of both layouts at L1 and at L3 against the
+    // seamless block channel of the same level.
+    for level in [1, 3] {
+        let rest = REST_AT[level];
+        let (p_base, k_base) = seamless_at(level);
+        let (p_limit, k_limit) = (p_base + SEAM_SPIKE_MM_S, k_base + KICK_MARGIN_MM_S);
+        eprintln!("L{level} seamless channel: peak {p_base:.2} mm/s, kick {k_base:.2} mm/s");
+
+        let mut sim = track_sim(&rail_layout_at(level));
+        launch(&mut sim, Vector::new(-0.02, rest, 0.0), Vector::X, SPEED);
+        let tr = trace(&mut sim, TICKS);
+        assert!(
+            tr.iter()
+                .any(|m| m.position[0] > 0.50 && (m.position[2] + 0.06).abs() < 0.005),
+            "L{level}: marble must reach the last block, centred in row z = -60 mm"
+        );
+        assert!(
+            tr.iter()
+                .all(|m| m.position[0] > 0.51 || (m.position[1] - rest).abs() < 0.004),
+            "L{level}: marble stays in the channel"
+        );
+        for w in WINDOWS {
+            let sel = |m: &MarbleState| at(m, w.lo, w.hi);
+            assert!(
+                tr.iter().any(sel),
+                "L{level} {}: marble never crossed",
+                w.name
+            );
+            let (p, u, k) = (peak(&tr, sel), upward(&tr, sel), kick(&tr, sel));
+            eprintln!(
+                "L{level} {}: peak |vy| {p:.2} mm/s, upward {u:.2} (limit {p_limit:.2}), kick {k:.2} \
+                 (limit {k_limit:.2})",
+                w.name
+            );
+            let gated = if w.swinging { u } else { p };
+            assert!(
+                gated <= p_limit,
+                "L{level} {}: {gated:.2} mm/s over {p_limit:.2}",
+                w.name
+            );
+            assert!(
+                k <= k_limit,
+                "L{level} {}: kick {k:.2} mm/s over {k_limit:.2}",
+                w.name
+            );
+        }
+        let k = kick(&tr, in_s_rail);
+        eprintln!("L{level} S-rail interior: kick {k:.2} (limit {k_limit:.2})");
+        assert!(
+            k <= k_limit,
+            "L{level} S-rail interior: kick {k:.2} mm/s over {k_limit:.2}"
+        );
+
+        let mut sim = track_sim(&rail_curve_layout_at(level));
+        launch(&mut sim, Vector::new(-0.02, rest, 0.0), Vector::X, SPEED);
+        let tr = trace(&mut sim, TICKS);
+        assert!(
+            tr.iter()
+                .any(|m| m.position[2] < -0.20 && (m.position[0] - 0.18).abs() < 0.005),
+            "L{level}: marble must leave the curve along -z, centred on x = 180 mm"
+        );
+        let windows: [(&str, [f32; 2], [f32; 2], bool); 4] = [
+            (
+                "block to rail curve (x 90 mm)",
+                [0.075, -0.03],
+                [0.105, 0.03],
+                true,
+            ),
+            ("rail curve interior", [0.105, -0.075], [0.21, 0.03], true),
+            (
+                "rail curve to block (z -90 mm)",
+                RAIL_CURVE_EXIT.0,
+                RAIL_CURVE_EXIT.1,
+                true,
+            ),
+            (
+                "block to block (z -150 mm)",
+                [0.15, -0.165],
+                [0.21, -0.135],
+                false,
+            ),
+        ];
+        for (name, lo, hi, swing) in windows {
+            let sel = |m: &MarbleState| at(m, lo, hi);
+            assert!(tr.iter().any(sel), "L{level} {name}: marble never crossed");
+            let (p, u, k) = (peak(&tr, sel), upward(&tr, sel), kick(&tr, sel));
+            eprintln!(
+                "L{level} {name}: peak |vy| {p:.2} mm/s, upward {u:.2} (limit {p_limit:.2}{}), \
+                 kick {k:.2} (limit {k_limit:.2})",
+                if swing { ", swing, ungated" } else { "" }
+            );
+            assert!(
+                swing || u <= p_limit,
+                "L{level} {name}: upward {u:.2} mm/s over {p_limit:.2}"
+            );
+            assert!(
+                k <= k_limit,
+                "L{level} {name}: kick {k:.2} mm/s over {k_limit:.2}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_fast_shooter_stays_in_the_rail_curve_at_every_level() {
+    // Kit contract §16 Q6: the rail lip is 5.5 mm above a shooter's centre. A shooter entering
+    // each rail curve fast must still leave along -z rather than jump the outer wall.
+    let shooter = MarbleKind::CatsEye.spec_sized(MarbleSize::Shooter);
+    for level in [1, 2, 3] {
+        for speed in [0.6, 1.0] {
+            let mut sim = track_sim(&rail_curve_layout_at(level));
+            let rest = 0.015 * level as f32 + shooter.radius_m;
+            launch_with(
+                &mut sim,
+                &shooter,
+                Vector::new(-0.02, rest, 0.0),
+                Vector::X,
+                speed,
+            );
+            let tr = trace(&mut sim, 600);
+            let top = tr.iter().map(|m| m.position[1] - rest).fold(0.0, f32::max) * 1_000.0;
+            let out = tr
+                .iter()
+                .any(|m| m.position[2] < -0.20 && (m.position[0] - 0.18).abs() < 0.012);
+            eprintln!("L{level} shooter at {speed} m/s: rose {top:.2} mm, left along -z: {out}");
+            assert!(
+                out,
+                "L{level}: a shooter at {speed} m/s left the rail curve"
+            );
+        }
+    }
 }

@@ -1,0 +1,205 @@
+{
+  "schema": "parble-kit-provenance/1",
+  "pieceId": "rail_s_1x3_l3",
+  "pieceVersion": 1,
+  "route": "scripted",
+  "card": "rail heights (owner request 2026-11-12)",
+  "contract": {
+    "path": "docs/kit-contract.md",
+    "version": 1,
+    "sha256": "2acd4572252f06892d41a12eaa626866c06ae1010343f5d8f220259d6119ede1",
+    "approved": "Paul, 2026-11-07 (contract status line)"
+  },
+  "generator": {
+    "path": "blender/kit/generate.py",
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
+  },
+  "generatorDeps": [
+    {
+      "path": "blender/kit/kitgeom.py",
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
+    },
+    {
+      "path": "blender/kit/kitblocks.py",
+      "sha256": "dc5e4354830f2f6d50756485cd133bbd220e6033f9901f815880958c55fc99b7"
+    },
+    {
+      "path": "blender/kit/kitrails.py",
+      "sha256": "b2818e5284a0d308f7bb7f346d796f27d69accab5711174aa9de199aa5a9d509"
+    }
+  ],
+  "authoringAgent": {
+    "harness": "claude-code",
+    "model": "claude-opus-5-5"
+  },
+  "blender": "5.2.2 LTS",
+  "toolVersions": {
+    "gltfTransform": "4.3.0",
+    "meshoptimizer": "0.25.0",
+    "gltfValidator": "2.0.0-dev.3.10",
+    "node": "v24.18.0"
+  },
+  "material": "placeholder (wood_placeholder, no maps, no emission); final tileable wood comes from P1-T1",
+  "bake": {
+    "device": "GPU",
+    "samples": 16,
+    "cageExtrusionM": 0.0005,
+    "maxRayDistanceM": 0.002,
+    "marginPx": 8,
+    "aoDistanceM": 0.02,
+    "channels": {
+      "rail_s_1x3_l3_lod0_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "cca0cdf844aaf25b92223a94281fa26aa3f548cd77224f7186d4d9522601bd4b",
+        "size": 2048
+      },
+      "rail_s_1x3_l3_lod0_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "29002b551fb27263e3a1a9c8cf337a3c906c8247f3b36d954b52e62d73aa9c9a",
+        "size": 2048
+      },
+      "rail_s_1x3_l3_lod1_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "f71f6c91b7ea00462c99dede42aabfa11caf00306c2674e24e4122eb9f38fba5",
+        "size": 1024
+      },
+      "rail_s_1x3_l3_lod1_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "ed4763f6cf0913250abdfc0cabc4e24a47ea8ba84aeb94bd2f6894754574f217",
+        "size": 1024
+      },
+      "rail_s_1x3_l3_lod2_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "088f47cb481c5de5ac1bb78af986c35474dfa8a13a7878593f5ee302320d3231",
+        "size": 512
+      },
+      "rail_s_1x3_l3_lod2_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "12cf198a683a76f40ae539a3402c2358ca360b5adfc4c96f8d59e94d128eb265",
+        "size": 512
+      }
+    }
+  },
+  "lods": [
+    {
+      "lod": "rail_s_1x3_l3_lod0",
+      "tris": 4636
+    },
+    {
+      "lod": "rail_s_1x3_l3_lod1",
+      "tris": 1084
+    },
+    {
+      "lod": "rail_s_1x3_l3_lod2",
+      "tris": 320
+    }
+  ],
+  "collider": {
+    "node": "rail_s_1x3_l3_collider",
+    "tris": 1824
+  },
+  "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
+  "texelDensityPxPerM": {
+    "lod0": {
+      "max": 10237.4,
+      "median": 9873.5,
+      "min": 8540.4
+    },
+    "lod1": {
+      "max": 5130.5,
+      "median": 4960.4,
+      "min": 4296.5
+    },
+    "lod2": {
+      "max": 2569.6,
+      "median": 2525.1,
+      "min": 2158.9
+    }
+  },
+  "compression": {
+    "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
+    "glbBytes": 201996,
+    "ktx2": "not produced in P1-T2 (maps ship as PNG)"
+  },
+  "derivedFiles": [
+    {
+      "path": "assets/kit/rail_s_1x3_l3/rail_s_1x3_l3.glb",
+      "sha256": "8c144962b470a4669adcf0d5ead26da0c85bb5c86fc08b456fec6cdb1a8baf5c",
+      "bytes": 201996
+    },
+    {
+      "path": "assets/kit/rail_s_1x3_l3/rail_s_1x3_l3.kit.json",
+      "sha256": "3731a1e97a7be62048bc741c91f7d3a588724dad85740141514f971d1a58329f",
+      "bytes": 115529
+    },
+    {
+      "path": "assets/kit/rail_s_1x3_l3/rail_s_1x3_l3_lod0_ao.png",
+      "sha256": "cca0cdf844aaf25b92223a94281fa26aa3f548cd77224f7186d4d9522601bd4b",
+      "bytes": 953552
+    },
+    {
+      "path": "assets/kit/rail_s_1x3_l3/rail_s_1x3_l3_lod0_normal.png",
+      "sha256": "29002b551fb27263e3a1a9c8cf337a3c906c8247f3b36d954b52e62d73aa9c9a",
+      "bytes": 260489
+    },
+    {
+      "path": "assets/kit/rail_s_1x3_l3/rail_s_1x3_l3_lod1_ao.png",
+      "sha256": "f71f6c91b7ea00462c99dede42aabfa11caf00306c2674e24e4122eb9f38fba5",
+      "bytes": 280474
+    },
+    {
+      "path": "assets/kit/rail_s_1x3_l3/rail_s_1x3_l3_lod1_normal.png",
+      "sha256": "ed4763f6cf0913250abdfc0cabc4e24a47ea8ba84aeb94bd2f6894754574f217",
+      "bytes": 243851
+    },
+    {
+      "path": "assets/kit/rail_s_1x3_l3/rail_s_1x3_l3_lod2_ao.png",
+      "sha256": "088f47cb481c5de5ac1bb78af986c35474dfa8a13a7878593f5ee302320d3231",
+      "bytes": 91300
+    },
+    {
+      "path": "assets/kit/rail_s_1x3_l3/rail_s_1x3_l3_lod2_normal.png",
+      "sha256": "12cf198a683a76f40ae539a3402c2358ca360b5adfc4c96f8d59e94d128eb265",
+      "bytes": 94014
+    },
+    {
+      "path": "assets-source/kit/rail_s_1x3_l3/rail_s_1x3_l3_high.blend",
+      "sha256": "22672dec054b061c5322a63c445a1e76e8680d25e356b567174abda41dfb44b4",
+      "bytes": 593062
+    },
+    {
+      "path": "assets-source/kit/rail_s_1x3_l3/rail_s_1x3_l3_low.blend",
+      "sha256": "c9b04bb1537c882eaf0000d5bf34b7d3fafa828cc0f80fc53d4597938a3482b9",
+      "bytes": 278801
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/reference/ref-05-corkscrew-funnel.webp",
+      "sha256": "e93b3821f5e49000f13631c2f770e6ac307f17e5573f9e423302b73758707c99",
+      "role": "look reference (owner-supplied)"
+    },
+    {
+      "path": "docs/reference/ref-06-rail-into-block-tower.png",
+      "sha256": "8d0bf3fb25233bceae74705473dd867a8a24358500ef1fa58219791bcb7360c0",
+      "role": "look reference (owner-supplied)"
+    }
+  ],
+  "license": "MIT (repository licence); geometry is generated by the repository's own generator",
+  "validation": {
+    "pass": true,
+    "checks": [
+      "kit-check contract 14.1-14.10",
+      "gltf-validator reimport (meshopt GLB)",
+      "blender reimport (meshopt GLB)"
+    ]
+  },
+  "approvals": [
+    {
+      "who": "Paul",
+      "gate": "piece look",
+      "status": "pending",
+      "notes": "rail at another level; review sheet blender/kit/review/rail-levels.png"
+    }
+  ]
+}

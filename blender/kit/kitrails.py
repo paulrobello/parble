@@ -12,10 +12,13 @@ the blocks. The collision keeps the outer shell, so a marble dropped onto a rail
 through it.
 
 Pieces (§9, §10):
-- `rail_straight_l1`, `rail_straight_l2`: 1 cell, port to port.
-- `rail_curve90_r90_l2`: 2 × 2, a quarter circle of radius 90 mm about the footprint corner
+- `rail_straight_l1`, `rail_straight_l2`, `rail_straight_l3`: 1 cell, port to port.
+- Straight, curve and S-rail each come at L1, L2 and L3 (the editor shows them as one tile with a
+  height picker). An L3 rail's lip is 63 mm above its cell bottom, so its footprint adds the cell
+  layer above every cell (§5.3); L1 and L2 fit one layer.
+- `rail_curve90_r90_l<n>`: 2 × 2, a quarter circle of radius 90 mm about the footprint corner
   (-30, -90) mm, from the -x face of the anchor cell to the -z face of cell (1, 0, -1).
-- `rail_s_1x3_l2`: two opposed arcs of radius 150 mm turning 36.87° each (sin 0.6, cos 0.8),
+- `rail_s_1x3_l<n>`: two opposed arcs of radius 150 mm turning 36.87° each (sin 0.6, cos 0.8),
   60 mm lateral offset over 180 mm, from the -x face of the anchor to the +x face of cell (2, 0, -1).
   §9 lists the footprint as 2 × 3 (lateral × length); in the piece frame it is 3 cells in x by 2
   in z.
@@ -32,7 +35,11 @@ import kitblocks as B
 import kitgeom as K
 
 PIECE_VERSION = 1
-BUILD = ("rail_straight_l1", "rail_straight_l2", "rail_curve90_r90_l2", "rail_s_1x3_l2", "rail_joint_l1")
+# Each rail shape at every level a side port can use (§5.3): L1 and L2 fit one cell layer, L3 adds
+# the layer above to the footprint. The first five ids are the P2-T4 proof pieces.
+LEVELS = (1, 2, 3)
+BUILD = ("rail_straight_l1", "rail_straight_l2", "rail_curve90_r90_l2", "rail_s_1x3_l2", "rail_joint_l1",
+         "rail_straight_l3", "rail_curve90_r90_l1", "rail_curve90_r90_l3", "rail_s_1x3_l1", "rail_s_1x3_l3")
 
 WALL = 4.0            # §5.3 wall thickness
 LIP_H = 18.0          # §5.3 lip height above the floor
@@ -78,9 +85,8 @@ def spec(piece_id):
     """Ports, shape, level and footprint for a rail piece id (§5.3, §5.5, §9, §10)."""
     if not K.ID_RE.match(piece_id) or len(piece_id) > 48:
         raise ValueError(f"{piece_id}: not a §10 id")
-    legal = {"rail_straight_l1": ("straight", 1), "rail_straight_l2": ("straight", 2),
-             "rail_curve90_r90_l2": ("curve90_r90", 2), "rail_s_1x3_l2": ("s_1x3", 2),
-             "rail_joint_l1": ("joint", 1)}
+    legal = {f"rail_{shape}_l{lv}": (shape, lv) for shape in ("straight", "curve90_r90", "s_1x3") for lv in LEVELS}
+    legal["rail_joint_l1"] = ("joint", 1)
     if piece_id not in legal:
         raise ValueError(f"{piece_id}: not a rail piece this generator builds")
     shape, level = legal[piece_id]
@@ -96,6 +102,8 @@ def spec(piece_id):
     else:
         ports = [_side(0, o, "-x", level), _side(1, (2, 0, -1), "+x", level)]
         fp = [[x, 0, z] for x in (0, 1, 2) for z in (-1, 0)]
+    if level == 3:   # §5.3: the L3 lip (63 mm) rises into the cell layer above
+        fp += [[x, 1, z] for x, _, z in fp]
     return {"id": piece_id, "shape": shape, "level": level, "ports": ports,
             "chiral": shape in ("curve90_r90", "s_1x3"), "family": "rail", "footprint": sorted(fp)}
 

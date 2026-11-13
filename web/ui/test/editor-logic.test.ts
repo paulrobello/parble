@@ -10,6 +10,7 @@ import {
   checkReleaseText,
   checkText,
   countBadge,
+  drawerTiles,
   dialPoint,
   faceWord,
   viewBearingDeg,
@@ -62,6 +63,11 @@ describe("editor model", () => {
       "mech_finish",
       "mech_arch_rope_l1",
     ]);
+    // Rails at several levels share a tile; blocks and the single-level joint stand alone.
+    expect(
+      drawerTiles(["rail_curve90_r90_l1", "rail_curve90_r90_l2", "rail_joint_l1", "rail_s_1x3_l3", "rail_s_1x3_l1"]),
+    ).toEqual([["rail_curve90_r90_l1", "rail_curve90_r90_l2"], ["rail_joint_l1"], ["rail_s_1x3_l1", "rail_s_1x3_l3"]]);
+    expect(drawerTiles(["blk_straight_l1", "blk_straight_l2"])).toEqual([["blk_straight_l1"], ["blk_straight_l2"]]);
   });
 
   it("writes each issue as a plain sentence", () => {

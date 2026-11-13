@@ -317,6 +317,27 @@ export function piecesOf(palette: readonly string[], family: Family): string[] {
   return [...first, ...out.filter((p) => !first.includes(p))];
 }
 
+/** The piece id without its level suffix: `rail_s_1x3_l2` → `rail_s_1x3`. */
+export const levelBase = (piece: string): string => piece.replace(/_l\d$/, "");
+
+/** Drawer tiles for `pieces`: each rail shape that comes at several levels is one tile listing its
+ * variants in level order (one height picker), every other piece a tile of its own. */
+export function drawerTiles(pieces: readonly string[]): string[][] {
+  const out: string[][] = [];
+  const at = new Map<string, string[]>();
+  for (const p of pieces) {
+    const base = familyOf(p) === "rails" ? levelBase(p) : p;
+    const group = at.get(base);
+    if (group) group.push(p);
+    else {
+      const g = [p];
+      at.set(base, g);
+      out.push(g);
+    }
+  }
+  return out.map((g) => [...g].sort());
+}
+
 const FACE: Record<Face, string> = {
   "+x": "east",
   "-x": "west",

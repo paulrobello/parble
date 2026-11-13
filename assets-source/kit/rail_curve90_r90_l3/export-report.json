@@ -1,0 +1,91 @@
+{
+  "blender": "5.2.2 LTS",
+  "colliderTris": 1216,
+  "generator": {
+    "path": "blender/kit/generate.py",
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
+  },
+  "generatorDeps": [
+    {
+      "path": "blender/kit/kitgeom.py",
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
+    },
+    {
+      "path": "blender/kit/kitblocks.py",
+      "sha256": "dc5e4354830f2f6d50756485cd133bbd220e6033f9901f815880958c55fc99b7"
+    },
+    {
+      "path": "blender/kit/kitrails.py",
+      "sha256": "b2818e5284a0d308f7bb7f346d796f27d69accab5711174aa9de199aa5a9d509"
+    }
+  ],
+  "lodParams": {
+    "lod0": {
+      "n_lip": 6,
+      "n_round": 32,
+      "path": {
+        "curve90_r90": 20,
+        "joint": 1,
+        "s_1x3": 28,
+        "straight": 1
+      }
+    },
+    "lod1": {
+      "n_lip": 2,
+      "n_round": 12,
+      "path": {
+        "curve90_r90": 10,
+        "joint": 1,
+        "s_1x3": 16,
+        "straight": 1
+      }
+    },
+    "lod2": {
+      "n_lip": 1,
+      "n_round": 6,
+      "path": {
+        "curve90_r90": 6,
+        "joint": 1,
+        "s_1x3": 8,
+        "straight": 1
+      }
+    }
+  },
+  "lodTris": {
+    "rail_curve90_r90_l3_lod0": 3356,
+    "rail_curve90_r90_l3_lod1": 700,
+    "rail_curve90_r90_l3_lod2": 248
+  },
+  "mapSize": {
+    "lod0": 2048,
+    "lod1": 1024,
+    "lod2": 512
+  },
+  "nodes": [
+    "rail_curve90_r90_l3",
+    "port_0",
+    "port_1",
+    "rail_curve90_r90_l3_collider",
+    "rail_curve90_r90_l3_lod0",
+    "rail_curve90_r90_l3_lod1",
+    "rail_curve90_r90_l3_lod2"
+  ],
+  "pieceId": "rail_curve90_r90_l3",
+  "texelDensityPxPerM": {
+    "lod0": {
+      "max": 10220.6,
+      "median": 9787.1,
+      "min": 7749.6
+    },
+    "lod1": {
+      "max": 5130.0,
+      "median": 4830.2,
+      "min": 3301.0
+    },
+    "lod2": {
+      "max": 2349.1,
+      "median": 2167.8,
+      "min": 1809.1
+    }
+  }
+}

@@ -55,11 +55,16 @@ macro_rules! builtin_piece_ids {
             mech_stepper_up1_l1,
             mech_stepper_up1_l3,
             mech_toggle_l3,
+            rail_curve90_r90_l1,
             rail_curve90_r90_l2,
+            rail_curve90_r90_l3,
             rail_joint_l1,
+            rail_s_1x3_l1,
             rail_s_1x3_l2,
+            rail_s_1x3_l3,
             rail_straight_l1,
-            rail_straight_l2
+            rail_straight_l2,
+            rail_straight_l3
         )
     };
 }
@@ -77,7 +82,7 @@ macro_rules! sidecars {
 }
 
 /// Sidecars shipped in `assets/kit/`, in id order.
-const BUILTIN_SIDECARS: [&str; 34] = builtin_piece_ids!(sidecars);
+const BUILTIN_SIDECARS: [&str; 39] = builtin_piece_ids!(sidecars);
 
 /// Pieces that carry no marble path of their own ([`PieceDef::structural`]): supports. The
 /// sidecar schema has no field for it, so the catalogue sets it by id.
@@ -614,11 +619,16 @@ mod tests {
                 "mech_stepper_up1_l1",
                 "mech_stepper_up1_l3",
                 "mech_toggle_l3",
+                "rail_curve90_r90_l1",
                 "rail_curve90_r90_l2",
+                "rail_curve90_r90_l3",
                 "rail_joint_l1",
+                "rail_s_1x3_l1",
                 "rail_s_1x3_l2",
+                "rail_s_1x3_l3",
                 "rail_straight_l1",
-                "rail_straight_l2"
+                "rail_straight_l2",
+                "rail_straight_l3"
             ]
         );
         assert!(kit.get(&id("blk_join_l3")).unwrap().chiral);
@@ -856,43 +866,45 @@ mod tests {
         // (id, floor µm, per port: (plane axis 0 x / 2 z, plane µm, centre µm on the other axis,
         // spigot), footprint cells, chiral)
         type Rail = (&'static str, i32, [(usize, i32, i32, bool); 2], usize, bool);
-        let want: [Rail; 5] = [
+        let mut want: Vec<Rail> = vec![(
+            "rail_joint_l1",
+            15_000,
+            [(0, -30_000, 0, false), (0, 40_000, 0, true)],
+            1,
+            false,
+        )];
+        // Every shape at L1, L2 and L3; an L3 rail adds the cell layer above to its footprint.
+        type Shape = ([(usize, i32, i32, bool); 2], usize, bool, [&'static str; 3]);
+        let shapes: [Shape; 3] = [
             (
-                "rail_straight_l1",
-                15_000,
                 [(0, -30_000, 0, false), (0, 30_000, 0, false)],
                 1,
                 false,
+                ["rail_straight_l1", "rail_straight_l2", "rail_straight_l3"],
             ),
             (
-                "rail_straight_l2",
-                30_000,
-                [(0, -30_000, 0, false), (0, 30_000, 0, false)],
-                1,
-                false,
-            ),
-            (
-                "rail_curve90_r90_l2",
-                30_000,
                 [(0, -30_000, 0, false), (2, -90_000, 60_000, false)],
                 4,
                 true,
+                [
+                    "rail_curve90_r90_l1",
+                    "rail_curve90_r90_l2",
+                    "rail_curve90_r90_l3",
+                ],
             ),
             (
-                "rail_s_1x3_l2",
-                30_000,
                 [(0, -30_000, 0, false), (0, 150_000, -60_000, false)],
                 6,
                 true,
-            ),
-            (
-                "rail_joint_l1",
-                15_000,
-                [(0, -30_000, 0, false), (0, 40_000, 0, true)],
-                1,
-                false,
+                ["rail_s_1x3_l1", "rail_s_1x3_l2", "rail_s_1x3_l3"],
             ),
         ];
+        for (ports, cells, chiral, level_ids) in shapes {
+            for (lv, pid) in (1..=3).zip(level_ids) {
+                let cells = if lv == 3 { 2 * cells } else { cells };
+                want.push((pid, 15_000 * lv, ports, cells, chiral));
+            }
+        }
         for (pid, floor, ports, cells, chiral) in want {
             let p = builtin().piece(&id(pid)).unwrap();
             assert_eq!(p.family, "rail");

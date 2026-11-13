@@ -143,6 +143,14 @@ export const CSS = `
 #pe .tile:hover{background:var(--r)}
 #pe .tile.on{background:var(--r);border-color:var(--b);box-shadow:0 4px 10px rgba(0,0,0,.4)}
 #pe .pc .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pe .pc[data-g]{display:grid;grid-template-columns:96px;row-gap:5px}
+#pe .pc[data-g]>.tile{grid-area:1/1}
+#pe .pc[data-g]>.nm{grid-area:2/1}
+#pe .hts{grid-area:1/1;align-self:end;justify-self:start;margin:0 0 5px 5px;z-index:1;display:flex;flex-direction:column-reverse;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:rgba(20,14,10,.72)}
+#pe .hts .ht{width:20px;height:19px;padding:0;border:0;border-bottom:1px solid var(--line);border-radius:0;font:500 11px/1 "Alegreya Sans",sans-serif;font-variant-numeric:lining-nums tabular-nums;color:var(--m)}
+#pe .hts .ht:first-child{border-bottom:0}
+#pe .hts .ht:hover{background:var(--r);color:var(--c)}
+#pe .hts .ht.on{background:var(--b);color:#1b130d}
 #pe .hint{flex:none;width:300px;border-left:1px solid var(--line);padding:2px 0 0 20px;display:flex;flex-direction:column;gap:9px;color:var(--m)}
 #pe .hint p{line-height:1.35}
 #pe .hint .b{display:flex;gap:8px;flex-wrap:wrap}

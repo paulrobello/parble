@@ -1,0 +1,52 @@
+{
+  "aoDistanceM": 0.02,
+  "blender": "5.2.2 LTS",
+  "cageExtrusionM": 0.0005,
+  "channels": {
+    "rail_s_1x3_l1_lod0_ao": {
+      "colorspace": "Non-Color",
+      "sha256": "ceca692d1358174cd2c7d33c714dfee1073e58307e4833ea6c02557ce9fbc52b",
+      "size": 2048
+    },
+    "rail_s_1x3_l1_lod0_normal": {
+      "colorspace": "Non-Color",
+      "sha256": "c0180102f60f8e3c504612957ad61a47f182e5023c13d3380b913f537f9cea4c",
+      "size": 2048
+    },
+    "rail_s_1x3_l1_lod1_ao": {
+      "colorspace": "Non-Color",
+      "sha256": "3b7c2624ab33fe2d0bd8250fd8f2e50790f18736cfe1899e2ea3b2ed68f79cd4",
+      "size": 1024
+    },
+    "rail_s_1x3_l1_lod1_normal": {
+      "colorspace": "Non-Color",
+      "sha256": "ae51a9f71d6eb52b1b0269e6dd2fb6a4d1fc3e01e22b1d10fe44f958c0f492de",
+      "size": 1024
+    },
+    "rail_s_1x3_l1_lod2_ao": {
+      "colorspace": "Non-Color",
+      "sha256": "ef8c99abed82c4c62ee8a884ab71a922a67fd3ec12f7c6d8e123c17227123fec",
+      "size": 512
+    },
+    "rail_s_1x3_l1_lod2_normal": {
+      "colorspace": "Non-Color",
+      "sha256": "dfebc1d95fd4634b2f76855ac1ec090ea36e5522b66c898b0faf453fb73c971f",
+      "size": 512
+    }
+  },
+  "device": "GPU",
+  "highPoly": {
+    "n_lip": 12,
+    "n_round": 64,
+    "path": {
+      "curve90_r90": 40,
+      "joint": 1,
+      "s_1x3": 56,
+      "straight": 1
+    }
+  },
+  "marginPx": 8,
+  "maxRayDistanceM": 0.002,
+  "samples": 16,
+  "skipped": false
+}

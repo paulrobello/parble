@@ -29,7 +29,7 @@ All chrome is inset 12 px from the canvas edges and sits on walnut at 90% opacit
    - Selection, which shows piece properties, the group actions, or Start here when the track is empty.
    - Validation, which lists the issues.
    The panel collapses to a 28 px spine with a toggle (`\`) for builders who want the whole scene.
-3. **Bottom drawer, 174 px.** It holds family tabs (Blocks, Rails, Mechanisms, Supports), a Fits selection tab (only the pieces that attach to the one selected piece, picked already turned to fit), 96 px tiles and a hint column. The drawer collapses to its 36 px tab row with `Tab`.
+3. **Bottom drawer, 174 px.** It holds family tabs (Blocks, Rails, Mechanisms, Supports), a Fits selection tab (only the pieces that attach to the one selected piece, picked already turned to fit), 96 px tiles and a hint column. A rail that comes at several levels (straight, curve, S-bend) is one tile with a height picker at its bottom-left (3 above 2 above 1). Each height picks and drag-lays like a tile, a new height keeps the brush's turn and mirror, and the tile shows the brush's height, else the last one picked, else 2. The drawer collapses to its 36 px tab row with `Tab`.
 4. **Compass**, a 66 px dial above the drawer at the left. Its top is the view's heading. N (brass), E, S and W sit where those directions are, north being −Z and east +X, so the ports line and validation's west and east match the scene.
 5. **Sound** sits above the drawer at the right. It is the existing mixer, restyled into the walnut set.
 
