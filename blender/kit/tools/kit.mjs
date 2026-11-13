@@ -540,7 +540,7 @@ async function provenance(runtime, source, ids, checks) {
           : RAIL_LEVELS.has(id)
             ? { who: "Paul", gate: "piece look", status: "pending", notes: "rail at another level; review sheet blender/kit/review/rail-levels.png" }
           : RAIL_SLOPES.has(id)
-            ? { who: "Paul", gate: "piece look", status: "pending", notes: "rail slope; review sheet blender/kit/review/rail-slopes.png" }
+            ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the rail slope look 2026-11-13 (blender/kit/review/rail-slopes.png)" }
           : id.startsWith("rail_")
             ? { who: "Paul", gate: "piece look", status: "pending", notes: "P2-T4 rail piece; review sheet blender/kit/review/p2t4-rails.png" }
           : { who: "Paul", gate: "piece look", status: "pending", notes: "P2-T2 piece; review sheet blender/kit/review/p2t2-pieces.png" }],

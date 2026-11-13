@@ -7,7 +7,7 @@
   "contract": {
     "path": "docs/kit-contract.md",
     "version": 1,
-    "sha256": "aa6faef35eaba9af31aa913a3b888391b1dc90256f20213fc359dbd14375bc44",
+    "sha256": "6b8838d5133cc152d56a2605c9ccebe38d0d8482499a4b357ac2a78eb5538651",
     "approved": "Paul, 2026-11-07 (contract status line)"
   },
   "generator": {
@@ -198,8 +198,8 @@
     {
       "who": "Paul",
       "gate": "piece look",
-      "status": "pending",
-      "notes": "rail slope; review sheet blender/kit/review/rail-slopes.png"
+      "status": "approved",
+      "notes": "Paul approved the rail slope look 2026-11-13 (blender/kit/review/rail-slopes.png)"
     }
   ]
 }
