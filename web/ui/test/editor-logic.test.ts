@@ -68,6 +68,13 @@ describe("editor model", () => {
       drawerTiles(["rail_curve90_r90_l1", "rail_curve90_r90_l2", "rail_joint_l1", "rail_s_1x3_l3", "rail_s_1x3_l1"]),
     ).toEqual([["rail_curve90_r90_l1", "rail_curve90_r90_l2"], ["rail_joint_l1"], ["rail_s_1x3_l1", "rail_s_1x3_l3"]]);
     expect(drawerTiles(["blk_straight_l1", "blk_straight_l2"])).toEqual([["blk_straight_l1"], ["blk_straight_l2"]]);
+    // Rail slopes: the gentle slope's two entry heights share a tile, the steep one stands alone.
+    expect(drawerTiles(["rail_slope_gentle_l2", "rail_slope_gentle_l3", "rail_slope_steep_l3"])).toEqual([
+      ["rail_slope_gentle_l2", "rail_slope_gentle_l3"],
+      ["rail_slope_steep_l3"],
+    ]);
+    expect(pieceName("rail_slope_gentle")).toBe("Gentle slope");
+    expect(pieceName("rail_slope_steep_l3")).toBe("Steep slope · 3");
   });
 
   it("writes each issue as a plain sentence", () => {

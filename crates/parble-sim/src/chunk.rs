@@ -837,7 +837,8 @@ pub struct ChannelSlope {
 
 impl ChannelSlope {
     /// The slope of a 1-cell piece whose two channel ports sit on opposite side faces at
-    /// different levels.
+    /// different levels. A rail slope from `L3` adds the cell layer above to its footprint for
+    /// its lip (contract §5.3), so a rail qualifies when both ports are on its anchor cell.
     fn of(piece: &KitPiece, p: &Placement) -> Option<Self> {
         let def = &piece.def;
         let [a, b] = def.ports.as_slice() else {
@@ -848,7 +849,11 @@ impl ChannelSlope {
         };
         let side = |f: PortFace| !matches!(f, PortFace::Top | PortFace::Bottom);
         let (na, nb) = (a.face.normal(), b.face.normal());
-        if def.footprint.len() != 1
+        let one_cell = def.footprint.len() == 1
+            || (piece.family == "rail"
+                && a.cell == CellCoord::new(0, 0, 0)
+                && b.cell == CellCoord::new(0, 0, 0));
+        if !one_cell
             || a.class != PortClass::Channel
             || b.class != PortClass::Channel
             || !side(a.face)
@@ -1210,15 +1215,33 @@ impl ChunkMesh {
             .collect();
     }
 
-    /// Tag every triangle whose three vertices lie on one of [`Self::slopes`]' channels.
+    /// Tag every triangle whose three vertices lie on one of [`Self::slopes`]' channels, else,
+    /// when each vertex lies on some slope's channel, with every slope holding one of them.
+    ///
+    /// The second case is a strip [`Self::simplify_flat`] welded across a slope-to-slope seam: on
+    /// a coarse collider (a rail slope's seven sections) the seam vertex sits on the chord between
+    /// its neighbours and goes, and the untagged strip kept its raw mesh contact, which threw the
+    /// ball up at 121 mm/s off rail_slope_gentle_l3 onto rail_slope_gentle_l2 (measured
+    /// 2026-11-13).
     fn mark_slopes(&mut self) {
         self.slope_of = self
             .triangles
             .iter()
             .map(|t| {
                 let vs = t.map(|v| self.vertices_um[v as usize]);
+                let holds = |k: u32, v: [i64; 3]| self.slopes[k as usize].holds(v);
+                let all: Vec<u32> = (0..self.slopes.len() as u32)
+                    .filter(|&k| vs.iter().all(|&v| holds(k, v)))
+                    .collect();
+                if !all.is_empty()
+                    || !vs
+                        .iter()
+                        .all(|&v| (0..self.slopes.len() as u32).any(|k| holds(k, v)))
+                {
+                    return all;
+                }
                 (0..self.slopes.len() as u32)
-                    .filter(|&k| vs.iter().all(|&v| self.slopes[k as usize].holds(v)))
+                    .filter(|&k| vs.iter().any(|&v| holds(k, v)))
                     .collect()
             })
             .collect();

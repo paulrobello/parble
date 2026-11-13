@@ -62,6 +62,9 @@ macro_rules! builtin_piece_ids {
             rail_s_1x3_l1,
             rail_s_1x3_l2,
             rail_s_1x3_l3,
+            rail_slope_gentle_l2,
+            rail_slope_gentle_l3,
+            rail_slope_steep_l3,
             rail_straight_l1,
             rail_straight_l2,
             rail_straight_l3
@@ -82,7 +85,7 @@ macro_rules! sidecars {
 }
 
 /// Sidecars shipped in `assets/kit/`, in id order.
-const BUILTIN_SIDECARS: [&str; 39] = builtin_piece_ids!(sidecars);
+const BUILTIN_SIDECARS: [&str; 42] = builtin_piece_ids!(sidecars);
 
 /// Pieces that carry no marble path of their own ([`PieceDef::structural`]): supports. The
 /// sidecar schema has no field for it, so the catalogue sets it by id.
@@ -626,6 +629,9 @@ mod tests {
                 "rail_s_1x3_l1",
                 "rail_s_1x3_l2",
                 "rail_s_1x3_l3",
+                "rail_slope_gentle_l2",
+                "rail_slope_gentle_l3",
+                "rail_slope_steep_l3",
                 "rail_straight_l1",
                 "rail_straight_l2",
                 "rail_straight_l3"
@@ -931,6 +937,39 @@ mod tests {
                     } else {
                         [centre + u, floor + dv, plane]
                     };
+                    assert!(
+                        verts.contains(&v),
+                        "{pid} port {i}: missing ring vertex {v:?}"
+                    );
+                }
+            }
+        }
+        // Slopes (§7): the -x port (in) at the entry floor and the +x port (out) one level lower
+        // (gentle) or two (steep), each the exact rail ring; an L3 entry adds the layer above.
+        for (pid, floor_in, floor_out, cells) in [
+            ("rail_slope_gentle_l2", 30_000, 15_000, 1),
+            ("rail_slope_gentle_l3", 45_000, 30_000, 2),
+            ("rail_slope_steep_l3", 45_000, 15_000, 2),
+        ] {
+            let p = builtin().piece(&id(pid)).unwrap();
+            assert_eq!(p.family, "rail");
+            assert_eq!(p.def.footprint.len(), cells, "{pid}");
+            assert!(!p.def.chiral, "{pid}");
+            let flows: Vec<PortFlow> = p.def.ports.iter().map(|q| q.flow).collect();
+            assert_eq!(flows, [PortFlow::In, PortFlow::Out], "{pid}");
+            let verts = &p.collision[0].vertices_um;
+            for (i, (x, floor)) in [(-30_000, floor_in), (30_000, floor_out)]
+                .into_iter()
+                .enumerate()
+            {
+                assert_eq!(p.def.ports[i].class, PortClass::Channel, "{pid}");
+                for &(u, dv) in &CANONICAL_RING_UM {
+                    let dv = if u.abs() == 14_000 && dv > 14_000 {
+                        18_000
+                    } else {
+                        dv
+                    };
+                    let v = [x, floor + dv, u];
                     assert!(
                         verts.contains(&v),
                         "{pid} port {i}: missing ring vertex {v:?}"

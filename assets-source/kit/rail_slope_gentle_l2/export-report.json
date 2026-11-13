@@ -1,0 +1,97 @@
+{
+  "blender": "5.2.2 LTS",
+  "colliderTris": 532,
+  "generator": {
+    "path": "blender/kit/generate.py",
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
+  },
+  "generatorDeps": [
+    {
+      "path": "blender/kit/kitgeom.py",
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
+    },
+    {
+      "path": "blender/kit/kitblocks.py",
+      "sha256": "dc5e4354830f2f6d50756485cd133bbd220e6033f9901f815880958c55fc99b7"
+    },
+    {
+      "path": "blender/kit/kitrails.py",
+      "sha256": "8ea1e30e9eda7c34c05a7ceac34e6c44a3d0c9862616ac5a428c76f1aa796a13"
+    }
+  ],
+  "lodParams": {
+    "lod0": {
+      "n_lip": 6,
+      "n_round": 32,
+      "path": {
+        "curve90_r90": 20,
+        "joint": 1,
+        "s_1x3": 28,
+        "slope_gentle": 8,
+        "slope_steep": 8,
+        "straight": 1
+      }
+    },
+    "lod1": {
+      "n_lip": 2,
+      "n_round": 12,
+      "path": {
+        "curve90_r90": 10,
+        "joint": 1,
+        "s_1x3": 16,
+        "slope_gentle": 6,
+        "slope_steep": 6,
+        "straight": 1
+      }
+    },
+    "lod2": {
+      "n_lip": 1,
+      "n_round": 6,
+      "path": {
+        "curve90_r90": 6,
+        "joint": 1,
+        "s_1x3": 8,
+        "slope_gentle": 2,
+        "slope_steep": 2,
+        "straight": 1
+      }
+    }
+  },
+  "lodTris": {
+    "rail_slope_gentle_l2_lod0": 1436,
+    "rail_slope_gentle_l2_lod1": 444,
+    "rail_slope_gentle_l2_lod2": 104
+  },
+  "mapSize": {
+    "lod0": 512,
+    "lod1": 256,
+    "lod2": 128
+  },
+  "nodes": [
+    "rail_slope_gentle_l2",
+    "port_0",
+    "port_1",
+    "rail_slope_gentle_l2_collider",
+    "rail_slope_gentle_l2_lod0",
+    "rail_slope_gentle_l2_lod1",
+    "rail_slope_gentle_l2_lod2"
+  ],
+  "pieceId": "rail_slope_gentle_l2",
+  "texelDensityPxPerM": {
+    "lod0": {
+      "max": 4121.9,
+      "median": 4023.0,
+      "min": 3408.5
+    },
+    "lod1": {
+      "max": 2046.9,
+      "median": 1997.2,
+      "min": 1703.0
+    },
+    "lod2": {
+      "max": 1018.1,
+      "median": 1012.5,
+      "min": 909.5
+    }
+  }
+}

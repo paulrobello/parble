@@ -1,0 +1,205 @@
+{
+  "schema": "parble-kit-provenance/1",
+  "pieceId": "rail_slope_steep_l3",
+  "pieceVersion": 1,
+  "route": "scripted",
+  "card": "rail slopes (owner request 2026-11-13)",
+  "contract": {
+    "path": "docs/kit-contract.md",
+    "version": 1,
+    "sha256": "aa6faef35eaba9af31aa913a3b888391b1dc90256f20213fc359dbd14375bc44",
+    "approved": "Paul, 2026-11-07 (contract status line)"
+  },
+  "generator": {
+    "path": "blender/kit/generate.py",
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
+  },
+  "generatorDeps": [
+    {
+      "path": "blender/kit/kitgeom.py",
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
+    },
+    {
+      "path": "blender/kit/kitblocks.py",
+      "sha256": "dc5e4354830f2f6d50756485cd133bbd220e6033f9901f815880958c55fc99b7"
+    },
+    {
+      "path": "blender/kit/kitrails.py",
+      "sha256": "8ea1e30e9eda7c34c05a7ceac34e6c44a3d0c9862616ac5a428c76f1aa796a13"
+    }
+  ],
+  "authoringAgent": {
+    "harness": "claude-code",
+    "model": "claude-opus-5-5"
+  },
+  "blender": "5.2.2 LTS",
+  "toolVersions": {
+    "gltfTransform": "4.3.0",
+    "meshoptimizer": "0.25.0",
+    "gltfValidator": "2.0.0-dev.3.10",
+    "node": "v24.18.0"
+  },
+  "material": "placeholder (wood_placeholder, no maps, no emission); final tileable wood comes from P1-T1",
+  "bake": {
+    "device": "GPU",
+    "samples": 16,
+    "cageExtrusionM": 0.0005,
+    "maxRayDistanceM": 0.002,
+    "marginPx": 8,
+    "aoDistanceM": 0.02,
+    "channels": {
+      "rail_slope_steep_l3_lod0_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "3639893fda6b879a6feb4e7a55bfc8fd21c241887c79b90e123bb1c5e42b1e14",
+        "size": 1024
+      },
+      "rail_slope_steep_l3_lod0_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "eb12e8aa9be1f6b58ea9cfe8394a9c36ab94e3d4dcb48bffc6e8aa99d0cb60cd",
+        "size": 1024
+      },
+      "rail_slope_steep_l3_lod1_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "f80133f3c2222a7cfefe5a789cecb031517653cbf670665e947dde2d3d7faee8",
+        "size": 512
+      },
+      "rail_slope_steep_l3_lod1_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "17120e447c6236a8e8a9619146ee5ab3f634138eaa8ee9b38806b11523f5d3d7",
+        "size": 512
+      },
+      "rail_slope_steep_l3_lod2_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "8d9be5b8d5eaed7cb1f8beadda516b4c434f4cdeaa69876abe10d41e4360f0dd",
+        "size": 256
+      },
+      "rail_slope_steep_l3_lod2_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "37408f2f23affdfac878e7f149ddb2c5c5014467271cfb603b00e023dbb5bb8b",
+        "size": 256
+      }
+    }
+  },
+  "lods": [
+    {
+      "lod": "rail_slope_steep_l3_lod0",
+      "tris": 1436
+    },
+    {
+      "lod": "rail_slope_steep_l3_lod1",
+      "tris": 444
+    },
+    {
+      "lod": "rail_slope_steep_l3_lod2",
+      "tris": 104
+    }
+  ],
+  "collider": {
+    "node": "rail_slope_steep_l3_collider",
+    "tris": 532
+  },
+  "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
+  "texelDensityPxPerM": {
+    "lod0": {
+      "max": 7725.9,
+      "median": 7417.4,
+      "min": 6293.8
+    },
+    "lod1": {
+      "max": 3469.6,
+      "median": 3232.9,
+      "min": 2599.3
+    },
+    "lod2": {
+      "max": 2106.3,
+      "median": 1958.4,
+      "min": 1391.5
+    }
+  },
+  "compression": {
+    "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
+    "glbBytes": 68772,
+    "ktx2": "not produced in P1-T2 (maps ship as PNG)"
+  },
+  "derivedFiles": [
+    {
+      "path": "assets/kit/rail_slope_steep_l3/rail_slope_steep_l3.glb",
+      "sha256": "ab23e0a11bd9de20bc1f72006e708ff4edda8346782a1d4302228a3b5c3c097d",
+      "bytes": 68772
+    },
+    {
+      "path": "assets/kit/rail_slope_steep_l3/rail_slope_steep_l3.kit.json",
+      "sha256": "49874bd909ee87fae2992b23ab6132ca3e8db11c38dac521f1bd92d779ffa921",
+      "bytes": 34790
+    },
+    {
+      "path": "assets/kit/rail_slope_steep_l3/rail_slope_steep_l3_lod0_ao.png",
+      "sha256": "3639893fda6b879a6feb4e7a55bfc8fd21c241887c79b90e123bb1c5e42b1e14",
+      "bytes": 232803
+    },
+    {
+      "path": "assets/kit/rail_slope_steep_l3/rail_slope_steep_l3_lod0_normal.png",
+      "sha256": "eb12e8aa9be1f6b58ea9cfe8394a9c36ab94e3d4dcb48bffc6e8aa99d0cb60cd",
+      "bytes": 176727
+    },
+    {
+      "path": "assets/kit/rail_slope_steep_l3/rail_slope_steep_l3_lod1_ao.png",
+      "sha256": "f80133f3c2222a7cfefe5a789cecb031517653cbf670665e947dde2d3d7faee8",
+      "bytes": 61741
+    },
+    {
+      "path": "assets/kit/rail_slope_steep_l3/rail_slope_steep_l3_lod1_normal.png",
+      "sha256": "17120e447c6236a8e8a9619146ee5ab3f634138eaa8ee9b38806b11523f5d3d7",
+      "bytes": 86556
+    },
+    {
+      "path": "assets/kit/rail_slope_steep_l3/rail_slope_steep_l3_lod2_ao.png",
+      "sha256": "8d9be5b8d5eaed7cb1f8beadda516b4c434f4cdeaa69876abe10d41e4360f0dd",
+      "bytes": 17904
+    },
+    {
+      "path": "assets/kit/rail_slope_steep_l3/rail_slope_steep_l3_lod2_normal.png",
+      "sha256": "37408f2f23affdfac878e7f149ddb2c5c5014467271cfb603b00e023dbb5bb8b",
+      "bytes": 38941
+    },
+    {
+      "path": "assets-source/kit/rail_slope_steep_l3/rail_slope_steep_l3_high.blend",
+      "sha256": "243912887755a31714adf55be095edfaab21473455719e82c70f03f9c3fa7954",
+      "bytes": 336411
+    },
+    {
+      "path": "assets-source/kit/rail_slope_steep_l3/rail_slope_steep_l3_low.blend",
+      "sha256": "e531fafa9b19465d6d4f9c205ac099b4b175fc2bd9ccbf75f481776b6e2b3ca0",
+      "bytes": 150260
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/reference/ref-05-corkscrew-funnel.webp",
+      "sha256": "e93b3821f5e49000f13631c2f770e6ac307f17e5573f9e423302b73758707c99",
+      "role": "look reference (owner-supplied)"
+    },
+    {
+      "path": "docs/reference/ref-06-rail-into-block-tower.png",
+      "sha256": "8d0bf3fb25233bceae74705473dd867a8a24358500ef1fa58219791bcb7360c0",
+      "role": "look reference (owner-supplied)"
+    }
+  ],
+  "license": "MIT (repository licence); geometry is generated by the repository's own generator",
+  "validation": {
+    "pass": true,
+    "checks": [
+      "kit-check contract 14.1-14.10",
+      "gltf-validator reimport (meshopt GLB)",
+      "blender reimport (meshopt GLB)"
+    ]
+  },
+  "approvals": [
+    {
+      "who": "Paul",
+      "gate": "piece look",
+      "status": "pending",
+      "notes": "rail slope; review sheet blender/kit/review/rail-slopes.png"
+    }
+  ]
+}

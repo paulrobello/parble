@@ -22,6 +22,11 @@ Pieces (§9, §10):
   60 mm lateral offset over 180 mm, from the -x face of the anchor to the +x face of cell (2, 0, -1).
   §9 lists the footprint as 2 × 3 (lateral × length); in the piece frame it is 3 cells in x by 2
   in z.
+- `rail_slope_gentle_l3`, `rail_slope_gentle_l2`, `rail_slope_steep_l3`: 1 cell long, the rail
+  counterparts of the §7 block slopes. The floor falls one level (gentle) or two (steep) from the -x
+  port (flow in) to the +x port (flow out) on the quintic smootherstep, in vertical sections, so
+  both port rings are the exact rail ring. An L3 entry adds the cell layer above, as on the other
+  L3 rails.
 - `rail_joint_l1`: a straight rail whose +x end is a 10 mm spigot (§5.5) that enters the socket
   of `blk_tower_socket_l1`. Its collision runs to the port plane 10 mm past its own face, where
   the tower's channel starts, and the sidecar declares the spigot cylinder.
@@ -39,7 +44,10 @@ PIECE_VERSION = 1
 # the layer above to the footprint. The first five ids are the P2-T4 proof pieces.
 LEVELS = (1, 2, 3)
 BUILD = ("rail_straight_l1", "rail_straight_l2", "rail_curve90_r90_l2", "rail_s_1x3_l2", "rail_joint_l1",
-         "rail_straight_l3", "rail_curve90_r90_l1", "rail_curve90_r90_l3", "rail_s_1x3_l1", "rail_s_1x3_l3")
+         "rail_straight_l3", "rail_curve90_r90_l1", "rail_curve90_r90_l3", "rail_s_1x3_l1", "rail_s_1x3_l3",
+         "rail_slope_gentle_l3", "rail_slope_gentle_l2", "rail_slope_steep_l3")
+# Slopes (§7): entry levels per shape and the levels each falls (gentle one, steep two).
+SLOPES = {"slope_gentle": ((2, 3), 1), "slope_steep": ((3,), 2)}
 
 WALL = 4.0            # §5.3 wall thickness
 LIP_H = 18.0          # §5.3 lip height above the floor
@@ -58,17 +66,24 @@ SPIGOT_RADIUS_UM = math.ceil(1000.0 * math.hypot(OUTER_R, LIP_H - K.R))
 
 # §12: rail budget per cell of centreline length; centreline lengths in mm.
 BUDGET_PER_CELL = {0: 1500, 1: 500, 2: 120}
+# The slopes' lengths are their smootherstep floor arcs (15 and 30 mm over 60 mm), to 0.01 mm.
 CENTRELINE_MM = {"straight": K.CELL, "curve90_r90": CURVE_R * math.pi / 2,
-                 "s_1x3": 2 * S_R * math.radians(S_DEG), "joint": K.CELL + SPIGOT_LEN}
+                 "s_1x3": 2 * S_R * math.radians(S_DEG), "joint": K.CELL + SPIGOT_LEN,
+                 "slope_gentle": 62.58, "slope_steep": 69.41}
 
 # Render LODs: half-round segments (§12: 32 / 12 / 6), lip-round segments, path segments per shape.
 LODS = {
-    0: {"n_round": 32, "n_lip": 6, "path": {"straight": 1, "joint": 1, "curve90_r90": 20, "s_1x3": 28}},
-    1: {"n_round": 12, "n_lip": 2, "path": {"straight": 1, "joint": 1, "curve90_r90": 10, "s_1x3": 16}},
-    2: {"n_round": 6, "n_lip": 1, "path": {"straight": 1, "joint": 1, "curve90_r90": 6, "s_1x3": 8}},
+    0: {"n_round": 32, "n_lip": 6, "path": {"straight": 1, "joint": 1, "curve90_r90": 20, "s_1x3": 28,
+                                            "slope_gentle": 8, "slope_steep": 8}},
+    1: {"n_round": 12, "n_lip": 2, "path": {"straight": 1, "joint": 1, "curve90_r90": 10, "s_1x3": 16,
+                                            "slope_gentle": 6, "slope_steep": 6}},
+    2: {"n_round": 6, "n_lip": 1, "path": {"straight": 1, "joint": 1, "curve90_r90": 6, "s_1x3": 8,
+                                           "slope_gentle": 2, "slope_steep": 2}},
 }
-HIGH = {"n_round": 64, "n_lip": 12, "path": {"straight": 1, "joint": 1, "curve90_r90": 40, "s_1x3": 56}}
-COLLISION_PATH = {"straight": 1, "joint": 1, "curve90_r90": 16, "s_1x3": 24}
+HIGH = {"n_round": 64, "n_lip": 12, "path": {"straight": 1, "joint": 1, "curve90_r90": 40, "s_1x3": 56,
+                                             "slope_gentle": 32, "slope_steep": 32}}
+# A slope's 38-vertex ring over 7 segments is 532 triangles, inside the 600 per cell of §12.
+COLLISION_PATH = {"straight": 1, "joint": 1, "curve90_r90": 16, "s_1x3": 24, "slope_gentle": 7, "slope_steep": 7}
 COLLISION_SEGS = 16   # §5.4 half-round segments, inner and outer
 
 
@@ -76,8 +91,8 @@ def handles(piece_id):
     return piece_id.startswith("rail_")
 
 
-def _side(i, cell, face, level, cls="channel", inset=0):
-    return {"cell": list(cell), "class": cls, "face": face, "flow": "both", "index": i, "inset_um": inset,
+def _side(i, cell, face, level, cls="channel", inset=0, flow="both"):
+    return {"cell": list(cell), "class": cls, "face": face, "flow": flow, "index": i, "inset_um": inset,
             "kind": "side", "level": level}
 
 
@@ -87,6 +102,7 @@ def spec(piece_id):
         raise ValueError(f"{piece_id}: not a §10 id")
     legal = {f"rail_{shape}_l{lv}": (shape, lv) for shape in ("straight", "curve90_r90", "s_1x3") for lv in LEVELS}
     legal["rail_joint_l1"] = ("joint", 1)
+    legal.update({f"rail_{shape}_l{lv}": (shape, lv) for shape, (lvs, _) in SLOPES.items() for lv in lvs})
     if piece_id not in legal:
         raise ValueError(f"{piece_id}: not a rail piece this generator builds")
     shape, level = legal[piece_id]
@@ -95,6 +111,10 @@ def spec(piece_id):
         ports, fp = [_side(0, o, "-x", level), _side(1, o, "+x", level)], [[0, 0, 0]]
     elif shape == "joint":
         ports = [_side(0, o, "-x", level), _side(1, o, "+x", level, cls="spigot", inset=SOCKET_INSET_UM)]
+        fp = [[0, 0, 0]]
+    elif shape in SLOPES:
+        drop = SLOPES[shape][1]
+        ports = [_side(0, o, "-x", level, flow="in"), _side(1, o, "+x", level - drop, flow="out")]
         fp = [[0, 0, 0]]
     elif shape == "curve90_r90":
         ports = [_side(0, o, "-x", level), _side(1, (1, 0, -1), "-z", level)]
@@ -123,6 +143,23 @@ def bounds_mm(piece_id):
     if spec(piece_id)["shape"] == "joint":
         hi = (hi[0] + SPIGOT_LEN + K.INSET, hi[1], hi[2])
     return lo, hi
+
+
+def floor_mm(sp, cx):
+    """Floor height (mm, piece frame) under plan x = cx: the port level on flat rails; on a slope the
+    §7 quintic smootherstep from the -x port (cx = -30) to the +x port (cx = 30)."""
+    f0 = K.LEVEL_STEP * sp["level"]
+    if sp["shape"] not in SLOPES:
+        return f0
+    t = min(1.0, max(0.0, (cx + 30.0) / K.CELL))
+    return f0 - K.LEVEL_STEP * SLOPES[sp["shape"]][1] * B.smoother(t)
+
+
+def floor_um(sp, cx):
+    """floor_mm in integer µm; exact at both ports, so the port rings are the rail ring."""
+    if sp["shape"] not in SLOPES:
+        return 15000 * sp["level"]
+    return K.round_half_away(1000.0 * floor_mm(sp, cx))
 
 
 def budget(piece_id, lod):
@@ -159,7 +196,7 @@ def _arc(centre, r, a0, a1, n):
 def stations(shape, n):
     """Centreline from port 0 to the far end with `n` path segments (per arc for the S-rail, total
     otherwise). The joint runs on to the spigot end. Ends sit exactly on the port planes."""
-    if shape == "straight":
+    if shape == "straight" or shape in SLOPES:
         return [(-30.0 + 60.0 * k / n, 0.0, 0.0, 1.0) for k in range(n + 1)]
     if shape == "joint":
         return [(-30.0, 0.0, 0.0, 1.0), (30.0, 0.0, 0.0, 1.0), (30.0 + SPIGOT_LEN, 0.0, 0.0, 1.0)]
@@ -201,16 +238,15 @@ def collision_mesh(piece_id):
     collision stations, ends open. Inner faces point toward the channel axis, the lip tops up and
     the outer shell away from the axis."""
     sp = spec(piece_id)
-    floor = 15000 * sp["level"]
-    ring = collision_ring(floor)
     n_inner = 19
     pool = K._Pool()
     sts = stations(sp["shape"], COLLISION_PATH[sp["shape"]])
-    rings = [[_world_um(st, u, v) for u, v in ring] for st in sts]
-    m = len(ring)
+    floors = [floor_um(sp, st[0]) for st in sts]
+    rings = [[_world_um(st, u, v) for u, v in collision_ring(f)] for st, f in zip(sts, floors)]
+    m = len(rings[0])
     for s in range(len(sts) - 1):
         a, b = rings[s], rings[s + 1]
-        axis = (sts[s][0] * 1000.0, floor + 14000, sts[s][1] * 1000.0)
+        axis = (sts[s][0] * 1000.0, floors[s] + 14000, sts[s][1] * 1000.0)
         for j in range(m):
             k = (j + 1) % m
             cen = [(a[j][i] + a[k][i] + b[j][i] + b[k][i]) / 4 for i in range(3)]
@@ -301,11 +337,11 @@ def build_render_object(piece_id, q, name, collection, material=None, depsgraph=
     from mathutils import Matrix
 
     sp = spec(piece_id)
-    floor = K.LEVEL_STEP * sp["level"]
     prof = render_profile(q)
     bm = bmesh.new()
     rings = []
     for cx, cz, lx, lz in render_stations(piece_id, q):
+        floor = floor_mm(sp, cx)
         rings.append([bm.verts.new((cx + u * lx, floor + v, cz + u * lz)) for u, v in prof])
     m = len(prof)
     for a, b in zip(rings, rings[1:]):

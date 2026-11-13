@@ -65,7 +65,10 @@ function railRing(floorUm) {
 const RAIL_INNER_UM = 16000;
 // §12 rail budget per cell of centreline length; centreline lengths (mm) per rail shape (§9).
 const RAIL_BUDGET = [1500, 500, 120];
-const RAIL_CENTRELINE_MM = { straight: 60, curve90_r90: 90 * Math.PI / 2, s_1x3: 300 * Math.atan2(0.6, 0.8), joint: 70 };
+const RAIL_CENTRELINE_MM = {
+  straight: 60, curve90_r90: 90 * Math.PI / 2, s_1x3: 300 * Math.atan2(0.6, 0.8), joint: 70,
+  slope_gentle: 62.58, slope_steep: 69.41, // smootherstep floor arcs (kitrails.py CENTRELINE_MM)
+};
 const railShape = (id) => id.replace(/^rail_/, "").replace(/_l[0-3]$/, "");
 // §5.5: a spigot must clear the 40 mm socket bore by at least 1.5 mm radially.
 const SOCKET_BORE_R_UM = 20000, SPIGOT_CLEARANCE_UM = 1500;
@@ -93,6 +96,8 @@ const FACE = { "+x": [0, 1], "-x": [0, -1], "+z": [2, 1], "-z": [2, -1] };
 const P1_APPROVED = new Set(["blk_straight_l3", "blk_curve90_l3", "blk_slope_gentle_l3", "blk_end_l3"]);
 // Rail shapes at the levels the P2-T4 proof did not ship (owner request 2026-11-12, kitrails.py).
 const RAIL_LEVELS = new Set(["rail_straight_l3", "rail_curve90_r90_l1", "rail_curve90_r90_l3", "rail_s_1x3_l1", "rail_s_1x3_l3"]);
+// Rail slopes, the rail counterparts of the §7 block slopes (owner request 2026-11-13, kitrails.py).
+const RAIL_SLOPES = new Set(["rail_slope_gentle_l3", "rail_slope_gentle_l2", "rail_slope_steep_l3"]);
 // P2-T3 mechanism pieces: the hinge parts each shape must ship (blender/kit/kitmech.py). The finish
 // cup and the checkpoint arch have no moving part. All parts of a piece share one budget (§12).
 const MECH_PARTS = {
@@ -500,7 +505,7 @@ async function provenance(runtime, source, ids, checks) {
       pieceId: id,
       pieceVersion: JSON.parse(fs.readFileSync(path.join(dir, `${id}.kit.json`), "utf8")).piece_version,
       route: "scripted",
-      card: P1_APPROVED.has(id) ? "P1-T2" : FUNNEL.has(id) ? "funnel catcher (owner card 2026-11-08)" : id.startsWith("mech_") ? "P2-T3" : RAIL_LEVELS.has(id) ? "rail heights (owner request 2026-11-12)" : id.startsWith("rail_") ? "P2-T4" : "P2-T2",
+      card: P1_APPROVED.has(id) ? "P1-T2" : FUNNEL.has(id) ? "funnel catcher (owner card 2026-11-08)" : id.startsWith("mech_") ? "P2-T3" : RAIL_LEVELS.has(id) ? "rail heights (owner request 2026-11-12)" : RAIL_SLOPES.has(id) ? "rail slopes (owner request 2026-11-13)" : id.startsWith("rail_") ? "P2-T4" : "P2-T2",
       contract: { path: "docs/kit-contract.md", version: CONTRACT_VERSION, sha256: sha256(path.join(REPO, "docs/kit-contract.md")), approved: "Paul, 2026-11-07 (contract status line)" },
       generator: exp.generator,
       generatorDeps: exp.generatorDeps,
@@ -534,6 +539,8 @@ async function provenance(runtime, source, ids, checks) {
           ? { who: "Paul", gate: "piece look", status: "pending", notes: "P2-T3 mechanism piece; review sheet blender/kit/review/p2t3-mechanisms.png" }
           : RAIL_LEVELS.has(id)
             ? { who: "Paul", gate: "piece look", status: "pending", notes: "rail at another level; review sheet blender/kit/review/rail-levels.png" }
+          : RAIL_SLOPES.has(id)
+            ? { who: "Paul", gate: "piece look", status: "pending", notes: "rail slope; review sheet blender/kit/review/rail-slopes.png" }
           : id.startsWith("rail_")
             ? { who: "Paul", gate: "piece look", status: "pending", notes: "P2-T4 rail piece; review sheet blender/kit/review/p2t4-rails.png" }
           : { who: "Paul", gate: "piece look", status: "pending", notes: "P2-T2 piece; review sheet blender/kit/review/p2t2-pieces.png" }],

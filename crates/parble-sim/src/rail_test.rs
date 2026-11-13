@@ -693,3 +693,140 @@ fn a_fast_shooter_stays_in_the_rail_curve_at_every_level() {
         }
     }
 }
+
+/// The rail slope chains, entered from two `L3` blocks at x 0..1 and left by two `L1` blocks:
+/// gentle `L3` → `L2` → `L1` (cells x 2 and 3, then a rail straight at x 4), and steep `L3` →
+/// `L1` (cell x 2, then a rail straight at x 3). Each with its seam windows (15 mm either side of
+/// every seam from the first block one to the last, as plan x and z ranges) and slope interiors.
+type SlopeRun = (
+    &'static str,
+    Vec<Placement>,
+    Vec<(&'static str, [f32; 2])>,
+    Vec<[f32; 2]>,
+);
+
+fn rail_slope_runs() -> [SlopeRun; 2] {
+    let seam = |x: f32| [x - 0.015, x + 0.015];
+    [
+        (
+            "gentle",
+            vec![
+                place("blk_straight_l3", 0, 0, 0),
+                place("blk_straight_l3", 1, 0, 0),
+                place("rail_slope_gentle_l3", 2, 0, 0),
+                place("rail_slope_gentle_l2", 3, 0, 0),
+                place("rail_straight_l1", 4, 0, 0),
+                place("blk_straight_l1", 5, 0, 0),
+                place("blk_straight_l1", 6, 0, 0),
+            ],
+            vec![
+                ("block to rail slope (x 90 mm)", seam(0.09)),
+                ("rail slope to rail slope (x 150 mm)", seam(0.15)),
+                ("rail slope to rail (x 210 mm)", seam(0.21)),
+                ("rail to block (x 270 mm)", seam(0.27)),
+            ],
+            vec![[0.105, 0.135], [0.165, 0.195]],
+        ),
+        (
+            "steep",
+            vec![
+                place("blk_straight_l3", 0, 0, 0),
+                place("blk_straight_l3", 1, 0, 0),
+                place("rail_slope_steep_l3", 2, 0, 0),
+                place("rail_straight_l1", 3, 0, 0),
+                place("blk_straight_l1", 4, 0, 0),
+                place("blk_straight_l1", 5, 0, 0),
+            ],
+            vec![
+                ("block to rail slope (x 90 mm)", seam(0.09)),
+                ("rail slope to rail (x 150 mm)", seam(0.15)),
+                ("rail to block (x 210 mm)", seam(0.21)),
+            ],
+            vec![[0.105, 0.135]],
+        ),
+    ]
+}
+
+#[test]
+fn rail_slopes_descend_to_l1_with_their_seams_under_the_thresholds() {
+    // A marble entering each rail slope chain from an `L3` block leaves on the `L1` block,
+    // centred and down in its channel. Every seam is gated on upward speed (the floor descends
+    // across the slope seams, so only an upward throw is a bump) against the seamless `L3`
+    // block channel's peak plus the seam spike, as `seam_test::straight_to_slope_join` gates the
+    // block slope.
+    //
+    // Kick is gated against the same chain built from block pieces, plus the kick margin: the
+    // smootherstep floor kicks on its own, near ½·vx³·DT²·|y'''| with |y'''| peaking at
+    // 60·drop/cell³ at a slope's ends, so a fast exit is over the seamless margin with no seam
+    // at all. Measured 2026-11-13, rail against block: 7.63 / 7.61 mm/s off the gentle L3 slope
+    // onto the L2 one, 10.87 / 10.88 off the gentle L2 slope, 24.30 / 24.34 off the steep slope.
+    let (p_base, _) = seamless_at(3);
+    let p_limit = p_base + SEAM_SPIKE_MM_S;
+    let roll = |layout: &[Placement]| {
+        let mut sim = track_sim(layout);
+        launch(
+            &mut sim,
+            Vector::new(-0.02, REST_AT[3], 0.0),
+            Vector::X,
+            SPEED,
+        );
+        trace(&mut sim, TICKS)
+    };
+    for (name, layout, windows, interiors) in rail_slope_runs() {
+        let tr = roll(&layout);
+        let blocks: Vec<Placement> = layout
+            .iter()
+            .map(|p| Placement {
+                piece: PieceId::new(&p.piece.as_str().replace("rail_", "blk_")).unwrap(),
+                ..p.clone()
+            })
+            .collect();
+        let twin = roll(&blocks);
+        let end = 0.06 * (layout.len() as f32 - 1.0) - 0.04;
+        assert!(
+            tr.iter().any(|m| m.position[0] > end
+                && (m.position[1] - REST_AT[1]).abs() < 0.002
+                && m.position[2].abs() < 0.005),
+            "{name}: marble must reach the last L1 block, centred and down in its channel"
+        );
+        assert!(
+            tr.iter()
+                .all(|m| m.position[0] > 0.09 || (m.position[1] - REST_AT[3]).abs() < 0.004),
+            "{name}: marble stays in the L3 channel up to the slope"
+        );
+        for (w, x) in &windows {
+            let sel = |m: &MarbleState| at(m, [x[0], -0.03], [x[1], 0.03]);
+            assert!(tr.iter().any(sel), "{name} {w}: marble never crossed");
+            let (u, k) = (upward(&tr, sel), kick(&tr, sel));
+            let k_limit = kick(&twin, sel) + KICK_MARGIN_MM_S;
+            eprintln!(
+                "{name} {w}: upward {u:.2} mm/s (limit {p_limit:.2}), kick {k:.2} (limit \
+                 {k_limit:.2})"
+            );
+            assert!(
+                u <= p_limit,
+                "{name} {w}: upward {u:.2} mm/s over {p_limit:.2}"
+            );
+            // The block chain too: its slope-to-slope seam threw the ball up 19.6 mm/s while the
+            // chunk weld left a strip across the seam untagged (see `ChunkMesh::mark_slopes`).
+            let u = upward(&twin, sel);
+            assert!(
+                u <= p_limit,
+                "{name} block twin {w}: upward {u:.2} mm/s over {p_limit:.2}"
+            );
+            assert!(
+                k <= k_limit,
+                "{name} {w}: kick {k:.2} mm/s over {k_limit:.2}"
+            );
+        }
+        for x in &interiors {
+            let sel = |m: &MarbleState| (x[0]..x[1]).contains(&m.position[0]);
+            let (k, k_limit) = (kick(&tr, sel), kick(&twin, sel) + KICK_MARGIN_MM_S);
+            eprintln!("{name} slope interior {x:?}: kick {k:.2} (limit {k_limit:.2})");
+            assert!(
+                k <= k_limit,
+                "{name} slope interior {x:?}: kick {k:.2} mm/s over {k_limit:.2}"
+            );
+        }
+    }
+}

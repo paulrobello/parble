@@ -1,8 +1,8 @@
 {
   "generator": "blender/kit/thumbnails.py",
   "blender": "Blender 5.2.2 LTS",
-  "git_head": "4df4b436544e7d7464e55982371bbd849a226c27",
-  "date": "2026-11-12",
+  "git_head": "6edb649ac8b8c8a3a490cd202b33e4f633dc6273",
+  "date": "2026-11-13",
   "render": {
     "engine": "BLENDER_EEVEE",
     "samples": 64,
@@ -304,6 +304,30 @@
       "png": "rail_s_1x3_l3.png",
       "png_sha256": "de96fc80571265eaf986ad0ab9e243cbc2692eaee8401655f87cd0dd9e84fe51",
       "bytes": 2373
+    },
+    {
+      "id": "rail_slope_gentle_l2",
+      "source_glb": "assets/kit/rail_slope_gentle_l2/rail_slope_gentle_l2.glb",
+      "source_glb_sha256": "14a7856e69b66b7ba6f62c62e6776004934a85a241d840efd5d95ac184052859",
+      "png": "rail_slope_gentle_l2.png",
+      "png_sha256": "1da822e7cde9ef814eee7ac4593e21b611823a271c591c746f441351775d69ed",
+      "bytes": 4122
+    },
+    {
+      "id": "rail_slope_gentle_l3",
+      "source_glb": "assets/kit/rail_slope_gentle_l3/rail_slope_gentle_l3.glb",
+      "source_glb_sha256": "28b1633226743f92fd3a956ceb6f8f3e1c338b8286a7f00996b7e8856cefc05f",
+      "png": "rail_slope_gentle_l3.png",
+      "png_sha256": "bb2461816446655477bfb3f2fc12e8b000b0bc968e1dd2699e31fce10a696058",
+      "bytes": 3847
+    },
+    {
+      "id": "rail_slope_steep_l3",
+      "source_glb": "assets/kit/rail_slope_steep_l3/rail_slope_steep_l3.glb",
+      "source_glb_sha256": "ab23e0a11bd9de20bc1f72006e708ff4edda8346782a1d4302228a3b5c3c097d",
+      "png": "rail_slope_steep_l3.png",
+      "png_sha256": "c8d8b249575670d2f035c6201eceaba113b025e43877ed2946482b6e1b075188",
+      "bytes": 3878
     },
     {
       "id": "rail_straight_l1",
