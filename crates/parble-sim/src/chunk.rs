@@ -1037,11 +1037,26 @@ impl ChannelSlope {
     }
 
     /// Whether a ball centre lies over the slope's cell, or within `margin` metres of it along
-    /// the path.
+    /// the path, at any height: a ball falling onto a landing floor is over it from above.
     fn covers(&self, c: Vector, margin: f32) -> bool {
         let (s, w) = self.plan(c.x, c.z);
         let (cell, len) = (CELL_UM as f32 * 1.0e-6, self.len_um as f32 * 1.0e-6);
         (-margin..=len + margin).contains(&s) && w.abs() <= 0.5 * cell
+    }
+
+    /// [`Self::covers`] for a ball at the slope's own height ([`Self::reaches_height`]). Where a
+    /// slope takes contacts away from other triangles, a slope on another layer of the same plan
+    /// cell must not.
+    fn holds_ball(&self, c: Vector, margin: f32) -> bool {
+        self.covers(c, margin) && self.reaches_height(c.y)
+    }
+
+    /// [`Self::covers`] for a ball that is not below the slope's channel by more than
+    /// [`SLOPE_HEIGHT_REACH_M`]. A ball above a landing floor is still over it (it falls onto
+    /// it), but a ball on a lower layer never is.
+    fn covers_from_above(&self, c: Vector, margin: f32) -> bool {
+        let low = (self.axis_y_um - self.drop_um) as f32 * 1.0e-6 - SLOPE_HEIGHT_REACH_M;
+        self.covers(c, margin) && c.y >= low
     }
 
     /// Whether a ball centre is within [`SLOPE_HEIGHT_REACH_M`] of the channel's height range.
@@ -2503,7 +2518,7 @@ impl PhysicsHooks for ChunkColliders {
             && !tagged.is_empty()
             && slopes
                 .iter()
-                .position(|s| s.covers(centre, 0.0) && s.reaches_height(centre.y))
+                .position(|s| s.holds_ball(centre, 0.0))
                 .is_some_and(|k| !tagged.contains(&(k as u32)))
         {
             // A ball centred over one slope's cell belongs to that slope's contact, so the
@@ -2656,7 +2671,7 @@ impl PhysicsHooks for ChunkColliders {
             && self
                 .slopes
                 .get(&handle.into_raw_parts())
-                .is_some_and(|(slopes, _)| slopes.iter().any(|s| s.covers(centre, 0.0)))
+                .is_some_and(|(slopes, _)| slopes.iter().any(|s| s.covers_from_above(centre, 0.0)))
         {
             // A ball centred over a slope's cell belongs to the slope's contact. The bend tube's
             // continuation past its cell is level, so a bend triangle still in reach would hold

@@ -30,7 +30,7 @@ pub use params::{Families, GenError, GenParams};
 pub use search::NODE_BUDGET;
 
 /// Bump whenever a change alters the track generated for the same catalog, seed and params.
-pub const GENERATOR_VERSION: u32 = 3;
+pub const GENERATOR_VERSION: u32 = 4;
 
 /// Generate a track. `defs` is the catalog the track is built from, in any order.
 pub fn generate(defs: &[PieceDef], seed: u64, params: &GenParams) -> Result<Track, GenError> {
@@ -68,7 +68,7 @@ pub fn generate(defs: &[PieceDef], seed: u64, params: &GenParams) -> Result<Trac
         .ok_or(GenError::MissingPiece("hopper exit"))?;
     let exit_value =
         4 * (params.height as i32 + exit.cell.y) + exit.level.map_or(-3, PortLevel::index);
-    if !via.viable(exit_value, exit.level, speed::HOPPER_V2, 0) {
+    if !via.viable(exit_value, exit.level, speed::HOPPER_V2, 0, false) {
         return Err(GenError::NoRoute);
     }
     let attempts = search::NODE_BUDGET / search::ATTEMPT_NODES;

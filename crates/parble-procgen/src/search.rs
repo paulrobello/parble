@@ -43,6 +43,8 @@ struct End {
     flat: u8,
     /// Estimated squared speed of a marble leaving this port, in 1e-3 m²/s².
     v2: i64,
+    /// Whether the piece this port belongs to is a catch.
+    catch: bool,
 }
 
 impl End {
@@ -55,6 +57,7 @@ impl End {
             flow: p.flow,
             flat,
             v2,
+            catch: false,
         }
     }
 
@@ -238,7 +241,9 @@ impl<'a> Search<'a> {
             let d = descent(p);
             let flat = if d == 0 { end.flat + 1 } else { 0 };
             let v2 = exit_v2(end.v2, t.shape, d);
-            self.ends.push(End::of(c.anchor, p, flat, v2));
+            let mut e = End::of(c.anchor, p, flat, v2);
+            e.catch = t.shape == Shape::Catch;
+            self.ends.push(e);
         }
         Undo {
             cells,
@@ -348,7 +353,7 @@ impl<'a> Search<'a> {
             let landing = CellCoord::new(gap.x, gap.y - 1, gap.z);
             let under = CellCoord::new(end.cell.x, end.cell.y - 1, end.cell.z);
             let key = (end.face.opposite(), Some(PortLevel::L3), PortClass::Channel);
-            if !self.taken(gap) && landing.y >= 0 && end.v2 <= TRANSFER_MAX_V2 {
+            if !self.taken(gap) && landing.y >= 0 && end.v2 <= TRANSFER_MAX_V2 && !end.catch {
                 for finish in [false, true] {
                     if finish && !want_finish {
                         continue;
@@ -390,9 +395,13 @@ impl<'a> Search<'a> {
                 && v >= FINISH_VALUE
                 && (d > 0 || end.flat < MAX_FLAT_RUN)
                 && out >= MIN_FLOW_V2
-                && self
-                    .via
-                    .viable(v, p.level, out, if d == 0 { end.flat + 1 } else { 0 })
+                && self.via.viable(
+                    v,
+                    p.level,
+                    out,
+                    if d == 0 { end.flat + 1 } else { 0 },
+                    t.shape == Shape::Catch,
+                )
         })
     }
 

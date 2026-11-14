@@ -58,7 +58,7 @@ struct Goal {
     value: i32,
 }
 
-type Key = (i32, i64, i32, u8);
+type Key = (i32, i64, i32, u8, bool);
 
 pub(crate) struct Viability {
     steps: Vec<Step>,
@@ -103,20 +103,33 @@ impl Viability {
 
     /// Whether a marble leaving a port at `value` and `level` with squared speed `v2`, after
     /// `flat` level pieces in a row, can reach a finish.
-    pub fn viable(&self, value: i32, level: Option<PortLevel>, v2: i64, flat: u8) -> bool {
-        let key = (value, v2 / BUCKET, level.map_or(-1, PortLevel::index), flat);
+    pub fn viable(
+        &self,
+        value: i32,
+        level: Option<PortLevel>,
+        v2: i64,
+        flat: u8,
+        catch: bool,
+    ) -> bool {
+        let key = (
+            value,
+            v2 / BUCKET,
+            level.map_or(-1, PortLevel::index),
+            flat,
+            catch,
+        );
         if let Some(&r) = self.memo.borrow().get(&key) {
             return r;
         }
         // A revisit while this state is still being expanded is a cycle, not a way forward.
         self.memo.borrow_mut().insert(key, false);
-        let r = self.expand(value, level, v2, flat);
+        let r = self.expand(value, level, v2, flat, catch);
         self.memo.borrow_mut().insert(key, r);
         r
     }
 
-    fn expand(&self, value: i32, level: Option<PortLevel>, v2: i64, flat: u8) -> bool {
-        let falls = level == Some(PortLevel::L1) && v2 <= TRANSFER_MAX_V2;
+    fn expand(&self, value: i32, level: Option<PortLevel>, v2: i64, flat: u8, catch: bool) -> bool {
+        let falls = level == Some(PortLevel::L1) && v2 <= TRANSFER_MAX_V2 && !catch;
         for g in &self.goals {
             let direct = g.entry == level && g.value == value;
             let landed = falls
@@ -146,7 +159,8 @@ impl Viability {
             }
             let out = exit_v2(v2, shape, d);
             let next_flat = if d == 0 { flat + 1 } else { 0 };
-            if out >= MIN_FLOW_V2 && self.viable(ev, s.exit, out, next_flat) {
+            if out >= MIN_FLOW_V2 && self.viable(ev, s.exit, out, next_flat, shape == Shape::Catch)
+            {
                 return true;
             }
         }

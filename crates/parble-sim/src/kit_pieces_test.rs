@@ -405,6 +405,34 @@ fn fall_bisect() {
     }
 }
 
+/// A gentle slope four layers above a curve's straights, in the same plan cell as one of them:
+/// the bend's flat continuation tags those straights, and `covers` once looked at the plan only,
+/// so the slope far above "covered" the marble and cleared the straight's contacts. Generated seed
+/// 266 (P6-T1b follow-up): a marble at 0.17 m/s fell through the floor onto the support pillar.
+#[test]
+fn a_slope_far_above_does_not_open_the_floor_of_straights_after_a_curve() {
+    let layout = vec![
+        place("blk_slope_gentle_l3", -4, 5, -4, 1, false),
+        place("blk_curve90_l3", -7, 1, -4, 3, true),
+        place("blk_straight_l3", -6, 1, -4, 0, false),
+        place("blk_straight_l3", -5, 1, -4, 0, false),
+        place("blk_straight_l3", -4, 1, -4, 2, false),
+        place("blk_redirect_l3", -3, 1, -4, 0, false),
+    ];
+    let zone = Some((CellCoord::new(-4, 1, -4), 0.003));
+    for v in [0.15_f32, 0.2, 0.3] {
+        let snap = MarbleState {
+            position: [-6.0 * 0.06, 0.06 + 0.045 + R, -4.0 * 0.06],
+            rotation: [0.0, 0.0, 0.0, 1.0],
+            linvel: [v, 0.0, 0.0],
+        };
+        assert!(
+            !falls_below(&layout, snap, 0.06 + 0.045 - 0.006, zone),
+            "{v} m/s: the marble fell through the straight under the slope"
+        );
+    }
+}
+
 /// Seed 72's failing stretch: three L3 straights into a redirect, a catch one layer above the
 /// last straight. Variants of it say which piece the fall needs.
 #[test]
