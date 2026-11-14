@@ -28,8 +28,9 @@ use std::sync::Mutex;
 use bevy::{platform::time::Instant, prelude::*, window::PrimaryWindow};
 use parble_core::{
     CellCoord, EditCommand, Editor, HopperConfig, IssueKind, LinkFault, MarbleSize, Mirror,
-    NudgeZone, Orientation, PieceCatalog, PieceId, Placement, PortFace, PortFlow, ReleaseMode,
-    Selection, Track, Yaw4, file::ParbleFile, is_finish, is_hopper, link_fault, validate_track,
+    NudgeZone, Orientation, PieceCatalog, PieceId, Placement, Port, PortFace, PortFlow,
+    ReleaseMode, Selection, Track, Yaw4, file::ParbleFile, is_finish, is_hopper, link_fault,
+    validate_track,
 };
 use parble_kit::KitCatalog;
 use parble_render::{
@@ -39,7 +40,7 @@ use parble_render::{
         self, CELL_M,
         edit::{
             ColumnTint, EditPiece, KitColumns, KitEdits, KitGhost, KitMarks, MAX_COLUMNS,
-            MAX_MARKS, PortHint, chunk_of_cell,
+            MAX_MARK_PORTS, MAX_MARKS, MarkPort, PortHint, chunk_of_cell,
         },
         parts::PartFrame,
     },
@@ -497,6 +498,9 @@ fn ivec(c: CellCoord) -> IVec3 {
     IVec3::new(c.x, c.y, c.z)
 }
 
+/// How far above its channel floor a side port's hole is drawn, metres.
+const PORT_HOLE_M: f32 = 0.012;
+
 /// Bottom-face centre of a cell, metres.
 fn cell_floor_m(c: CellCoord) -> Vec3 {
     kit::cell_origin(ivec(c))
@@ -665,6 +669,9 @@ pub struct EditorDiag {
     pub stroke: Option<StrokeDiag>,
     /// The anchor a Show pulse is blinking, while it runs.
     pub pulse: Option<[i32; 3]>,
+    /// Selection marks drawn: one per cell of the selected pieces, and one arrow per port.
+    pub mark_cells: usize,
+    pub mark_ports: usize,
     pub last_run: Option<RunTiming>,
     /// The marble check (`check`): warnings parallel to `issues`, never errors.
     pub check: CheckDiag,
@@ -1222,6 +1229,45 @@ impl EditState {
 
     /// Port hints for `p` against the placed pieces.
     fn port_hints(&self, p: &Placement) -> Vec<PortDiag> {
+        self.placed_ports(p)
+            .into_iter()
+            .map(|(wp, hint)| PortDiag {
+                cell: cell_arr(wp.cell),
+                face: wp.face,
+                hint,
+            })
+            .collect()
+    }
+
+    /// Selection arrows for `p`: where each port sits on its cell face, metres, and which way the
+    /// marble goes through it.
+    fn port_marks(&self, p: &Placement) -> Vec<MarkPort> {
+        self.placed_ports(p)
+            .into_iter()
+            .map(|(wp, hint)| {
+                let n = wp.face.normal();
+                let dir = Vec3::new(n.x as f32, n.y as f32, n.z as f32);
+                let y = match (wp.level, wp.face.is_side()) {
+                    // A side port's hole sits a little above its channel floor.
+                    (Some(l), true) => l.floor_um() as f32 * 1e-6 + PORT_HOLE_M,
+                    (None, true) => CELL_M * 0.55,
+                    (_, false) if n.y > 0 => CELL_M,
+                    _ => 0.0,
+                };
+                MarkPort {
+                    pos: cell_floor_m(wp.cell)
+                        + Vec3::new(dir.x, 0.0, dir.z) * (CELL_M * 0.5)
+                        + Vec3::Y * y,
+                    dir,
+                    out: matches!(wp.flow, PortFlow::Out | PortFlow::Both),
+                    hint,
+                }
+            })
+            .collect()
+    }
+
+    /// The ports of `p` in world cells, each with its hint against the placed pieces.
+    fn placed_ports(&self, p: &Placement) -> Vec<(Port, PortHint)> {
         let Some(def) = self.kit.get(&p.piece) else {
             return Vec::new();
         };
@@ -1249,11 +1295,7 @@ impl EditState {
                         }
                     }
                 };
-                PortDiag {
-                    cell: cell_arr(wp.cell),
-                    face: wp.face,
-                    hint,
-                }
+                (wp, hint)
             })
             .collect()
     }
@@ -2967,15 +3009,30 @@ fn update_hover(
     if st.marks_key != Some(mkey) || drag.is_some() || diag.drag.is_some() {
         st.marks_key = Some(mkey);
         let placements = &st.editor.track().placements;
-        marks.cells = st
+        let mut cells = Vec::new();
+        let mut ports = Vec::new();
+        for p in st
             .editor
             .selection
             .iter()
-            .take(MAX_MARKS)
-            .filter_map(|i| placements.get(i as usize).map(|p| p.anchor))
-            .filter(|a| Some(*a) != hidden)
-            .map(ivec)
-            .collect();
+            .filter_map(|i| placements.get(i as usize))
+            .filter(|p| Some(p.anchor) != hidden)
+        {
+            let Some(def) = st.kit.get(&p.piece) else {
+                continue;
+            };
+            if cells.len() >= MAX_MARKS {
+                break;
+            }
+            cells.extend(p.world_cells(def).into_iter().map(ivec));
+            ports.extend(st.port_marks(p));
+        }
+        cells.truncate(MAX_MARKS);
+        ports.truncate(MAX_MARK_PORTS);
+        diag.mark_cells = cells.len();
+        diag.mark_ports = ports.len();
+        marks.cells = cells;
+        marks.ports = ports;
         marks.offset = ivec(offset);
         marks.valid = drag.as_ref().is_none_or(|d| d.valid);
     }

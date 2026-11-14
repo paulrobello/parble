@@ -483,3 +483,31 @@ test("editor: a block, a mechanism and a rail from the full palette place and re
   expect(errors).toEqual([]);
   expect(requestErrors).toEqual([]);
 });
+
+test("editor: a selected piece marks every cell and an arrow on each port", async ({ page }) => {
+  const { errors, box } = await openEditor(page);
+  await edit(page, { op: "camera", target: [0.48, 0.02, -0.38], yaw: 0.3, pitch: 0.95, radius: 0.75 });
+  await page.mouse.move(box.x + 5, box.y + 5);
+  // The redirect is two cells tall, the S-rail spans 3 x 2 cells; each has an inlet and an exit.
+  const cases = [
+    { piece: "blk_straight_l3", cell: [4, 0, -6], cells: 1 },
+    { piece: "blk_redirect_l3", cell: [8, 1, -6], cells: 2 },
+    { piece: "rail_s_1x3_l2", cell: [11, 0, -6], cells: 6 },
+  ];
+  for (const c of cases) {
+    const last = await edit(page, { op: "place", piece: c.piece, cell: c.cell, yaw: 0 });
+    expect(last.ok, `${c.piece}: ${last.error}`).toBe(true);
+  }
+  await edit(page, { op: "tool", tool: "select" });
+  for (const c of cases) {
+    await edit(page, { op: "clearSelection" });
+    await edit(page, { op: "boxSelect", a: c.cell, b: c.cell });
+    await frames(page, 4);
+    const s = await state(page);
+    expect(s.selection, c.piece).toBe(1);
+    expect(s.markCells, `${c.piece} marks every cell`).toBe(c.cells);
+    expect(s.markPorts, `${c.piece} has an arrow per port`).toBe(2);
+    writeFileSync(test.info().outputPath(`${c.piece}-selected.png`), await page.locator("canvas#parble").screenshot());
+  }
+  expect(errors).toEqual([]);
+});

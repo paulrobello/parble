@@ -25,6 +25,11 @@ pub const MAX_MARKS: usize = 1024;
 pub const MAX_COLUMNS: usize = 1024;
 /// Port hint markers drawn at most.
 const MAX_PORTS: usize = 8;
+/// Selection port arrows drawn at most.
+pub const MAX_MARK_PORTS: usize = 256;
+/// Selection port arrow size, metres: a cone lying outside its cell face.
+const ARROW_RADIUS_M: f32 = 0.008;
+const ARROW_LENGTH_M: f32 = 0.024;
 
 /// One editor-placed piece: index into [`super::PIECES`], anchor cell, quarter turns and mirror.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,10 +97,24 @@ pub struct KitGhost {
     pub ports: Vec<(Vec3, PortHint)>,
 }
 
-/// Selection marks: the selected anchors, shown shifted by `offset` cells while a move drags.
+/// A selected piece's port, drawn as an arrow so a hole stays findable through a ghosted piece.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MarkPort {
+    /// The port on its cell face, metres.
+    pub pos: Vec3,
+    /// The face's outward normal.
+    pub dir: Vec3,
+    /// An exit points out of the hole, an inlet points into it.
+    pub out: bool,
+    pub hint: PortHint,
+}
+
+/// Selection marks: every cell of the selected pieces and their ports, shown shifted by `offset`
+/// cells while a move drags.
 #[derive(Resource, Debug, Default, Clone)]
 pub struct KitMarks {
     pub cells: Vec<IVec3>,
+    pub ports: Vec<MarkPort>,
     pub offset: IVec3,
     pub valid: bool,
 }
@@ -143,6 +162,7 @@ struct EditVisuals {
     ports: Vec<Entity>,
     port_mats: [Handle<StandardMaterial>; 3],
     marks: Vec<Entity>,
+    mark_ports: Vec<Entity>,
     mark_ok: Handle<StandardMaterial>,
     mark_bad: Handle<StandardMaterial>,
     columns: Vec<Entity>,
@@ -237,6 +257,19 @@ fn setup_visuals(
                 .spawn((
                     Mesh3d(cube.clone()),
                     MeshMaterial3d(vis.mark_ok.clone()),
+                    Transform::default(),
+                    Visibility::Hidden,
+                ))
+                .id()
+        })
+        .collect();
+    let arrow = meshes.add(Cone::new(ARROW_RADIUS_M, ARROW_LENGTH_M));
+    vis.mark_ports = (0..MAX_MARK_PORTS)
+        .map(|_| {
+            commands
+                .spawn((
+                    Mesh3d(arrow.clone()),
+                    MeshMaterial3d(vis.port_mats[1].clone()),
                     Transform::default(),
                     Visibility::Hidden,
                 ))
@@ -515,6 +548,26 @@ fn show_marks(
                 if m.0 != *mat {
                     m.0 = mat.clone();
                 }
+            }
+            None => {
+                if *v != Visibility::Hidden {
+                    *v = Visibility::Hidden;
+                }
+            }
+        }
+    }
+    let shift = cell_origin(marks.offset) - cell_origin(IVec3::ZERO);
+    for (i, &e) in vis.mark_ports.iter().enumerate() {
+        let Ok((mut tf, mut v, mut m)) = q.get_mut(e) else {
+            continue;
+        };
+        match marks.ports.get(i) {
+            Some(p) => {
+                let tip = if p.out { p.dir } else { -p.dir };
+                tf.translation = p.pos + shift + p.dir * (ARROW_LENGTH_M * 0.5);
+                tf.rotation = Quat::from_rotation_arc(Vec3::Y, tip);
+                *v = Visibility::Inherited;
+                m.0 = vis.port_mats[p.hint as usize].clone();
             }
             None => {
                 if *v != Visibility::Hidden {
