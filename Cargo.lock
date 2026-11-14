@@ -4342,6 +4342,10 @@ dependencies = [
 [[package]]
 name = "parble-procgen"
 version = "0.1.0"
+dependencies = [
+ "parble-core",
+ "parble-kit",
+]
 
 [[package]]
 name = "parble-render"
@@ -4362,6 +4366,7 @@ dependencies = [
  "libm",
  "parble-core",
  "parble-kit",
+ "parble-procgen",
  "rapier3d",
 ]
 

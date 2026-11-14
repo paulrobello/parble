@@ -73,7 +73,9 @@
 //!
 //! A [`PieceDef::structural`] piece (a support) that no marble can enter (no fed port, no funnel
 //! drop into it) is idle: its open and one-sided ports and its unreachability are not issues. Once
-//! a marble can enter it, every rule applies to it as to any other piece.
+//! a marble can enter it, every rule applies to it as to any other piece. A support whose only
+//! feeders are idle supports is idle too, so a column of pillars under a track is idle from the
+//! top down (P6-T1).
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
@@ -507,6 +509,8 @@ pub fn validate_track(track: &Track, catalog: &impl PieceCatalog) -> Vec<Issue> 
     let mut drop_ports: BTreeSet<(usize, usize)> = BTreeSet::new();
     // Ports a marble can enter by: a link from a port that allows outflow, or a drop landing.
     let mut fed: BTreeSet<(usize, usize)> = BTreeSet::new();
+    // Placement -> the placements whose outflow ports face its fed ports.
+    let mut feeders: BTreeMap<usize, BTreeSet<usize>> = BTreeMap::new();
     // Placements a marble falls into without a port (a funnel's bowl).
     let mut bowls: BTreeSet<usize> = BTreeSet::new();
     for d in &drops {
@@ -591,6 +595,7 @@ pub fn validate_track(track: &Track, catalog: &impl PieceCatalog) -> Vec<Issue> 
                 // A facing port that lets marbles out feeds this one, linked or not.
                 if allows_out(m.flow) && allows_in(port.flow) {
                     fed.insert((i, pi));
+                    feeders.entry(i).or_default().insert(q);
                 }
                 match link_fault(port, m) {
                     Some(fault) => {
@@ -620,13 +625,28 @@ pub fn validate_track(track: &Track, catalog: &impl PieceCatalog) -> Vec<Issue> 
 
     // A structural piece no marble can enter keeps its ports unlinked. A port that only routes
     // lead to (it takes no marble in) is open only when a route to it starts at a fed port.
-    let entered =
-        |i: usize| bowls.contains(&i) || fed.range((i, 0)..=(i, usize::MAX)).next().is_some();
-    let idle_support = |i: usize| {
-        resolved[i]
-            .as_ref()
-            .is_some_and(|r| r.def.structural && !entered(i))
-    };
+    // A support fed only by idle supports stays idle, so a column of pillars is idle from the top
+    // down. A support is entered when a bowl or a drop landing takes it, or a fed port faces a
+    // piece that is not an idle support (or one already entered).
+    let is_support = |i: usize| resolved[i].as_ref().is_some_and(|r| r.def.structural);
+    let mut entered: BTreeSet<usize> = BTreeSet::new();
+    loop {
+        let before = entered.len();
+        for i in (0..resolved.len()).filter(|&i| is_support(i)) {
+            let by_drop =
+                bowls.contains(&i) || drops.iter().any(|d| d.to == i && d.to_port.is_some());
+            let by_feeder = feeders
+                .get(&i)
+                .is_some_and(|f| f.iter().any(|&q| !is_support(q) || entered.contains(&q)));
+            if by_drop || by_feeder {
+                entered.insert(i);
+            }
+        }
+        if entered.len() == before {
+            break;
+        }
+    }
+    let idle_support = |i: usize| is_support(i) && !entered.contains(&i);
     for (i, pi, issue) in unlinked {
         let Some(r) = &resolved[i] else { continue };
         if idle_support(i) {

@@ -13,6 +13,8 @@ Design constraint: validation is a headless sim run at 240 Hz, tens of thousands
 - Fully determined by (seed, params, catalog version).
 - Verify: unit tests show the same seed + params give a byte-identical track, and generated tracks pass the P3-T2 validation engine with zero issues.
 - Depends on: P2-T7, P3-T2.
+- Status (2026-11-13): chain generator landed in `crates/parble-procgen` (`generate(defs, seed, params)`, `GENERATOR_VERSION` 1). The search places single-exit pieces and uses the validator's controlled-drop transfer (`L1` exit onto an `L3` inlet one layer below), so the `L1` hopper needs no lift. Pillar columns go under every elevated cell after the walk, which needed the validator to treat a support fed only by idle supports as idle. Specials generated: gate, checkpoint, rope arch. Not generated yet: splitter, toggle and join (branches need a second feed or a per-end finish), lifts, funnels, one-way holes, socket/spigot pieces.
+- Measured physical pass rate (`cargo test -p parble-sim --test procgen_pass_rate -- --ignored --nocapture`, default params): 4 of 24 seeds finish their first marble, 0 of 4 finish all three. Marbles stall on rail curves and slopes, overshoot transfers entered above about 0.5 m/s and leave the track on high-speed rails. Static validity is the T1 bar, so this belongs to the physical-acceptance work in P6-T2 and the sweep in P6-T6.
 
 ### P6-T2 — Headless validation worker
 - `parble-sim-wasm` exposes `generate_and_validate(seed, params, budget_ms)` with time slicing and resumable state.

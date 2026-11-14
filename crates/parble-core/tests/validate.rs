@@ -778,6 +778,28 @@ fn idle_structural_piece_with_open_ports_gives_no_issue() {
 }
 
 #[test]
+fn a_column_of_idle_pillars_gives_no_issue() {
+    let cat = routed_catalog();
+    // Three pillars stacked clear of the track: the lower two are fed only by the pillar above.
+    let mut alone = clean_placements();
+    for y in 0..3 {
+        alone.push(place("blk_pillar", c(5, y, 5), 0));
+    }
+    assert_eq!(validate_track(&track(alone), &cat), vec![]);
+    // A post (not structural) under an idle pillar is fed by it and is reported as before.
+    let mut stacked = clean_placements();
+    stacked.push(place("blk_pillar", c(0, 0, 0), 0));
+    stacked.push(place("blk_post", c(0, -1, 0), 0));
+    let issues = validate_track(&track(stacked), &cat);
+    assert!(
+        issues
+            .iter()
+            .any(|i| i.placement == Some(8) && i.kind == IssueKind::Unreachable),
+        "{issues:?}"
+    );
+}
+
+#[test]
 fn non_structural_piece_with_the_same_open_ports_is_reported() {
     let cat = routed_catalog();
     let issues = validate_track(&under_the_hopper("blk_post"), &cat);

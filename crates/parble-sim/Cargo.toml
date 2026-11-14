@@ -12,5 +12,8 @@ parble-kit = { path = "../parble-kit" }
 rapier3d = { workspace = true, features = ["std"] }
 libm = { workspace = true }
 
+[dev-dependencies]
+parble-procgen = { path = "../parble-procgen" }
+
 [lints]
 workspace = true
