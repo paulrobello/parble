@@ -1044,6 +1044,20 @@ impl ChannelSlope {
         (-margin..=len + margin).contains(&s) && w.abs() <= 0.5 * cell
     }
 
+    /// Whether a ball centre is within [`SLOPE_HEIGHT_REACH_M`] of the channel's height range.
+    /// [`Self::covers`] looks at the plan only, so a ball rolling on the layer above a landing
+    /// floor (a catch under a drop hole), or on the layer below one, is "over" it: the landing
+    /// then took the contacts of the ball's own floor triangles whenever a slope's flat
+    /// continuation had tagged them. A marble at 0.5 m/s stopped 20 mm short of a drop bore with
+    /// its floor contact gone, and one at 0.15 m/s fell through a straight under a catch
+    /// (measured 2026-11-14, `drop_stall_triggers`, `fall_bisect`).
+    fn reaches_height(&self, y: f32) -> bool {
+        let m = |v: i64| v as f32 * 1.0e-6;
+        (m(self.axis_y_um - self.drop_um) - SLOPE_HEIGHT_REACH_M
+            ..=m(self.axis_y_um) + SLOPE_HEIGHT_REACH_M)
+            .contains(&y)
+    }
+
     /// The contact of a ball (centre `c`, radius `r`, metres) with the exact slope channel: the
     /// normal from the channel wall toward the ball and the gap (negative when penetrating).
     ///
@@ -1092,6 +1106,11 @@ impl ChannelSlope {
         ))
     }
 }
+
+/// How far outside its channel axis's height range, entry to exit, a ball centre may be and still
+/// belong to a slope's cell ([`ChannelSlope::reaches_height`]), metres: a marble's radius plus
+/// slack.
+const SLOPE_HEIGHT_REACH_M: f32 = 0.02;
 
 /// Height of a landing floor's high end over its exit floor, µm (kitblocks `LANDING_RISE`).
 const LANDING_RISE_UM: i32 = 15_000;
@@ -2484,7 +2503,7 @@ impl PhysicsHooks for ChunkColliders {
             && !tagged.is_empty()
             && slopes
                 .iter()
-                .position(|s| s.covers(centre, 0.0))
+                .position(|s| s.covers(centre, 0.0) && s.reaches_height(centre.y))
                 .is_some_and(|k| !tagged.contains(&(k as u32)))
         {
             // A ball centred over one slope's cell belongs to that slope's contact, so the

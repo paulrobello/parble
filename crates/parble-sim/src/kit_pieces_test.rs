@@ -189,6 +189,570 @@ fn rest(layer: i32, level: i32) -> f32 {
     0.06 * layer as f32 + 0.015 * level as f32 + R
 }
 
+/// Diagnostic sweep (`cargo test -p parble-sim --release drop_l2_entry_sweep -- --ignored
+/// --nocapture`): a marble rolling down `blk_straight_l2` into `blk_drop_l2`, over entry speed,
+/// lateral offset and spin. Prints whether it falls through the bore or stalls.
+#[test]
+#[ignore = "diagnostic sweep"]
+fn drop_l2_entry_sweep() {
+    let mut layout: Vec<Placement> = (0..4)
+        .map(|x| place("blk_straight_l2", x, 1, 0, 0, false))
+        .collect();
+    layout.push(place("blk_drop_l2", 4, 1, 0, 0, false));
+    layout.push(place("blk_catch_l1", 4, 0, 0, 0, false));
+    let kit = parble_kit::builtin();
+    for spin in [1.0_f32, 0.0] {
+        for v in [0.25_f32, 0.35, 0.45, 0.55, 0.7] {
+            let mut row = String::new();
+            for dz in [-0.006_f32, -0.003, 0.0, 0.003, 0.006] {
+                let mut sim = Sim::empty();
+                for p in &layout {
+                    sim.place_piece(kit, p.clone()).unwrap();
+                }
+                sim.rebuild_chunks(kit).unwrap();
+                let at = Vector::new(-0.02, rest(1, 2), dz);
+                let (mut body, collider) = CATS_EYE.build(at);
+                let vel = Vector::X * v;
+                body.set_linvel(vel, true);
+                body.set_angvel(
+                    Vector::Y.cross(vel / v) * (spin * v / CATS_EYE.radius_m),
+                    true,
+                );
+                let h = sim.world.bodies.insert(body);
+                sim.world
+                    .colliders
+                    .insert_with_parent(collider, h, &mut sim.world.bodies);
+                sim.marbles.push(h);
+                let mut verdict = "stall";
+                let mut stall_x = 0.0;
+                for _ in 0..900 {
+                    sim.tick(1);
+                    let m = sim.marbles()[0];
+                    if m.position[1] < 0.06 {
+                        verdict = "fall ";
+                        break;
+                    }
+                    stall_x = m.position[0];
+                }
+                row += &format!(" {verdict}({:+.0}mm)", (stall_x - 0.24) * 1000.0);
+            }
+            println!("spin {spin:.0} v {v:.2}:{row}");
+        }
+    }
+}
+
+/// Runs a marble from `snap` (rolling) over `pieces` and says whether it falls below `drop_y`
+/// within 900 ticks, and where it ended.
+fn bisect_trial(pieces: &[Placement], snap: MarbleState, drop_y: f32) -> (bool, [f32; 3]) {
+    let kit = parble_kit::builtin();
+    let mut sim = Sim::empty();
+    for p in pieces {
+        sim.place_piece(kit, p.clone()).unwrap();
+    }
+    sim.rebuild_chunks(kit).unwrap();
+    let (mut body, collider) = CATS_EYE.build(Vector::from(snap.position));
+    let vel = Vector::from(snap.linvel);
+    body.set_linvel(vel, true);
+    let flat = Vector::new(vel.x, 0.0, vel.z);
+    let s = flat.length();
+    if s > 0.01 {
+        body.set_angvel(Vector::Y.cross(flat / s) * (s / CATS_EYE.radius_m), true);
+    }
+    let h = sim.world.bodies.insert(body);
+    sim.world
+        .colliders
+        .insert_with_parent(collider, h, &mut sim.world.bodies);
+    sim.marbles.push(h);
+    let mut last = snap.position;
+    for _ in 0..900 {
+        sim.tick(1);
+        last = sim.marbles()[0].position;
+        if last[1] < drop_y {
+            return (true, last);
+        }
+    }
+    (false, last)
+}
+
+/// Whether a marble from `snap` (rolling) over `pieces` ever drops below `y_lo` in 900 ticks.
+fn falls_below(
+    pieces: &[Placement],
+    snap: MarbleState,
+    y_lo: f32,
+    zone: Option<(CellCoord, f32)>,
+) -> bool {
+    let kit = parble_kit::builtin();
+    let mut sim = Sim::empty();
+    for p in pieces {
+        sim.place_piece(kit, p.clone()).unwrap();
+    }
+    sim.rebuild_chunks(kit).unwrap();
+    let (mut body, collider) = CATS_EYE.build(Vector::from(snap.position));
+    let vel = Vector::from(snap.linvel);
+    body.set_linvel(vel, true);
+    let flat = Vector::new(vel.x, 0.0, vel.z);
+    let s = flat.length();
+    if s > 0.01 {
+        body.set_angvel(Vector::Y.cross(flat / s) * (s / CATS_EYE.radius_m), true);
+    }
+    let h = sim.world.bodies.insert(body);
+    sim.world
+        .colliders
+        .insert_with_parent(collider, h, &mut sim.world.bodies);
+    sim.marbles.push(h);
+    (0..900).any(|_| {
+        sim.tick(1);
+        let m = sim.marbles()[0].position;
+        // Only a fall inside the zone's cell counts, `inset` metres in from its edges.
+        let inside = zone.is_none_or(|(c, inset)| {
+            (m[0] - c.x as f32 * 0.06).abs() <= 0.03 - inset
+                && (m[2] - c.z as f32 * 0.06).abs() <= 0.03 - inset
+        });
+        inside && m[1] < y_lo
+    })
+}
+
+/// Generated track `PROCGEN_FALL_SEED` (default 72): the first marble leaves its track through
+/// the floor of the last non-pillar piece it touches. Replays it from two pieces earlier and
+/// shrinks the layout while the fall persists.
+#[test]
+#[ignore = "diagnostic: bisect a fall through the floor"]
+fn fall_bisect() {
+    use crate::track_run::{MarbleMotion, TrackRun};
+    use parble_core::PieceCatalog;
+    use parble_procgen::{GenParams, generate};
+    let kit = parble_kit::builtin();
+    let defs: Vec<_> = kit.iter().map(|p| p.def.clone()).collect();
+    let seed: u64 = std::env::var("PROCGEN_FALL_SEED")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(72);
+    let track = generate(&defs, seed, &GenParams::default()).unwrap();
+    let cell_of = |p: [f32; 3]| {
+        CellCoord::new(
+            (p[0] / 0.06).round() as i32,
+            (p[1] / 0.06).floor() as i32,
+            (p[2] / 0.06).round() as i32,
+        )
+    };
+    let mut run = TrackRun::new(&track).unwrap();
+    let mut snaps: Vec<(usize, MarbleState)> = Vec::new();
+    let mut last = None;
+    for _ in 0..1600 {
+        run.tick(15);
+        let Some(m) = run.marbles().first().copied() else {
+            continue;
+        };
+        let c = cell_of(m.position);
+        if let Some(i) = track.placements.iter().position(|p| {
+            kit.get(&p.piece)
+                .is_some_and(|d| p.world_cells(d).contains(&c))
+        }) && last != Some(i)
+        {
+            if track.placements[i].piece.as_str() == "blk_pillar" {
+                break;
+            }
+            snaps.push((i, m));
+            last = Some(i);
+        }
+        if !matches!(run.motion().first(), Some(MarbleMotion::Moving { .. })) {
+            break;
+        }
+    }
+    let d = last.expect("the marble touched a piece");
+    let piece = &track.placements[d];
+    let level_m = match piece.piece.as_str().rsplit('_').next() {
+        Some("l1") => 0.015,
+        Some("l2") => 0.030,
+        _ => 0.045,
+    };
+    let y_lo = 0.06 * piece.anchor.y as f32 + level_m - 0.006;
+    let snap = snaps[snaps.len() - 3].1;
+    println!(
+        "seed {seed}: falls through #{d} {} (floor {:.0} mm), replay from #{}",
+        piece.piece,
+        (y_lo + 0.006) * 1000.0,
+        snaps[snaps.len() - 3].0
+    );
+    let zone = Some((piece.anchor, 0.003));
+    println!(
+        "whole track falls: {}",
+        falls_below(&track.placements, snap, y_lo, zone)
+    );
+    let keep: std::collections::BTreeSet<usize> = (snaps[snaps.len() - 3].0..=d + 1).collect();
+    let mut set: Vec<(usize, Placement)> = track.placements.iter().cloned().enumerate().collect();
+    let mut i = 0;
+    while i < set.len() {
+        if keep.contains(&set[i].0) {
+            i += 1;
+            continue;
+        }
+        let mut trial = set.clone();
+        trial.remove(i);
+        let pieces: Vec<Placement> = trial.iter().map(|(_, p)| p.clone()).collect();
+        if falls_below(&pieces, snap, y_lo, zone) {
+            set = trial;
+        } else {
+            i += 1;
+        }
+    }
+    println!("minimal layout that still falls: {} pieces", set.len());
+    for (idx, p) in &set {
+        println!(
+            "  #{idx} {} anchor ({},{},{}) yaw {:?} mirror {:?}",
+            p.piece, p.anchor.x, p.anchor.y, p.anchor.z, p.yaw, p.mirror
+        );
+    }
+}
+
+/// Seed 72's failing stretch: three L3 straights into a redirect, a catch one layer above the
+/// last straight. Variants of it say which piece the fall needs.
+#[test]
+#[ignore = "diagnostic sweep"]
+fn straight_into_redirect_under_a_catch() {
+    let base = |catch: Option<&str>, redirect: &str, ry: u8| {
+        let mut l = vec![
+            place("blk_straight_l3", -6, 1, 5, 3, false),
+            place("blk_straight_l3", -6, 1, 4, 1, false),
+            place("blk_straight_l3", -6, 1, 3, 1, false),
+            place(redirect, -6, 1, 2, ry, false),
+        ];
+        if let Some(c) = catch {
+            l.push(place(c, -6, 2, 3, 2, false));
+        }
+        l
+    };
+    let zone = Some((CellCoord::new(-6, 1, 3), 0.003));
+    for (name, layout) in [
+        (
+            "seed 72 as is",
+            base(Some("blk_catch_l1"), "blk_redirect_l3", 1),
+        ),
+        ("without the catch", base(None, "blk_redirect_l3", 1)),
+        (
+            "a straight above",
+            base(Some("blk_straight_l3"), "blk_redirect_l3", 1),
+        ),
+        (
+            "a drop above",
+            base(Some("blk_drop_l2"), "blk_redirect_l3", 1),
+        ),
+        ("no redirect (a straight)", {
+            let mut l = base(Some("blk_catch_l1"), "blk_straight_l3", 1);
+            l.retain(|p| p.piece.as_str() != "blk_pillar");
+            l
+        }),
+    ] {
+        let mut row = String::new();
+        for v in [0.15_f32, 0.25, 0.4] {
+            let snap = MarbleState {
+                position: [-6.0 * 0.06, 0.06 + 0.045 + R, 5.0 * 0.06],
+                rotation: [0.0, 0.0, 0.0, 1.0],
+                linvel: [0.0, 0.0, -v],
+            };
+            let fell = falls_below(&layout, snap, 0.06 + 0.045 - 0.006, zone);
+            row += &format!(" {v:.2} {}", if fell { "FALLS" } else { "ok   " });
+        }
+        println!("{name:<28}{row}");
+    }
+}
+
+/// A row of L3 straights on layer 1 with one piece in the layer above, over speeds: does the
+/// marble ever drop through the straights' floor?
+#[test]
+#[ignore = "diagnostic sweep"]
+fn floor_under_a_piece_above_sweep() {
+    for above in [
+        "",
+        "blk_catch_l1",
+        "blk_straight_l3",
+        "blk_drop_l2",
+        "blk_redirect_l3",
+        "blk_pillar",
+    ] {
+        let mut row = String::new();
+        for v in [0.15_f32, 0.3, 0.5] {
+            let mut layout: Vec<Placement> = (0..40)
+                .map(|x| place("blk_straight_l3", x, 1, 0, 0, false))
+                .collect();
+            if !above.is_empty() {
+                layout.push(place(above, 2, 2, 0, 0, false));
+            }
+            let snap = MarbleState {
+                position: [0.0, 0.06 + 0.045 + R, 0.0],
+                rotation: [0.0, 0.0, 0.0, 1.0],
+                linvel: [v, 0.0, 0.0],
+            };
+            let fell = falls_below(&layout, snap, 0.06 + 0.045 - 0.004, None);
+            row += &format!(" {v:.2} {}", if fell { "FALLS" } else { "ok   " });
+        }
+        println!(
+            "above: {:<16}{row}",
+            if above.is_empty() { "nothing" } else { above }
+        );
+    }
+}
+
+/// A hand-built layout: an optional gentle slope, `n` straights, the drop and its catch, all on one
+/// row. The marble starts rolling at the first straight's centre.
+#[test]
+#[ignore = "diagnostic sweep"]
+fn drop_after_slope_sweep() {
+    for slope in [
+        None,
+        Some("blk_slope_gentle_l3"),
+        Some("rail_slope_gentle_l3"),
+    ] {
+        for n in [1, 2, 3, 4, 5] {
+            let mut layout = Vec::new();
+            let mut x = 0;
+            if let Some(s) = slope {
+                layout.push(place(s, x, 1, 0, 0, false));
+                x += 1;
+            }
+            let first = x;
+            for _ in 0..n {
+                layout.push(place("blk_straight_l2", x, 1, 0, 0, false));
+                x += 1;
+            }
+            layout.push(place("blk_drop_l2", x, 1, 0, 0, false));
+            layout.push(place("blk_catch_l1", x, 0, 0, 0, false));
+            let mut row = String::new();
+            for v in [0.3_f32, 0.5, 0.7] {
+                let snap = MarbleState {
+                    position: [first as f32 * 0.06, rest(1, 2), 0.0],
+                    rotation: [0.0, 0.0, 0.0, 1.0],
+                    linvel: [v, 0.0, 0.0],
+                };
+                let (fell, end) = bisect_trial(&layout, snap, 0.06);
+                row += &format!(
+                    " v{v:.1} {} ({:.0},{:.0})",
+                    if fell { "falls " } else { "STALLS" },
+                    (end[0] - x as f32 * 0.06) * 1000.0,
+                    end[1] * 1000.0
+                );
+            }
+            println!("slope {:?} + {n} straights:{row}", slope.unwrap_or("none"));
+        }
+    }
+}
+
+/// A gentle slope on the drop's row, in its chunk, tagged the drop cell's floor triangles through
+/// its flat continuation, and the catch's landing floor (under the drop, so "over" the marble in
+/// plan) took their contacts: a marble at 0.5 m/s sank 6 mm and stopped 20 mm short of the bore.
+#[test]
+fn a_slope_on_the_drops_row_does_not_stall_the_marble() {
+    for slope in ["blk_slope_gentle_l3", "rail_slope_gentle_l3"] {
+        for straights in 1..=4 {
+            let mut layout = vec![place(slope, 0, 1, 0, 0, false)];
+            layout.extend((1..=straights).map(|x| place("blk_straight_l2", x, 1, 0, 0, false)));
+            layout.push(place("blk_drop_l2", straights + 1, 1, 0, 0, false));
+            layout.push(place("blk_catch_l1", straights + 1, 0, 0, 0, false));
+            for v in [0.4_f32, 0.5, 0.6] {
+                let snap = MarbleState {
+                    position: [0.06, rest(1, 2), 0.0],
+                    rotation: [0.0, 0.0, 0.0, 1.0],
+                    linvel: [v, 0.0, 0.0],
+                };
+                let (fell, end) = bisect_trial(&layout, snap, 0.06);
+                assert!(
+                    fell,
+                    "{slope} + {straights} straights, {v} m/s: stalled at {end:?}"
+                );
+            }
+        }
+    }
+}
+
+/// Which extra piece, and where, makes the marble stall in the drop: straights, drop and catch on
+/// one row, plus one off-row piece.
+#[test]
+#[ignore = "diagnostic sweep"]
+fn drop_stall_triggers() {
+    let extras: [(&str, &str, [i32; 3]); 9] = [
+        (
+            "slope on the row, same chunk",
+            "blk_slope_gentle_l3",
+            [0, 1, 0],
+        ),
+        (
+            "slope on the row, other chunk",
+            "blk_slope_gentle_l3",
+            [-9, 1, 0],
+        ),
+        (
+            "slope off the row, same chunk",
+            "blk_slope_gentle_l3",
+            [0, 1, 3],
+        ),
+        ("steep slope off the row", "blk_slope_steep_l3", [0, 1, 3]),
+        ("block curve off the row", "blk_curve90_l2", [0, 1, 3]),
+        ("block straight off the row", "blk_straight_l2", [0, 1, 3]),
+        ("rail straight off the row", "rail_straight_l2", [0, 1, 3]),
+        ("redirect off the row", "blk_redirect_l2", [0, 1, 3]),
+        ("nothing", "", [0, 0, 0]),
+    ];
+    for (name, piece, at) in extras {
+        let mut layout: Vec<Placement> = (1..4)
+            .map(|x| place("blk_straight_l2", x, 1, 0, 0, false))
+            .collect();
+        layout.push(place("blk_drop_l2", 4, 1, 0, 0, false));
+        layout.push(place("blk_catch_l1", 4, 0, 0, 0, false));
+        if !piece.is_empty() {
+            layout.push(place(piece, at[0], at[1], at[2], 0, false));
+        }
+        let mut row = String::new();
+        for v in [0.4_f32, 0.45, 0.5, 0.55, 0.6] {
+            let snap = MarbleState {
+                position: [0.06, rest(1, 2), 0.0],
+                rotation: [0.0, 0.0, 0.0, 1.0],
+                linvel: [v, 0.0, 0.0],
+            };
+            let (fell, _) = bisect_trial(&layout, snap, 0.06);
+            row += &format!(" {v:.2} {}", if fell { "ok   " } else { "STALL" });
+        }
+        println!("{name:<32}{row}");
+    }
+}
+
+/// Finds generated tracks whose first marble rests inside `blk_drop_l2` and replays that marble
+/// from two pieces before the drop over smaller and smaller layouts, to find what the stall needs.
+#[test]
+#[ignore = "diagnostic: bisect a drop stall"]
+fn drop_stall_bisect() {
+    use crate::track_run::{MarbleMotion, TrackRun};
+    use parble_core::PieceCatalog;
+    use parble_procgen::{GenParams, generate};
+    let kit = parble_kit::builtin();
+    let defs: Vec<_> = kit.iter().map(|p| p.def.clone()).collect();
+    let cell_of = |p: [f32; 3]| {
+        CellCoord::new(
+            (p[0] / 0.06).round() as i32,
+            (p[1] / 0.06).floor() as i32,
+            (p[2] / 0.06).round() as i32,
+        )
+    };
+    let mut found = 0;
+    for seed in 0..300u64 {
+        let Ok(track) = generate(&defs, seed, &GenParams::default()) else {
+            continue;
+        };
+        let mut run = TrackRun::new(&track).unwrap();
+        let mut snaps: Vec<(usize, MarbleState)> = Vec::new();
+        let mut last = None;
+        let mut at_rest = false;
+        for _ in 0..1600 {
+            run.tick(15);
+            let Some(m) = run.marbles().first().copied() else {
+                continue;
+            };
+            let c = cell_of(m.position);
+            if let Some(i) = track.placements.iter().position(|p| {
+                kit.get(&p.piece)
+                    .is_some_and(|d| p.world_cells(d).contains(&c))
+            }) && last != Some(i)
+            {
+                snaps.push((i, m));
+                last = Some(i);
+            }
+            match run.motion().first() {
+                Some(MarbleMotion::AtRest) => {
+                    at_rest = true;
+                    break;
+                }
+                Some(MarbleMotion::Finished | MarbleMotion::Lost | MarbleMotion::OffTrack) => break,
+                _ => {}
+            }
+        }
+        let Some(d) = last else { continue };
+        if !at_rest || track.placements[d].piece.as_str() != "blk_drop_l2" || snaps.len() < 3 {
+            continue;
+        }
+        let snap = snaps[snaps.len() - 3].1;
+        let drop = &track.placements[d];
+        let drop_y = 0.06 * drop.anchor.y as f32;
+        let near = |p: &Placement| {
+            (p.anchor.x - drop.anchor.x).abs() <= 3
+                && (p.anchor.z - drop.anchor.z).abs() <= 3
+                && (p.anchor.y - drop.anchor.y).abs() <= 3
+        };
+        let chain: Vec<Placement> = track.placements[d - 2..=d + 1].to_vec();
+        let pillars: Vec<Placement> = track
+            .placements
+            .iter()
+            .filter(|p| p.piece.as_str() == "blk_pillar")
+            .cloned()
+            .collect();
+        let nearby: Vec<Placement> = track
+            .placements
+            .iter()
+            .filter(|p| near(p))
+            .cloned()
+            .collect();
+        let mut with_pillars = chain.clone();
+        with_pillars.extend(pillars.iter().filter(|p| near(p)).cloned());
+        let variants: [(&str, Vec<Placement>); 4] = [
+            ("two straights + drop + catch", chain.clone()),
+            ("+ pillars within 3 cells", with_pillars),
+            ("every piece within 3 cells", nearby),
+            ("the whole track", track.placements.clone()),
+        ];
+        let mut line = String::new();
+        for (name, pieces) in &variants {
+            let (fell, end) = bisect_trial(pieces, snap, drop_y);
+            line += &format!(
+                " | {name}: {} ({:.0},{:.0},{:.0}) mm",
+                if fell { "falls" } else { "STALLS" },
+                end[0] * 1000.0,
+                end[1] * 1000.0,
+                end[2] * 1000.0
+            );
+        }
+        println!(
+            "seed {seed} drop yaw {:?} entry v {:.2}{line}",
+            drop.yaw,
+            Vector::from(snap.linvel).length()
+        );
+        // Greedy delta debugging from the whole track: drop every piece the stall survives
+        // without, keeping the marble's own chain.
+        if bisect_trial(&track.placements, snap, drop_y).0 {
+            continue;
+        }
+        let keep: std::collections::BTreeSet<usize> = (d - 2..=d + 1).collect();
+        let mut set: Vec<(usize, Placement)> =
+            track.placements.iter().cloned().enumerate().collect();
+        let mut i = 0;
+        while i < set.len() {
+            if keep.contains(&set[i].0) {
+                i += 1;
+                continue;
+            }
+            let mut trial = set.clone();
+            trial.remove(i);
+            let pieces: Vec<Placement> = trial.iter().map(|(_, p)| p.clone()).collect();
+            if bisect_trial(&pieces, snap, drop_y).0 {
+                i += 1;
+            } else {
+                set = trial;
+            }
+        }
+        println!(
+            "  minimal stalling layout for seed {seed}: {} pieces",
+            set.len()
+        );
+        for (idx, p) in &set {
+            println!(
+                "    #{idx} {} anchor ({},{},{}) yaw {:?} mirror {:?}",
+                p.piece, p.anchor.x, p.anchor.y, p.anchor.z, p.yaw, p.mirror
+            );
+        }
+        found += 1;
+        if found >= 8 {
+            break;
+        }
+    }
+}
+
 #[test]
 fn steep_slope_drops_two_levels_onto_l1() {
     let mut layout: Vec<Placement> = (0..2)

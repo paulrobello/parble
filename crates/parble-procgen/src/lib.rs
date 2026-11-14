@@ -30,7 +30,7 @@ pub use params::{Families, GenError, GenParams};
 pub use search::NODE_BUDGET;
 
 /// Bump whenever a change alters the track generated for the same catalog, seed and params.
-pub const GENERATOR_VERSION: u32 = 2;
+pub const GENERATOR_VERSION: u32 = 3;
 
 /// Generate a track. `defs` is the catalog the track is built from, in any order.
 pub fn generate(defs: &[PieceDef], seed: u64, params: &GenParams) -> Result<Track, GenError> {

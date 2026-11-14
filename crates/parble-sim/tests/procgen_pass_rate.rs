@@ -112,7 +112,12 @@ fn trace_first_marble() {
         }
         if matches!(run.motion().first(), Some(MarbleMotion::AtRest)) {
             println!("rest position {:?} (metres)", m.position);
-            for (i, p) in track.placements.iter().enumerate().take(16) {
+            for (i, p) in track
+                .placements
+                .iter()
+                .enumerate()
+                .take(env("PROCGEN_TRACE_DUMP", 16) as usize)
+            {
                 println!(
                     "  #{i} {} anchor ({},{},{}) yaw {:?} mirror {:?}",
                     p.piece, p.anchor.x, p.anchor.y, p.anchor.z, p.yaw, p.mirror
