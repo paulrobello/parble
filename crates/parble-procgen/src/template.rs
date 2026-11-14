@@ -14,6 +14,8 @@ use crate::params::Families;
 pub(crate) enum Shape {
     Straight,
     Turn,
+    /// A rail curve or S: it keeps the marble's speed, a block curve does not.
+    RailTurn,
     Slope,
     Steep,
     Redirect,
@@ -29,6 +31,7 @@ impl Shape {
         let mut seg = id.as_str().split('_').skip(1);
         match (seg.next(), seg.next()) {
             (Some("straight"), _) => Self::Straight,
+            (Some("curve90" | "s"), _) if id.as_str().starts_with("rail_") => Self::RailTurn,
             (Some("curve90" | "s"), _) => Self::Turn,
             (Some("slope"), Some("steep")) => Self::Steep,
             (Some("slope"), _) => Self::Slope,
@@ -89,12 +92,18 @@ fn orientations(chiral: bool) -> impl Iterator<Item = Orientation> {
 /// A port's height in port levels (four per layer) relative to the piece's anchor. A `Top` drop
 /// port counts as the `L1` exit of the cell below the one that drops into it, a `Bottom` drop
 /// port as the `L1` exit of the cell below it, the same convention as the search's open ends.
-fn rel_value(p: &Port) -> i32 {
+pub(crate) fn rel_value(p: &Port) -> i32 {
     match (p.level, p.face) {
         (Some(l), _) => 4 * p.cell.y + l.index(),
         (None, PortFace::Top) => 4 * p.cell.y + 1,
         (None, _) => 4 * p.cell.y - 3,
     }
+}
+
+/// A port's height as the search's open ends count it: a drop port is the `L1` exit of the catch
+/// one layer below.
+pub(crate) fn end_value(p: &Port) -> i32 {
+    4 * p.cell.y + p.level.map_or(-3, PortLevel::index)
 }
 
 fn flows_in(f: PortFlow) -> bool {
@@ -105,6 +114,11 @@ fn flows_out(f: PortFlow) -> bool {
     matches!(f, PortFlow::Out | PortFlow::Both)
 }
 
+/// Pieces the generator leaves out because the sim measured marbles failing on them, however
+/// slowly or quickly they arrive (first marble of 100 seeds: `blk_drop_l3` 2 of 7 tracks,
+/// `rail_s_1x3_l1` 5 of 59).
+const UNRELIABLE: [&str; 2] = ["blk_drop_l3", "rail_s_1x3_l1"];
+
 /// Orientations of `def` in the order the search enumerates them, with the entry port index of
 /// every template. `max_exits` caps the outflow ports a chained piece may open.
 pub(crate) fn build(defs: &[PieceDef], families: Families, max_exits: usize) -> TemplateSet {
@@ -112,7 +126,11 @@ pub(crate) fn build(defs: &[PieceDef], families: Families, max_exits: usize) -> 
     for def in defs {
         let hopper = is_hopper(&def.id);
         let finish = is_finish(&def.id);
-        if hopper || def.structural || !def.routes.is_empty() {
+        if hopper
+            || def.structural
+            || !def.routes.is_empty()
+            || UNRELIABLE.contains(&def.id.as_str())
+        {
             continue;
         }
         if !finish && !families.allows(def.id.family()) {

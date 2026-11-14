@@ -14,6 +14,8 @@ use parble_core::{
 };
 
 use crate::params::{GenError, GenParams};
+use crate::reach::Viability;
+use crate::speed::{HOPPER_V2, MIN_FLOW_V2, TRANSFER_MAX_V2, enters, exit_v2};
 use crate::template::{Shape, Template, TemplateSet, mate_class};
 
 /// Placements tried across all attempts before [`GenError::Exhausted`].
@@ -21,13 +23,13 @@ pub const NODE_BUDGET: u32 = 200_000;
 
 /// Placements one attempt may try before it restarts with a fresh stream. Chronological
 /// backtracking cannot undo an early mistake from deep in a long track, a restart can.
-pub(crate) const ATTEMPT_NODES: u32 = 8_000;
+pub(crate) const ATTEMPT_NODES: u32 = 2_000;
 
 /// Consecutive level pieces allowed before the track must descend again.
-const MAX_FLAT_RUN: u8 = 3;
+pub(crate) const MAX_FLAT_RUN: u8 = 3;
 
 /// The lowest port value a track can still finish from: `L3` of layer 0.
-const FINISH_VALUE: i32 = 3;
+pub(crate) const FINISH_VALUE: i32 = 3;
 
 /// An open port: the piece cell it sits in, its face and what a mate must offer.
 #[derive(Debug, Clone)]
@@ -39,10 +41,12 @@ struct End {
     flow: PortFlow,
     /// Level pieces since the last descent.
     flat: u8,
+    /// Estimated squared speed of a marble leaving this port, in 1e-3 m²/s².
+    v2: i64,
 }
 
 impl End {
-    fn of(anchor: CellCoord, p: &Port, flat: u8) -> Self {
+    fn of(anchor: CellCoord, p: &Port, flat: u8, v2: i64) -> Self {
         Self {
             cell: anchor + p.cell,
             face: p.face,
@@ -50,6 +54,7 @@ impl End {
             class: p.class,
             flow: p.flow,
             flat,
+            v2,
         }
     }
 
@@ -100,6 +105,7 @@ pub(crate) struct Walk {
 pub(crate) struct Search<'a> {
     params: GenParams,
     set: &'a TemplateSet,
+    via: &'a Viability,
     rng: SubStream,
     placements: Vec<Placement>,
     occupied: BTreeSet<CellCoord>,
@@ -110,10 +116,17 @@ pub(crate) struct Search<'a> {
 }
 
 impl<'a> Search<'a> {
-    pub fn new(params: GenParams, set: &'a TemplateSet, seed: u64, attempt: u32) -> Self {
+    pub fn new(
+        params: GenParams,
+        set: &'a TemplateSet,
+        via: &'a Viability,
+        seed: u64,
+        attempt: u32,
+    ) -> Self {
         Self {
             params,
             set,
+            via,
             rng: SeededRng::new(seed).stream(&format!("procgen/walk/{attempt}")),
             placements: Vec::new(),
             occupied: BTreeSet::new(),
@@ -144,7 +157,7 @@ impl<'a> Search<'a> {
             .iter()
             .filter(|p| matches!(p.flow, PortFlow::Out | PortFlow::Both))
         {
-            self.ends.push(End::of(anchor, p, 0));
+            self.ends.push(End::of(anchor, p, 0, HOPPER_V2));
         }
 
         let mut frames: Vec<Frame> = Vec::new();
@@ -220,10 +233,12 @@ impl<'a> Search<'a> {
             self.nopiece.insert(under);
             nopiece = Some(under);
         }
-        let descent = |p: &Port| end.value() - End::of(c.anchor, p, 0).value();
+        let descent = |p: &Port| end.value() - End::of(c.anchor, p, 0, 0).value();
         for p in t.exits.iter().rev() {
-            let flat = if descent(p) == 0 { end.flat + 1 } else { 0 };
-            self.ends.push(End::of(c.anchor, p, flat));
+            let d = descent(p);
+            let flat = if d == 0 { end.flat + 1 } else { 0 };
+            let v2 = exit_v2(end.v2, t.shape, d);
+            self.ends.push(End::of(c.anchor, p, flat, v2));
         }
         Undo {
             cells,
@@ -333,7 +348,7 @@ impl<'a> Search<'a> {
             let landing = CellCoord::new(gap.x, gap.y - 1, gap.z);
             let under = CellCoord::new(end.cell.x, end.cell.y - 1, end.cell.z);
             let key = (end.face.opposite(), Some(PortLevel::L3), PortClass::Channel);
-            if !self.taken(gap) && landing.y >= 0 {
+            if !self.taken(gap) && landing.y >= 0 && end.v2 <= TRANSFER_MAX_V2 {
                 for finish in [false, true] {
                     if finish && !want_finish {
                         continue;
@@ -364,10 +379,20 @@ impl<'a> Search<'a> {
         if finish {
             return anchor.y + t.entry.cell.y == 0;
         }
+        if !enters(t.shape, end.v2) {
+            return false;
+        }
         t.exits.iter().all(|p| {
-            let v = End::of(anchor, p, 0).value();
+            let v = End::of(anchor, p, 0, 0).value();
             let d = end.value() - v;
-            d >= 0 && v >= FINISH_VALUE && (d > 0 || end.flat < MAX_FLAT_RUN)
+            let out = exit_v2(end.v2, t.shape, d);
+            d >= 0
+                && v >= FINISH_VALUE
+                && (d > 0 || end.flat < MAX_FLAT_RUN)
+                && out >= MIN_FLOW_V2
+                && self
+                    .via
+                    .viable(v, p.level, out, if d == 0 { end.flat + 1 } else { 0 })
         })
     }
 
@@ -383,7 +408,7 @@ impl<'a> Search<'a> {
         let diff = i64::from(self.params.difficulty);
         let base: i64 = match t.shape {
             Shape::Straight => 6,
-            Shape::Turn => 3 + diff / 15,
+            Shape::Turn | Shape::RailTurn => 3 + diff / 15,
             Shape::Slope => 4,
             Shape::Steep => 1 + diff / 20,
             Shape::Redirect => 3,
@@ -402,7 +427,7 @@ impl<'a> Search<'a> {
         );
         let want_milli = need * 1000 / remaining;
         let d = t.exits.first().map_or(0, |p| {
-            i64::from(end.value() - End::of(anchor, p, 0).value())
+            i64::from(end.value() - End::of(anchor, p, 0, 0).value())
         });
         let diff_milli = (d * 1000 - want_milli).abs();
         let mult = 1 + 16_000 / (1000 + diff_milli);

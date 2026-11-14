@@ -15,19 +15,22 @@
 //! pieces, because each needs a second feed, an unmated inlet or a coupled partner.
 
 mod params;
+mod reach;
 mod search;
+mod speed;
 mod support;
 mod template;
 
 use parble_core::{
-    HopperConfig, MapCatalog, PieceDef, Track, is_finish, is_hopper, validate_track,
+    HopperConfig, MapCatalog, PieceDef, PortFlow, PortLevel, Track, is_finish, is_hopper,
+    validate_track,
 };
 
 pub use params::{Families, GenError, GenParams};
 pub use search::NODE_BUDGET;
 
 /// Bump whenever a change alters the track generated for the same catalog, seed and params.
-pub const GENERATOR_VERSION: u32 = 1;
+pub const GENERATOR_VERSION: u32 = 2;
 
 /// Generate a track. `defs` is the catalog the track is built from, in any order.
 pub fn generate(defs: &[PieceDef], seed: u64, params: &GenParams) -> Result<Track, GenError> {
@@ -57,10 +60,21 @@ pub fn generate(defs: &[PieceDef], seed: u64, params: &GenParams) -> Result<Trac
     if !template::can_finish(&set, start) {
         return Err(GenError::NoRoute);
     }
+    let via = reach::Viability::new(&set);
+    let exit = hopper
+        .ports
+        .iter()
+        .find(|p| matches!(p.flow, PortFlow::Out | PortFlow::Both))
+        .ok_or(GenError::MissingPiece("hopper exit"))?;
+    let exit_value =
+        4 * (params.height as i32 + exit.cell.y) + exit.level.map_or(-3, PortLevel::index);
+    if !via.viable(exit_value, exit.level, speed::HOPPER_V2, 0) {
+        return Err(GenError::NoRoute);
+    }
     let attempts = search::NODE_BUDGET / search::ATTEMPT_NODES;
     let walk = (0..attempts)
         .find_map(|a| {
-            search::Search::new(*params, &set, seed, a)
+            search::Search::new(*params, &set, &via, seed, a)
                 .run(hopper, search::ATTEMPT_NODES)
                 .ok()
         })
