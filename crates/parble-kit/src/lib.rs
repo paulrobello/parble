@@ -84,6 +84,8 @@ macro_rules! builtin_piece_ids {
             rail_curve90_r90_l2,
             rail_curve90_r90_l3,
             rail_joint_l1,
+            rail_joint_l2,
+            rail_joint_l3,
             rail_s_1x3_l1,
             rail_s_1x3_l2,
             rail_s_1x3_l3,
@@ -110,7 +112,7 @@ macro_rules! sidecars {
 }
 
 /// Sidecars shipped in `assets/kit/`, in id order.
-const BUILTIN_SIDECARS: [&str; 67] = builtin_piece_ids!(sidecars);
+const BUILTIN_SIDECARS: [&str; 69] = builtin_piece_ids!(sidecars);
 
 /// Pieces that carry no marble path of their own ([`PieceDef::structural`]): supports. The
 /// sidecar schema has no field for it, so the catalogue sets it by id.
@@ -676,6 +678,8 @@ mod tests {
                 "rail_curve90_r90_l2",
                 "rail_curve90_r90_l3",
                 "rail_joint_l1",
+                "rail_joint_l2",
+                "rail_joint_l3",
                 "rail_s_1x3_l1",
                 "rail_s_1x3_l2",
                 "rail_s_1x3_l3",
@@ -1037,11 +1041,27 @@ mod tests {
                 radius_um: 18_440
             })
         );
+        // The same joint one and two levels up: the spigot's axis rides 15 mm higher per level.
+        for (level, centre_y) in [(2, 44_000), (3, 59_000)] {
+            let joint = builtin()
+                .piece(&id(&format!("rail_joint_l{level}")))
+                .unwrap();
+            assert_eq!(
+                joint.spigot,
+                Some(Cylinder {
+                    axis: [1, 0, 0],
+                    center_um: [30_000, centre_y, 0],
+                    length_um: 10_000,
+                    radius_um: 18_440
+                }),
+                "rail_joint_l{level}"
+            );
+        }
         assert!(builtin().iter().all(|p| p.receptacle.is_none()));
         assert!(
             builtin()
                 .iter()
-                .filter(|p| p.def.id.as_str() != "rail_joint_l1")
+                .filter(|p| !p.def.id.as_str().starts_with("rail_joint_l"))
                 .all(|p| p.spigot.is_none())
         );
 

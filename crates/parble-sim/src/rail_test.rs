@@ -286,6 +286,63 @@ fn a_marble_dropped_into_the_tower_leaves_by_the_joint_and_rail() {
 }
 
 #[test]
+fn rail_joints_at_l2_and_l3_weld_to_the_open_slot_sockets_and_carry_a_dropped_marble_out() {
+    // The same joint one or two levels up, into `blk_tower_socket_l2` and `_l3` (open U-slot
+    // sockets, contract §5.5): the floor rings weld at the port plane, and a marble dropped into
+    // the tower rolls out along the joint, a rail and a block channel at that level.
+    let kit = parble_kit::builtin();
+    for level in [2_i64, 3] {
+        let (joint_id, tower_id) = (
+            format!("rail_joint_l{level}"),
+            format!("blk_tower_socket_l{level}"),
+        );
+        let joint = place(&joint_id, -1, 0, 0);
+        let tower = place(&tower_id, 0, 0, 0);
+        let verts = |p: &Placement| -> Vec<[i64; 3]> {
+            placed_triangles(kit.piece(&p.piece).unwrap(), p)
+                .into_iter()
+                .flatten()
+                .collect()
+        };
+        let (j, t) = (verts(&joint), verts(&tower));
+        for &(u, dv) in &parble_core::contract::CANONICAL_RING_UM {
+            if u.abs() == 14_000 && dv > 14_000 {
+                continue;
+            }
+            let v = [-20_000, 15_000 * level + i64::from(dv), i64::from(u)];
+            assert!(j.contains(&v), "{joint_id} lacks floor vertex {v:?}");
+            assert!(t.contains(&v), "{tower_id} lacks floor vertex {v:?}");
+        }
+
+        let (rail, block) = (
+            format!("rail_straight_l{level}"),
+            format!("blk_straight_l{level}"),
+        );
+        let layout = vec![
+            place(&tower_id, 0, 0, 0),
+            place(&joint_id, -1, 0, 0),
+            place(&rail, -2, 0, 0),
+            place(&block, -3, 0, 0),
+            place(&block, -4, 0, 0),
+        ];
+        let mut sim = track_sim(&layout);
+        launch(&mut sim, Vector::new(0.0, 0.075, 0.0), Vector::X, 0.0);
+        let tr = trace(&mut sim, 1_600);
+        let rest = 0.015 * level as f32 + 0.008;
+        let out = tr
+            .iter()
+            .find(|m| m.position[0] < -0.21)
+            .unwrap_or_else(|| panic!("L{level}: marble must reach the last block"));
+        assert!(
+            (out.position[1] - rest).abs() < 0.004 && out.position[2].abs() < 0.008,
+            "L{level}: past x = -210 mm at y {:.4}, z {:.4}",
+            out.position[1],
+            out.position[2]
+        );
+    }
+}
+
+#[test]
 fn s_rail_without_the_arc_contact_kicks() {
     // Negative control: the same layout merged into one welded, simplified trimesh without the
     // contact hooks kicks over the limit at the S-rail entry and inside it, so the metric detects

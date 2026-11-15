@@ -95,7 +95,7 @@ const FACE = { "+x": [0, 1], "-x": [0, -1], "+z": [2, 1], "-z": [2, -1] };
 // Pieces whose look Paul approved (P1-T2, 2026-11-07); every other piece's look gate is pending.
 const P1_APPROVED = new Set(["blk_straight_l3", "blk_curve90_l3", "blk_slope_gentle_l3", "blk_end_l3"]);
 // Rail shapes at the levels the P2-T4 proof did not ship (owner request 2026-11-12, kitrails.py).
-const RAIL_LEVELS = new Set(["rail_straight_l3", "rail_curve90_r90_l1", "rail_curve90_r90_l3", "rail_s_1x3_l1", "rail_s_1x3_l3"]);
+const RAIL_LEVELS = new Set(["rail_joint_l2", "rail_joint_l3", "rail_straight_l3", "rail_curve90_r90_l1", "rail_curve90_r90_l3", "rail_s_1x3_l1", "rail_s_1x3_l3"]);
 // Rail slopes, the rail counterparts of the §7 block slopes (owner request 2026-11-13, kitrails.py).
 const RAIL_SLOPES = new Set(["rail_slope_gentle_l3", "rail_slope_gentle_l2", "rail_slope_steep_l3"]);
 // Block height variants the contract's MVP id table listed and the first kit did not ship (owner

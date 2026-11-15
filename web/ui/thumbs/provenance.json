@@ -1,7 +1,7 @@
 {
   "generator": "blender/kit/thumbnails.py",
   "blender": "Blender 5.2.2 LTS",
-  "git_head": "4845a6c0e9d03243d27a3a4e4dd37e40292ab91b",
+  "git_head": "3c6e35e406e2392776e66f01aae56a0094900dd0",
   "date": "2026-11-14",
   "render": {
     "engine": "BLENDER_EEVEE",
@@ -480,6 +480,22 @@
       "png": "rail_joint_l1.png",
       "png_sha256": "52e1179012330759b3b8289cfa60efdbb4bbf3e684f1e7cb0700b5b871377ef4",
       "bytes": 2882
+    },
+    {
+      "id": "rail_joint_l2",
+      "source_glb": "assets/kit/rail_joint_l2/rail_joint_l2.glb",
+      "source_glb_sha256": "0e2435eac85d03d467d5b967963842f3a80a8282e0fdd89533ba204482dde2ac",
+      "png": "rail_joint_l2.png",
+      "png_sha256": "136b328f92995811493d2dbf0fd0c134cbb8728b70f693e7230eabc963fb9ef5",
+      "bytes": 2848
+    },
+    {
+      "id": "rail_joint_l3",
+      "source_glb": "assets/kit/rail_joint_l3/rail_joint_l3.glb",
+      "source_glb_sha256": "ed3bd6c9ba3b6861ac164604249da532a20ecf9c2a425c1673bb547dda9fdd49",
+      "png": "rail_joint_l3.png",
+      "png_sha256": "bc85a9bbce1b8f03e24672a5b9fb410019f1d922487a9080ac5cbb92308c98b0",
+      "bytes": 2694
     },
     {
       "id": "rail_s_1x3_l1",

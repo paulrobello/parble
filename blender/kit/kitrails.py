@@ -45,7 +45,8 @@ PIECE_VERSION = 1
 LEVELS = (1, 2, 3)
 BUILD = ("rail_straight_l1", "rail_straight_l2", "rail_curve90_r90_l2", "rail_s_1x3_l2", "rail_joint_l1",
          "rail_straight_l3", "rail_curve90_r90_l1", "rail_curve90_r90_l3", "rail_s_1x3_l1", "rail_s_1x3_l3",
-         "rail_slope_gentle_l3", "rail_slope_gentle_l2", "rail_slope_steep_l3")
+         "rail_slope_gentle_l3", "rail_slope_gentle_l2", "rail_slope_steep_l3",
+         "rail_joint_l2", "rail_joint_l3")
 # Slopes (§7): entry levels per shape and the levels each falls (gentle one, steep two).
 SLOPES = {"slope_gentle": ((2, 3), 1), "slope_steep": ((3,), 2)}
 
@@ -101,7 +102,7 @@ def spec(piece_id):
     if not K.ID_RE.match(piece_id) or len(piece_id) > 48:
         raise ValueError(f"{piece_id}: not a §10 id")
     legal = {f"rail_{shape}_l{lv}": (shape, lv) for shape in ("straight", "curve90_r90", "s_1x3") for lv in LEVELS}
-    legal["rail_joint_l1"] = ("joint", 1)
+    legal.update({f"rail_joint_l{lv}": ("joint", lv) for lv in LEVELS})
     legal.update({f"rail_{shape}_l{lv}": (shape, lv) for shape, (lvs, _) in SLOPES.items() for lv in lvs})
     if piece_id not in legal:
         raise ValueError(f"{piece_id}: not a rail piece this generator builds")
