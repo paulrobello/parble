@@ -122,6 +122,13 @@ fn flows_out(f: PortFlow) -> bool {
 /// right after it), 290 without it and `blk_slope_gentle_l0` (4 more lost its exit onto the layer
 /// below at 0.9 to 1.1 m/s). A speed cap in the search was worse, 226 to 237. With the mechanism
 /// height variants added as well, 288.
+///
+/// Why `blk_redirect_l1` loses them (measured 2026-11-15): the speed a marble leaves any redirect
+/// with is erratic, 0.17 to 0.73 m/s across entries of 0.2 to 0.9 m/s at every level, not the
+/// 0.3 to 0.4 the estimate holds, and an `L1` exit is the one that can start a 30 mm transfer
+/// (a failing seed put a redirect at 0.76 m/s onto a transfer that crosses at 0.33 m/s or less).
+/// Treating a redirect exit like a catch exit (no transfer straight after it) did not win the
+/// piece back, 277 with it against 288 without, and a cap on slope entries gave 265 to 281.
 const UNRELIABLE: [&str; 5] = [
     "blk_drop_l3",
     "rail_s_1x3_l1",

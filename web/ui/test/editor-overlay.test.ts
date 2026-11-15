@@ -331,6 +331,12 @@ describe("editor overlay", () => {
     at("blk_slope_gentle_l2");
     click('[aria-label="Height"] [data-piece="blk_slope_gentle_l1"]');
     expect(sent.at(-2)).toEqual({ op: "brush", piece: "blk_slope_gentle_l1", yaw: 1, mirror: false });
+    // The first-run panel on an empty track offers the heights too.
+    ui.update(
+      diag({ palette, tool: "place", pieces: 0, brush: { piece: "blk_slope_gentle_l2", yaw: 1, mirror: false } }),
+    );
+    expect(chips().map(([, on]) => on)).toEqual(["false", "false", "true", "false"]);
+    expect($('[data-k="sel"] h2').textContent).toContain("Start here");
     // A one-height piece and the Select tool have nothing to step, and no Height control.
     const n = sent.length;
     at("blk_pillar");

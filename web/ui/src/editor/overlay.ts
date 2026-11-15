@@ -1115,7 +1115,10 @@ ${nzRow("Push", [
 <ol class="steps"><li${s.hoppers ? ' class="done"' : ""}><span>Place a <b>Hopper</b>: Mechanisms, first tile. It holds the marbles. New pieces land on the build level, L${START_LEVEL} to start: <kbd>[</kbd> and <kbd>]</kbd> lower and raise it.</span></li>
 <li><span>Lay a downhill run of blocks and rails from the hopper's spout.</span></li>
 <li${s.finishes ? ' class="done"' : ""}><span>End it in <b>Finish cups</b>, then press <b>Run</b>.</span></li></ol>
-<p class="note">Click a tile, then a cell in the scene. R turns the piece before you place it.</p>`;
+<p class="note">Click a tile, then a cell in the scene. R turns the piece before you place it.</p>${
+        // A piece in the brush that comes at several heights offers them here too, before the first piece.
+        s.tool === "place" && heightRow(s) ? `<div class="kv">${heightRow(s)}</div>` : ""
+      }`;
       return;
     }
     if (confirmDelete) {
