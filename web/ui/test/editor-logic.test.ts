@@ -54,6 +54,9 @@ describe("editor model", () => {
     expect(pieceName("mech_hopper")).toBe("Hopper");
     expect(pieceName("rail_s_1x3_l2")).toBe("S-bend · 2");
     expect(familyOf("blk_pillar")).toBe("supports");
+    expect(familyOf("blk_pillar_h8")).toBe("supports");
+    expect(pieceName("blk_pillar")).toBe("Pillar");
+    expect(pieceName("blk_pillar_h4")).toBe("Pillar · 4 tall");
     expect(familyOf("blk_tower_socket_l1")).toBe("supports");
     expect(familyOf("rail_joint_l1")).toBe("rails");
     expect(familyOf("mech_toggle_l3")).toBe("mechanisms");

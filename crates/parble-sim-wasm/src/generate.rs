@@ -3,9 +3,10 @@
 //! (`web/ui/src/gen/`). Only this wrapper reads a clock; the job's result is the same however
 //! the budget slices it.
 
-use parble_core::ParbleFile;
-use parble_procgen::{Families, GenParams};
-use parble_sim::procgen_job::{GenJob, JobError, JobStatus, golden_lines, result_line};
+use parble_procgen::{Families, GenParams, generated_file};
+use parble_sim::procgen_job::{
+    GenJob, JobError, JobStatus, SegmentedJob, golden_lines, result_line, segmented_result_line,
+};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::{JsError, wasm_bindgen};
 
@@ -53,6 +54,9 @@ impl ParamsWire {
 /// One rejected candidate, for the worker's progress messages.
 #[derive(Debug, Serialize)]
 pub struct RejectedWire {
+    /// The segment the candidate was for, in a segmented job.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub segment: Option<u32>,
     pub attempt: u32,
     pub seed: u64,
     pub reason: String,
@@ -72,7 +76,16 @@ pub struct StatusWire {
     /// The accepted track's seed, once accepted.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub seed: Option<u64>,
+    /// The seed of each segment of the accepted track, once a segmented job is accepted.
+    #[serde(rename = "segmentSeeds", skip_serializing_if = "Option::is_none")]
+    pub segment_seeds: Option<Vec<u64>>,
     pub rejected: Vec<RejectedWire>,
+}
+
+/// The job behind a [`GenerateJob`]: the whole track at once, or segment by segment.
+enum Job {
+    Whole(GenJob),
+    Segmented(SegmentedJob),
 }
 
 fn now_ms() -> f64 {
@@ -93,22 +106,41 @@ fn now_ms() -> f64 {
 /// unit, then more while its time budget lasts.
 #[wasm_bindgen]
 pub struct GenerateJob {
-    job: GenJob,
+    job: Job,
     units: u64,
 }
 
 impl GenerateJob {
-    /// A job from a JavaScript seed (an integer in `0..=MAX_SAFE_INTEGER`) and params JSON.
+    /// A whole-track job from a JavaScript seed (an integer in `0..=MAX_SAFE_INTEGER`) and
+    /// params JSON.
     pub fn create(seed: f64, params_json: &str) -> Result<Self, String> {
+        Self::create_as(seed, params_json, false)
+    }
+
+    /// [`GenerateJob::create`], or with `segmented` a job that generates and retries the track
+    /// segment by segment (`parble_sim::procgen_job::SegmentedJob`).
+    pub fn create_as(seed: f64, params_json: &str, segmented: bool) -> Result<Self, String> {
         if !(seed.is_finite() && seed >= 0.0 && seed.fract() == 0.0) {
             return Err(format!("seed {seed} is not a non-negative integer"));
         }
         let wire: ParamsWire =
             serde_json::from_str(params_json).map_err(|e| format!("params: {e}"))?;
-        let job = GenJob::new(seed as u64, wire.params()).map_err(|e| match e {
+        let range = |e| match e {
             JobError::SeedOutOfRange(s) => format!("seed {s} is above the safe integer range"),
-        })?;
+        };
+        let job = if segmented {
+            Job::Segmented(SegmentedJob::new(seed as u64, wire.params()).map_err(range)?)
+        } else {
+            Job::Whole(GenJob::new(seed as u64, wire.params()).map_err(range)?)
+        };
         Ok(Self { job, units: 0 })
+    }
+
+    fn step(&mut self) -> JobStatus {
+        match &mut self.job {
+            Job::Whole(j) => j.step(),
+            Job::Segmented(j) => j.step(),
+        }
     }
 
     /// Run work units for `budget_ms` (at least one) and return the status.
@@ -116,7 +148,7 @@ impl GenerateJob {
         let start = now_ms();
         loop {
             self.units += 1;
-            if self.job.step() != JobStatus::Running || now_ms() - start >= budget_ms {
+            if self.step() != JobStatus::Running || now_ms() - start >= budget_ms {
                 break;
             }
         }
@@ -124,32 +156,74 @@ impl GenerateJob {
     }
 
     pub fn status(&self) -> StatusWire {
+        let (status, attempt, progress, seed, segment_seeds, rejected) = match &self.job {
+            Job::Whole(j) => (
+                j.status(),
+                j.attempt(),
+                j.candidate_progress(),
+                j.accepted().map(|t| t.seed),
+                None,
+                j.rejected()
+                    .iter()
+                    .map(|a| RejectedWire {
+                        segment: None,
+                        attempt: a.attempt,
+                        seed: a.seed,
+                        reason: a.rejection.to_string(),
+                    })
+                    .collect(),
+            ),
+            // A segmented job's attempt is the whole-track run it is on, 0-based.
+            Job::Segmented(j) => (
+                j.status(),
+                j.runs().saturating_sub(1),
+                j.candidate_progress(),
+                j.accepted().map(|t| t.seed),
+                j.accepted().map(|_| j.segment_seeds()),
+                j.rejected()
+                    .iter()
+                    .map(|a| RejectedWire {
+                        segment: Some(a.segment),
+                        attempt: a.attempt,
+                        seed: a.seed,
+                        reason: a.rejection.to_string(),
+                    })
+                    .collect(),
+            ),
+        };
         StatusWire {
-            status: match self.job.status() {
+            status: match status {
                 JobStatus::Running => "running",
                 JobStatus::Accepted => "accepted",
                 JobStatus::Failed => "failed",
             },
-            attempt: self.job.attempt(),
-            progress: self.job.candidate_progress(),
+            attempt,
+            progress,
             units: self.units,
-            seed: self.job.accepted().map(|t| t.seed),
-            rejected: self
-                .job
-                .rejected()
-                .iter()
-                .map(|a| RejectedWire {
-                    attempt: a.attempt,
-                    seed: a.seed,
-                    reason: a.rejection.to_string(),
-                })
-                .collect(),
+            seed,
+            segment_seeds,
+            rejected,
         }
     }
 
-    /// The job's golden line (`parble_sim::procgen_job::result_line`).
+    /// The job's golden line (`parble_sim::procgen_job::result_line`, or
+    /// `segmented_result_line`).
     pub fn result_line(&self, base: u64) -> String {
-        result_line(base, &self.job)
+        match &self.job {
+            Job::Whole(j) => result_line(base, j),
+            Job::Segmented(j) => segmented_result_line(base, j),
+        }
+    }
+
+    /// The accepted track as `.parble` text, stamped with the generator version (and the segment
+    /// seeds of a segmented job).
+    pub fn file_text(&self, name: &str) -> Option<String> {
+        match &self.job {
+            Job::Whole(j) => j
+                .accepted()
+                .map(|t| generated_file(t.clone(), name, &[]).to_json()),
+            Job::Segmented(j) => j.file(name).map(|f| f.to_json()),
+        }
     }
 }
 
@@ -169,9 +243,7 @@ impl GenerateJob {
     /// The accepted track as a `.parble` file, once accepted.
     #[wasm_bindgen(js_name = fileJson)]
     pub fn file_json(&self, name: &str) -> Option<String> {
-        self.job
-            .accepted()
-            .map(|t| ParbleFile::new(t.clone(), name).to_json())
+        self.file_text(name)
     }
 
     /// The golden line of a finished job started at `base`.
@@ -190,6 +262,20 @@ pub fn generate_and_validate(
     budget_ms: f64,
 ) -> Result<GenerateJob, JsError> {
     let mut job = GenerateJob::create(seed, params_json).map_err(|e| JsError::new(&e))?;
+    job.run_slice(budget_ms);
+    Ok(job)
+}
+
+/// [`generate_and_validate`] for a track generated and retried segment by segment: a marble
+/// that fails costs the segment it failed on, not the whole track. The job has the same
+/// interface; its status also lists `segmentSeeds` once accepted, and the file records them.
+#[wasm_bindgen]
+pub fn generate_and_validate_segmented(
+    seed: f64,
+    params_json: &str,
+    budget_ms: f64,
+) -> Result<GenerateJob, JsError> {
+    let mut job = GenerateJob::create_as(seed, params_json, true).map_err(|e| JsError::new(&e))?;
     job.run_slice(budget_ms);
     Ok(job)
 }

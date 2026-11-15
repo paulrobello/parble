@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use parble_core::{
     CellCoord, Mirror, Orientation, PieceDef, PieceId, Port, PortClass, PortFace, PortFlow,
-    PortLevel, Yaw4, is_finish, is_hopper,
+    PortLevel, Yaw4, clearance_cells, is_finish, is_hopper,
 };
 
 use crate::params::Families;
@@ -13,16 +13,24 @@ use crate::params::Families;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Shape {
     Straight,
+    /// A block curve at `L1` or `L2`.
     Turn,
+    /// A block curve at `L3`: it settles the marble to one speed whatever it came in at.
+    TurnTop,
     /// A rail curve or S: it keeps the marble's speed, a block curve does not.
     RailTurn,
     Slope,
     Steep,
     Redirect,
+    /// A drop at `L2`.
     Drop,
+    /// A drop at `L1`: a fast marble stalls at its hole.
+    DropLow,
     Catch,
-    /// A mechanism the density slider controls (gate, checkpoint, rope arch).
+    /// A mechanism the density slider controls that keeps the marble's speed (gate, checkpoint).
     Special,
+    /// The rope arch, also on the density slider: its ropes brake the marble.
+    Arch,
     Other,
 }
 
@@ -32,13 +40,16 @@ impl Shape {
         match (seg.next(), seg.next()) {
             (Some("straight"), _) => Self::Straight,
             (Some("curve90" | "s"), _) if id.as_str().starts_with("rail_") => Self::RailTurn,
+            (Some("curve90"), Some("l3")) => Self::TurnTop,
             (Some("curve90" | "s"), _) => Self::Turn,
             (Some("slope"), Some("steep")) => Self::Steep,
             (Some("slope"), _) => Self::Slope,
             (Some("redirect"), _) => Self::Redirect,
+            (Some("drop"), Some("l1")) => Self::DropLow,
             (Some("drop"), _) => Self::Drop,
             (Some("catch"), _) => Self::Catch,
-            (Some("gate" | "checkpoint" | "arch"), _) => Self::Special,
+            (Some("gate" | "checkpoint"), _) => Self::Special,
+            (Some("arch"), _) => Self::Arch,
             _ => Self::Other,
         }
     }
@@ -53,6 +64,9 @@ pub(crate) struct Template {
     pub entry: Port,
     pub exits: Vec<Port>,
     pub cells: Vec<CellCoord>,
+    /// Cells that must stay empty above the piece's channel
+    /// ([`parble_core::clearance_cells`]).
+    pub clear: Vec<CellCoord>,
     pub shape: Shape,
 }
 
@@ -138,8 +152,14 @@ const UNRELIABLE: [&str; 5] = [
 ];
 
 /// Orientations of `def` in the order the search enumerates them, with the entry port index of
-/// every template. `max_exits` caps the outflow ports a chained piece may open.
-pub(crate) fn build(defs: &[PieceDef], families: Families, max_exits: usize) -> TemplateSet {
+/// every template. `specials` is whether the density slider allows its pieces at all, and
+/// `max_exits` caps the outflow ports a chained piece may open.
+pub(crate) fn build(
+    defs: &[PieceDef],
+    families: Families,
+    specials: bool,
+    max_exits: usize,
+) -> TemplateSet {
     let mut set = TemplateSet::default();
     for def in defs {
         let hopper = is_hopper(&def.id);
@@ -162,6 +182,9 @@ pub(crate) fn build(defs: &[PieceDef], families: Families, max_exits: usize) -> 
             continue;
         }
         let shape = Shape::of(&def.id);
+        if !specials && matches!(shape, Shape::Special | Shape::Arch) {
+            continue;
+        }
         for orient in orientations(def.chiral) {
             let placed = def.transformed(orient);
             for (ei, entry) in placed.ports.iter().enumerate() {
@@ -196,6 +219,7 @@ pub(crate) fn build(defs: &[PieceDef], families: Families, max_exits: usize) -> 
                     entry: *entry,
                     exits,
                     cells: placed.footprint.clone(),
+                    clear: clearance_cells(&placed.footprint, &placed.ports),
                     shape,
                 };
                 let (list, index) = if finish {

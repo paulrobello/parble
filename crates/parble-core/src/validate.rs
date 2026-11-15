@@ -76,13 +76,25 @@
 //! a marble can enter it, every rule applies to it as to any other piece. A support whose only
 //! feeders are idle supports is idle too, so a column of pillars under a track is idle from the
 //! top down (P6-T1).
+//!
+//! # Overhead clearance (contract §5.1)
+//!
+//! A channel needs [`OVERHEAD_CLEARANCE_UM`] clear above its floor. A floor at `L2` or `L3`
+//! leaves less than that inside its own cell, so the cell above every cell of such a channel's
+//! layer must be empty or belong to the same piece (a tall gate or arch owns its upper cell).
+//! Another placement there is [`IssueKind::OverheadBlocked`]: an `L3` marble tops out 1 mm above
+//! its cell and stalls against a pillar standing on the block.
+//!
+//! One cell is waived: the one under a controlled drop's source. The piece there closes the
+//! back of the landing channel (the all-pieces track stands an `L3` end stop under the gate its
+//! third transfer drops from); the marble lands past it and at most backs into it.
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::catalog::PieceCatalog;
 use crate::contract::{
     CELL_UM, CHANNEL_RADIUS_UM, CHANNEL_WIDTH_UM, HALF_CELL_UM, LEVEL_STEP_UM,
-    MARBLE_STANDARD_DIAMETER_UM,
+    MARBLE_STANDARD_DIAMETER_UM, OVERHEAD_CLEARANCE_UM,
 };
 use crate::grid::{CellCoord, PortFace};
 use crate::piece::{PieceDef, PieceId};
@@ -110,6 +122,9 @@ pub enum IssueKind {
     /// The placement shares cells with placement `other` (contract §9 rule 6). Reported on the
     /// lower index. Cells: the shared cells.
     Overlap { other: usize },
+    /// Placement `other` stands in the overhead clearance of this placement's channel (contract
+    /// §5.1, module docs). Reported on the channel's placement. Cells: the blocked cells.
+    OverheadBlocked { other: usize },
     /// The ID's `_l<n>` suffix does not name port 0's level (contract §10, §14 item 2).
     /// `port0` is `None` when port 0 is a drop port. Cells: the anchor.
     LevelSuffixMismatch {
@@ -331,6 +346,28 @@ fn lands_in_bowl(port: &Port, f: &Resolved<'_>, fall_um: i32) -> bool {
     dist_sq(plane, axis) <= r_sq && dist_sq(far, axis) <= r_sq
 }
 
+/// The cells that must stay clear above a piece with these `cells` and `ports` (module docs,
+/// overhead clearance): the cell above every cell of a layer that holds a side port whose floor
+/// leaves less than [`OVERHEAD_CLEARANCE_UM`] under the cell's top, the piece's own cells left
+/// out. Sorted. `cells` and `ports` share one frame, piece-local or world.
+pub fn clearance_cells(cells: &[CellCoord], ports: &[Port]) -> Vec<CellCoord> {
+    let layers: BTreeSet<i32> = ports
+        .iter()
+        .filter(|p| {
+            p.level
+                .is_some_and(|l| l.floor_um() + OVERHEAD_CLEARANCE_UM > CELL_UM)
+        })
+        .map(|p| p.cell.y)
+        .collect();
+    let above: BTreeSet<CellCoord> = cells
+        .iter()
+        .filter(|c| layers.contains(&c.y))
+        .map(|&c| c + PortFace::Top.normal())
+        .filter(|c| !cells.contains(c))
+        .collect();
+    above.into_iter().collect()
+}
+
 /// Resolve every placement against the catalog; `None` for an unknown piece.
 fn resolve<'a>(track: &Track, catalog: &'a impl PieceCatalog) -> Vec<Option<Resolved<'a>>> {
     track
@@ -526,6 +563,30 @@ pub fn validate_track(track: &Track, catalog: &impl PieceCatalog) -> Vec<Issue> 
             }
         }
     }
+    // Overhead clearance (§5.1). The cell under a controlled drop's source is waived: the end
+    // stop that closes the landing channel stands there, under the piece the marble drops from.
+    let under_a_source: BTreeSet<CellCoord> = drops
+        .iter()
+        .filter_map(|d| resolved[d.from].as_ref())
+        .zip(&drops)
+        .map(|(r, d)| r.ports[d.from_port].cell + PortFace::Bottom.normal())
+        .collect();
+    for (i, r) in resolved.iter().enumerate() {
+        let Some(r) = r else { continue };
+        let mut blocked: BTreeMap<usize, Vec<CellCoord>> = BTreeMap::new();
+        for cell in clearance_cells(&r.cells, &r.ports) {
+            if under_a_source.contains(&(cell + PortFace::Bottom.normal())) {
+                continue;
+            }
+            for &q in occupancy.get(&cell).into_iter().flatten() {
+                blocked.entry(q).or_default().push(cell);
+            }
+        }
+        for (other, cells) in blocked {
+            issues.insert(on(i, cells, IssueKind::OverheadBlocked { other }));
+        }
+    }
+
     // Open ports and one-sided ports of this placement's own, decided once every link is known
     // (structural pieces and routes, module docs): (placement, port, issue).
     let mut unlinked: Vec<(usize, usize, Issue)> = Vec::new();

@@ -17,11 +17,12 @@ import {
 
 /** A job that needs `units` work units; it rejects `rejects` candidates first, or fails if `fail`. */
 function fakeEngine(units: number, opts: { rejects?: number; fail?: boolean; throwOnStart?: boolean } = {}) {
-  const log = { budgets: [] as number[], freed: 0, params: [] as string[] };
+  const log = { budgets: [] as number[], freed: 0, params: [] as string[], segmented: [] as boolean[] };
   const engine: Engine = {
-    start(seed, paramsJson, budgetMs) {
+    start(seed, paramsJson, budgetMs, segmented) {
       if (opts.throwOnStart) throw new Error("params: unknown field `seed`");
       log.params.push(paramsJson);
+      log.segmented.push(segmented === true);
       let done = 0;
       const status = (): JobStatus => {
         const end = done >= units;
@@ -102,6 +103,13 @@ describe("runJob", () => {
     expect(last?.type === "accepted" && last.seed).toBe(8);
     expect(last?.type === "accepted" && JSON.parse(last.file)).toEqual({ name: "Generated track 7", seed: 7 });
     expect(log.freed).toBe(1);
+  });
+
+  it("starts a segmented job only when the start message asks for one", async () => {
+    const { engine, log } = fakeEngine(1);
+    await runJob(engine, start(), host().h);
+    await runJob(engine, start({ segmented: true }), host().h);
+    expect(log.segmented).toEqual([false, true]);
   });
 
   it("posts failed with every rejection when no candidate passes", async () => {
@@ -191,7 +199,15 @@ describe("GenClient", () => {
     const startMsg = spawned[0]?.sent[0];
     expect(startMsg?.type === "start" && startMsg.sliceMs).toBe(4);
     expect(startMsg?.type === "start" && startMsg.urls.glue).toContain("?v=1");
+    expect(startMsg?.type === "start" && "segmented" in startMsg).toBe(false);
     expect(c.busy).toBe(false);
+  });
+
+  it("passes the segmented option to the worker", async () => {
+    const { c, spawned } = client(2);
+    await c.generate(7, { length: 500, height: 48 }, { segmented: true });
+    const startMsg = spawned[0]?.sent[0];
+    expect(startMsg?.type === "start" && startMsg.segmented).toBe(true);
   });
 
   it("spawns the worker once, on the first generate", async () => {

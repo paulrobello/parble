@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use parble_core::{PortClass, PortLevel};
 
 use crate::search::FINISH_VALUE;
-use crate::speed::{MIN_FLOW_V2, TRANSFER_MAX_V2, enters, exit_v2};
+use crate::speed::{TRANSFER_MAX_V2, enters, exit_v2, flows};
 use crate::template::{Shape, TemplateSet, end_value, rel_value};
 
 /// Speeds within this many 1e-3 m²/s² share a memo entry.
@@ -30,9 +30,12 @@ struct Step {
 /// `Shape` is not `Ord`, so the steps keep it as an index.
 type ShapeKey = u8;
 
-const SHAPES: [Shape; 10] = [
+const SHAPES: [Shape; 13] = [
+    Shape::DropLow,
     Shape::Straight,
     Shape::Turn,
+    Shape::TurnTop,
+    Shape::Arch,
     Shape::RailTurn,
     Shape::Slope,
     Shape::Steep,
@@ -65,11 +68,16 @@ pub(crate) struct Viability {
     goals: Vec<Goal>,
     /// Consecutive level pieces allowed ([`crate::search::max_flat_run`]).
     max_flat: u8,
+    /// The port value the walk ends at: `L3` of its floor layer.
+    floor_value: i32,
+    /// Whether the walk ends at an open `L3` exit on the floor layer instead of a finish.
+    open: bool,
     memo: RefCell<BTreeMap<Key, bool>>,
 }
 
 impl Viability {
-    pub fn new(set: &TemplateSet, max_flat: u8) -> Self {
+    /// The walk ends on layer `floor`: at a finish, or with `open` at an open `L3` exit.
+    pub fn new(set: &TemplateSet, max_flat: u8, floor: i32, open: bool) -> Self {
         let mut steps: Vec<Step> = set
             .chain
             .iter()
@@ -93,19 +101,22 @@ impl Viability {
             .map(|t| Goal {
                 entry: t.entry.level,
                 class: t.entry.class,
-                value: rel_value(&t.entry) - 4 * t.entry.cell.y,
+                value: rel_value(&t.entry) - 4 * t.entry.cell.y + 4 * floor,
             })
+            .filter(|_| !open)
             .collect();
         Self {
             steps,
             goals,
             max_flat,
+            floor_value: 4 * floor + FINISH_VALUE,
+            open,
             memo: RefCell::new(BTreeMap::new()),
         }
     }
 
     /// Whether a marble leaving a port at `value` and `level` with squared speed `v2`, after
-    /// `flat` level pieces in a row, can reach a finish.
+    /// `flat` level pieces in a row, can reach the walk's ending.
     pub fn viable(
         &self,
         value: i32,
@@ -133,6 +144,9 @@ impl Viability {
 
     fn expand(&self, value: i32, level: Option<PortLevel>, v2: i64, flat: u8, catch: bool) -> bool {
         let falls = level == Some(PortLevel::L1) && v2 <= TRANSFER_MAX_V2 && !catch;
+        if self.open && level.is_some() && value == self.floor_value {
+            return true;
+        }
         for g in &self.goals {
             let direct = g.entry == level && g.value == value;
             let landed = falls
@@ -156,14 +170,19 @@ impl Viability {
                 value - 2 + s.delta
             };
             let d = value - ev;
-            if d < 0 || ev < FINISH_VALUE || !enters(shape, v2) || (d == 0 && flat >= self.max_flat)
-            {
+            // On the ground a track may run level past the flat-run limit until it is long enough
+            // to end (`Search::descends`).
+            let over = d == 0 && flat >= self.max_flat && ev > self.floor_value;
+            if d < 0 || ev < self.floor_value || !enters(shape, v2) || over {
                 continue;
             }
             let out = exit_v2(v2, shape, d);
-            let next_flat = if d == 0 { flat + 1 } else { 0 };
-            if out >= MIN_FLOW_V2 && self.viable(ev, s.exit, out, next_flat, shape == Shape::Catch)
-            {
+            let next_flat = if d == 0 {
+                (flat + 1).min(self.max_flat)
+            } else {
+                0
+            };
+            if flows(out) && self.viable(ev, s.exit, out, next_flat, shape == Shape::Catch) {
                 return true;
             }
         }

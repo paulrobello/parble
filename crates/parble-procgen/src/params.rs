@@ -39,10 +39,12 @@ pub struct GenParams {
     /// and z around the hopper. `2..=64`.
     pub footprint: u32,
     /// Layer the hopper sits on. The track descends from it to the finish on layer 0. `1..=64`.
+    /// A segment from an open port ([`crate::generate_segment`]) does not read it.
     pub height: u32,
     /// Target number of track pieces, hopper and finish included, supports not. The track ends
-    /// at the first finish on layer 0 once it has three quarters of this many. `3..=1000`, and at
-    /// most [`GenParams::max_length`] (12 a layer of `height`).
+    /// at the first finish on layer 0 once it has nine tenths of this many. `3..=1000`, and at
+    /// most [`GenParams::max_length`] (12 a layer of `height`). For a segment, the target of
+    /// that segment, at most 12 a layer it descends.
     pub length: u32,
     /// Chance, in per mille, that a step draws a special piece (gate, checkpoint, rope arch)
     /// instead of a plain one. `0..=1000`.
@@ -121,6 +123,11 @@ pub enum GenError {
     /// The target length needs more height than the hopper's layer gives: at most
     /// `max_length` pieces generate from it ([`GenParams::max_length`]).
     TooLong { length: u32, max_length: u32 },
+    /// A segment's goal layer is above the port it starts from: a track only descends.
+    GoalAbove { start_layer: i32, goal_layer: i32 },
+    /// No walk from a segment's start port reaches its goal, whatever the seed: the cell the port
+    /// faces is taken, or the port's level and speed lead nowhere in the cells left.
+    NoSegmentRoute,
     /// The node budget ran out first. A caller retries with the next sub-seed.
     Exhausted { nodes: u32 },
     /// The finished track failed validation. A generator bug, never shipped.
@@ -138,6 +145,16 @@ impl core::fmt::Display for GenError {
                 f,
                 "a length of {length} needs a higher hopper: at most {max_length} pieces from this height"
             ),
+            Self::GoalAbove {
+                start_layer,
+                goal_layer,
+            } => write!(
+                f,
+                "the goal on layer {goal_layer} is above the start port on layer {start_layer}: a track only descends"
+            ),
+            Self::NoSegmentRoute => {
+                f.write_str("no route from the start port to the goal exists in the free cells")
+            }
             Self::Exhausted { nodes } => write!(f, "search budget of {nodes} nodes exhausted"),
             Self::Invalid { issues, first } => {
                 write!(

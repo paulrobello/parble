@@ -1,6 +1,6 @@
 // P6-T2: generation runs in the generator Web Worker (web/ui/src/gen, parble-sim-wasm's
 // generate_and_validate) and the main thread keeps drawing. window.__parbleGen.generate runs three
-// jobs back to back on the running playroom scene (default params at seeds 7 and 72, then a longer
+// jobs back to back on the running playroom scene (default params at seeds 32 and 72, then a longer
 // track); every one must be accepted with a file whose seed is the accepted sub-seed, the worker
 // files must be fetched by versioned URL, and no rAF frame during generation may exceed 25 ms. The
 // same page with no generation is measured first as the baseline. Frame times are load-sensitive:
@@ -16,7 +16,7 @@ const BASELINE_MS = 5_000;
 const LOAD_WAIT_MS = Number(process.env.PARBLE_LOAD_WAIT_MS ?? 10 * 60_000);
 const OUT = new URL("../../target/perf/p6t2-gen.json", import.meta.url);
 const JOBS = [
-  { seed: 7, params: {} },
+  { seed: 32, params: {} },
   { seed: 72, params: {} },
   { seed: 3, params: { height: 12, length: 80, footprint: 14 } },
 ];

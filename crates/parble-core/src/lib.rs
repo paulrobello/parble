@@ -34,5 +34,5 @@ pub use validate::{
     CONTROLLED_DROP_LATERAL_TOLERANCE_UM, CONTROLLED_DROP_MAX_EXIT_SPEED_UM_S,
     CONTROLLED_DROP_MAX_FALL_UM, CONTROLLED_DROP_MIN_EXIT_SPEED_UM_S, ControlledDrop,
     FUNNEL_CATCH_RADIUS_UM, FUNNEL_MAX_FALL_UM, FUNNEL_RIM_RADIUS_UM, Issue, IssueKind, LinkFault,
-    controlled_drops, is_finish, is_funnel, is_hopper, link_fault, validate_track,
+    clearance_cells, controlled_drops, is_finish, is_funnel, is_hopper, link_fault, validate_track,
 };

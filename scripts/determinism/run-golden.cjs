@@ -51,6 +51,7 @@ const {
   run_nudge_constant_track,
   run_procgen_job,
   generate_and_validate,
+  generate_and_validate_segmented,
 } = require(
   path.resolve(modulePath),
 );
@@ -177,9 +178,11 @@ if (procgenPath) {
   const want = fs.readFileSync(procgenPath, "utf8").trim().split("\n");
   const got = run_procgen_job().trim().split("\n");
   // The params of procgen_job::golden_cases(), in order.
+  // The last is procgen_job::segmented_golden_case(), run segment by segment.
   const cases = [
-    [7, "{}"],
-    [2, JSON.stringify({ height: 3, length: 14, footprint: 5, marbles: 2 })],
+    [32, "{}", generate_and_validate],
+    [2, JSON.stringify({ height: 3, length: 14, footprint: 5, marbles: 2 }), generate_and_validate],
+    [3, JSON.stringify({ height: 12, length: 80, footprint: 14 }), generate_and_validate_segmented],
   ];
   let bad = 0;
   for (let i = 0; i < Math.max(want.length, got.length); i++) {
@@ -188,9 +191,9 @@ if (procgenPath) {
       bad++;
     }
   }
-  cases.forEach(([seed, params], i) => {
+  cases.forEach(([seed, params, start], i) => {
     const started = Date.now();
-    const job = generate_and_validate(seed, params, 0);
+    const job = start(seed, params, 0);
     let slices = 1;
     while (JSON.parse(job.resume(0)).status === "running") slices++;
     const line = job.resultLine(seed);

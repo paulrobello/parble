@@ -9,6 +9,7 @@
 //! ```
 //!
 //! The version, seed, placement, hopper, camera zone and nudge zone fields are [`Track`]'s own.
+//! `metadata.generator` ([`Generator`]) is optional and set on generated tracks only.
 //! `camera_zones` ([`crate::camera_zone`]) and `nudge_zones` ([`crate::nudge_zone`]) are optional
 //! and left out when empty. `web/ui/src/parble.ts`
 //! mirrors the shape by hand; `web/ui/src/parble-fixtures.json` holds valid and rejected files that
@@ -47,6 +48,19 @@ pub struct MechanismState {
     pub state: MechConfig,
 }
 
+/// What generated a track (`parble-procgen`). The generator's output for a seed changes with its
+/// version, so a file records the version that made it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Generator {
+    /// `parble_procgen::GENERATOR_VERSION` when the track was generated.
+    pub version: u32,
+    /// The seed of each segment of a track generated in segments, in order. Omitted for a track
+    /// generated whole, which its own `seed` regenerates. Each at most [`MAX_SAFE_INTEGER`].
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub segments: Vec<u64>,
+}
+
 /// Descriptive fields. None of them reach the sim.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -56,6 +70,11 @@ pub struct Metadata {
     pub description: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub author: String,
+    /// Set on a generated track. Optional since it was added: a file without it has no
+    /// `generator` key, so every file written before loads and saves byte for byte, still as
+    /// schema 1.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generator: Option<Generator>,
 }
 
 /// A loaded `.parble` file.
@@ -283,6 +302,14 @@ impl ParbleFile {
             return bad(format!(
                 "description is limited to {MAX_DESCRIPTION_CHARS} characters"
             ));
+        }
+        if let Some(s) = md
+            .generator
+            .iter()
+            .flat_map(|g| &g.segments)
+            .find(|&&s| s > MAX_SAFE_INTEGER as u64)
+        {
+            return bad(format!("generator segment seed {s} exceeds 2^53 - 1"));
         }
         Ok(())
     }

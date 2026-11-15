@@ -7,6 +7,7 @@ import { type Engine, type EngineJob, type FromWorker, type StartMessage, type T
 interface Bindgen {
   (init: { module_or_path: string }): Promise<unknown>;
   generate_and_validate(seed: number, paramsJson: string, budgetMs: number): EngineJob;
+  generate_and_validate_segmented(seed: number, paramsJson: string, budgetMs: number): EngineJob;
 }
 
 interface WorkerScope {
@@ -32,7 +33,12 @@ function load(msg: StartMessage): Promise<Engine> {
     const bindgen = typeof wasm_bindgen === "undefined" ? undefined : wasm_bindgen;
     if (!bindgen) throw new Error("the generator glue defined no wasm_bindgen");
     await bindgen({ module_or_path: msg.urls.wasm });
-    return { start: (seed, params, budget) => bindgen.generate_and_validate(seed, params, budget) };
+    return {
+      start: (seed, params, budget, segmented) =>
+        segmented
+          ? bindgen.generate_and_validate_segmented(seed, params, budget)
+          : bindgen.generate_and_validate(seed, params, budget),
+    };
   })();
   return engine;
 }

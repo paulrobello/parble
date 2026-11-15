@@ -1141,9 +1141,14 @@ impl Mechanism for RopeArch {
         }
         for (k, rope) in self.ropes.iter_mut().enumerate() {
             let discs = rope_discs(ctx, k);
-            rope.step(&discs);
+            // A rope at rest with no marble near stays at rest, and its chord is exactly 0.
+            let hangs = discs.is_empty() && rope.is_rest();
+            if !hangs {
+                rope.step(&discs);
+            }
             let [lo, hi] = ctx.part_limits(k).unwrap_or([i32::MIN, i32::MAX]);
-            let chord = crate::rope::to_mdeg(rope.chord()).clamp(lo, hi);
+            let chord = if hangs { 0.0 } else { rope.chord() };
+            let chord = crate::rope::to_mdeg(chord).clamp(lo, hi);
             if ctx.part_angle(k) != Some(chord) {
                 ctx.play(k, crate::mechanism::Keyframes::hold(chord));
             }

@@ -365,12 +365,10 @@ impl TrackRun {
             return;
         }
         let mut finished = vec![false; self.motion.len()];
-        for v in self.sim.mechanisms() {
-            if v.piece.as_str() == behaviour::FINISH {
-                for (m, _) in behaviour::Finish::arrivals(&v.state) {
-                    if let Some(f) = finished.get_mut(m) {
-                        *f = true;
-                    }
+        for state in self.sim.mechanism_states_of(behaviour::FINISH) {
+            for (m, _) in behaviour::Finish::arrivals(&state) {
+                if let Some(f) = finished.get_mut(m) {
+                    *f = true;
                 }
             }
         }

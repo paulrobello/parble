@@ -4,7 +4,10 @@
 
 mod generate;
 
-pub use generate::{GenerateJob, ParamsWire, generate_and_validate, run_procgen_job};
+pub use generate::{
+    GenerateJob, ParamsWire, generate_and_validate, generate_and_validate_segmented,
+    run_procgen_job,
+};
 
 use wasm_bindgen::prelude::wasm_bindgen;
 
@@ -165,5 +168,30 @@ mod tests {
             file.contains("\"seed\": 2") || file.contains("\"seed\":2"),
             "{file}"
         );
+        let loaded = parble_core::file::load(&file).unwrap();
+        let stamp = loaded.metadata.generator.expect("generator stamp");
+        assert_eq!(stamp.version, parble_procgen::GENERATOR_VERSION);
+        assert!(stamp.segments.is_empty());
+    }
+
+    /// The segmented job through the same wrapper: zero-budget slices reach the golden result,
+    /// and the file records the generator version and one seed a segment.
+    #[test]
+    fn a_segmented_job_reaches_its_golden_result_and_records_its_seeds() {
+        let golden = parble_sim::procgen_job::golden_lines();
+        let line = golden.lines().nth(2).unwrap();
+        let mut job =
+            super::GenerateJob::create_as(3.0, r#"{"height":12,"length":80,"footprint":14}"#, true)
+                .unwrap();
+        while job.run_slice(0.0).status == "running" {}
+        assert_eq!(job.result_line(3), line);
+        let status = job.status();
+        let seeds = status.segment_seeds.expect("segment seeds");
+        assert_eq!(seeds.len(), 2);
+        let loaded = parble_core::file::load(&job.file_json("generated").unwrap()).unwrap();
+        assert_eq!(loaded.track.seed, 3);
+        let stamp = loaded.metadata.generator.expect("generator stamp");
+        assert_eq!(stamp.version, parble_procgen::GENERATOR_VERSION);
+        assert_eq!(stamp.segments, seeds);
     }
 }

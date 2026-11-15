@@ -27,7 +27,11 @@ SPACING = float(os.environ.get("PARBLE_REVIEW_SPACING", "0.085"))
 # the four P1-T2 pieces in one row, as before. PARBLE_REVIEW_SPACING / _ROW / _COLS size the grid
 # and PARBLE_REVIEW_DIST scales the camera distance, for multi-cell pieces. PARBLE_REVIEW_BACK
 # (default 0.70) is how far the camera stands back in -y, and PARBLE_REVIEW_SIDE (default 0.12)
-# how far in -x, per unit of distance.
+# how far in -x, per unit of distance. PARBLE_REVIEW_AIM_Z (default 0.03) is the height the camera
+# and lights aim at, and PARBLE_REVIEW_LIGHT (default 1.0) scales the lights' distance and size
+# (and their power by its square), for tall pieces.
+AIM_Z = float(os.environ.get("PARBLE_REVIEW_AIM_Z", "0.03"))
+LIGHT = float(os.environ.get("PARBLE_REVIEW_LIGHT", "1.0"))
 IDS = argv[2:] or list(K.BUILD)
 SLOTS = [e for e in IDS if not e.endswith(":next")]
 COLS = int(os.environ.get("PARBLE_REVIEW_COLS", "7")) if argv[2:] else len(IDS)
@@ -104,7 +108,7 @@ world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.8
 scn.world = world
 cx = (min(COLS, len(SLOTS)) - 1) * SPACING / 2
 cy = ((len(SLOTS) - 1) // COLS) * ROW / 2
-target = (cx, cy, 0.03)
+target = (cx, cy, AIM_Z)
 
 
 def aim(ob, loc):
@@ -117,10 +121,10 @@ for name, energy, loc, color in (("key", 3.5, (cx - 0.15, -0.2, 0.3), (1.0, 0.85
                                  ("fill", 0.8, (cx + 0.3, -0.15, 0.12), (0.7, 0.8, 1.0)),
                                  ("rim", 3.0, (cx + 0.05, 0.3, 0.22), (1.0, 0.9, 0.75))):
     ld = bpy.data.lights.new(name, "AREA")
-    ld.energy, ld.color, ld.size = energy, color, 0.12
+    ld.energy, ld.color, ld.size = energy * LIGHT * LIGHT, color, 0.12 * LIGHT
     lo = bpy.data.objects.new(name, ld)
     scn.collection.objects.link(lo)
-    aim(lo, loc)
+    aim(lo, (cx + (loc[0] - cx) * LIGHT, loc[1] * LIGHT, AIM_Z + (loc[2] - 0.03) * LIGHT))
 
 cam = bpy.data.objects.new("cam", bpy.data.cameras.new("cam"))
 cam.data.lens = 50

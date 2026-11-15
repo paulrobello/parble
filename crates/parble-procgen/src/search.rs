@@ -10,12 +10,13 @@ use std::collections::BTreeSet;
 
 use parble_core::{
     CellCoord, Orientation, PieceDef, Placement, Port, PortClass, PortFace, PortFlow, PortLevel,
-    SeededRng, SubStream, Yaw4, is_hopper,
+    SeededRng, SubStream, Yaw4, clearance_cells, is_hopper,
 };
 
 use crate::params::{GenError, GenParams};
 use crate::reach::Viability;
-use crate::speed::{HOPPER_V2, MIN_FLOW_V2, TRANSFER_MAX_V2, enters, exit_v2};
+use crate::segment::{OpenPort, Space};
+use crate::speed::{HOPPER_V2, TRANSFER_MAX_V2, enters, exit_v2, flows};
 use crate::template::{Shape, Template, TemplateSet, mate_class};
 
 /// Placements tried across all attempts before [`GenError::Exhausted`].
@@ -49,8 +50,42 @@ pub(crate) fn max_flat_run(params: &GenParams) -> u8 {
     }
 }
 
-/// The lowest port value a track can still finish from: `L3` of layer 0.
+/// Share of the target length at which [`Search::pace`] aims to reach layer 0, in per cent.
+/// Steps that cannot stay level (a flat run at its limit, a blocked cell ahead) bring a track
+/// down sooner than its pace, so the aim is past the full length: at 95 a 500-piece track from
+/// layer 48 reached the ground near piece 410 of the 450 it needs and generated on 2 to 4 of 6
+/// seeds, at 105 and above on 8 of 8 (2026-11-15 `long_track_census`).
+pub(crate) const PACE_PER_CENT: i64 = 110;
+
+/// The lowest port value a walk can still end from on layer 0: `L3`. A walk whose floor is
+/// another layer ends from `L3` of that layer ([`Course::floor_value`]).
 pub(crate) const FINISH_VALUE: i32 = 3;
+
+/// How a walk ends.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Ending {
+    /// At a finish piece on the floor layer, with no open end left.
+    Finish,
+    /// At an open `L3` channel exit on the floor layer, for the next segment to continue from.
+    Open,
+}
+
+/// The layers a walk may use and how it ends.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Course {
+    /// Highest layer a piece may stand on: the layer the walk starts on.
+    pub top: i32,
+    /// Lowest layer a piece may stand on, and the layer the walk ends on.
+    pub floor: i32,
+    pub ending: Ending,
+}
+
+impl Course {
+    /// The port value the walk ends at and never goes below: `L3` of the floor layer.
+    pub fn floor_value(&self) -> i32 {
+        4 * self.floor + FINISH_VALUE
+    }
+}
 
 /// An open port: the piece cell it sits in, its face and what a mate must offer.
 #[derive(Debug, Clone)]
@@ -92,6 +127,31 @@ impl End {
     fn value(&self) -> i32 {
         4 * self.cell.y + self.level.map_or(-3, PortLevel::index)
     }
+
+    fn from_open(o: &OpenPort, max_flat: u8) -> Self {
+        Self {
+            cell: o.cell,
+            face: o.face,
+            level: o.level,
+            class: o.class,
+            flow: PortFlow::Out,
+            flat: o.flat.min(max_flat),
+            v2: o.v2,
+            catch: o.after_catch,
+        }
+    }
+
+    fn open(&self) -> OpenPort {
+        OpenPort {
+            cell: self.cell,
+            face: self.face,
+            level: self.level,
+            class: self.class,
+            v2: self.v2,
+            flat: self.flat,
+            after_catch: self.catch,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -103,10 +163,13 @@ struct Cand {
     transfer: Option<CellCoord>,
     weight: u32,
     special: bool,
+    /// Port levels the step descends.
+    descent: i64,
 }
 
 struct Undo {
     cells: Vec<CellCoord>,
+    clear: Vec<CellCoord>,
     reserved: Option<CellCoord>,
     nopiece: Option<CellCoord>,
     exits: usize,
@@ -114,6 +177,8 @@ struct Undo {
 
 struct Frame {
     end: End,
+    /// Port levels per piece the rest of the track should descend, in thousandths.
+    pace: i64,
     cands: Vec<Cand>,
     applied: Option<Undo>,
 }
@@ -124,6 +189,13 @@ pub(crate) struct Walk {
     pub occupied: BTreeSet<CellCoord>,
     /// Empty cells a transfer falls through. No support may stand in one.
     pub reserved: BTreeSet<CellCoord>,
+    /// Cells over an `L2` or `L3` channel ([`parble_core::clearance_cells`]). No support may
+    /// stand in one.
+    pub clear: BTreeSet<CellCoord>,
+    /// Cells under a transfer's source: no piece may take one, a support may.
+    pub nopiece: BTreeSet<CellCoord>,
+    /// The open end an [`Ending::Open`] walk stops at.
+    pub end: Option<OpenPort>,
 }
 
 pub(crate) struct Search<'a> {
@@ -136,8 +208,12 @@ pub(crate) struct Search<'a> {
     reserved: BTreeSet<CellCoord>,
     /// Cells no piece may take, but a support may: under a transfer's source.
     nopiece: BTreeSet<CellCoord>,
+    /// Cells that stay empty over a placed piece's `L2` or `L3` channel.
+    clear: BTreeSet<CellCoord>,
     ends: Vec<End>,
     max_flat: u8,
+    course: Course,
+    floor_value: i32,
 }
 
 impl<'a> Search<'a> {
@@ -147,6 +223,7 @@ impl<'a> Search<'a> {
         via: &'a Viability,
         seed: u64,
         attempt: u32,
+        course: Course,
     ) -> Self {
         Self {
             params,
@@ -157,20 +234,42 @@ impl<'a> Search<'a> {
             occupied: BTreeSet::new(),
             reserved: BTreeSet::new(),
             nopiece: BTreeSet::new(),
+            clear: BTreeSet::new(),
             ends: Vec::new(),
             max_flat: max_flat_run(&params),
+            course,
+            floor_value: course.floor_value(),
         }
     }
 
-    /// Place the hopper on the top layer and search for a path to a finish, trying at most
+    /// Start from the cells of `space` instead of an empty plan.
+    pub fn with_space(mut self, space: &Space) -> Self {
+        self.occupied = space.occupied.clone();
+        self.reserved = space.reserved.clone();
+        self.clear = space.clear.clone();
+        self.nopiece = space.no_piece.clone();
+        self
+    }
+
+    /// Search from the open port `start` for a path to the course's ending, trying at most
     /// `node_cap` placements.
+    pub fn run_from(mut self, start: &OpenPort, node_cap: u32) -> Result<Walk, GenError> {
+        self.ends.push(End::from_open(start, self.max_flat));
+        self.walk(node_cap)
+    }
+
+    /// Place the hopper on the top layer and search for a path to the course's ending, trying at
+    /// most `node_cap` placements.
     pub fn run(mut self, hopper: &PieceDef, node_cap: u32) -> Result<Walk, GenError> {
         debug_assert!(is_hopper(&hopper.id));
         let orient = Orientation::new(Yaw4::new(self.rng.below(4) as u8), Default::default());
-        let anchor = CellCoord::new(0, self.params.height as i32, 0);
+        let anchor = CellCoord::new(0, self.course.top, 0);
         let placed = hopper.transformed(orient);
         for c in &placed.footprint {
             self.occupied.insert(anchor + *c);
+        }
+        for c in clearance_cells(&placed.footprint, &placed.ports) {
+            self.clear.insert(anchor + c);
         }
         self.placements.push(Placement::new(
             hopper.id.clone(),
@@ -185,21 +284,50 @@ impl<'a> Search<'a> {
         {
             self.ends.push(End::of(anchor, p, 0, HOPPER_V2));
         }
+        self.walk(node_cap)
+    }
 
+    /// Whether the walk has reached an [`Ending::Open`] course's end: one open end left, an `L3`
+    /// channel exit on the floor layer, with the segment long enough ([`Search::may_finish`]).
+    /// The two cells ahead of it
+    /// must be free, so the next segment has room for a straight: an end facing the plan's edge
+    /// one cell away leaves a marble too fast for a curve nowhere to go (3 of 30 ends, 2026-11-15).
+    fn open_end_reached(&self) -> bool {
+        self.course.ending == Ending::Open
+            && self.ends.len() == 1
+            && self.may_finish()
+            && self.ends.last().is_some_and(|e| {
+                let ahead = e.target() + e.face.normal();
+                e.value() == self.floor_value
+                    && e.level.is_some()
+                    && e.face.is_side()
+                    && e.class == PortClass::Channel
+                    && self.in_plan(ahead)
+                    && !self.taken(ahead)
+                    && !self.clear.contains(&ahead)
+            })
+    }
+
+    fn walk(mut self, node_cap: u32) -> Result<Walk, GenError> {
         let mut frames: Vec<Frame> = Vec::new();
         let mut nodes = 0u32;
         loop {
-            if self.ends.is_empty() {
+            if self.ends.is_empty() || self.open_end_reached() {
                 return Ok(Walk {
+                    end: self.ends.last().map(End::open),
                     placements: self.placements,
                     occupied: self.occupied,
                     reserved: self.reserved,
+                    clear: self.clear,
+                    nopiece: self.nopiece,
                 });
             }
             let end = self.ends.last().cloned().expect("ends is not empty");
             let cands = self.candidates(&end);
+            let pace = self.pace(&end);
             frames.push(Frame {
                 end,
+                pace,
                 cands,
                 applied: None,
             });
@@ -212,8 +340,12 @@ impl<'a> Search<'a> {
                     self.undo(u, end);
                 }
                 let top = frames.last_mut().expect("frame still on the stack");
-                if let Some(c) = draw(&mut self.rng, self.params.special_per_mille, &mut top.cands)
-                {
+                if let Some(c) = draw(
+                    &mut self.rng,
+                    self.params.special_per_mille,
+                    top.pace,
+                    &mut top.cands,
+                ) {
                     nodes += 1;
                     if nodes > node_cap {
                         return Err(GenError::Exhausted { nodes: node_cap });
@@ -250,6 +382,12 @@ impl<'a> Search<'a> {
             t.orient.yaw,
             t.orient.mirror,
         ));
+        let clear: Vec<CellCoord> = t
+            .clear
+            .iter()
+            .map(|rel| c.anchor + *rel)
+            .filter(|w| self.clear.insert(*w))
+            .collect();
         let mut reserved = None;
         let mut nopiece = None;
         if let Some(gap) = c.transfer {
@@ -262,7 +400,11 @@ impl<'a> Search<'a> {
         let descent = |p: &Port| end.value() - End::of(c.anchor, p, 0, 0).value();
         for p in t.exits.iter().rev() {
             let d = descent(p);
-            let flat = if d == 0 { end.flat + 1 } else { 0 };
+            let flat = if d == 0 {
+                (end.flat + 1).min(self.max_flat)
+            } else {
+                0
+            };
             let v2 = exit_v2(end.v2, t.shape, d);
             let mut e = End::of(c.anchor, p, flat, v2);
             e.catch = t.shape == Shape::Catch;
@@ -270,6 +412,7 @@ impl<'a> Search<'a> {
         }
         Undo {
             cells,
+            clear,
             reserved,
             nopiece,
             exits: t.exits.len(),
@@ -285,6 +428,9 @@ impl<'a> Search<'a> {
         for c in u.cells {
             self.occupied.remove(&c);
         }
+        for c in u.clear {
+            self.clear.remove(&c);
+        }
         if let Some(c) = u.reserved {
             self.reserved.remove(&c);
         }
@@ -295,7 +441,7 @@ impl<'a> Search<'a> {
 
     fn in_plan(&self, c: CellCoord) -> bool {
         let r = self.params.footprint as i32;
-        c.x.abs() <= r && c.z.abs() <= r && (0..=self.params.height as i32).contains(&c.y)
+        c.x.abs() <= r && c.z.abs() <= r && (self.course.floor..=self.course.top).contains(&c.y)
     }
 
     fn taken(&self, c: CellCoord) -> bool {
@@ -319,6 +465,7 @@ impl<'a> Search<'a> {
                 .any(|g| g.x == w.x && g.z == w.z && w.y > g.y);
             if !self.in_plan(w)
                 || self.taken(w)
+                || self.clear.contains(&w)
                 || blocked.contains(&w)
                 || others.contains(&w)
                 || under_gap
@@ -326,14 +473,41 @@ impl<'a> Search<'a> {
                 return false;
             }
         }
+        // Nothing may stand over this piece's own L2 or L3 channel, now or later.
+        if t.clear.iter().any(|rel| {
+            let w = anchor + *rel;
+            self.occupied.contains(&w) || others.contains(&w)
+        }) {
+            return false;
+        }
         t.exits.iter().all(|p| {
             let f = anchor + p.cell + p.face.normal();
             self.in_plan(f)
                 && !self.taken(f)
+                && !self.clear.contains(&f)
+                && !t.clear.iter().any(|rel| anchor + *rel == f)
                 && !own.contains(&f)
                 && !blocked.contains(&f)
                 && !others.contains(&f)
         })
+    }
+
+    /// Whether the track is long enough to end: a finish on the floor layer ends it once the
+    /// finish brings it to nine tenths of its target length, an open end once the pieces placed
+    /// are nine tenths. A track that reaches the floor sooner runs level there until it is
+    /// ([`Search::descends`]).
+    fn may_finish(&self) -> bool {
+        let closing = u32::from(self.course.ending == Ending::Finish);
+        (self.placements.len() as u32 + closing) * 10 >= self.params.length * 9
+    }
+
+    /// Port levels per piece the track still has to descend from `end` to reach the floor layer
+    /// at [`PACE_PER_CENT`] of its target length, in thousandths.
+    fn pace(&self, end: &End) -> i64 {
+        let need = i64::from((end.value() - self.floor_value).max(0));
+        let target = i64::from(self.params.length) * PACE_PER_CENT / 100;
+        let remaining = (target - self.placements.len() as i64).max(1);
+        need * 1000 / remaining
     }
 
     fn candidates(&self, end: &End) -> Vec<Cand> {
@@ -348,9 +522,7 @@ impl<'a> Search<'a> {
         if !matches!(end.flow, PortFlow::Out | PortFlow::Both) {
             return out;
         }
-        // A finish on layer 0 ends the track once it has three quarters of its target length:
-        // the descent cannot always be timed to land on the last piece.
-        let want_finish = placed * 4 >= self.params.length * 3;
+        let want_finish = self.course.ending == Ending::Finish && self.may_finish();
         let target = end.target();
         let key = (end.face.opposite(), end.level, mclass);
         for finish in [false, true] {
@@ -376,7 +548,11 @@ impl<'a> Search<'a> {
             let landing = CellCoord::new(gap.x, gap.y - 1, gap.z);
             let under = CellCoord::new(end.cell.x, end.cell.y - 1, end.cell.z);
             let key = (end.face.opposite(), Some(PortLevel::L3), PortClass::Channel);
-            if !self.taken(gap) && landing.y >= 0 && end.v2 <= TRANSFER_MAX_V2 && !end.catch {
+            if !self.taken(gap)
+                && landing.y >= self.course.floor
+                && end.v2 <= TRANSFER_MAX_V2
+                && !end.catch
+            {
                 for finish in [false, true] {
                     if finish && !want_finish {
                         continue;
@@ -402,10 +578,10 @@ impl<'a> Search<'a> {
     }
 
     /// Whether every exit of `t` stays at or below the end, within the flat-run limit, and is
-    /// still high enough to reach a finish. A finish is allowed only on layer 0.
+    /// still high enough to reach the ending. A finish is allowed only on the floor layer.
     fn descends(&self, t: &Template, anchor: CellCoord, end: &End, finish: bool) -> bool {
         if finish {
-            return anchor.y + t.entry.cell.y == 0;
+            return anchor.y + t.entry.cell.y == self.course.floor;
         }
         if !enters(t.shape, end.v2) {
             return false;
@@ -414,15 +590,21 @@ impl<'a> Search<'a> {
             let v = End::of(anchor, p, 0, 0).value();
             let d = end.value() - v;
             let out = exit_v2(end.v2, t.shape, d);
+            // On the ground a track that is still too short runs level past the flat-run limit.
+            let grounded = v == self.floor_value && !self.may_finish();
             d >= 0
-                && v >= FINISH_VALUE
-                && (d > 0 || end.flat < self.max_flat)
-                && out >= MIN_FLOW_V2
+                && v >= self.floor_value
+                && (d > 0 || end.flat < self.max_flat || grounded)
+                && flows(out)
                 && self.via.viable(
                     v,
                     p.level,
                     out,
-                    if d == 0 { end.flat + 1 } else { 0 },
+                    if d == 0 {
+                        (end.flat + 1).min(self.max_flat)
+                    } else {
+                        0
+                    },
                     t.shape == Shape::Catch,
                 )
         })
@@ -440,40 +622,26 @@ impl<'a> Search<'a> {
         let diff = i64::from(self.params.difficulty);
         let base: i64 = match t.shape {
             Shape::Straight => 6,
-            Shape::Turn | Shape::RailTurn => 3 + diff / 15,
+            Shape::Turn | Shape::TurnTop | Shape::RailTurn => 3 + diff / 15,
             Shape::Slope => 4,
             Shape::Steep => 1 + diff / 20,
             Shape::Redirect => 3,
-            Shape::Drop => 2,
+            Shape::Drop | Shape::DropLow => 2,
             Shape::Catch => 8,
-            Shape::Special => 4,
+            Shape::Special | Shape::Arch => 4,
             Shape::Other => 2,
         };
-        // Steer the descent so the track reaches layer 0 as the length target is met.
-        let need = i64::from((end.value() - FINISH_VALUE).max(0));
-        let remaining = i64::from(
-            self.params
-                .length
-                .saturating_sub(self.placements.len() as u32)
-                .max(1),
-        );
-        let want_milli = need * 1000 / remaining;
-        let d = t.exits.first().map_or(0, |p| {
+        let descent = t.exits.first().map_or(0, |p| {
             i64::from(end.value() - End::of(anchor, p, 0, 0).value())
         });
-        let diff_milli = (d * 1000 - want_milli).abs();
-        let mult = 1 + 16_000 / (1000 + diff_milli);
         Cand {
             finish,
             tpl,
             anchor,
             transfer,
-            weight: if finish {
-                1
-            } else {
-                (base * mult).clamp(1, 10_000) as u32
-            },
-            special: t.shape == Shape::Special,
+            weight: if finish { 1 } else { base.max(1) as u32 },
+            special: matches!(t.shape, Shape::Special | Shape::Arch),
+            descent,
         }
     }
 }
@@ -482,9 +650,79 @@ fn sub(a: CellCoord, b: CellCoord) -> CellCoord {
     CellCoord::new(a.x - b.x, a.y - b.y, a.z - b.z)
 }
 
+/// Weight of a descent one level off the two nearest the pace; it halves with each further level.
+const OFF_PACE_WEIGHT: i64 = 30;
+
+/// Weights for drawing one of `descents` (port levels a step descends, ascending) so the steps
+/// average `pace` thousandths of a level per piece. The two whole descents either side of the
+/// pace share 1000, and every other descent keeps a small weight ([`OFF_PACE_WEIGHT`]) so steep
+/// slopes, transfers and drops still turn up on a slow track; the share of the nearer two is
+/// shifted to make up for what those add. When the pace is too slow to make up for them, they
+/// get no weight.
+fn pace_weights(descents: &[i64], pace: i64) -> Vec<u32> {
+    let below = pace.div_euclid(1000);
+    let near = |d: i64| d == below || d == below + 1;
+    let off = |d: i64| {
+        let levels = if d < below { below - d } else { d - below - 1 };
+        OFF_PACE_WEIGHT >> (levels - 1).min(5)
+    };
+    let others: i64 = descents
+        .iter()
+        .filter(|&&d| !near(d))
+        .map(|&d| off(d))
+        .sum();
+    let others_levels: i64 = descents
+        .iter()
+        .filter(|&&d| !near(d))
+        .map(|&d| off(d) * d)
+        .sum();
+    // Weight of `below + 1`, with `1000 - upper` for `below`.
+    let upper = pace * (1000 + others) / 1000 - 1000 * below - others_levels;
+    let keep_others = (0..=1000).contains(&upper) || !descents.iter().any(|&d| near(d));
+    let upper = if keep_others {
+        upper.clamp(0, 1000)
+    } else {
+        pace.rem_euclid(1000)
+    };
+    descents
+        .iter()
+        .map(|&d| {
+            let w = if d == below {
+                1000 - upper
+            } else if d == below + 1 {
+                upper
+            } else if keep_others {
+                off(d)
+            } else {
+                0
+            };
+            w as u32
+        })
+        .collect()
+}
+
+/// Draw an index into `weights`.
+fn pick(rng: &mut SubStream, weights: &[u32]) -> usize {
+    let total: u32 = weights.iter().sum();
+    let mut r = rng.below(total.max(1));
+    for (i, &w) in weights.iter().enumerate() {
+        if r < w {
+            return i;
+        }
+        r -= w;
+    }
+    weights.iter().rposition(|&w| w > 0).unwrap_or(0)
+}
+
 /// Remove and return the next candidate: a finish while one fits, else a special or a plain
-/// piece by the density slider, weighted within the pool.
-fn draw(rng: &mut SubStream, special_per_mille: u32, cands: &mut Vec<Cand>) -> Option<Cand> {
+/// piece by the density slider. Within that pool the descent is drawn first, by
+/// [`pace_weights`], then a piece of that descent by its own weight.
+fn draw(
+    rng: &mut SubStream,
+    special_per_mille: u32,
+    pace: i64,
+    cands: &mut Vec<Cand>,
+) -> Option<Cand> {
     if cands.is_empty() {
         return None;
     }
@@ -500,21 +738,21 @@ fn draw(rng: &mut SubStream, special_per_mille: u32, cands: &mut Vec<Cand>) -> O
     let pool = if finish.is_empty() {
         let special = indices(&|c| !c.finish && c.special);
         let plain = indices(&|c| !c.finish && !c.special);
-        if rng.below(1000) < special_per_mille && !special.is_empty() || plain.is_empty() {
-            special
-        } else {
-            plain
-        }
+        let mut pool =
+            if rng.below(1000) < special_per_mille && !special.is_empty() || plain.is_empty() {
+                special
+            } else {
+                plain
+            };
+        let mut descents: Vec<i64> = pool.iter().map(|&i| cands[i].descent).collect();
+        descents.sort_unstable();
+        descents.dedup();
+        let descent = descents[pick(rng, &pace_weights(&descents, pace))];
+        pool.retain(|&i| cands[i].descent == descent);
+        pool
     } else {
         finish
     };
-    let total: u32 = pool.iter().map(|&i| cands[i].weight).sum();
-    let mut r = rng.below(total.max(1));
-    for &i in &pool {
-        if r < cands[i].weight {
-            return Some(cands.remove(i));
-        }
-        r -= cands[i].weight;
-    }
-    pool.last().map(|&i| cands.remove(i))
+    let weights: Vec<u32> = pool.iter().map(|&i| cands[i].weight).collect();
+    Some(cands.remove(pool[pick(rng, &weights)]))
 }

@@ -174,6 +174,12 @@ shots-test:
 	python3 scripts/shots/p1t8.py
 
 # P1-T6: the marble spec alone (GPU Chromium, every type on Low and High) against an existing target/web-dist.
+.PHONY: web-gen500-perf
+# P6 review phases 5-6: a generated 500-piece track (segmented worker job) imported into the editor
+# at 1440p High, load-guarded, against an existing target/web-dist. Writes target/perf/p6-gen500.json.
+web-gen500-perf: $(E2E_STAMP)
+	cd e2e && PARBLE_PERF=1 ./node_modules/.bin/playwright test tests/gen500-perf.spec.mjs
+
 .PHONY: web-editor-perf
 web-editor-perf: $(E2E_STAMP)
 	cd e2e && PARBLE_PERF=1 ./node_modules/.bin/playwright test tests/editor-perf.spec.mjs

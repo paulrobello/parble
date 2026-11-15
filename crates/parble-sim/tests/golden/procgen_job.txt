@@ -1,2 +1,3 @@
-base 7 attempt 1 seed 3344595609062871 rejected 1 file 9fd994821e0ba1e3
-base 2 attempt 0 seed 2 rejected 0 file 960408ef1420a873
+base 32 attempt 1 seed 3236033266066433 rejected 1 file 8b603812f3535dfa
+base 2 attempt 0 seed 2 rejected 0 file f43f2df89f40b827
+segmented base 3 seeds 3,3769162297097491 rejected 0 runs 1 file d3e3f8d1e3a4aef2

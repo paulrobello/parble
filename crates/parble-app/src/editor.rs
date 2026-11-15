@@ -89,7 +89,13 @@ const MAX_ISSUES: usize = 32;
 /// The name of a track that was not loaded from a file.
 const UNTITLED: &str = "Untitled track";
 /// Support pieces, counted apart from their `blk` family in `selectionInfo.families`.
-const SUPPORTS: [&str; 2] = ["blk_pillar", "blk_tower_socket_l1"];
+const SUPPORTS: [&str; 5] = [
+    "blk_pillar",
+    "blk_pillar_h2",
+    "blk_pillar_h4",
+    "blk_pillar_h8",
+    "blk_tower_socket_l1",
+];
 /// Most cells one frame of a drag-to-lay stroke walks (a cursor near the horizon jumps far).
 const STROKE_MAX_STEP: i32 = 64;
 /// Stroke outlines listed in the diag at most.
@@ -1843,6 +1849,9 @@ fn issue_diags(track: &Track, kit: &KitCatalog) -> (usize, Vec<IssueDiag>) {
                 IssueKind::MissingHopper => ("missingHopper", None, None, None),
                 IssueKind::MissingFinish => ("missingFinish", None, None, None),
                 IssueKind::Overlap { other } => ("overlap", None, None, Some(*other)),
+                IssueKind::OverheadBlocked { other } => {
+                    ("overheadBlocked", None, None, Some(*other))
+                }
                 IssueKind::UnknownPiece { .. } => ("unknownPiece", None, None, None),
                 IssueKind::LevelSuffixMismatch { .. } => ("levelSuffixMismatch", None, None, None),
                 IssueKind::HopperConfigInvalid { .. } => ("hopperConfigInvalid", None, None, None),

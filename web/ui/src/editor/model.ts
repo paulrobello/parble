@@ -271,7 +271,7 @@ export const FAMILIES: readonly { id: Family; label: string }[] = [
   { id: "supports", label: "Supports" },
 ];
 
-const SUPPORTS = new Set(["blk_pillar", "blk_tower_socket_l1"]);
+const SUPPORTS = new Set(["blk_pillar", "blk_pillar_h2", "blk_pillar_h4", "blk_pillar_h8", "blk_tower_socket_l1"]);
 
 export function familyOf(piece: string): Family {
   if (SUPPORTS.has(piece)) return "supports";
@@ -305,11 +305,14 @@ const NAMES: Record<string, string> = {
   s: "S-bend",
 };
 
-/** A player-facing name: `blk_slope_steep_l3` → "Steep slope · 3", `rail_straight_l2` → "Straight · 2". */
+/** A player-facing name: `blk_slope_steep_l3` → "Steep slope · 3", `rail_straight_l2` → "Straight · 2",
+ * `blk_pillar_h4` → "Pillar · 4 tall". */
 export function pieceName(piece: string): string {
   const parts = piece.split("_");
   const shape = parts[1] ?? piece;
   let name = NAMES[shape] ?? shape;
+  const tall = /_h(\d)$/.exec(piece)?.[1];
+  if (tall) return `${name} · ${tall} tall`;
   if (shape === "slope") name = parts[2] === "steep" ? "Steep slope" : "Gentle slope";
   if (shape === "stepper" && parts[2] === "up1") name = "Stepper lift";
   const level = /_l(\d)$/.exec(piece)?.[1];
@@ -401,6 +404,8 @@ export function issueText(i: IssueDiag): string {
       return "Add finish cups to end the run";
     case "overlap":
       return `${name} overlaps ${other}`;
+    case "overheadBlocked":
+      return `${other} sits too low over the channel of ${name}`;
     case "unknownPiece":
       return `Unknown piece ${i.piece ?? ""}`.trim();
     case "levelSuffixMismatch":

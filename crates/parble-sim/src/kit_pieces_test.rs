@@ -349,7 +349,7 @@ fn fall_bisect() {
                 .is_some_and(|d| p.world_cells(d).contains(&c))
         }) && last != Some(i)
         {
-            if track.placements[i].piece.as_str() == "blk_pillar" {
+            if track.placements[i].piece.as_str().starts_with("blk_pillar") {
                 break;
             }
             snaps.push((i, m));
@@ -467,7 +467,7 @@ fn straight_into_redirect_under_a_catch() {
         ),
         ("no redirect (a straight)", {
             let mut l = base(Some("blk_catch_l1"), "blk_straight_l3", 1);
-            l.retain(|p| p.piece.as_str() != "blk_pillar");
+            l.retain(|p| !p.piece.as_str().starts_with("blk_pillar"));
             l
         }),
     ] {
@@ -708,7 +708,7 @@ fn drop_stall_bisect() {
         let pillars: Vec<Placement> = track
             .placements
             .iter()
-            .filter(|p| p.piece.as_str() == "blk_pillar")
+            .filter(|p| p.piece.as_str().starts_with("blk_pillar"))
             .cloned()
             .collect();
         let nearby: Vec<Placement> = track
@@ -864,6 +864,107 @@ fn drop_pillar_and_tower_pass_a_marble_down() {
         ],
         start.y,
     );
+}
+
+/// A support column over layers `bottom..=top` of cell column (1, 0): one-cell pillars, or the
+/// tall variants from the foot up (`tall`, heights that sum to the column's).
+fn pillar_column(bottom: i32, top: i32, tall: &[i32]) -> Vec<Placement> {
+    if tall.is_empty() {
+        return (bottom..=top)
+            .map(|y| place("blk_pillar", 1, y, 0, 0, false))
+            .collect();
+    }
+    assert_eq!(tall.iter().sum::<i32>(), top - bottom + 1);
+    let mut y = bottom;
+    tall.iter()
+        .map(|&h| {
+            y += h;
+            let id = if h == 1 {
+                "blk_pillar".to_string()
+            } else {
+                format!("blk_pillar_h{h}")
+            };
+            place(&id, 1, y - 1, 0, 0, false)
+        })
+        .collect()
+}
+
+/// A tall pillar is the wall a stack of one-cell pillars is (procgen review 2026-11-15, F8: a
+/// support is physical). A marble rolls off the open end of an `L3` straight on layer 7 into a
+/// column standing beside it, over layers 0 to 7, and comes back off its wall the same way
+/// whether the column is eight pillars, one `blk_pillar_h8`, or an `_h4`, an `_h2` and two
+/// singles.
+#[test]
+fn a_tall_pillar_is_the_wall_a_stack_of_pillars_is() {
+    let start = Vector::new(-0.02, rest(7, 3), 0.0);
+    let mut runs = Vec::new();
+    for tall in [&[][..], &[8], &[4, 2, 1, 1], &[2, 2, 4]] {
+        let mut layout = vec![place("blk_straight_l3", 0, 7, 0, 0, false)];
+        layout.extend(pillar_column(0, 7, tall));
+        let tr = run(&layout, start, Vector::X * V0, 480);
+        let far = tr.iter().map(|m| m.position[0]).fold(f32::MIN, f32::max);
+        // The wall is the cell face at x = 30 mm: the centre stops a radius short of it.
+        assert!(
+            (0.0215..=0.0225).contains(&far),
+            "{tall:?}: the marble reached x = {far:.4} m"
+        );
+        assert!(
+            tr.iter().any(|m| m.linvel[0] < -0.02),
+            "{tall:?}: the marble did not come back off the wall"
+        );
+        let back = tr.iter().map(|m| m.linvel[0]).fold(f32::MAX, f32::min);
+        eprintln!("{tall:?}: reached x = {far:.5} m, came back at {back:.4} m/s");
+        runs.push((tall, tr));
+    }
+    let (_, stack) = &runs[0];
+    for (tall, tr) in &runs[1..] {
+        // Up to the straight's open back end, where the marble rolls off the lip. The wall's
+        // triangles differ (a tall pillar's span its whole height), so the hop off the wall
+        // differs by a fraction of a millimetre (0.13 mm measured 2026-11-15).
+        let on_track = stack.iter().take_while(|m| m.position[0] > -0.028);
+        for (i, (a, b)) in on_track.zip(tr).enumerate() {
+            let d = (Vector::from(a.position) - Vector::from(b.position)).length();
+            assert!(
+                d < 0.0005,
+                "{tall:?}: tick {i}, {:?} against the stack's {:?}",
+                b.position,
+                a.position
+            );
+        }
+    }
+}
+
+/// A tall pillar's bore is a stack's bore: a marble dropped by `blk_drop_l3` on layer 5 falls
+/// through a four-layer column (layers 1 to 4) and out of its bottom port inside the 32 mm
+/// hole, through four pillars, one `blk_pillar_h4` or two `blk_pillar_h2`.
+#[test]
+fn a_tall_pillar_passes_a_marble_down_its_bore_like_a_stack() {
+    for tall in [&[][..], &[4], &[2, 2]] {
+        let mut layout = vec![
+            place("blk_straight_l3", 0, 5, 0, 0, false),
+            place("blk_drop_l3", 1, 5, 0, 0, false),
+        ];
+        layout.extend(pillar_column(1, 4, tall));
+        let start = Vector::new(-0.02, rest(5, 3), 0.0);
+        let tr = run(&layout, start, Vector::X * V0, 1_200);
+        check_exits(
+            &tr,
+            &[
+                bottom("blk_drop_l3 bottom", 0.06, 0.30, 0.0),
+                bottom("pillar column bottom", 0.06, 0.06, 0.0),
+            ],
+            start.y,
+        );
+        // Inside the column the centre stays in the bore: 16 mm less the marble's 8 mm.
+        for m in tr.iter().filter(|m| (0.06..=0.30).contains(&m.position[1])) {
+            let r = (m.position[0] - 0.06).hypot(m.position[2]);
+            assert!(
+                r <= 0.0082,
+                "{tall:?}: centre {:?} left the bore",
+                m.position
+            );
+        }
+    }
 }
 
 #[test]

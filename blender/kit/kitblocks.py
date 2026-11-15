@@ -3,7 +3,7 @@
 Imports kitgeom (the P1-T2 helper the four approved pieces hash) and never edits it. kitgeom
 still builds the straight, curve, gentle slope and end shapes at every legal level; this module
 adds the shapes kitgeom has no code for: steep slope, drop hole, redirect drop, joiner, support
-pillar and tower socket block.
+pillar (1, 2, 4 and 8 cells tall) and tower socket block.
 
 Collision differs from kitgeom on purpose. kitgeom writes each collision mesh triangle by triangle
 in integer µm; for bowls, bores, tunnels and a merging branch that is days of hand geometry. Here
@@ -45,7 +45,11 @@ SLOPE_SHAPES = ("blk_slope_steep_l2", "blk_slope_steep_l1", "blk_slope_steep_l0"
 NEW_SHAPES = SLOPE_SHAPES + ("blk_tower_socket_l2", "blk_tower_socket_l3") + ("blk_slope_steep_l3", "blk_drop_l3", "blk_drop_l2", "blk_redirect_l3", "blk_redirect_l2",
               "blk_join_l3", "blk_join_l2", "blk_pillar", "blk_tower_socket_l1",
               "blk_drop_l1", "blk_redirect_l1", "blk_join_l1")
-P2_BUILD = KITGEOM_VARIANTS + NEW_SHAPES
+# Tall support pillars (procgen review 2026-11-15, phase 5): blk_pillar's body and bore over 2, 4
+# and 8 cell layers. The anchor (port 0, the top drop port) is the top cell, the rest hang below.
+PILLAR_HEIGHTS = {"blk_pillar": 1, "blk_pillar_h2": 2, "blk_pillar_h4": 4, "blk_pillar_h8": 8}
+TALL_PILLARS = ("blk_pillar_h2", "blk_pillar_h4", "blk_pillar_h8")
+P2_BUILD = KITGEOM_VARIANTS + NEW_SHAPES + TALL_PILLARS
 BUILD = K.BUILD + P2_BUILD
 
 SHAPE_RE = re.compile(r"^blk_(slope_steep|slope_gentle|drop|redirect|join|tower_socket)_l([0-3])$")
@@ -74,7 +78,7 @@ COLLISION_PATH = 8         # path segments for collision arcs and slopes (kitgeo
 
 
 def handles(piece_id):
-    if piece_id == "blk_pillar":
+    if piece_id in PILLAR_HEIGHTS:
         return True
     m = SHAPE_RE.match(piece_id)
     return bool(m) and int(m.group(2)) in LEGAL[m.group(1)]
@@ -94,10 +98,11 @@ def spec(piece_id):
     """Ports, shape, level and footprint for a P2-T2 piece id (§4, §5.5, §7, §9, §10)."""
     if not K.ID_RE.match(piece_id) or len(piece_id) > 48:
         raise ValueError(f"{piece_id}: not a §10 id")
-    if piece_id == "blk_pillar":
+    if piece_id in PILLAR_HEIGHTS:
+        h = PILLAR_HEIGHTS[piece_id]
         return {"id": piece_id, "shape": "pillar", "level": None, "chiral": False, "family": "blk",
-                "footprint": [[0, 0, 0]],
-                "ports": [_drop(0, (0, 0, 0), "top", "in"), _drop(1, (0, 0, 0), "bottom", "out")]}
+                "footprint": [[0, y, 0] for y in range(1 - h, 1)],
+                "ports": [_drop(0, (0, 0, 0), "top", "in"), _drop(1, (0, 1 - h, 0), "bottom", "out")]}
     m = SHAPE_RE.match(piece_id)
     if not m:
         raise ValueError(f"{piece_id}: not a P2-T2 block piece")
@@ -395,7 +400,8 @@ def cutters(piece_id, q, collision):
             mouth = [(HOLE_R, TOP + K.CUT_ABOVE)]    # LOD2 budget, or no room under the top for a mouth
         out.append(lambda bm: lathe(bm, mouth + [(HOLE_R, shaft_bottom)], circ))
     elif shape == "pillar":
-        out.append(lambda bm: lathe(bm, [(HOLE_R, TOP + K.CUT_ABOVE), (HOLE_R, -K.EXT)], circ))
+        bottom = bounds_mm(piece_id)[0][1]
+        out.append(lambda bm: lathe(bm, [(HOLE_R, TOP + K.CUT_ABOVE), (HOLE_R, bottom - K.EXT)], circ))
     return out
 
 

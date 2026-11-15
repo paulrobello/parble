@@ -2,7 +2,7 @@ use parble_core::{
     CONTROLLED_DROP_MAX_FALL_UM, CellCoord, ControlledDrop, FUNNEL_CATCH_RADIUS_UM,
     FUNNEL_MAX_FALL_UM, Issue, IssueKind, LinkFault, MapCatalog, Mirror, PieceDef, PieceDefError,
     PieceId, Placement, Port, PortClass, PortFace, PortFlow, PortLevel, Route, Track, Yaw4,
-    controlled_drops, is_funnel, validate_track,
+    clearance_cells, controlled_drops, is_funnel, validate_track,
 };
 
 fn c(x: i32, y: i32, z: i32) -> CellCoord {
@@ -739,12 +739,20 @@ fn routed_catalog() -> MapCatalog {
     };
     let mut pillar = def("blk_pillar", false, vec![O], column());
     pillar.structural = true;
+    // A pillar four cells tall: the anchor is its top cell, the bottom port three cells down.
+    let mut tall = def(
+        "blk_pillar_h4",
+        false,
+        (-3..=0).map(|y| c(0, y, 0)).collect(),
+        vec![Port::drop(O, Top, In), Port::drop(c(0, -3, 0), Bottom, Out)],
+    );
+    tall.structural = true;
     let post = def("blk_post", false, vec![O], column());
     let mut hole = def("mech_hole_oneway_l3", false, vec![O], hole_ports());
     hole.routes = vec![Route { from: 1, to: 0 }, Route { from: 0, to: 2 }];
     let plain = def("mech_hole_plain_l3", false, vec![O], hole_ports());
     let mut cat = catalog();
-    for d in [pillar, post, hole, plain] {
+    for d in [pillar, tall, post, hole, plain] {
         d.validate().unwrap_or_else(|e| panic!("{}: {e:?}", d.id));
         cat.insert(d);
     }
@@ -797,6 +805,40 @@ fn a_column_of_idle_pillars_gives_no_issue() {
             .any(|i| i.placement == Some(8) && i.kind == IssueKind::Unreachable),
         "{issues:?}"
     );
+}
+
+/// A tall pillar is a column of pillars in one placement: idle alone, in a stack and under a
+/// piece, with every one of its cells occupied.
+#[test]
+fn a_tall_pillar_is_idle_like_the_column_it_replaces() {
+    let cat = routed_catalog();
+    // Layers 0 to 3 clear of the track, then with a pillar on it and one under a second one.
+    let mut alone = clean_placements();
+    alone.push(place("blk_pillar_h4", c(5, 3, 5), 0));
+    assert_eq!(validate_track(&track(alone.clone()), &cat), vec![]);
+    alone.push(place("blk_pillar", c(5, 4, 5), 0));
+    alone.push(place("blk_pillar_h4", c(5, 8, 5), 0));
+    assert_eq!(validate_track(&track(alone.clone()), &cat), vec![]);
+
+    // Its lower cells are taken: a pillar in one of them overlaps it.
+    alone.push(place("blk_pillar", c(5, 1, 5), 0));
+    let issues = validate_track(&track(alone), &cat);
+    assert_eq!(
+        found(&issues),
+        vec![(Some(7), &IssueKind::Overlap { other: 10 })],
+        "{issues:#?}"
+    );
+    assert_eq!(issues[0].cells, vec![c(5, 1, 5)]);
+
+    // Its foot, three cells under the anchor, stands in an L3 channel's clearance.
+    let mut over = clean_placements();
+    over.push(place("blk_pillar_h4", c(1, 5, 0), 0));
+    let issues = validate_track(&track(over), &cat);
+    assert_eq!(
+        found(&issues),
+        vec![(Some(1), &IssueKind::OverheadBlocked { other: 7 })]
+    );
+    assert_eq!(issues[0].cells, vec![c(1, 2, 0)]);
 }
 
 #[test]
@@ -963,4 +1005,94 @@ fn a_route_must_enter_by_an_inflow_port_and_leave_by_an_outflow_port() {
         bad.routes.push(route);
         assert_eq!(bad.validate(), Err(PieceDefError::BadRoute(2)));
     }
+}
+
+// Overhead clearance (contract §5.1).
+
+/// A piece standing on an `L3` or `L2` channel is reported on the channel's piece, with the
+/// blocked cell.
+#[test]
+fn a_piece_over_an_l2_or_l3_channel_blocks_its_clearance() {
+    let cat = routed_catalog();
+    // The clean track's L3 straight is placement 1 at (1, 1, 0).
+    let mut over_l3 = clean_placements();
+    over_l3.push(place("blk_pillar", c(1, 2, 0), 0));
+    let issues = validate_track(&track(over_l3), &cat);
+    assert_eq!(
+        found(&issues),
+        vec![(Some(1), &IssueKind::OverheadBlocked { other: 7 })]
+    );
+    assert_eq!(issues[0].cells, vec![c(1, 2, 0)]);
+
+    // Every cell of the L2 rail curve (placement 4) needs the clearance, not only its port cells.
+    let mut over_l2 = clean_placements();
+    over_l2.push(place("blk_pillar", c(1, 2, 2), 0));
+    let issues = validate_track(&track(over_l2), &cat);
+    assert_eq!(
+        found(&issues),
+        vec![(Some(4), &IssueKind::OverheadBlocked { other: 7 })]
+    );
+    assert_eq!(issues[0].cells, vec![c(1, 2, 2)]);
+}
+
+/// An `L1` channel has its 34 mm inside its own cell, and a tall piece owns the cell over its
+/// channel.
+#[test]
+fn an_l1_channel_and_a_piece_s_own_upper_cell_need_no_clearance() {
+    use PortFace::*;
+    use PortFlow::*;
+    use PortLevel::*;
+    let cat = routed_catalog();
+    let low = track(vec![
+        place("mech_hopper_l1", c(0, 1, 0), 0),
+        place("blk_straight_l1", c(1, 1, 0), 0),
+        place("blk_pillar", c(1, 2, 0), 0),
+    ]);
+    assert!(
+        validate_track(&low, &cat)
+            .iter()
+            .all(|i| !matches!(i.kind, IssueKind::OverheadBlocked { .. }))
+    );
+
+    let through = |level| vec![ch(O, NegX, level, Both), ch(O, PosX, level, Both)];
+    assert_eq!(clearance_cells(&[O], &through(L3)), vec![c(0, 1, 0)]);
+    assert_eq!(clearance_cells(&[O], &through(L2)), vec![c(0, 1, 0)]);
+    assert_eq!(clearance_cells(&[O], &through(L1)), vec![]);
+    assert_eq!(clearance_cells(&[O, c(0, 1, 0)], &through(L2)), vec![]);
+    // A three-cell rail at L3: the middle cell has no port and still needs the clearance.
+    let rail = [c(0, 0, 0), c(1, 0, 0), c(2, 0, 0)];
+    let ends = vec![
+        ch(c(0, 0, 0), NegX, L3, Both),
+        ch(c(2, 0, 0), PosX, L3, Both),
+    ];
+    assert_eq!(
+        clearance_cells(&rail, &ends),
+        vec![c(0, 1, 0), c(1, 1, 0), c(2, 1, 0)]
+    );
+}
+
+/// The cell under a controlled drop's source is waived: the piece there closes the back of the
+/// landing channel.
+#[test]
+fn the_cell_under_a_controlled_drop_s_source_is_waived() {
+    let cat = routed_catalog();
+    // The hopper's L1 exit at (0, 2, 0) drops 30 mm onto the L3 straight at (1, 1, 0). A second
+    // L3 straight stands under the hopper, behind the landing.
+    let t = track(vec![
+        place("mech_hopper_l1", c(0, 2, 0), 0),
+        place("blk_straight_l3", c(1, 1, 0), 0),
+        place("blk_straight_l3", c(0, 1, 0), 0),
+    ]);
+    assert_eq!(
+        controlled_drops(&t, &cat)
+            .iter()
+            .map(|d| (d.from, d.to))
+            .collect::<Vec<_>>(),
+        vec![(0, 1)]
+    );
+    assert!(
+        validate_track(&t, &cat)
+            .iter()
+            .all(|i| !matches!(i.kind, IssueKind::OverheadBlocked { .. }))
+    );
 }

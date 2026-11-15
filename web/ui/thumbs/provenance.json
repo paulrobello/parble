@@ -1,8 +1,8 @@
 {
   "generator": "blender/kit/thumbnails.py",
   "blender": "Blender 5.2.2 LTS",
-  "git_head": "3c6e35e406e2392776e66f01aae56a0094900dd0",
-  "date": "2026-11-14",
+  "git_head": "6361ef66fcdd46cf8575793348b856fa40127b1d",
+  "date": "2026-11-15",
   "render": {
     "engine": "BLENDER_EEVEE",
     "samples": 64,
@@ -136,6 +136,30 @@
       "png": "blk_pillar.png",
       "png_sha256": "2b60dd47fe239e276dba2485922f2e8e95ea605bf66e7a0398225494e20723ea",
       "bytes": 2665
+    },
+    {
+      "id": "blk_pillar_h2",
+      "source_glb": "assets/kit/blk_pillar_h2/blk_pillar_h2.glb",
+      "source_glb_sha256": "de42f2d3b2f5b494d0a654498eda5715603c4125afaf5862e5d79b83ebcdd4f1",
+      "png": "blk_pillar_h2.png",
+      "png_sha256": "e0b619e1e1771c9b4a59b34aefc3e3c4de3c1ef2b1809ea8dbdd6e622f4d91c6",
+      "bytes": 2337
+    },
+    {
+      "id": "blk_pillar_h4",
+      "source_glb": "assets/kit/blk_pillar_h4/blk_pillar_h4.glb",
+      "source_glb_sha256": "0c93eca54cb4574925c473363651d094a58a69d4b3b54d558ff3fec9bbc1935d",
+      "png": "blk_pillar_h4.png",
+      "png_sha256": "5f4abfbdec4eb945a373e3c17ae45deb27663b46311ee666fa21ce320aba087b",
+      "bytes": 1965
+    },
+    {
+      "id": "blk_pillar_h8",
+      "source_glb": "assets/kit/blk_pillar_h8/blk_pillar_h8.glb",
+      "source_glb_sha256": "f102c4281e39c443a900110eec26c2a042d709e3c8c37fac83c3e7f994161fee",
+      "png": "blk_pillar_h8.png",
+      "png_sha256": "4dba18744641db67b870cad54b2aca7ebc438d6ba2ad0f2a4660046134054ca3",
+      "bytes": 1561
     },
     {
       "id": "blk_redirect_l1",

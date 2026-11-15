@@ -106,6 +106,8 @@ const BLOCK_HEIGHTS = new Set([
   "blk_slope_gentle_l1", "blk_slope_gentle_l0", "blk_slope_steep_l2", "blk_slope_steep_l1", "blk_slope_steep_l0",
   "blk_tower_socket_l2", "blk_tower_socket_l3",
 ]);
+// Tall support pillars (procgen review 2026-11-15, phase 5, kitblocks.py).
+const TALL_PILLARS = new Set(["blk_pillar_h2", "blk_pillar_h4", "blk_pillar_h8"]);
 // Mechanism height variants (owner request 2026-11-14, kitmech.py).
 const MECH_HEIGHTS = new Set([
   "mech_splitter_l1", "mech_splitter_l2", "mech_toggle_l1", "mech_toggle_l2", "mech_hole_oneway_l2", "mech_hole_oneway_l3",
@@ -518,7 +520,7 @@ async function provenance(runtime, source, ids, checks) {
       pieceId: id,
       pieceVersion: JSON.parse(fs.readFileSync(path.join(dir, `${id}.kit.json`), "utf8")).piece_version,
       route: "scripted",
-      card: P1_APPROVED.has(id) ? "P1-T2" : FUNNEL.has(id) ? "funnel catcher (owner card 2026-11-08)" : MECH_HEIGHTS.has(id) ? "mechanism heights (owner request 2026-11-14)" : id.startsWith("mech_") ? "P2-T3" : RAIL_LEVELS.has(id) ? "rail heights (owner request 2026-11-12)" : RAIL_SLOPES.has(id) ? "rail slopes (owner request 2026-11-13)" : BLOCK_HEIGHTS.has(id) ? "block heights (owner request 2026-11-14)" : id.startsWith("rail_") ? "P2-T4" : "P2-T2",
+      card: P1_APPROVED.has(id) ? "P1-T2" : TALL_PILLARS.has(id) ? "tall pillars (procgen review 2026-11-15, phase 5)" : FUNNEL.has(id) ? "funnel catcher (owner card 2026-11-08)" : MECH_HEIGHTS.has(id) ? "mechanism heights (owner request 2026-11-14)" : id.startsWith("mech_") ? "P2-T3" : RAIL_LEVELS.has(id) ? "rail heights (owner request 2026-11-12)" : RAIL_SLOPES.has(id) ? "rail slopes (owner request 2026-11-13)" : BLOCK_HEIGHTS.has(id) ? "block heights (owner request 2026-11-14)" : id.startsWith("rail_") ? "P2-T4" : "P2-T2",
       contract: { path: "docs/kit-contract.md", version: CONTRACT_VERSION, sha256: sha256(path.join(REPO, "docs/kit-contract.md")), approved: "Paul, 2026-11-07 (contract status line)" },
       generator: exp.generator,
       generatorDeps: exp.generatorDeps,
@@ -544,6 +546,8 @@ async function provenance(runtime, source, ids, checks) {
       reproducibility: REPRODUCIBILITY[id],
       approvals: [P1_APPROVED.has(id)
         ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the four-piece look 2026-11-07 (blender/kit/review/pieces.png; also seen textured in the kit2000 and playroom scenes)" }
+        : TALL_PILLARS.has(id)
+          ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the tall pillar look 2026-11-15 (blender/kit/review/pillar-heights.png)" }
         : FUNNEL.has(id)
           ? { who: "Paul", gate: "piece look", status: "pending", notes: "funnel catcher and its drop catch; review sheet blender/kit/review/funnel.png" }
         : id.startsWith("mech_stepper_")

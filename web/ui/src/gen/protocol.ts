@@ -16,6 +16,8 @@ export interface GenParamsInput {
 }
 
 export interface Rejected {
+  /** The segment the candidate was for, in a segmented job. */
+  segment?: number;
   attempt: number;
   seed: number;
   reason: string;
@@ -28,6 +30,8 @@ export interface JobStatus {
   progress: number;
   units: number;
   seed?: number;
+  /** The seed of each segment of the accepted track, once a segmented job is accepted. */
+  segmentSeeds?: number[];
   rejected: Rejected[];
 }
 
@@ -46,6 +50,11 @@ export interface StartMessage {
   sliceMs: number;
   /** The accepted file's metadata name. */
   name: string;
+  /**
+   * Generate and retry the track segment by segment (generate_and_validate_segmented): a marble
+   * that fails costs the segment it failed on, not the whole track. For long tracks.
+   */
+  segmented?: boolean;
   urls: EngineUrls;
 }
 
@@ -72,8 +81,11 @@ export interface EngineJob {
 }
 
 export interface Engine {
-  /** generate_and_validate(seed, paramsJson, budgetMs): starts the job and runs its first slice. */
-  start(seed: number, paramsJson: string, budgetMs: number): EngineJob;
+  /**
+   * generate_and_validate(seed, paramsJson, budgetMs), or generate_and_validate_segmented with
+   * `segmented`: starts the job and runs its first slice.
+   */
+  start(seed: number, paramsJson: string, budgetMs: number, segmented?: boolean): EngineJob;
 }
 
 /** What the job loop needs from its host: posting, yielding and the cancel flag. */
@@ -95,7 +107,7 @@ export async function runJob(engine: Engine, msg: StartMessage, host: LoopHost):
   const { id } = msg;
   let job: EngineJob | null = null;
   try {
-    job = engine.start(msg.seed, JSON.stringify(msg.params), msg.sliceMs);
+    job = engine.start(msg.seed, JSON.stringify(msg.params), msg.sliceMs, msg.segmented === true);
     let status = JSON.parse(job.statusJson()) as JobStatus;
     for (;;) {
       host.post({ type: "progress", id, status });

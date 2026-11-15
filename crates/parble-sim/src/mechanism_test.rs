@@ -343,3 +343,47 @@ fn registry_builds_track_mechanisms() {
     assert_eq!(views[0].kind, "fixture_swing_flap");
     assert_eq!(views[0].state["swings"], 10);
 }
+
+/// Idle parts sleep and a marble only ever meets an awake one. Over the all-pieces run no
+/// sleeping part has a marble within reach of its collider, most parts are asleep at some tick,
+/// and the gate flap, asleep before the first marble arrives, wakes for it.
+#[test]
+fn idle_parts_sleep_and_a_marble_never_meets_a_sleeping_part() {
+    let mut run = crate::allpieces::run().unwrap();
+    let mut was_asleep: BTreeMap<(u32, u32), bool> = BTreeMap::new();
+    let (mut parts, mut most_asleep, mut flap_wakes) = (0, 0, 0);
+    for _ in 0..crate::allpieces::RUN_TICKS {
+        run.tick(1);
+        let sim: &Sim = &run;
+        let balls: Vec<_> = sim
+            .marbles
+            .iter()
+            .map(|&h| marble_ball(&sim.world, h))
+            .collect();
+        let mut asleep = 0;
+        parts = 0;
+        for p in sim.mechanisms.instances.values().flat_map(|i| &i.parts) {
+            parts += 1;
+            let sleeping = sim.world.bodies[p.body].is_sleeping();
+            asleep += usize::from(sleeping);
+            let Some(reach) = p.reach else { continue };
+            for &(c, _, r, _) in balls.iter().filter(|_| sleeping) {
+                let d = c - p.pivot;
+                assert!(
+                    libm::sqrtf(d.dot(d)) > reach + r,
+                    "tick {}: a marble is at sleeping part {}",
+                    sim.tick_count(),
+                    p.name
+                );
+            }
+            if p.physical.is_some() {
+                let before = was_asleep.insert(p.body.into_raw_parts(), sleeping);
+                flap_wakes += usize::from(before == Some(true) && !sleeping);
+            }
+        }
+        most_asleep = most_asleep.max(asleep);
+    }
+    eprintln!("{most_asleep} of {parts} parts asleep at once, {flap_wakes} flap wakes");
+    assert!(most_asleep * 2 > parts, "{most_asleep} of {parts}");
+    assert!(flap_wakes >= 1, "{flap_wakes}");
+}

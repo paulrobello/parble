@@ -21,7 +21,10 @@ export interface WorkerLike {
 export interface GenResult {
   /** The accepted track as a `.parble` file. */
   file: string;
-  /** The accepted sub-seed, which the file carries as its `seed`. */
+  /**
+   * The file's `seed`: the accepted sub-seed, or for a segmented job the seed it was started
+   * with (the segment seeds are in status.segmentSeeds and the file's metadata.generator).
+   */
   seed: number;
   status: JobStatus;
   ms: number;
@@ -45,6 +48,8 @@ export interface GenerateOptions {
   signal?: AbortSignal;
   sliceMs?: number;
   name?: string;
+  /** Generate and retry segment by segment (StartMessage.segmented). */
+  segmented?: boolean;
 }
 
 interface Pending {
@@ -99,6 +104,7 @@ export class GenClient {
         params,
         sliceMs: options.sliceMs ?? SLICE_MS,
         name: options.name ?? `Generated track ${seed}`,
+        ...(options.segmented ? { segmented: true } : {}),
         urls: this.opts.urls(),
       });
     });

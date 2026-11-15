@@ -41,6 +41,9 @@ macro_rules! builtin_piece_ids {
             blk_join_l2,
             blk_join_l3,
             blk_pillar,
+            blk_pillar_h2,
+            blk_pillar_h4,
+            blk_pillar_h8,
             blk_redirect_l1,
             blk_redirect_l2,
             blk_redirect_l3,
@@ -112,11 +115,17 @@ macro_rules! sidecars {
 }
 
 /// Sidecars shipped in `assets/kit/`, in id order.
-const BUILTIN_SIDECARS: [&str; 69] = builtin_piece_ids!(sidecars);
+const BUILTIN_SIDECARS: [&str; 72] = builtin_piece_ids!(sidecars);
 
-/// Pieces that carry no marble path of their own ([`PieceDef::structural`]): supports. The
-/// sidecar schema has no field for it, so the catalogue sets it by id.
-const STRUCTURAL: &[&str] = &["blk_pillar"];
+/// Pieces that carry no marble path of their own ([`PieceDef::structural`]): supports, the
+/// pillar and its 2, 4 and 8 cell tall variants. The sidecar schema has no field for it, so the
+/// catalogue sets it by id.
+const STRUCTURAL: &[&str] = &[
+    "blk_pillar",
+    "blk_pillar_h2",
+    "blk_pillar_h4",
+    "blk_pillar_h8",
+];
 
 /// Paths through pieces whose ports do not all connect ([`PieceDef::routes`]), as `(from, to)`
 /// port indices; a piece not listed routes every inflow port to every outflow port. The one-way
@@ -126,7 +135,7 @@ const ROUTES: &[(&str, &[(usize, usize)])] = &[("mech_hole_oneway_l1", &[(1, 0),
 
 /// [`BUILTIN_SIDECARS`] index of `blk_straight_l3`, the tests' reference sidecar.
 #[cfg(test)]
-const STRAIGHT_L3: usize = 17;
+const STRAIGHT_L3: usize = 31;
 
 /// Contact surface of a collision group. Feeds `RollSample` and `ContactEvent` in P2-T1.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
@@ -589,6 +598,7 @@ pub fn builtin() -> &'static KitCatalog {
 mod tests {
     use super::*;
     use parble_core::contract::CANONICAL_RING_UM;
+    use std::collections::BTreeSet;
 
     fn id(s: &str) -> PieceId {
         PieceId::new(s).unwrap()
@@ -635,6 +645,9 @@ mod tests {
                 "blk_join_l2",
                 "blk_join_l3",
                 "blk_pillar",
+                "blk_pillar_h2",
+                "blk_pillar_h4",
+                "blk_pillar_h8",
                 "blk_redirect_l1",
                 "blk_redirect_l2",
                 "blk_redirect_l3",
@@ -1184,6 +1197,48 @@ mod tests {
         ));
     }
 
+    /// A tall pillar is the one-cell pillar's box and bore over its whole height: the top face and
+    /// its bore ring are `blk_pillar`'s, the bottom ones `blk_pillar`'s moved down, and nothing
+    /// lies between, so its collider is the outside of a stack of pillars without the faces the
+    /// stack hides between its cells.
+    #[test]
+    fn a_tall_pillar_collides_like_a_stack_of_pillars() {
+        let kit = builtin();
+        let piece = |id: &str| kit.piece(&PieceId::new(id).unwrap()).unwrap();
+        let single = &piece("blk_pillar").collision[0];
+        let face = |y: i32| -> BTreeSet<[i32; 3]> {
+            single
+                .vertices_um
+                .iter()
+                .filter(|v| v[1] == y)
+                .copied()
+                .collect()
+        };
+        for h in [2, 4, 8] {
+            let tall = piece(&format!("blk_pillar_h{h}"));
+            let foot = -(h - 1) * 60_000;
+            assert_eq!(
+                tall.def.footprint,
+                (1 - h..=0)
+                    .map(|y| CellCoord::new(0, y, 0))
+                    .collect::<Vec<_>>()
+            );
+            assert_eq!(tall.def.ports.len(), 2);
+            assert_eq!(tall.def.ports[0].cell, CellCoord::new(0, 0, 0));
+            assert_eq!(tall.def.ports[0].face, PortFace::Top);
+            assert_eq!(tall.def.ports[1].cell, CellCoord::new(0, 1 - h, 0));
+            assert_eq!(tall.def.ports[1].face, PortFace::Bottom);
+            assert_eq!(tall.collision.len(), 1);
+            let col = &tall.collision[0];
+            assert_eq!(col.surface, single.surface);
+            assert_eq!(col.triangles.len(), single.triangles.len(), "h{h}");
+            let got: BTreeSet<[i32; 3]> = col.vertices_um.iter().copied().collect();
+            let mut want = face(60_000);
+            want.extend(face(0).into_iter().map(|v| [v[0], foot, v[2]]));
+            assert_eq!(got, want, "blk_pillar_h{h}");
+        }
+    }
+
     #[test]
     fn only_the_pillar_is_structural_and_only_the_one_way_hole_has_routes() {
         let kit = builtin();
@@ -1192,7 +1247,15 @@ mod tests {
             .filter(|p| p.def.structural)
             .map(|p| p.def.id.as_str())
             .collect();
-        assert_eq!(structural, ["blk_pillar"]);
+        assert_eq!(
+            structural,
+            [
+                "blk_pillar",
+                "blk_pillar_h2",
+                "blk_pillar_h4",
+                "blk_pillar_h8"
+            ]
+        );
         let routed: Vec<(&str, &[Route])> = kit
             .iter()
             .filter(|p| !p.def.routes.is_empty())

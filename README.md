@@ -39,7 +39,7 @@ parble is a desktop-browser marble-run sandbox. The whole app is a Rust workspac
 ## Features
 
 ### Building
-- **34 kit pieces**: straights, curves, slopes, drops, towers, joiners, redirects, round rails and S-rails, a funnel, a catch, pillars and end stops, each carved with grain and seams and three levels of detail.
+- **72 kit pieces**: straights, curves, slopes, drops, towers, joiners, redirects, round rails and S-rails, a funnel, a catch, mechanisms, pillars in four heights and end stops, each carved with grain and seams and three levels of detail.
 - **Mechanisms**: hopper, finish cups, splitter (Random or Alternate), toggle, one-way gate, one-way trapdoor hole, checkpoint with a glow inlay, rope-curtain arch and stepper lifts that carry marbles back up a layer.
 - **Editor**: place, rotate, mirror, delete, multi-select, copy and paste, move groups, drag-to-lay runs of pieces, height slicing and full undo and redo.
 - **Live validation**: open ports, broken links and pieces no marble can reach show in a panel with click-to-focus.

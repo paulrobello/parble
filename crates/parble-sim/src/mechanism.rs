@@ -14,7 +14,8 @@
 //! 2. calls [`Mechanism::step`] for each instance in [`InstanceId`] order, then applies the marble
 //!    drags it queued ([`MechContext::drag_marble`]);
 //! 3. sets each kinematic part's next pose to its angle at `t + 1` (a physical part instead takes
-//!    its brace, [`MechContext::brace_part`]);
+//!    its brace, [`MechContext::brace_part`]), writing the body only when that changes, and keeps
+//!    awake every part a marble is near ([`WAKE_MARGIN_M`]);
 //! 4. on every multiple of [`crate::HASH_SAMPLE_TICKS`], absorbs every instance's state into
 //!    [`Sim::mechanism_hash`];
 //! 5. when recording is on ([`Sim::set_event_recording`]), reads contacts back from the narrow phase
@@ -23,6 +24,15 @@
 //!
 //! With no instances and recording off this is a no-op, so piece-free and mechanism-free runs keep
 //! their golden hashes.
+//!
+//! Sleep: a part body may sleep (Rapier's rule: at rest for half a second). A part's own motion
+//! wakes it, since a changed pose or brace is written to its body, and a marble within
+//! [`WAKE_MARGIN_M`] of where its collider can be keeps it awake, so a marble only ever meets an
+//! awake part. Both are functions of the tick and the marble positions, so a run is the same on
+//! every platform. A sleeping kinematic part rests exactly where it would awake; a physical part
+//! loses the residual velocity it settled with ([`PART_SLEEP_S`]). A part with no collider (the
+//! rope arch's ropes) is never written, so it sleeps from half a second after it is built.
+//! Marbles never sleep.
 //!
 //! RNG: an instance's stream `name` is [`SeededRng::stream`] of the track seed with the key
 //! `mech/<piece id>/<x>,<y>,<z>/<name>` (the placement's anchor cell). It depends on nothing else,
@@ -121,6 +131,18 @@ pub struct PartPhysics {
 /// the part sink up to 3.3° through the stop (gate flap, 0.05 m/s marble). At 48 it stays within
 /// 0.2° at every speed from 0.05 to 0.2 m/s.
 pub const PART_SOLVER_ITERATIONS: usize = 48;
+
+/// A part body is kept awake while a marble's surface is within this distance of where the
+/// part's collider can be (m), so a marble never meets a sleeping part: 40 mm is 3.2 ticks of a
+/// 3 m/s marble. A part further from every marble sleeps once it has rested ([`PART_SLEEP_S`]),
+/// and its own motion wakes it ([`PartRuntime::drive`]).
+pub const WAKE_MARGIN_M: f32 = 0.04;
+
+/// A physical part sleeps after resting this long, s (Rapier's default is half a second, which a
+/// kinematic part keeps). Sleep zeroes the body's velocity, about 1e-13 rad/s on a settled gate
+/// flap, and that is the only way sleeping changes a run: a kinematic part sleeps only at exactly
+/// zero velocity.
+pub const PART_SLEEP_S: f32 = 1.0;
 
 /// Collision group of physical part colliders. Every static and kinematic collider leaves it out
 /// of its memberships ([`fixed_groups`]) and marbles keep the default (all groups), so a physical
@@ -421,6 +443,13 @@ struct PartRuntime {
     physical: Option<i32>,
     /// Physical part held against its stop: marbles cannot move it ([`MechContext::brace_part`]).
     braced: bool,
+    /// What the body was last given ([`PartRuntime::drive`]): a kinematic part's next angle and
+    /// whether it rests as a fixed body, or a physical part's brace. `None` before the first
+    /// drive and after a restore.
+    driven: Option<(i32, bool)>,
+    /// A part with a collider: every point of it stays within this distance of `pivot`, m,
+    /// whatever its angle or slide. `None` for a part with no collider.
+    reach: Option<f32>,
 }
 
 impl PartRuntime {
@@ -461,6 +490,45 @@ impl PartRuntime {
             body.set_body_type(kind, true);
         }
         body.set_next_kinematic_position(self.pose_at(tick + 1));
+    }
+
+    /// Give the body what the step from `tick` needs: a kinematic part's next pose, a physical
+    /// part's brace. The body is written, and so woken, only when that differs from what it
+    /// already has, so a part nothing moves is left to sleep ([`Mechanisms::after_step`]).
+    fn drive(&mut self, bodies: &mut RigidBodySet, tick: u64) {
+        // A kinematic part with no collider touches nothing and its angle is read from its
+        // motion, never from its body, so the body stays where it was built, asleep.
+        if self.reach.is_none() {
+            return;
+        }
+        let want = if self.physical.is_some() {
+            (0, self.braced)
+        } else {
+            let next = self.angle_at(tick + 1);
+            let shut = self.flush && self.angle_at(tick) == self.rest && next == self.rest;
+            (next, shut)
+        };
+        if self.driven == Some(want) {
+            return;
+        }
+        self.driven = Some(want);
+        let body = &mut bodies[self.body];
+        if self.physical.is_some() {
+            body.set_dominance_group(i8::from(self.braced));
+            body.wake_up(true);
+        } else {
+            self.pose_next(body, tick);
+        }
+    }
+
+    /// Whether a marble at `centre` with radius `r` is within [`WAKE_MARGIN_M`] of where the
+    /// part's collider can be.
+    fn near(&self, centre: Vector, r: f32) -> bool {
+        self.reach.is_some_and(|reach| {
+            let d = centre - self.pivot;
+            let far = reach + r + WAKE_MARGIN_M;
+            d.dot(d) <= far * far
+        })
     }
 
     /// A physical part's angle from its body rotation, millidegrees (rounded).
@@ -884,6 +952,26 @@ impl Mechanisms {
             } else if !behaviour.part_collides(pi) {
                 colliders.clear();
             }
+            let reach = (!colliders.is_empty()).then(|| {
+                let far2 = part
+                    .collision
+                    .iter()
+                    .flat_map(|g| &g.vertices_um)
+                    .map(|&v| um_m(sub3(place_point_um(o, anchor, v), pivot_um)))
+                    .map(|v| v.dot(v))
+                    .fold(0.0, f32::max);
+                let travel = if slide {
+                    part.limits_mdeg
+                        .iter()
+                        .map(|l| l.unsigned_abs())
+                        .max()
+                        .unwrap_or(0) as f32
+                        * 1.0e-6
+                } else {
+                    0.0
+                };
+                libm::sqrtf(far2) + travel
+            });
             let runtime = PartRuntime {
                 name: part.name.clone(),
                 body: RigidBodyHandle::invalid(),
@@ -899,6 +987,8 @@ impl Mechanisms {
                 motion: Keyframes::hold(part.rest_mdeg),
                 physical: physics.map(|_| part.rest_mdeg),
                 braced: false,
+                driven: None,
+                reach,
             };
             let door = (behaviour.part_flush_door(pi) && physics.is_none() && !slide)
                 .then(|| {
@@ -918,15 +1008,17 @@ impl Mechanisms {
 
         let mut parts = Vec::with_capacity(built.len());
         for (pi, (mut runtime, colliders, physics, door)) in built.into_iter().enumerate() {
-            let body = match physics {
+            let mut body = match physics {
                 Some(ph) => RigidBodyBuilder::dynamic()
                     .angular_damping(ph.angular_damping)
                     .additional_solver_iterations(PART_SOLVER_ITERATIONS),
                 None => RigidBodyBuilder::kinematic_position_based(),
             }
             .pose(runtime.pose_at(tick))
-            .can_sleep(false)
             .build();
+            if physics.is_some() {
+                body.activation_mut().time_until_sleep = PART_SLEEP_S;
+            }
             let handle = world.bodies.insert(body);
             for (mut collider, surface) in colliders {
                 if door.is_some() {
@@ -955,7 +1047,7 @@ impl Mechanisms {
                 world.impulse_joints.insert(frame, handle, joint, true);
                 runtime.frame = Some(frame);
             } else {
-                runtime.pose_next(&mut world.bodies[handle], tick);
+                runtime.drive(&mut world.bodies, tick);
             }
             parts.push(runtime);
         }
@@ -1006,6 +1098,11 @@ impl Mechanisms {
                     .filter(|(_, (p, _, r, _))| s.shape.touches(*p, *r))
                     .map(|(i, _)| i)
                     .collect();
+                if now.is_empty() && s.status.occupants.is_empty() {
+                    s.status.entered.clear();
+                    s.status.exited.clear();
+                    continue;
+                }
                 let entered: Vec<usize> = now.difference(&s.status.occupants).copied().collect();
                 let exited: Vec<usize> = s.status.occupants.difference(&now).copied().collect();
                 for &marble in &entered {
@@ -1039,13 +1136,11 @@ impl Mechanisms {
             inst.behaviour.step(&mut ctx);
             apply_drags(world, marbles, &drags);
 
-            for p in &inst.parts {
-                let body = &mut world.bodies[p.body];
-                if p.physical.is_some() {
-                    body.set_dominance_group(i8::from(p.braced));
-                } else {
-                    p.pose_next(body, tick);
+            for p in &mut inst.parts {
+                if balls.iter().any(|&(c, _, r, _)| p.near(c, r)) {
+                    world.bodies[p.body].wake_up(true);
                 }
+                p.drive(&mut world.bodies, tick);
             }
 
             if self.recording {
@@ -1297,6 +1392,18 @@ impl Sim {
             .collect()
     }
 
+    /// The saved state ([`MechanismView::state`]) of every instance of the piece `piece`, in
+    /// [`InstanceId`] order. [`Sim::mechanisms`] saves every instance's state; this saves only
+    /// these, for a caller that reads one kind every tick.
+    pub fn mechanism_states_of(&self, piece: &str) -> Vec<MechConfig> {
+        self.mechanisms
+            .instances
+            .values()
+            .filter(|inst| inst.piece.as_str() == piece)
+            .map(|inst| inst.save(self.tick))
+            .collect()
+    }
+
     /// Every sensor of every instance, in [`InstanceId`] then sidecar order. Read-only.
     pub fn sensors(&self) -> Vec<SensorView> {
         let a = |v: Vector| [v.x, v.y, v.z];
@@ -1396,15 +1503,15 @@ impl Sim {
                     }
                 }
             }
-            for part in &inst.parts {
+            for part in inst.parts.iter_mut().filter(|p| p.reach.is_some()) {
                 let w = &mut self.world.bodies[part.body];
                 w.set_position(part.pose_at(tick), true);
                 if part.physical.is_some() {
                     w.set_linvel(Vector::ZERO, true);
                     w.set_angvel(Vector::ZERO, true);
-                } else {
-                    part.pose_next(w, tick);
                 }
+                part.driven = None;
+                part.drive(&mut self.world.bodies, tick);
             }
         }
     }

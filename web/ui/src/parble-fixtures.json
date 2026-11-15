@@ -1,7 +1,7 @@
 {
   "about": "Valid and rejected .parble files (schema v1). Checked by crates/parble-core/src/file.rs (cargo test) and web/ui/test/parble.test.ts (Vitest). runHash is the trajectory hash of a runTicks-tick run, checked natively by crates/parble-app/src/persist.rs and in the browser by e2e/tests/persistence.spec.mjs.",
   "schema": 1,
-  "physics": 10,
+  "physics": 11,
   "maxSafeInteger": 9007199254740991,
   "runTicks": 2400,
   "valid": [
@@ -710,6 +710,62 @@
             "max_accel_um_s2": 250000
           }
         ]
+      }
+    },
+    {
+      "name": "generator-whole",
+      "runHash": "34b5dc81860b762b",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 0,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [],
+          "release": {
+            "mode": "one"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Generated",
+          "generator": {
+            "version": 8
+          }
+        }
+      }
+    },
+    {
+      "name": "generator-segments",
+      "runHash": "34b5dc81860b762b",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 0,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [],
+          "release": {
+            "mode": "one"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Generated",
+          "generator": {
+            "version": 8,
+            "segments": [
+              3,
+              9007199254740991
+            ]
+          }
+        }
       }
     }
   ],
@@ -5210,6 +5266,110 @@
           "yaw_mdeg": 0,
           "min_speed_um_s": 200000,
           "max_accel_um_s2": 1000000
+        }
+      }
+    },
+    {
+      "why": "generator without a version",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 0,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [],
+          "release": {
+            "mode": "one"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Generated",
+          "generator": {
+            "segments": [
+              1
+            ]
+          }
+        }
+      }
+    },
+    {
+      "why": "generator segment seed above 2^53 - 1",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 0,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [],
+          "release": {
+            "mode": "one"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Generated",
+          "generator": {
+            "version": 8,
+            "segments": [
+              9007199254740992
+            ]
+          }
+        }
+      }
+    },
+    {
+      "why": "generator with an unknown key",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 0,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [],
+          "release": {
+            "mode": "one"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Generated",
+          "generator": {
+            "version": 8,
+            "seed": 1
+          }
+        }
+      }
+    },
+    {
+      "why": "generator not an object",
+      "file": {
+        "format": "parble",
+        "schema": 1,
+        "physics": 1,
+        "kit_contract": 1,
+        "seed": 0,
+        "placements": [],
+        "hopper": {
+          "placement": null,
+          "queue": [],
+          "release": {
+            "mode": "one"
+          }
+        },
+        "mechanisms": [],
+        "metadata": {
+          "name": "Generated",
+          "generator": 8
         }
       }
     }

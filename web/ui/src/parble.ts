@@ -5,7 +5,7 @@
 
 export const FORMAT = "parble";
 export const SCHEMA_VERSION = 1;
-export const PHYSICS_VERSION = 10;
+export const PHYSICS_VERSION = 11;
 /** Every integer in a file fits a JS number exactly. */
 export const MAX_SAFE = Number.MAX_SAFE_INTEGER;
 export const MAX_NAME_CHARS = 120;
@@ -41,11 +41,21 @@ export interface MechanismState {
   state: IntMap;
 }
 
+/** What generated a track (crates/parble-core/src/file.rs `Generator`). */
+export interface Generator {
+  /** parble_procgen::GENERATOR_VERSION when the track was generated. */
+  version: number;
+  /** One seed a segment of a track generated in segments. Omitted when empty. */
+  segments?: number[];
+}
+
 export interface Metadata {
   name: string;
   /** Omitted when empty. */
   description?: string;
   author?: string;
+  /** Set on generated tracks only. */
+  generator?: Generator;
 }
 
 /** Camera zones (crates/parble-core/src/camera_zone.rs): integer µm, millidegrees and ms. */
@@ -195,8 +205,17 @@ function hopper(v: unknown, placements: number): HopperConfig {
 }
 
 function metadata(v: unknown): Metadata {
-  if (!isObj(v) || !hasOnly(v, ["name", "description", "author"]) || typeof v.name !== "string") {
+  if (!isObj(v) || !hasOnly(v, ["name", "description", "author", "generator"]) || typeof v.name !== "string") {
     return fail("metadata is invalid");
+  }
+  if ("generator" in v) {
+    const g = v.generator;
+    if (!isObj(g) || !hasOnly(g, ["version", "segments"]) || !isU32(g.version)) {
+      return fail("metadata generator is invalid");
+    }
+    if ("segments" in g && !(Array.isArray(g.segments) && g.segments.every((s) => isInt(s, 0, MAX_SAFE)))) {
+      fail("generator segment seeds must be integers in 0..=2^53 - 1");
+    }
   }
   for (const k of ["description", "author"] as const) {
     if (k in v && typeof v[k] !== "string") fail(`metadata ${k} must be a string`);

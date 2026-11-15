@@ -392,3 +392,185 @@ fn finish_time_census() {
         done.last()
     );
 }
+
+/// Sim tick rate on generated tracks: each seed from `PROCGEN_SEED` (default 0), `PROCGEN_SEEDS`
+/// of them (default 1), runs until every marble finishes, one is lost or `PROCGEN_TICKS` pass,
+/// and the line reports ticks per second of wall time for the run alone (not generation or the
+/// collider build). A timing, so run it alone on a quiet host. Params as above.
+#[test]
+#[ignore = "diagnostic: tick rate"]
+fn tick_rate() {
+    let defs: Vec<_> = parble_kit::builtin()
+        .iter()
+        .map(|p| p.def.clone())
+        .collect();
+    let first = env("PROCGEN_SEED", 0);
+    let seeds = env("PROCGEN_SEEDS", 1);
+    let ticks = env("PROCGEN_TICKS", 240 * 600) as u32;
+    let params = params_from_env();
+    let (mut total, mut secs) = (0u64, 0.0f64);
+    for seed in first..first + seeds {
+        let Ok(track) = generate(&defs, seed, &params) else {
+            println!("seed {seed}: generation failed");
+            continue;
+        };
+        let mut run = TrackRun::new(&track).expect("runs");
+        let mechanisms = run.mechanisms().len();
+        let start = std::time::Instant::now();
+        let mut t = 0;
+        let mut finished = false;
+        while t < ticks && !finished {
+            run.tick(24);
+            t += 24;
+            let m = run.motion();
+            if m.iter().any(|s| matches!(s, MarbleMotion::Lost)) {
+                break;
+            }
+            finished = m.len() == params.marbles as usize
+                && m.iter().all(|s| matches!(s, MarbleMotion::Finished));
+        }
+        let s = start.elapsed().as_secs_f64();
+        total += u64::from(t);
+        secs += s;
+        println!(
+            "seed {seed}: {} placements, {mechanisms} mechanisms, {t} ticks in {s:.2} s, {:.0} ticks/s, finished {finished}",
+            track.placements.len(),
+            f64::from(t) / s
+        );
+    }
+    println!(
+        "TICK RATE {:.0} ticks/s ({total} ticks in {secs:.2} s)",
+        total as f64 / secs
+    );
+}
+
+/// The data behind `parble_procgen`'s speed model: per piece id, the first marble's horizontal
+/// speed on entering the piece and on entering the next one, and how many marbles that entered
+/// at each speed never reached the next piece. A piece a transfer lands on is listed apart
+/// (`id+landing`), since its entry speed is the flight's. `PROCGEN_SEEDS` and the params as above.
+#[test]
+#[ignore = "diagnostic: speed census"]
+fn speed_census() {
+    use parble_core::{CellCoord, PieceCatalog, controlled_drops};
+    use std::collections::{BTreeMap, BTreeSet};
+    const EDGES: [f32; 6] = [0.2, 0.3, 0.4, 0.5, 0.6, 0.8];
+    let kit = parble_kit::builtin();
+    let defs: Vec<_> = kit.iter().map(|p| p.def.clone()).collect();
+    let seeds = env("PROCGEN_SEEDS", 100);
+    let mut params = params_from_env();
+    params.marbles = 1;
+    // id -> (entry speed, next entry speed) of every marble that reached the next piece.
+    let mut through: BTreeMap<String, Vec<(f32, f32)>> = BTreeMap::new();
+    // id -> per entry-speed bucket, (entered, never reached the next piece).
+    let mut buckets: BTreeMap<String, [(u32, u32); 7]> = BTreeMap::new();
+    let mut ends: BTreeMap<String, u32> = BTreeMap::new();
+    let (mut tracks, mut finished) = (0, 0);
+    for seed in 0..seeds {
+        let Ok(track) = generate(&defs, seed, &params) else {
+            println!("seed {seed}: generation failed");
+            continue;
+        };
+        tracks += 1;
+        let landings: BTreeSet<usize> =
+            controlled_drops(&track, kit).iter().map(|d| d.to).collect();
+        let mut cells: BTreeMap<CellCoord, usize> = BTreeMap::new();
+        let mut pieces = 0;
+        for (i, p) in track.placements.iter().enumerate() {
+            let Some(d) = kit.get(&p.piece) else { continue };
+            if d.structural {
+                continue;
+            }
+            pieces += 1;
+            for c in p.world_cells(d) {
+                cells.insert(c, i);
+            }
+        }
+        let name = |i: usize| {
+            let id = track.placements[i].piece.as_str();
+            if landings.contains(&i) {
+                format!("{id}+landing")
+            } else {
+                id.to_owned()
+            }
+        };
+        let mut run = TrackRun::new(&track).expect("runs");
+        let mut walk: Vec<(usize, f32)> = Vec::new();
+        let mut outcome = String::from("timeout");
+        for _ in 0..(2400 + 120 * pieces) {
+            run.tick(1);
+            if let Some(m) = run.marbles().first() {
+                let cell = CellCoord::new(
+                    (m.position[0] / 0.06).round() as i32,
+                    (m.position[1] / 0.06).floor() as i32,
+                    (m.position[2] / 0.06).round() as i32,
+                );
+                if let Some(&i) = cells.get(&cell)
+                    && walk.last().map(|l| l.0) != Some(i)
+                {
+                    walk.push((i, m.linvel[0].hypot(m.linvel[2])));
+                }
+            }
+            match run.motion().first() {
+                Some(MarbleMotion::Moving { .. }) | None => {}
+                Some(m) => {
+                    outcome = format!("{m:?}");
+                    break;
+                }
+            }
+        }
+        // The first visit of each piece, in track order: a marble that rolls back is not a new
+        // entry.
+        let mut seen = BTreeSet::new();
+        walk.retain(|(i, _)| seen.insert(*i));
+        for (k, &(i, v)) in walk.iter().enumerate() {
+            let next = walk.get(k + 1).filter(|n| n.0 == i + 1);
+            let last_piece = i + 1 == pieces;
+            let b = EDGES.iter().position(|&e| v < e).unwrap_or(EDGES.len());
+            let slot = &mut buckets.entry(name(i)).or_default()[b];
+            slot.0 += 1;
+            match next {
+                Some(n) => through.entry(name(i)).or_default().push((v, n.1)),
+                None if last_piece && outcome == "Finished" => {}
+                None => slot.1 += 1,
+            }
+        }
+        if outcome == "Finished" {
+            finished += 1;
+        } else if let Some(&(i, v)) = walk.last() {
+            *ends.entry(format!("{outcome} on {}", name(i))).or_default() += 1;
+            println!(
+                "seed {seed}: {outcome} on {} entered at {v:.2} m/s, piece {} of {pieces}",
+                name(i),
+                walk.len()
+            );
+        }
+    }
+    println!("FIRST MARBLE {finished} of {tracks}; {ends:?}");
+    println!(
+        "id: n | median in -> next m/s | v2 ratio p10 median p90 | lost/entered at <0.2 <0.3 <0.4 <0.5 <0.6 <0.8 0.8+"
+    );
+    let ids: BTreeSet<&String> = through.keys().chain(buckets.keys()).collect();
+    for id in ids {
+        let mut line = format!("{id}: ");
+        if let Some(v) = through.get(id) {
+            let q = |mut xs: Vec<f32>, at: usize| {
+                xs.sort_by(f32::total_cmp);
+                xs[(xs.len() - 1) * at / 10]
+            };
+            let ratio: Vec<f32> = v.iter().map(|(a, b)| b * b / (a * a).max(1e-6)).collect();
+            line += &format!(
+                "{} | {:.2} -> {:.2} | {:.2} {:.2} {:.2} |",
+                v.len(),
+                q(v.iter().map(|x| x.0).collect(), 5),
+                q(v.iter().map(|x| x.1).collect(), 5),
+                q(ratio.clone(), 1),
+                q(ratio.clone(), 5),
+                q(ratio, 9)
+            );
+        }
+        for (n, lost) in buckets.get(id).copied().unwrap_or_default() {
+            line += &format!(" {lost}/{n}");
+        }
+        println!("{line}");
+    }
+}
