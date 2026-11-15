@@ -40,8 +40,13 @@ PIECE_VERSION = 1
 PIECE_VERSIONS = {"mech_gate_oneway_l1": 3, "mech_hole_oneway_l1": 4, "mech_finish": 2, "mech_hopper": 3,
                   "mech_splitter_l3": 4, "mech_toggle_l3": 4, "mech_checkpoint_l1": 2, "mech_arch_rope_l1": 4,
                   "mech_stepper_up1_l1": 2, "mech_stepper_up1_l3": 2}
+# Height variants (owner request 2026-11-14): the fork at L1 and L2 and the one-way hole at L2 and
+# L3 are the same piece one level lower or higher, every height in them measured from the floor.
+HEIGHTS = ("mech_splitter_l1", "mech_splitter_l2", "mech_toggle_l1", "mech_toggle_l2",
+           "mech_hole_oneway_l2", "mech_hole_oneway_l3", "mech_checkpoint_l2", "mech_checkpoint_l3",
+           "mech_gate_oneway_l2", "mech_gate_oneway_l3", "mech_arch_rope_l2", "mech_arch_rope_l3")
 BUILD = ("mech_finish", "mech_hopper", "mech_splitter_l3", "mech_toggle_l3", "mech_checkpoint_l1",
-         "mech_gate_oneway_l1", "mech_hole_oneway_l1", "mech_arch_rope_l1") + tuple(S.STEPPERS)
+         "mech_gate_oneway_l1", "mech_hole_oneway_l1", "mech_arch_rope_l1") + HEIGHTS + tuple(S.STEPPERS)
 
 TOP = K.CELL
 COLLISION_SEGS = 16
@@ -50,11 +55,12 @@ PART_BUDGET = {0: 1500, 1: 500, 2: 120}   # §12: all animated parts of a piece 
 
 HOPPER_X = -10.0       # hopper bowl centre
 HOPPER_BOWL = [(17.0, TOP + K.CUT_ABOVE), (17.0, 50.0), (14.0, 36.0)]   # (radius, height), to the floor
-FLAP_PIVOT_Y = 51.0    # §11 example: L1 flap hinge 36 mm above the floor
+FLAP_PIVOT_UP = 36.0   # §11 example: the flap hinge 36 mm above the floor (51 mm at L1)
 FLAP_HALF = 12.0       # flap half-width (2 mm clear of each channel wall)
 FLAP_T = 1.0           # flap half-thickness
 BRIDGE_X = 4.0         # one-way gate bridge half-length; its underside stays above the pin
-BRIDGE_Y = 53.0
+BRIDGE_UP = 38.0       # the gate bridge's underside above the floor (53 mm at L1)
+BRIDGE_THICK = 7.0     # and its thickness, to the L1 cell top
 FINISH_X = 6.0
 FINISH_CUP = [(20.0, TOP + K.CUT_ABOVE), (20.0, 20.0), (14.0, 12.0)]
 HOLE_R = 16.0
@@ -74,15 +80,15 @@ TRAP_OPEN_MDEG = 90000
 # channel, each hinged about +Z at its top. A rope's sidecar collision is its whole strand, ready
 # for physical ropes; the cosmetic sim model gives the ropes no collider (behaviour.rs).
 ARCH_X = 12.0
-ARCH_Y = 50.0
+ARCH_UP = 35.0         # the rope arch's underside above the floor (50 mm at L1)
 ROPE_ROWS_X = (-6.0, 6.0)
 ROPE_Z = (-10.5, -4.5, 4.5, 10.5)
 ROPE_R = 1.0
-ROPE_BOTTOM = 22.0      # 2.3 mm above the round floor under the outer ropes
+ROPE_BOTTOM_UP = 7.0    # a rope's end above the floor (22 mm at L1: 2.3 mm above the round floor under the outer ropes)
 KNOT_R = 1.6
 KNOT_H = 3.0
 ROPE_LIMIT_MDEG = 45000  # at 45 degrees a rope's tip stays inside the inset cell
-# The sim bends each rope as ROPE_SEGMENTS equal segments over ARCH_Y - ROPE_BOTTOM
+# The sim bends each rope as ROPE_SEGMENTS equal segments over ARCH_UP - ROPE_BOTTOM_UP
 # (crates/parble-sim/src/rope.rs); the renderer cuts each LOD's strand into ROPE_LOD_BANDS bands
 # by height (crates/parble-render/src/kit/parts.rs) and turns each about its top joint. A band is an
 # open tube that runs ROPE_OVERLAP past its bottom joint, inside the next band (whose radius is
@@ -112,6 +118,11 @@ def _drop(i, face, flow):
             "kind": "drop"}
 
 
+def _level(piece_id, default):
+    """The level in a piece id's `_l<n>` suffix, else `default`."""
+    return int(piece_id[-1]) if piece_id[-3:-1] == "_l" else default
+
+
 def _box_sensor(name, c, h):
     return {"center_um": list(c), "half_extents_um": list(h), "id": name, "shape": "box"}
 
@@ -133,40 +144,55 @@ def spec(piece_id):
         # up to the cell top: the cup holds 10 standard marbles, the top ones with centres 47-53 mm up
         sensors = [_box_sensor("cup", (6000, 37000, 0), (14000, 23000, 14000))]
     elif shape in ("splitter", "toggle"):   # fork: in at -x, out at +z and -z
-        level = 3
-        ports = [_side(0, "-x", 3, "in"), _side(1, "+z", 3, "out"), _side(2, "-z", 3, "out")]
-        sensors = [_box_sensor("entry", (-22000, 52500, 0), (6000, 7500, 14000))]
-    elif shape == "checkpoint":  # tunnel arch at L1 (apex 49 mm, under the cell top)
-        level, ports = 1, [_side(0, "-x", 1, "both"), _side(1, "+x", 1, "both")]
-        sensors = [_box_sensor("gate", (0, 27500, 0), (4000, 12500, 14000))]
+        level = _level(piece_id, 3)
+        ports = [_side(0, "-x", level, "in"), _side(1, "+z", level, "out"), _side(2, "-z", level, "out")]
+        sensors = [_box_sensor("entry", (-22000, 15000 * level + 7500, 0), (6000, 7500, 14000))]
+    elif shape == "checkpoint":  # tunnel arch (apex 34 mm over the floor: 49 mm at L1, under the cell top)
+        level = _level(piece_id, 1)
+        ports = [_side(0, "-x", level, "both"), _side(1, "+x", level, "both")]
+        sensors = [_box_sensor("gate", (0, 15000 * level + 12500, 0), (4000, 12500, 14000))]
     elif shape == "gate_oneway":
-        level, ports = 1, [_side(0, "-x", 1, "in"), _side(1, "+x", 1, "out")]
-        sensors = [_box_sensor("approach", (-20000, 27500, 0), (6000, 12500, 14000)),
-                   _box_sensor("exit", (20000, 27500, 0), (6000, 12500, 14000))]
+        level = _level(piece_id, 1)
+        ports = [_side(0, "-x", level, "in"), _side(1, "+x", level, "out")]
+        sensors = [_box_sensor("approach", (-20000, 15000 * level + 12500, 0), (6000, 12500, 14000)),
+                   _box_sensor("exit", (20000, 15000 * level + 12500, 0), (6000, 12500, 14000))]
     elif shape == "arch_rope":  # one sensor per rope row; together they span the arch
-        level, ports = 1, [_side(0, "-x", 1, "both"), _side(1, "+x", 1, "both")]
+        level = _level(piece_id, 1)
+        ports = [_side(0, "-x", level, "both"), _side(1, "+x", level, "both")]
         h = int(ARCH_X * 500)
-        sensors = [_box_sensor("curtain_nx", (-h, 27500, 0), (h, 12500, 14000)),
-                   _box_sensor("curtain_px", (h, 27500, 0), (h, 12500, 14000))]
+        sensors = [_box_sensor("curtain_nx", (-h, 15000 * level + 12500, 0), (h, 12500, 14000)),
+                   _box_sensor("curtain_px", (h, 15000 * level + 12500, 0), (h, 12500, 14000))]
     elif shape == "hole_oneway":  # arriving from -x drops through the trapdoor; from +x rolls over
-        level = 1
-        ports = [_side(0, "-x", 1, "both"), _side(1, "+x", 1, "in"), _drop(2, "bottom", "out")]
-        sensors = [_box_sensor("trap", (-22000, 27500, 0), (6000, 12500, 14000)),
-                   _box_sensor("over", (22000, 27500, 0), (6000, 12500, 14000))]
+        level = _level(piece_id, 1)
+        ports = [_side(0, "-x", level, "both"), _side(1, "+x", level, "in"), _drop(2, "bottom", "out")]
+        sensors = [_box_sensor("trap", (-22000, 15000 * level + 12500, 0), (6000, 12500, 14000)),
+                   _box_sensor("over", (22000, 15000 * level + 12500, 0), (6000, 12500, 14000))]
     else:
         raise ValueError(piece_id)
+    # From L2 the piece stands two cells tall (contract section 16 Q13): a tunnel's crown or an arch's
+    # underside and hinge pass the anchor cell's top.
+    tall = shape in ("checkpoint", "gate_oneway", "arch_rope") and level >= 2
     return {"id": piece_id, "shape": shape, "level": level, "ports": ports, "chiral": False, "family": "mech",
-            "footprint": [[0, 0, 0]], "sensors": sensors}
+            "footprint": [[0, 0, 0], [0, 1, 0]] if tall else [[0, 0, 0]], "sensors": sensors}
 
 
 def cells(piece_id):
-    return S.cells(piece_id) if S.handles(piece_id) else 1
+    return S.cells(piece_id) if S.handles(piece_id) else len(spec(piece_id)["footprint"])
 
 
 def bounds_mm(piece_id):
     if S.handles(piece_id):
         return S.bounds_mm(piece_id)
-    return (-K.CELL / 2, 0.0, -K.CELL / 2), (K.CELL / 2, K.CELL, K.CELL / 2)
+    return (-K.CELL / 2, 0.0, -K.CELL / 2), (K.CELL / 2, K.CELL * cells(piece_id), K.CELL / 2)
+
+
+def body_bounds_mm(piece_id):
+    """The static body's box: the whole footprint, except a tall gate or arch, whose upper cell is
+    open air for the hinge and the swing (only the bridge slab stands in it, `ops`)."""
+    lo, hi = bounds_mm(piece_id)
+    if not S.handles(piece_id) and spec(piece_id)["shape"] in ("gate_oneway", "arch_rope"):
+        hi = (hi[0], K.CELL, hi[2])
+    return lo, hi
 
 
 # ---------------------------------------------------------------------------------------------
@@ -223,15 +249,21 @@ def ops(piece_id, q, collision):
         sts = B.straight_x(-30.0, 30.0, lambda x: f0, 1, extra_x=ins)
         tprof = B.tunnel_profile(collision, q)
         cut(lambda bm: B.sweep(bm, B.extend(sts, True, True), tprof))
-    elif shape == "gate_oneway":
+    elif shape in ("gate_oneway", "arch_rope"):
         sts = B.straight_x(-30.0, 30.0, lambda x: f0, 1, extra_x=ins)
         cut(lambda bm: B.sweep(bm, B.extend(sts, True, True), oprof))
-        # the arch: a bridge over the hinge pin, its underside 38 mm above the floor (§5.1)
-        out.append(("UNION", _box_builder((-BRIDGE_X, BRIDGE_Y, -K.R - 2.0), (BRIDGE_X, top, K.R + 2.0))))
-    elif shape == "arch_rope":
-        sts = B.straight_x(-30.0, 30.0, lambda x: f0, 1, extra_x=ins)
-        cut(lambda bm: B.sweep(bm, B.extend(sts, True, True), oprof))
-        out.append(("UNION", _box_builder((-ARCH_X, ARCH_Y, -K.R - 2.0), (ARCH_X, top, K.R + 2.0))))
+        # the arch: a bridge over the hinge pin (gate, §5.1) or the ropes' tops, its underside 38 or
+        # 35 mm above the floor
+        half_x, under = (BRIDGE_X, f0 + BRIDGE_UP) if shape == "gate_oneway" else (ARCH_X, f0 + ARCH_UP)
+        if sp["level"] == 1:
+            out.append(("UNION", _box_builder((-half_x, under, -K.R - 2.0), (half_x, top, K.R + 2.0))))
+        else:
+            # Past the anchor cell's top: a slab across the cell on the lips (BRIDGE_THICK deep above
+            # the underside), with the channel's walls carried up under it.
+            ytop = under + BRIDGE_THICK
+            out.append(("UNION", _box_builder((-half_x, top - 1.0, -30.0 + (0.0 if collision else K.INSET)),
+                                              (half_x, ytop, 30.0 - (0.0 if collision else K.INSET)))))
+            out.append(("DIFFERENCE", _box_builder((-half_x - 1.0, top - 2.0, -K.R), (half_x + 1.0, under, K.R))))
     elif shape == "hole_oneway":
         # No bowl over the bore: the channel's half-round runs on across the cell and the trapdoor
         # fills the floor the bore cuts out of it. With a flat 18 mm bowl floor and a flat door, a
@@ -276,7 +308,7 @@ def _boolean_mesh(piece_id, q, name, collection, collision):
     """Body box (bevelled for render) through every op (EXACT), contract mm, triangulated."""
     import bmesh
     import bpy
-    lo, hi = bounds_mm(piece_id)
+    lo, hi = body_bounds_mm(piece_id)
     if not collision:
         i = K.INSET
         lo, hi = tuple(c + i for c in lo), tuple(c - i for c in hi)
@@ -451,18 +483,19 @@ def _oriented(v, f):
     return out
 
 
-def _u_plate(cy, segs):
-    """Flap outline (z, y): the lower half-circle FLAP_HALF about (0, cy), then up to the pivot."""
+def _u_plate(cy, segs, py):
+    """Flap outline (z, y): the lower half-circle FLAP_HALF about (0, cy), then up to the pivot `py`."""
     pts = []
     for i in range(segs + 1):
         th = math.radians(-90.0 + 180.0 * i / segs)
         pts.append((FLAP_HALF * math.sin(th), cy - FLAP_HALF * math.cos(th)))
-    return pts + [(FLAP_HALF, FLAP_PIVOT_Y), (-FLAP_HALF, FLAP_PIVOT_Y)]
+    return pts + [(FLAP_HALF, py), (-FLAP_HALF, py)]
 
 
 def _flap(px, f0, segs):
-    plate = _solid_prism(_u_plate(f0 + K.R, segs), "x", px - FLAP_T, px + FLAP_T)
-    pin = _solid_box((px - 1.5, FLAP_PIVOT_Y - 1.5, -K.R), (px + 1.5, FLAP_PIVOT_Y + 1.5, K.R))
+    py = f0 + FLAP_PIVOT_UP
+    plate = _solid_prism(_u_plate(f0 + K.R, segs, py), "x", px - FLAP_T, px + FLAP_T)
+    pin = _solid_box((px - 1.5, py - 1.5, -K.R), (px + 1.5, py + 1.5, K.R))
     return [plate, pin]
 
 
@@ -572,19 +605,20 @@ def _trapdoor(f0, n):
     return solids
 
 
-def _rope_bands(ring, bands, knot):
+def _rope_bands(ring, bands, knot, f0):
     """One rope's strand as `bands` open tubes, top first: band b from its top joint down past its
     bottom joint by ROPE_OVERLAP (the last to the knot, or to the rope's end, capped), radius
     ROPE_R, ROPE_BAND_STEP larger on odd bands. The top band is capped at the arch underside."""
-    seg = (ARCH_Y - ROPE_BOTTOM) / ROPE_SEGMENTS
+    arch_y, rope_bottom = f0 + ARCH_UP, f0 + ROPE_BOTTOM_UP
+    seg = (arch_y - rope_bottom) / ROPE_SEGMENTS
     per = ROPE_SEGMENTS // bands
-    end = ROPE_BOTTOM + (KNOT_H if knot else 0.0)
+    end = rope_bottom + (KNOT_H if knot else 0.0)
     solids = []
     for b in range(bands):
         r = ROPE_R + (ROPE_BAND_STEP if b % 2 else 0.0)
-        top = ARCH_Y - b * per * seg
+        top = arch_y - b * per * seg
         last = b == bands - 1
-        bottom = end if last else ARCH_Y - (b + 1) * per * seg - ROPE_OVERLAP
+        bottom = end if last else arch_y - (b + 1) * per * seg - ROPE_OVERLAP
         v, f = _solid_prism(ring(r), "y", bottom, top)
         n = len(v) // 2
         # _solid_prism faces: [bottom cap, top cap, sides...]; keep the top cap on the top band
@@ -612,8 +646,8 @@ def parts(piece_id, segs=None):
         return [({"name": "anim_gate", "pivot_um": [12000, 51000, 0], "axis": [0, 0, 1], "rest_mdeg": 0,
                   "limits_mdeg": [0, 85000]}, _flap(px, f0, s))]
     if shape == "gate_oneway":
-        return [({"name": "anim_flap", "pivot_um": [0, 51000, 0], "axis": [0, 0, 1], "rest_mdeg": 0,
-                  "limits_mdeg": [0, 85000]}, _flap(0.0, f0, s))]
+        return [({"name": "anim_flap", "pivot_um": [0, B.um(f0 + FLAP_PIVOT_UP), 0], "axis": [0, 0, 1],
+                  "rest_mdeg": 0, "limits_mdeg": [0, 85000]}, _flap(0.0, f0, s))]
     if shape in ("splitter", "toggle"):
         return [_switch_blade(shape, f0, s)]
     if shape == "arch_rope":  # each rope: a strand from the arch underside and a knot at its end
@@ -622,19 +656,20 @@ def parts(piece_id, segs=None):
         n = 8 if segs is None else (10 if segs >= 12 else 4 if segs >= 5 else 3)
         lod = None if segs is None else (0 if segs >= 12 else 1 if segs >= 5 else 2)
         out = []
+        ay, rb = f0 + ARCH_UP, f0 + ROPE_BOTTOM_UP
         for i, (x, z) in enumerate((x, z) for x in ROPE_ROWS_X for z in ROPE_Z):
             def ring(r, x=x, z=z):
                 return [(x + r * math.cos(2 * math.pi * k / n), z + r * math.sin(2 * math.pi * k / n))
                         for k in range(n)]
             if lod is None:
-                solids = [_solid_prism(ring(ROPE_R), "y", ROPE_BOTTOM + KNOT_H, ARCH_Y),
-                          _solid_prism(ring(KNOT_R), "y", ROPE_BOTTOM, ROPE_BOTTOM + KNOT_H)]
+                solids = [_solid_prism(ring(ROPE_R), "y", rb + KNOT_H, ay),
+                          _solid_prism(ring(KNOT_R), "y", rb, rb + KNOT_H)]
             else:
                 knot = lod < 2
-                solids = _rope_bands(ring, ROPE_LOD_BANDS[lod], knot)
+                solids = _rope_bands(ring, ROPE_LOD_BANDS[lod], knot, f0)
                 if knot:
-                    solids.append(_solid_prism(ring(KNOT_R), "y", ROPE_BOTTOM, ROPE_BOTTOM + KNOT_H))
-            out.append(({"name": f"anim_rope_{i}", "pivot_um": [B.um(x), B.um(ARCH_Y), B.um(z)],
+                    solids.append(_solid_prism(ring(KNOT_R), "y", rb, rb + KNOT_H))
+            out.append(({"name": f"anim_rope_{i}", "pivot_um": [B.um(x), B.um(ay), B.um(z)],
                          "axis": [0, 0, 1], "rest_mdeg": 0,
                          "limits_mdeg": [-ROPE_LIMIT_MDEG, ROPE_LIMIT_MDEG]}, solids))
         return out

@@ -41,16 +41,39 @@ pub fn registry() -> MechanismRegistry {
     let id = |s: &str| PieceId::new(s).expect("kit ids follow the id grammar");
     r.register(id(HOPPER), Hopper::factory);
     r.register(id(FINISH), Finish::factory);
-    r.register(id(SPLITTER), Splitter::factory);
-    r.register(id(TOGGLE), Toggle::factory);
-    r.register(id(CHECKPOINT), Checkpoint::factory);
-    r.register(id(GATE), OneWayGate::factory);
-    r.register(id(HOLE), OneWayHole::factory);
+    // Each mechanism at every height it ships at (contract section 10: a level is a catalogue
+    // variant of the same piece, so one behaviour serves them all).
+    for level in 1..=3 {
+        r.register(id(&format!("mech_splitter_l{level}")), Splitter::factory);
+        r.register(id(&format!("mech_toggle_l{level}")), Toggle::factory);
+        r.register(
+            id(&format!("mech_checkpoint_l{level}")),
+            Checkpoint::factory,
+        );
+        r.register(
+            id(&format!("mech_gate_oneway_l{level}")),
+            OneWayGate::factory,
+        );
+        r.register(
+            id(&format!("mech_hole_oneway_l{level}")),
+            OneWayHole::factory,
+        );
+        r.register(id(&format!("mech_arch_rope_l{level}")), RopeArch::factory);
+    }
     for s in [crate::stepper::STEPPER, crate::stepper::STEPPER_L1] {
         r.register(id(s), crate::stepper::Stepper::factory);
     }
-    r.register(id(ROPE_ARCH), RopeArch::factory);
     r
+}
+
+/// Whether `id` is a splitter at any height.
+pub fn is_splitter(id: &str) -> bool {
+    id.starts_with("mech_splitter_l")
+}
+
+/// Whether `id` is a toggle at any height.
+pub fn is_toggle(id: &str) -> bool {
+    id.starts_with("mech_toggle_l")
 }
 
 pub const HOPPER: &str = "mech_hopper";

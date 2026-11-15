@@ -106,6 +106,11 @@ const BLOCK_HEIGHTS = new Set([
   "blk_slope_gentle_l1", "blk_slope_gentle_l0", "blk_slope_steep_l2", "blk_slope_steep_l1", "blk_slope_steep_l0",
   "blk_tower_socket_l2", "blk_tower_socket_l3",
 ]);
+// Mechanism height variants (owner request 2026-11-14, kitmech.py).
+const MECH_HEIGHTS = new Set([
+  "mech_splitter_l1", "mech_splitter_l2", "mech_toggle_l1", "mech_toggle_l2", "mech_hole_oneway_l2", "mech_hole_oneway_l3",
+  "mech_checkpoint_l2", "mech_checkpoint_l3", "mech_gate_oneway_l2", "mech_gate_oneway_l3", "mech_arch_rope_l2", "mech_arch_rope_l3",
+]);
 // P2-T3 mechanism pieces: the hinge parts each shape must ship (blender/kit/kitmech.py). The finish
 // cup and the checkpoint arch have no moving part. All parts of a piece share one budget (§12).
 const MECH_PARTS = {
@@ -513,7 +518,7 @@ async function provenance(runtime, source, ids, checks) {
       pieceId: id,
       pieceVersion: JSON.parse(fs.readFileSync(path.join(dir, `${id}.kit.json`), "utf8")).piece_version,
       route: "scripted",
-      card: P1_APPROVED.has(id) ? "P1-T2" : FUNNEL.has(id) ? "funnel catcher (owner card 2026-11-08)" : id.startsWith("mech_") ? "P2-T3" : RAIL_LEVELS.has(id) ? "rail heights (owner request 2026-11-12)" : RAIL_SLOPES.has(id) ? "rail slopes (owner request 2026-11-13)" : BLOCK_HEIGHTS.has(id) ? "block heights (owner request 2026-11-14)" : id.startsWith("rail_") ? "P2-T4" : "P2-T2",
+      card: P1_APPROVED.has(id) ? "P1-T2" : FUNNEL.has(id) ? "funnel catcher (owner card 2026-11-08)" : MECH_HEIGHTS.has(id) ? "mechanism heights (owner request 2026-11-14)" : id.startsWith("mech_") ? "P2-T3" : RAIL_LEVELS.has(id) ? "rail heights (owner request 2026-11-12)" : RAIL_SLOPES.has(id) ? "rail slopes (owner request 2026-11-13)" : BLOCK_HEIGHTS.has(id) ? "block heights (owner request 2026-11-14)" : id.startsWith("rail_") ? "P2-T4" : "P2-T2",
       contract: { path: "docs/kit-contract.md", version: CONTRACT_VERSION, sha256: sha256(path.join(REPO, "docs/kit-contract.md")), approved: "Paul, 2026-11-07 (contract status line)" },
       generator: exp.generator,
       generatorDeps: exp.generatorDeps,
@@ -543,6 +548,8 @@ async function provenance(runtime, source, ids, checks) {
           ? { who: "Paul", gate: "piece look", status: "pending", notes: "funnel catcher and its drop catch; review sheet blender/kit/review/funnel.png" }
         : id.startsWith("mech_stepper_")
           ? { who: "Paul", gate: "piece look", status: "pending", notes: "P2 stepper elevator; review sheet blender/kit/review/p2-stepper-elevator.png" }
+        : MECH_HEIGHTS.has(id)
+          ? { who: "Paul", gate: "piece look", status: "pending", notes: "mechanism at another height; review sheet blender/kit/review/mech-heights.png" }
         : id.startsWith("mech_")
           ? { who: "Paul", gate: "piece look", status: "pending", notes: "P2-T3 mechanism piece; review sheet blender/kit/review/p2t3-mechanisms.png" }
           : RAIL_LEVELS.has(id)

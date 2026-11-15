@@ -1,0 +1,162 @@
+{
+  "blender": "5.2.2 LTS",
+  "colliderTris": 118,
+  "generator": {
+    "path": "blender/kit/generate.py",
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
+  },
+  "generatorDeps": [
+    {
+      "path": "blender/kit/kitgeom.py",
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
+    },
+    {
+      "path": "blender/kit/kitblocks.py",
+      "sha256": "bf00f8559a83b0ff2762e22383ad13b0e716ae641a57ce2a24775416f11f5644"
+    },
+    {
+      "path": "blender/kit/kitmech.py",
+      "sha256": "cd08ac92999c9444d40a4466f37ad0b25d2a4dad3a134c63b96fed4e5fdefd7e"
+    },
+    {
+      "path": "blender/kit/kitstepper.py",
+      "sha256": "f88d9ac0af5fe954566a5ca9856529dc2f721164e877e3775901f2cd2a96cc5a"
+    }
+  ],
+  "lodParams": {
+    "lod0": {
+      "bevel_segs": 3,
+      "n_fillet": 6,
+      "n_round": 32,
+      "path": {
+        "curve90": 20,
+        "end": 16,
+        "slope_gentle": 16,
+        "straight": 1
+      }
+    },
+    "lod1": {
+      "bevel_segs": 1,
+      "n_fillet": 2,
+      "n_round": 12,
+      "path": {
+        "curve90": 8,
+        "end": 8,
+        "slope_gentle": 6,
+        "straight": 1
+      }
+    },
+    "lod2": {
+      "bevel_segs": 0,
+      "n_fillet": 1,
+      "n_round": 6,
+      "path": {
+        "curve90": 4,
+        "end": 4,
+        "slope_gentle": 3,
+        "straight": 1
+      }
+    }
+  },
+  "lodTris": {
+    "mech_arch_rope_l2_lod0": 508,
+    "mech_arch_rope_l2_lod1": 204,
+    "mech_arch_rope_l2_lod2": 116
+  },
+  "mapSize": {
+    "lod0": 1024,
+    "lod1": 512,
+    "lod2": 256
+  },
+  "nodes": [
+    "mech_arch_rope_l2",
+    "anim_rope_0",
+    "anim_rope_0_lod0",
+    "anim_rope_0_lod1",
+    "anim_rope_0_lod2",
+    "anim_rope_1",
+    "anim_rope_1_lod0",
+    "anim_rope_1_lod1",
+    "anim_rope_1_lod2",
+    "anim_rope_2",
+    "anim_rope_2_lod0",
+    "anim_rope_2_lod1",
+    "anim_rope_2_lod2",
+    "anim_rope_3",
+    "anim_rope_3_lod0",
+    "anim_rope_3_lod1",
+    "anim_rope_3_lod2",
+    "anim_rope_4",
+    "anim_rope_4_lod0",
+    "anim_rope_4_lod1",
+    "anim_rope_4_lod2",
+    "anim_rope_5",
+    "anim_rope_5_lod0",
+    "anim_rope_5_lod1",
+    "anim_rope_5_lod2",
+    "anim_rope_6",
+    "anim_rope_6_lod0",
+    "anim_rope_6_lod1",
+    "anim_rope_6_lod2",
+    "anim_rope_7",
+    "anim_rope_7_lod0",
+    "anim_rope_7_lod1",
+    "anim_rope_7_lod2",
+    "mech_arch_rope_l2_collider",
+    "mech_arch_rope_l2_lod0",
+    "mech_arch_rope_l2_lod1",
+    "mech_arch_rope_l2_lod2",
+    "port_0",
+    "port_1"
+  ],
+  "partTris": {
+    "lod0": {
+      "anim_rope_0_lod0": 164,
+      "anim_rope_1_lod0": 164,
+      "anim_rope_2_lod0": 164,
+      "anim_rope_3_lod0": 164,
+      "anim_rope_4_lod0": 164,
+      "anim_rope_5_lod0": 164,
+      "anim_rope_6_lod0": 164,
+      "anim_rope_7_lod0": 164
+    },
+    "lod1": {
+      "anim_rope_0_lod1": 62,
+      "anim_rope_1_lod1": 62,
+      "anim_rope_2_lod1": 62,
+      "anim_rope_3_lod1": 62,
+      "anim_rope_4_lod1": 62,
+      "anim_rope_5_lod1": 62,
+      "anim_rope_6_lod1": 62,
+      "anim_rope_7_lod1": 62
+    },
+    "lod2": {
+      "anim_rope_0_lod2": 14,
+      "anim_rope_1_lod2": 14,
+      "anim_rope_2_lod2": 14,
+      "anim_rope_3_lod2": 14,
+      "anim_rope_4_lod2": 14,
+      "anim_rope_5_lod2": 14,
+      "anim_rope_6_lod2": 14,
+      "anim_rope_7_lod2": 14
+    }
+  },
+  "pieceId": "mech_arch_rope_l2",
+  "texelDensityPxPerM": {
+    "lod0": {
+      "max": 5091.9,
+      "median": 5003.4,
+      "min": 3867.9
+    },
+    "lod1": {
+      "max": 2541.9,
+      "median": 2529.2,
+      "min": 1931.4
+    },
+    "lod2": {
+      "max": 1303.5,
+      "median": 1303.5,
+      "min": 1113.4
+    }
+  }
+}

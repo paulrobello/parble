@@ -826,7 +826,7 @@ fn registry_covers_every_mechanism_piece() {
         .filter(|p| p.family == "mech")
         .map(|p| p.def.id.clone())
         .collect();
-    assert_eq!(mech.len(), 10);
+    assert_eq!(mech.len(), 22);
     for id in mech {
         assert!(reg.get(&id).is_some(), "{id} has no behaviour");
     }
@@ -1889,5 +1889,219 @@ fn gate_min_launch_speeds() {
                 && *angles.last().unwrap() <= GATE_CLOSED_MDEG
         });
         println!("GATE MIN {name}: {min:?} m/s");
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Height variants (contract section 10: a level is a catalogue variant of the same piece)
+// ---------------------------------------------------------------------------------------------
+
+/// `n` marbles fed one at a time into the fork `piece` at cell (1, 0, 0) from a straight at
+/// `level`, 240 ticks apart (as [`feed_fork`], which is L3).
+fn feed_fork_at(
+    piece: &str,
+    level: i32,
+    seed: u64,
+    n: usize,
+) -> (Vec<Option<Side>>, Vec<SimEvent>) {
+    let layout = [
+        place(&format!("blk_straight_l{level}"), 0, 0, 0, 0),
+        place(piece, 1, 0, 0, 0),
+    ];
+    let mut sim = rig(&layout, seed);
+    let (mut tr, mut ev) = (Vec::new(), Vec::new());
+    for _ in 0..n {
+        launch(
+            &mut sim,
+            Vector::new(-0.02, rest(level), 0.0),
+            Vector::X * 0.5,
+        );
+        run(&mut sim, 240, &mut tr, &mut ev);
+    }
+    ((0..n).map(|m| fork_side(&tr, m)).collect(), ev)
+}
+
+#[test]
+fn the_toggle_and_splitter_work_at_l1_and_l2() {
+    for level in [1, 2] {
+        let toggle = format!("mech_toggle_l{level}");
+        let (sides, ev) = feed_fork_at(&toggle, level, 1, 6);
+        assert_eq!(sides, [0, 1, 0, 1, 0, 1].map(Some), "{toggle}");
+        let passes: Vec<i64> = signals(&ev, "pass").into_iter().map(|p| p.1).collect();
+        assert_eq!(passes, [0, 1, 0, 1, 0, 1], "{toggle}");
+
+        // The splitter's seeded stream is keyed by its piece id, so each height draws its own.
+        let splitter = format!("mech_splitter_l{level}");
+        let mut both = [false; 2];
+        for seed in [3, 11] {
+            let key = stream_key(
+                &PieceId::new(&splitter).unwrap(),
+                CellCoord::new(1, 0, 0),
+                SPLITTER_STREAM,
+            );
+            let mut stream = SeededRng::new(seed).stream(&key);
+            let want: Vec<Option<Side>> = (0..8)
+                .map(|_| Some(i64::from(stream.next_u32() % 2)))
+                .collect();
+            let (sides, _) = feed_fork_at(&splitter, level, seed, 8);
+            assert_eq!(sides, want, "{splitter} seed {seed}");
+            for side in sides.iter().flatten() {
+                both[*side as usize] = true;
+            }
+        }
+        assert!(both[0] && both[1], "{splitter} never used both branches");
+    }
+}
+
+/// A [`one_way_level`] run: the sim, every marble's state after each tick, the part angles after
+/// each tick and the events.
+type LevelRun = (Sim, Vec<Vec<MarbleState>>, Vec<Vec<i32>>, Vec<SimEvent>);
+
+/// The one-way pieces and the rope arch between two straights at `level`: a marble launched at
+/// `speed` along `dir`, its trajectory, the part angles after every tick and the events.
+fn one_way_level(piece: &str, level: i32, dir: f32, speed: f32, ticks: usize) -> LevelRun {
+    let st = format!("blk_straight_l{level}");
+    let layout = [
+        place(&st, 0, 0, 0, 0),
+        place(piece, 1, 0, 0, 0),
+        place(&st, 2, 0, 0, 0),
+    ];
+    let mut sim = rig(&layout, 1);
+    let x0 = if dir > 0.0 { -0.02 } else { 0.14 };
+    launch(
+        &mut sim,
+        Vector::new(x0, rest(level), 0.0),
+        Vector::X * speed * dir,
+    );
+    let (mut tr, mut angles) = (Vec::new(), Vec::new());
+    for _ in 0..ticks {
+        sim.tick(1);
+        tr.push(sim.marbles());
+        angles.push(sim.mechanisms()[0].part_angles.clone());
+    }
+    let ev = sim.drain_events();
+    (sim, tr, angles, ev)
+}
+
+#[test]
+fn the_one_way_hole_drops_and_carries_at_l2_and_l3() {
+    for level in [2, 3] {
+        let hole = format!("mech_hole_oneway_l{level}");
+        let (sim, tr, _, ev) = one_way_level(&hole, level, 1.0, 0.3, 600);
+        let fell = first(&tr, 0, |s| s.position[1] < 0.0)
+            .unwrap_or_else(|| panic!("{hole}: trap-side marble did not drop"));
+        let p = tr[fell][0].position;
+        assert!(
+            libm::fabsf(p[0] - CELL) < 0.008 && libm::fabsf(p[2]) < 0.008,
+            "{hole}: dropped at {p:?}"
+        );
+        assert_eq!(signals(&ev, "open").len(), 1, "{hole}");
+        assert_eq!(signals(&ev, "drop").len(), 1, "{hole}");
+        assert_eq!(state(&sim)["drops"], 1, "{hole}");
+
+        let (sim, tr, _, ev) = one_way_level(&hole, level, -1.0, 0.3, 600);
+        let out = first(&tr, 0, |s| s.position[0] < CELL / 2.0)
+            .unwrap_or_else(|| panic!("{hole}: over-side marble stuck"));
+        let lowest = tr[..out]
+            .iter()
+            .map(|s| s[0].position[1])
+            .fold(f32::MAX, f32::min);
+        assert!(
+            lowest > rest(level) - 0.002,
+            "{hole}: dipped to y = {lowest}"
+        );
+        assert!(signals(&ev, "open").is_empty(), "{hole}");
+        assert_eq!(state(&sim)["overs"], 1, "{hole}");
+    }
+}
+
+#[test]
+fn the_checkpoint_reports_its_passes_at_l2_and_l3() {
+    for level in [2, 3] {
+        let piece = format!("mech_checkpoint_l{level}");
+        let st = format!("blk_straight_l{level}");
+        let layout = [
+            place(&st, 0, 0, 0, 0),
+            place(&piece, 1, 0, 0, 0),
+            place(&st, 2, 0, 0, 0),
+        ];
+        let mut sim = rig(&layout, 1);
+        let (mut tr, mut ev) = (Vec::new(), Vec::new());
+        for _ in 0..2 {
+            launch(
+                &mut sim,
+                Vector::new(-0.02, rest(level), 0.0),
+                Vector::X * 0.3,
+            );
+            run(&mut sim, 200, &mut tr, &mut ev);
+        }
+        let enters = sensor_events(&ev, true, 0);
+        assert_eq!(
+            enters.iter().map(|e| e.1).collect::<Vec<_>>(),
+            [0, 1],
+            "{piece}"
+        );
+        assert_eq!(signals(&ev, "split").len(), 2, "{piece}");
+        for m in 0..2 {
+            let out = first(&tr, m, |s| s.position[0] > 2.0 * CELL);
+            assert!(out.is_some(), "{piece}: marble {m} never left the arch");
+        }
+        let s = state(&sim);
+        assert_eq!((s["passes"], s["last_marble"]), (2, 1), "{piece}");
+    }
+}
+
+#[test]
+fn the_one_way_gate_opens_forward_and_stops_reverse_at_l2_and_l3() {
+    for level in [2, 3] {
+        let gate = format!("mech_gate_oneway_l{level}");
+        let (sim, tr, angles, ev) = one_way_level(&gate, level, 1.0, 0.3, GATE_FORWARD_TICKS);
+        let past = first(&tr, 0, |s| s.position[0] > 2.0 * CELL)
+            .unwrap_or_else(|| panic!("{gate}: the forward marble never passed"));
+        assert!(
+            tr[past][0].position[1] > rest(level) - 0.005,
+            "{gate}: marble fell"
+        );
+        let peak = angles.iter().map(|a| a[0]).max().unwrap();
+        assert!(peak > 20_000, "{gate}: flap opened only {peak} mdeg");
+        assert_eq!(state(&sim)["passes"], 1, "{gate}");
+        assert_eq!(signals(&ev, "open").len(), 1, "{gate}");
+
+        let (sim, tr, _, ev) = one_way_level(&gate, level, -1.0, 0.3, 600);
+        let closest = tr.iter().map(|s| s[0].position[0]).fold(f32::MAX, f32::min);
+        assert!(
+            closest > CELL + 0.0015 + R - 0.001,
+            "{gate}: reverse marble reached x = {closest}"
+        );
+        assert!(signals(&ev, "open").is_empty(), "{gate}");
+        assert_eq!(state(&sim)["blocked"], 1, "{gate}");
+    }
+}
+
+#[test]
+fn the_rope_arch_halves_a_marbles_speed_at_l2_and_l3() {
+    // The L1 arch measured as the control: the curtain's effect is the same at every height.
+    let pass = |level: i32| {
+        let piece = format!("mech_arch_rope_l{level}");
+        let (_, tr, _, _) = one_way_level(&piece, level, 1.0, 0.3, 900);
+        let half = ROPE_ARCH_HALF_UM as f32 * 1.0e-6 + R;
+        let at = |edge: f32| {
+            tr.iter()
+                .map(|t| &t[0])
+                .find(|m| m.position[0] - CELL >= edge)
+                .map_or(0.0, |m| Vector::from(m.linvel).length())
+        };
+        (at(-half), at(half))
+    };
+    let (e1, x1) = pass(1);
+    for level in [2, 3] {
+        let (entry, exit) = pass(level);
+        assert!(entry > 0.0 && exit > 0.0, "L{level}: never left the arch");
+        let (r, r1) = (exit / entry, x1 / e1);
+        assert!(
+            (r - r1).abs() < 0.03,
+            "L{level}: speed ratio {r:.3} against the L1 arch's {r1:.3}"
+        );
+        assert!(r < 0.6, "L{level}: the curtain left {r:.3} of the speed");
     }
 }

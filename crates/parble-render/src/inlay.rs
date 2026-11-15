@@ -75,21 +75,31 @@ const D: f32 = 0.0004;
 const FACE: f32 = 0.0298;
 
 /// `mech_checkpoint_l1`, inlay 0: three upright strips on each side face (±z), at x −15, 0 and
-/// +15 mm. The arch faces (±x) carry none: in a track they abut the neighbouring pieces, so a strip
-/// there would never be seen.
-pub const CHECKPOINT_STRIPS: [InlayStrip; 6] = [
-    strip([-0.015, 0.030, FACE], [W, 0.024, D]),
-    strip([0.0, 0.030, FACE], [W, 0.024, D]),
-    strip([0.015, 0.030, FACE], [W, 0.024, D]),
-    strip([-0.015, 0.030, -FACE], [W, 0.024, D]),
-    strip([0.0, 0.030, -FACE], [W, 0.024, D]),
-    strip([0.015, 0.030, -FACE], [W, 0.024, D]),
-];
+/// +15 mm, centred `y` up the face. The arch faces (±x) carry none: in a track they abut the
+/// neighbouring pieces, so a strip there would never be seen.
+const fn checkpoint_strips(y: f32) -> [InlayStrip; 6] {
+    [
+        strip([-0.015, y, FACE], [W, 0.024, D]),
+        strip([0.0, y, FACE], [W, 0.024, D]),
+        strip([0.015, y, FACE], [W, 0.024, D]),
+        strip([-0.015, y, -FACE], [W, 0.024, D]),
+        strip([0.0, y, -FACE], [W, 0.024, D]),
+        strip([0.015, y, -FACE], [W, 0.024, D]),
+    ]
+}
+
+/// The strips at `L1` (the original arch: centred 30 mm up its one-cell face) and, a level's
+/// 15 mm higher each, at `L2` and `L3` (two cells tall).
+pub const CHECKPOINT_STRIPS: [InlayStrip; 6] = checkpoint_strips(0.030);
+pub const CHECKPOINT_STRIPS_L2: [InlayStrip; 6] = checkpoint_strips(0.045);
+pub const CHECKPOINT_STRIPS_L3: [InlayStrip; 6] = checkpoint_strips(0.060);
 
 /// The inlay groups of kit piece `id`: (inlay index, strips, colour).
 pub fn piece_inlays(id: &str) -> &'static [(usize, &'static [InlayStrip], InlayColor)] {
     match id {
         "mech_checkpoint_l1" => &[(0, &CHECKPOINT_STRIPS, InlayColor::Amber)],
+        "mech_checkpoint_l2" => &[(0, &CHECKPOINT_STRIPS_L2, InlayColor::Amber)],
+        "mech_checkpoint_l3" => &[(0, &CHECKPOINT_STRIPS_L3, InlayColor::Amber)],
         _ => &[],
     }
 }

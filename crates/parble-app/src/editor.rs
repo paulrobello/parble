@@ -2270,7 +2270,7 @@ fn apply_action(st: &mut EditState, ctx: &mut Ctx, action: Action) -> Result<Las
 /// Random or Alternate) and, in Alternate mode, its first side.
 pub fn piece_options(p: &Placement) -> Vec<PieceOption> {
     use parble_sim::behaviour::{
-        SPLITTER, SPLITTER_ALTERNATE, SPLITTER_MODE, SPLITTER_RANDOM, TOGGLE,
+        SPLITTER_ALTERNATE, SPLITTER_MODE, SPLITTER_RANDOM, is_splitter, is_toggle,
     };
     let first_side = || {
         let o = Orientation::new(p.yaw, p.mirror);
@@ -2288,8 +2288,8 @@ pub fn piece_options(p: &Placement) -> Vec<PieceOption> {
         })
     };
     match p.piece.as_str() {
-        TOGGLE => first_side().into_iter().collect(),
-        SPLITTER => {
+        id if is_toggle(id) => first_side().into_iter().collect(),
+        id if is_splitter(id) => {
             let alternate = p.config.get(SPLITTER_MODE) == Some(&SPLITTER_ALTERNATE);
             let named = |value, label| OptionChoice {
                 value,

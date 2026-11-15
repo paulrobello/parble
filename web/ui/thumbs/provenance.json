@@ -1,7 +1,7 @@
 {
   "generator": "blender/kit/thumbnails.py",
   "blender": "Blender 5.2.2 LTS",
-  "git_head": "a772798dac29647fb2e68a36f5915e75584a034e",
+  "git_head": "4845a6c0e9d03243d27a3a4e4dd37e40292ab91b",
   "date": "2026-11-14",
   "render": {
     "engine": "BLENDER_EEVEE",
@@ -282,12 +282,44 @@
       "bytes": 3299
     },
     {
+      "id": "mech_arch_rope_l2",
+      "source_glb": "assets/kit/mech_arch_rope_l2/mech_arch_rope_l2.glb",
+      "source_glb_sha256": "55b9791b1569de9c328cef8c995970cd516068cc690daeb1420e3d8ccc12b6c9",
+      "png": "mech_arch_rope_l2.png",
+      "png_sha256": "59db6601e0581e933933949936be1d3768a496885005b51dbc5043da4eeed2e4",
+      "bytes": 3214
+    },
+    {
+      "id": "mech_arch_rope_l3",
+      "source_glb": "assets/kit/mech_arch_rope_l3/mech_arch_rope_l3.glb",
+      "source_glb_sha256": "7b2e0a95bce830121597d7d47738781a952e53ec47b5255ece6c3f0033526f03",
+      "png": "mech_arch_rope_l3.png",
+      "png_sha256": "a7d53ae5664bac2a600212d9a3a9ab11a8726c7e717cd150c7bf7be5244b17b1",
+      "bytes": 3086
+    },
+    {
       "id": "mech_checkpoint_l1",
       "source_glb": "assets/kit/mech_checkpoint_l1/mech_checkpoint_l1.glb",
       "source_glb_sha256": "8014e8a323d6405fb58415c52626e80f4ae05ff8ad748b60b20c1e98d52294fa",
       "png": "mech_checkpoint_l1.png",
       "png_sha256": "2ccab1ebcbbe8db8b3f2483b437f927cc5fc95b6cbeb971a7016335d521254dd",
       "bytes": 2737
+    },
+    {
+      "id": "mech_checkpoint_l2",
+      "source_glb": "assets/kit/mech_checkpoint_l2/mech_checkpoint_l2.glb",
+      "source_glb_sha256": "aca61b6f3da2eb57a2994f0135aa02bee8427f13e8710f4da1cba486a90805fb",
+      "png": "mech_checkpoint_l2.png",
+      "png_sha256": "3644a33ae9bc2836cebff50d3ce936dc679160b783c07f0e4e04335c3daa5aac",
+      "bytes": 2405
+    },
+    {
+      "id": "mech_checkpoint_l3",
+      "source_glb": "assets/kit/mech_checkpoint_l3/mech_checkpoint_l3.glb",
+      "source_glb_sha256": "0b1afd778c196491500ef758172c1cba89b1e3096c83e3f43094555d13639f22",
+      "png": "mech_checkpoint_l3.png",
+      "png_sha256": "31df1e9b5f4b123031f26c766095cee178485cb6ce14d654dc6363b3bf2e285f",
+      "bytes": 2432
     },
     {
       "id": "mech_finish",
@@ -306,6 +338,22 @@
       "bytes": 3254
     },
     {
+      "id": "mech_gate_oneway_l2",
+      "source_glb": "assets/kit/mech_gate_oneway_l2/mech_gate_oneway_l2.glb",
+      "source_glb_sha256": "98f0a922e8ae76516d5566b85fd901a95f1d57d551c393f6f7e7666c4c7eef08",
+      "png": "mech_gate_oneway_l2.png",
+      "png_sha256": "0cf97c763bbe8781710c4c4e7cd67e63f07337b75cab826cd7ae407eeece5c22",
+      "bytes": 3177
+    },
+    {
+      "id": "mech_gate_oneway_l3",
+      "source_glb": "assets/kit/mech_gate_oneway_l3/mech_gate_oneway_l3.glb",
+      "source_glb_sha256": "1c335d595fb4b09029ba1986a1e7f000d3a972d9f2d9937a252432ab79c3cb27",
+      "png": "mech_gate_oneway_l3.png",
+      "png_sha256": "e5d321c067fd27b8b4c8b77fcc7529c00ba26260478a112b482161e06935c445",
+      "bytes": 2810
+    },
+    {
       "id": "mech_hole_oneway_l1",
       "source_glb": "assets/kit/mech_hole_oneway_l1/mech_hole_oneway_l1.glb",
       "source_glb_sha256": "41a634dd5a6ff71efb5bd4842da2ebb15eef6e14af15fe52087265dabd931db4",
@@ -314,12 +362,44 @@
       "bytes": 3086
     },
     {
+      "id": "mech_hole_oneway_l2",
+      "source_glb": "assets/kit/mech_hole_oneway_l2/mech_hole_oneway_l2.glb",
+      "source_glb_sha256": "27679fb1a2bba7cf5a8e876e61f01ad0b9f82ca31607478992686770ec872262",
+      "png": "mech_hole_oneway_l2.png",
+      "png_sha256": "28f0a07837f7b012d3365655bd557745e800cd6c5f8b22dd7f49a084dd62b124",
+      "bytes": 3132
+    },
+    {
+      "id": "mech_hole_oneway_l3",
+      "source_glb": "assets/kit/mech_hole_oneway_l3/mech_hole_oneway_l3.glb",
+      "source_glb_sha256": "7460c5d933a56079fba1dc0d980b503cfa1b8d6f5735dc9c8f42d7bd13f87843",
+      "png": "mech_hole_oneway_l3.png",
+      "png_sha256": "ab8f2e87abe8e03521e7c3a80e04c7f93d0b102d896add33beff5206e3424e46",
+      "bytes": 3011
+    },
+    {
       "id": "mech_hopper",
       "source_glb": "assets/kit/mech_hopper/mech_hopper.glb",
       "source_glb_sha256": "f3defc743246bfdfb4cc903ba053d31bf4c0253d38f4765d963ad716c6c5a71c",
       "png": "mech_hopper.png",
       "png_sha256": "7d6e68ddbc76a076fb63c748cac59e18e27aa60d116aafc23f95e3a733b5e0d7",
       "bytes": 3278
+    },
+    {
+      "id": "mech_splitter_l1",
+      "source_glb": "assets/kit/mech_splitter_l1/mech_splitter_l1.glb",
+      "source_glb_sha256": "ed8116937b750598f1337a54ac08d1c476d10a2d1698e7a46c416c1656199f7f",
+      "png": "mech_splitter_l1.png",
+      "png_sha256": "b07168e804d3db6e0569e755591695c764813456a817988786b292726bb48585",
+      "bytes": 3348
+    },
+    {
+      "id": "mech_splitter_l2",
+      "source_glb": "assets/kit/mech_splitter_l2/mech_splitter_l2.glb",
+      "source_glb_sha256": "45d7d77143383a5c07c8ad73362261dd6df9b4f0523a3b841fd34bb05319911c",
+      "png": "mech_splitter_l2.png",
+      "png_sha256": "8f4f174f27ee83a227f5b777c4e9cc1560ad2530cfc42b3691dbf1b766df8664",
+      "bytes": 3345
     },
     {
       "id": "mech_splitter_l3",
@@ -344,6 +424,22 @@
       "png": "mech_stepper_up1_l3.png",
       "png_sha256": "c230e187cfcf80ed6bc2078ada5ff9596bf425dbbcf81dfeeaf9c17602bededc",
       "bytes": 2726
+    },
+    {
+      "id": "mech_toggle_l1",
+      "source_glb": "assets/kit/mech_toggle_l1/mech_toggle_l1.glb",
+      "source_glb_sha256": "4704523d688b6d2cf140f03c9df6ae4fa03fec1f7ec49505f2b375fb0426c4a7",
+      "png": "mech_toggle_l1.png",
+      "png_sha256": "43144869d8b176a985c82a61e555b8ae777b01e6f4511e59e1921f83b2bb551f",
+      "bytes": 3343
+    },
+    {
+      "id": "mech_toggle_l2",
+      "source_glb": "assets/kit/mech_toggle_l2/mech_toggle_l2.glb",
+      "source_glb_sha256": "3c4698a78a48b3a6a547fd385e045314713a1ff6c36b395db003410522034b8d",
+      "png": "mech_toggle_l2.png",
+      "png_sha256": "88ab410aef0e05049f21e992b0c6462674fcfac72558a6865c9b93e47c21c6de",
+      "bytes": 3392
     },
     {
       "id": "mech_toggle_l3",

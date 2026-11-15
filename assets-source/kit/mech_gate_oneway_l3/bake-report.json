@@ -1,0 +1,53 @@
+{
+  "aoDistanceM": 0.02,
+  "blender": "5.2.2 LTS",
+  "cageExtrusionM": 0.0005,
+  "channels": {
+    "mech_gate_oneway_l3_lod0_ao": {
+      "colorspace": "Non-Color",
+      "sha256": "e3c32dab6ea7464d4581e793c412d04f0d9e5b7462e3d423b7ed68704685b8f1",
+      "size": 1024
+    },
+    "mech_gate_oneway_l3_lod0_normal": {
+      "colorspace": "Non-Color",
+      "sha256": "4d918272694adf163668e95d3d2d67fb88aa8f60991cbc97aa58bf2ec099503b",
+      "size": 1024
+    },
+    "mech_gate_oneway_l3_lod1_ao": {
+      "colorspace": "Non-Color",
+      "sha256": "7198818675ea497ed9511e8e58f13d7b64037a86e0a9d4be7ebccd21dc134053",
+      "size": 512
+    },
+    "mech_gate_oneway_l3_lod1_normal": {
+      "colorspace": "Non-Color",
+      "sha256": "52132d3009c42403c1c716a7d8de68ee3809c9d512b11bdb0c6da8ddcada9243",
+      "size": 512
+    },
+    "mech_gate_oneway_l3_lod2_ao": {
+      "colorspace": "Non-Color",
+      "sha256": "6962042d56b9c2e834c0504bbba7c71017cf2285b967c93cb845616c7c219e10",
+      "size": 256
+    },
+    "mech_gate_oneway_l3_lod2_normal": {
+      "colorspace": "Non-Color",
+      "sha256": "f0af3dfddc0e4a39bae3a821b3f31fea907c2f338920db4928f2263a90c37d15",
+      "size": 256
+    }
+  },
+  "device": "GPU",
+  "highPoly": {
+    "bevel_segs": 8,
+    "n_fillet": 12,
+    "n_round": 64,
+    "path": {
+      "curve90": 40,
+      "end": 32,
+      "slope_gentle": 32,
+      "straight": 1
+    }
+  },
+  "marginPx": 8,
+  "maxRayDistanceM": 0.002,
+  "samples": 16,
+  "skipped": false
+}

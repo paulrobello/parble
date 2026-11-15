@@ -343,7 +343,7 @@ mod tests {
                 checked += 1;
             }
         }
-        assert_eq!(checked, 15, "mechanism parts");
+        assert_eq!(checked, 39, "mechanism parts");
     }
 
     /// A rope's bands: every band of every LOD holds triangles, the bands together are the whole
