@@ -48,10 +48,14 @@ ui-static: $(UI_NPM)
 ui-test: $(UI_NPM)
 	cd $(UI) && ./node_modules/.bin/vitest run
 
-# The runtime SFX (scripts/web/stage-audio.mjs), the editor's Alegreya Sans woff2 and the palette thumbnails
-# (make kit-thumbs) are staged after Vite, which empties dist.
+# The generator worker (a second Vite build, PARBLE_GEN_WORKER=1, into dist/gen-worker.js) and its
+# wasm (scripts/web/gen-wasm.sh, into dist/gen), the runtime SFX (scripts/web/stage-audio.mjs), the
+# editor's Alegreya Sans woff2 and the palette thumbnails (make kit-thumbs) are staged after the first
+# Vite build, which empties dist.
 ui-build: $(UI_NPM)
 	cd $(UI) && ./node_modules/.bin/vite build
+	cd $(UI) && PARBLE_GEN_WORKER=1 ./node_modules/.bin/vite build
+	bash scripts/web/gen-wasm.sh $(UI)/dist/gen
 	node scripts/web/stage-audio.mjs $(UI)/dist/audio
 	mkdir -p $(UI)/dist/fonts $(UI)/dist/thumbs/marbles
 	cp $(UI)/fonts/*.woff2 $(UI)/fonts/OFL.txt $(UI)/dist/fonts/
@@ -240,13 +244,18 @@ WEB_DIST := target/web-dist
 build-web: $(TRUNK)
 	$(TRUNK) build --release --dist $(WEB_DIST)
 
-# PRD §6 P0 budget: wasm <= 15 MB gzip.
+# PRD §6 P0 budget: wasm <= 15 MB gzip. The generator worker's wasm (P6-T2, web/ui/gen) loads only on
+# the first generate, never at startup, so it has its own budget of 2 MB gzip.
+GEN_WASM := $(WEB_DIST)/web/ui/gen/parble_sim_wasm_bg.wasm
 web-size:
 	@rm -rf $(WEB_DIST)
 	@$(MAKE) --no-print-directory build-web
 	@wasm=$$(ls $(WEB_DIST)/*.wasm); raw=$$(wc -c < $$wasm | tr -d ' '); gz=$$(gzip -9 -c $$wasm | wc -c | tr -d ' '); \
 	echo "wasm raw=$$raw gzip=$$gz"; \
 	test $$gz -le 15000000 || { echo "FAIL: wasm gzip $$gz > 15 MB budget"; exit 1; }
+	@gz=$$(gzip -9 -c $(GEN_WASM) | wc -c | tr -d ' '); \
+	echo "generator wasm gzip=$$gz"; \
+	test $$gz -le 2000000 || { echo "FAIL: generator wasm gzip $$gz > 2 MB budget"; exit 1; }
 
 # P4-T2: process assets-source/audio originals into audition/ (originals are never modified).
 audio-process:

@@ -266,3 +266,95 @@ fn bad_params_and_catalogs_are_refused() {
         GenError::MissingPiece("support pillar")
     );
 }
+
+/// A length the hopper's layer cannot carry is refused at once, naming the most it can.
+#[test]
+fn a_length_too_long_for_the_height_is_refused_at_once() {
+    let defs = defs();
+    let p = GenParams {
+        length: 100,
+        height: 6,
+        ..GenParams::default()
+    };
+    assert_eq!(p.max_length(), 72);
+    let start = std::time::Instant::now();
+    assert_eq!(
+        generate(&defs, 1, &p).unwrap_err(),
+        GenError::TooLong {
+            length: 100,
+            max_length: 72
+        }
+    );
+    assert!(start.elapsed().as_millis() < 100, "{:?}", start.elapsed());
+    assert!(generate(&defs, 1, &GenParams { length: 72, ..p }).is_ok());
+}
+
+/// Long tracks on a low hopper (more than seven pieces a layer) generate, valid and descending
+/// to a layer-0 finish, at about the target length.
+#[test]
+fn long_tracks_on_a_low_hopper_generate() {
+    let defs = defs();
+    let catalog = catalog();
+    for (length, height) in [(100, 10), (160, 16)] {
+        let p = GenParams {
+            length,
+            height,
+            footprint: 12,
+            ..GenParams::default()
+        };
+        for seed in 0..3u64 {
+            let t = generate(&defs, seed, &p)
+                .unwrap_or_else(|e| panic!("{length}/{height} seed {seed}: {e}"));
+            assert!(validate_track(&t, &catalog).is_empty());
+            let track_pieces = t
+                .placements
+                .iter()
+                .filter(|pl| !catalog.get(&pl.piece).is_some_and(|d| d.structural))
+                .count() as u32;
+            assert!(
+                track_pieces * 4 >= length * 3 && track_pieces <= 2 * length + 16,
+                "{length}/{height} seed {seed}: {track_pieces} pieces"
+            );
+        }
+    }
+}
+
+/// Diagnostic: how often long tracks generate, and how fast. `PROCGEN_LONG` lists
+/// `length:height:footprint` cases (default `100:10:8,200:20:10,500:40:14`), `PROCGEN_SEEDS`
+/// the seed count.
+#[test]
+#[ignore = "diagnostic: long-track generation census"]
+fn long_track_census() {
+    let defs = defs();
+    let seeds: u64 = std::env::var("PROCGEN_SEEDS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(10);
+    let cases =
+        std::env::var("PROCGEN_LONG").unwrap_or_else(|_| "100:10:8,200:20:10,500:40:14".into());
+    for case in cases.split(',') {
+        let v: Vec<u32> = case.split(':').map(|x| x.parse().unwrap()).collect();
+        let p = GenParams {
+            length: v[0],
+            height: v[1],
+            footprint: v[2],
+            ..GenParams::default()
+        };
+        let start = std::time::Instant::now();
+        let mut ok = 0;
+        let mut pieces = Vec::new();
+        for seed in 0..seeds {
+            match generate(&defs, seed, &p) {
+                Ok(t) => {
+                    ok += 1;
+                    pieces.push(t.placements.len());
+                }
+                Err(e) => println!("  {case} seed {seed}: {e}"),
+            }
+        }
+        println!(
+            "{case}: {ok}/{seeds} in {:.1} s, placements {pieces:?}",
+            start.elapsed().as_secs_f64()
+        );
+    }
+}

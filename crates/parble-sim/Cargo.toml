@@ -11,8 +11,6 @@ parble-kit = { path = "../parble-kit" }
 # The workspace pin disables default features; `std` brings back the allocating world types.
 rapier3d = { workspace = true, features = ["std"] }
 libm = { workspace = true }
-
-[dev-dependencies]
 parble-procgen = { path = "../parble-procgen" }
 
 [lints]

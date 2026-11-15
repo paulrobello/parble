@@ -4374,7 +4374,12 @@ dependencies = [
 name = "parble-sim-wasm"
 version = "0.1.0"
 dependencies = [
+ "js-sys",
+ "parble-core",
+ "parble-procgen",
  "parble-sim",
+ "serde",
+ "serde_json",
  "wasm-bindgen",
 ]
 

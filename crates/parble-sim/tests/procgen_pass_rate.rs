@@ -28,6 +28,7 @@ fn params_from_env() -> GenParams {
     params.marbles = env("PROCGEN_MARBLES", u64::from(params.marbles)) as u32;
     params.height = env("PROCGEN_HEIGHT", u64::from(params.height)) as u32;
     params.special_per_mille = env("PROCGEN_SPECIAL", u64::from(params.special_per_mille)) as u32;
+    params.footprint = env("PROCGEN_FOOTPRINT", u64::from(params.footprint)) as u32;
     params
 }
 
@@ -337,4 +338,57 @@ fn drop_orientation_census() {
     for (k, v) in &tally {
         println!("{k}: reached {} then entered the catch {}", v[0], v[1]);
     }
+}
+
+/// How many ticks until every marble finishes, per seed: the data behind the validation job's
+/// acceptance limit. `PROCGEN_LENGTH` and `PROCGEN_SEEDS` as above.
+#[test]
+#[ignore = "diagnostic: finish time census"]
+fn finish_time_census() {
+    let defs: Vec<_> = parble_kit::builtin()
+        .iter()
+        .map(|p| p.def.clone())
+        .collect();
+    let seeds = env("PROCGEN_SEEDS", 30);
+    let ticks = env("PROCGEN_TICKS", 240 * 600) as u32;
+    let params = params_from_env();
+    let mut done = Vec::new();
+    for seed in 0..seeds {
+        let Ok(track) = generate(&defs, seed, &params) else {
+            continue;
+        };
+        let pieces = track.placements.len();
+        let mut run = TrackRun::new(&track).expect("runs");
+        let mut t = 0;
+        let mut last = 0;
+        while t < ticks {
+            run.tick(24);
+            t += 24;
+            let m = run.motion();
+            if m.iter().any(|s| matches!(s, MarbleMotion::Lost)) {
+                break;
+            }
+            if m.len() == params.marbles as usize
+                && m.iter().all(|s| matches!(s, MarbleMotion::Finished))
+            {
+                last = t;
+                break;
+            }
+        }
+        if last > 0 {
+            done.push((last, pieces));
+            println!("seed {seed}: {pieces} placements, all finished at {last} ticks");
+        }
+    }
+    done.sort();
+    let per_piece = done
+        .iter()
+        .map(|(t, p)| *t as f64 / *p as f64)
+        .fold(0.0, f64::max);
+    println!(
+        "FINISHED {} of {seeds}; ticks min {:?} max {:?}; max ticks per placement {per_piece:.0}",
+        done.len(),
+        done.first(),
+        done.last()
+    );
 }

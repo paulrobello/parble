@@ -3,6 +3,7 @@ import { Bridge, type WasmBindings } from "./bridge";
 import type { EditorDiag } from "./editor/model";
 import { type Orbit, mountEditor } from "./editor/overlay";
 import { mountFiles } from "./files";
+import { mountGen } from "./gen/hook";
 import { applyEvents, controlsHint, emptyHud, formatHud, mountControlsHint, mountHud } from "./hud";
 import { Library } from "./library";
 import { mountFlyPointerLock } from "./pointer-lock";
@@ -37,6 +38,9 @@ if (title) window.__parbleTitle = title;
 let editorDirty = (): boolean => false;
 const updateNote = new UpdateNote(document, () => editorDirty());
 watchVersion(updateNote);
+
+// The generator worker client (P6-T2): window.__parbleGen. The worker spawns on the first generate().
+mountGen(window);
 
 type CameraState = { mode?: string; flyOnly?: boolean; orbit?: Orbit; forward?: [number, number, number] };
 type ParbleState = { camera?: CameraState; editor?: EditorDiag };

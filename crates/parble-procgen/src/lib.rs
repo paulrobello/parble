@@ -9,7 +9,7 @@
 //! (an `L1` exit onto an `L3` inlet one layer below) the validator accepts. Support pillars go
 //! under every elevated cell afterwards. The finished track must pass
 //! [`parble_core::validate_track`] with no issues. Static validity is not a physical run: the
-//! headless sim check that accepts or retries a candidate is P6-T2.
+//! headless sim check that accepts or retries a candidate is `parble_sim::procgen_job` (P6-T2).
 //!
 //! Not generated yet: lifts (`mech_stepper_*`), joins, funnels, one-way holes and socket/spigot
 //! pieces, because each needs a second feed, an unmated inlet or a coupled partner.
@@ -30,7 +30,7 @@ pub use params::{Families, GenError, GenParams};
 pub use search::NODE_BUDGET;
 
 /// Bump whenever a change alters the track generated for the same catalog, seed and params.
-pub const GENERATOR_VERSION: u32 = 6;
+pub const GENERATOR_VERSION: u32 = 7;
 
 /// Generate a track. `defs` is the catalog the track is built from, in any order.
 pub fn generate(defs: &[PieceDef], seed: u64, params: &GenParams) -> Result<Track, GenError> {
@@ -60,7 +60,7 @@ pub fn generate(defs: &[PieceDef], seed: u64, params: &GenParams) -> Result<Trac
     if !template::can_finish(&set, start) {
         return Err(GenError::NoRoute);
     }
-    let via = reach::Viability::new(&set);
+    let via = reach::Viability::new(&set, search::max_flat_run(params));
     let exit = hopper
         .ports
         .iter()

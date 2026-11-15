@@ -1,5 +1,10 @@
 //! parble-sim-wasm: wasm-bindgen exports of the parble-sim golden runs, used by the wasm
-//! determinism parity check (`make determinism-wasm`, `scripts/determinism/`).
+//! determinism parity check (`make determinism-wasm`, `scripts/determinism/`), and the
+//! generate-and-validate job of the generator Web Worker ([`generate_and_validate`], P6-T2).
+
+mod generate;
+
+pub use generate::{GenerateJob, ParamsWire, generate_and_validate, run_procgen_job};
 
 use wasm_bindgen::prelude::wasm_bindgen;
 
@@ -110,6 +115,55 @@ mod tests {
         assert_eq!(
             super::run_nudge_constant_track(),
             parble_sim::nudge::constant_track_hash_hex()
+        );
+        assert_eq!(
+            super::run_procgen_job(),
+            parble_sim::procgen_job::golden_lines()
+        );
+    }
+
+    #[test]
+    fn params_json_defaults_every_missing_slider() {
+        let p: super::ParamsWire = serde_json::from_str("{}").unwrap();
+        assert_eq!(p.params(), parble_procgen::GenParams::default());
+        let p: super::ParamsWire = serde_json::from_str(
+            r#"{"height":3,"length":14,"specialPerMille":0,"families":{"blk":true,"rail":false,"mech":false}}"#,
+        )
+        .unwrap();
+        let p = p.params();
+        assert_eq!((p.height, p.length, p.special_per_mille), (3, 14, 0));
+        assert!(!p.families.rail);
+        assert!(serde_json::from_str::<super::ParamsWire>(r#"{"seed":1}"#).is_err());
+    }
+
+    #[test]
+    fn a_job_refuses_seeds_javascript_cannot_hold() {
+        for bad in [-1.0, 1.5, f64::NAN, 9_007_199_254_740_992.0] {
+            assert!(super::GenerateJob::create(bad, "{}").is_err(), "{bad}");
+        }
+        assert!(super::GenerateJob::create(0.0, "{nope").is_err());
+    }
+
+    /// A zero budget still does one unit a slice, and slicing that finely gives the golden result.
+    #[test]
+    fn zero_budget_slices_reach_the_golden_result() {
+        let golden = parble_sim::procgen_job::golden_lines();
+        let line = golden.lines().nth(1).unwrap();
+        let mut job = super::GenerateJob::create(
+            2.0,
+            r#"{"height":3,"length":14,"footprint":5,"marbles":2}"#,
+        )
+        .unwrap();
+        let mut slices = 0u64;
+        while job.run_slice(0.0).status == "running" {
+            slices += 1;
+        }
+        assert_eq!(job.status().units, slices + 1);
+        assert_eq!(job.result_line(2), line);
+        let file = job.file_json("generated").unwrap();
+        assert!(
+            file.contains("\"seed\": 2") || file.contains("\"seed\":2"),
+            "{file}"
         );
     }
 }

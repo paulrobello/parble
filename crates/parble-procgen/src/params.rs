@@ -41,7 +41,8 @@ pub struct GenParams {
     /// Layer the hopper sits on. The track descends from it to the finish on layer 0. `1..=64`.
     pub height: u32,
     /// Target number of track pieces, hopper and finish included, supports not. The track ends
-    /// at the first finish on layer 0 once it has three quarters of this many. `3..=1000`.
+    /// at the first finish on layer 0 once it has three quarters of this many. `3..=1000`, and at
+    /// most [`GenParams::max_length`] (12 a layer of `height`).
     pub length: u32,
     /// Chance, in per mille, that a step draws a special piece (gate, checkpoint, rope arch)
     /// instead of a plain one. `0..=1000`.
@@ -71,6 +72,17 @@ impl GenParams {
     /// The marble size every generated hopper releases.
     pub const MARBLE_SIZE: MarbleSize = MarbleSize::Standard;
 
+    /// Target pieces per layer of height a track can carry. Above it every walk runs out of
+    /// height before it reaches the length, so [`crate::generate`] refuses at once instead of
+    /// searching (2026-11-15 `long_track_census`, 5 seeds a case: 12 a layer passed 1 to 4 of 5,
+    /// 14 none).
+    pub const MAX_PIECES_PER_LAYER: u32 = 12;
+
+    /// The longest target length the hopper's layer can carry.
+    pub fn max_length(&self) -> u32 {
+        Self::MAX_PIECES_PER_LAYER.saturating_mul(self.height)
+    }
+
     pub(crate) fn check(&self) -> Result<(), GenError> {
         let range = |name: &'static str, v: u32, lo: u32, hi: u32| {
             if (lo..=hi).contains(&v) {
@@ -84,7 +96,14 @@ impl GenParams {
         range("length", self.length, 3, 1000)?;
         range("special_per_mille", self.special_per_mille, 0, 1000)?;
         range("difficulty", self.difficulty, 0, 100)?;
-        range("marbles", self.marbles, 1, 64)
+        range("marbles", self.marbles, 1, 64)?;
+        if self.length > self.max_length() {
+            return Err(GenError::TooLong {
+                length: self.length,
+                max_length: self.max_length(),
+            });
+        }
+        Ok(())
     }
 }
 
@@ -99,6 +118,9 @@ pub enum GenError {
     NoPieces,
     /// The search space was exhausted without reaching a finish.
     NoRoute,
+    /// The target length needs more height than the hopper's layer gives: at most
+    /// `max_length` pieces generate from it ([`GenParams::max_length`]).
+    TooLong { length: u32, max_length: u32 },
     /// The node budget ran out first. A caller retries with the next sub-seed.
     Exhausted { nodes: u32 },
     /// The finished track failed validation. A generator bug, never shipped.
@@ -112,6 +134,10 @@ impl core::fmt::Display for GenError {
             Self::MissingPiece(p) => write!(f, "the catalog has no {p}"),
             Self::NoPieces => f.write_str("the allowed families leave no chainable piece"),
             Self::NoRoute => f.write_str("no route from the hopper to a finish exists"),
+            Self::TooLong { length, max_length } => write!(
+                f,
+                "a length of {length} needs a higher hopper: at most {max_length} pieces from this height"
+            ),
             Self::Exhausted { nodes } => write!(f, "search budget of {nodes} nodes exhausted"),
             Self::Invalid { issues, first } => {
                 write!(

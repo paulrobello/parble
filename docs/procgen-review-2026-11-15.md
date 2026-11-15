@@ -1,0 +1,29 @@
+# Procgen review, 2026-11-15
+
+Whole-generator review at `a2bcd34` (generator version 7): native release, single-threaded, 1-minute load 60 to 140, so absolute times are relative and counts and ratios are what hold. Cases are `length:height:footprint`. This is the spec for the follow-up phases in `plans/phase-6-procgen.md` (P6-T2b onward).
+
+## Findings
+
+- **F1. The search fails on the turn speed cap, not on height.** `TURN_MAX_V2 = 250` (`speed.rs`) refuses turns above 0.5 m/s while the average open end sits near v2 500. 75 to 94% of dead-end frames have v2 > 250, and 73 to 91% of fitting turn templates are refused as too fast. The search spends 55 nodes per placed piece at default and 62 at 500:48:14. With the cap removed (diagnostic), 500:42:14 went from 0/6 to 6/6 at 6 nodes a piece, with delivered length 90 to 97% and turns rising from 5% to 40%. On pristine code failure tracks footprint: 300:30:8 passes 1/6, 300:30:20 6/6, 500:42:14 0/6, 500:42:24 5/6.
+- **F2. Delivered length is 77 to 80% of `length` at every size** (32/40, 78/100, 123/160, 381/500): the three-quarter finish rule in `Search::extend` plus `draw` always taking a finish when one fits. Real density tops out near 8 track pieces a layer.
+- **F3. Variety is low.** 39 of 69 kit ids used. Straights 43 to 57%, turns 2 to 9%, plan coverage 9 to 35%.
+- **F4. The speed model disagrees with the sim** (first marble, 200 default seeds, v² out/in per piece): straights 1.00 (model 0.95); rope arch 0.24 to 0.25 (model 0.95, lumped with the gate); gate 0.89 to 0.95; block curves L1/L2 0.77, L3 0.08 (model 0.35); catch exit 0.17 m/s (model 0.245). 67% of marbles leave `mech_arch_rope_l3` below the 0.17 m/s stall line.
+- **F5. Physical failure is about 0.12% per piece traversal at every length.** First marble 289/300 at default, 36/40 at 100:10:12. The 11 default failures: 4 stalls, 7 off-track, three of them `blk_redirect_l3` entered at 0.6 to 1.1 m/s (`enters` has no redirect cap). 3 marbles at 100:10:12: 15/20, 4 stalls at 0.01 to 0.02 m/s and 1 off-track. Compounding predicts about 25% per candidate for 3 marbles on 381 pieces.
+- **F6. Validation, not generation, is the 500-piece cost.** 500:48:14 seed 0: generate 0.13 s, `validate_track` 4 ms, collider build 0.40 s, run 73,693 ticks in 30.4 s (2,447 ticks/s). Tick rate follows mechanism count: on 240-piece tracks 82,600 ticks/s with no specials, 5,062 at 150 per mille, 1,886 at 400. Mechanism bodies never sleep.
+- **F7. `limit_ticks` counts supports.** The 500:48:14 limit is 1,633,140 ticks against 77,220 on track pieces. Only `Lost` rejects early, so a stalled or off-track marble waits for the limit. An `Exhausted` generate costs 0.87 s and is retried up to 32 times.
+- **F8. Supports are physical.** The pillar is a hollow tube and a column stops on the first occupied cell, so pillars stand on lower track pieces (2.2 per default track, 76 per 500:48:14). An L3 marble tops out at 61 mm, 1 mm into the cell above; `kit-contract.md` wants 34 mm clear and the validator has no such rule. Default seed 0: a marble at 0.91 m/s on `blk_straight_l3` hits the pillar above and crawls; first finish at tick 3,709, 1,384 without those pillars. Collider-less supports are not safe.
+- **F9. Supports dominate long tracks:** 72% of placements at 40:6:8, 95% at 500:48:14 (6,811 to 7,006 supports, 372 columns, 1,261 pieces with h2/h4/h8 pillars). A 500:48:14 file is 1.0 MB against about 55 KB for the track alone. Pillars cost nothing per tick and 4x on collider build.
+- **F10. Families not generated:** one-way holes, sockets and rail joints, splitters and toggles (`max_exits` 1), joins, steppers, ends and the funnel, plus 5 `UNRELIABLE` ids.
+- **F11. No segment entry point.** `Search::run` hard-codes the hopper start and a layer-0 finish. `GENERATOR_VERSION` is not written to the file.
+- **F12. Determinism is sound.** Ordered collections, node budgets, per-attempt streams, no clock.
+
+## Plan
+
+| Phase | Work | Check |
+|---|---|---|
+| 1 (A1, O1) | Job limit on track pieces; stalled or off-track marble rejected early; "500-piece" means track pieces | 100:10:12 seed 8 rejected near tick 9,000, not 94,320; the 500:48:14 base-1 job terminates; `procgen_job.txt` diff explained |
+| 2 (v8: O2, A3) | No pillar directly above an L2/L3 channel, plus a validator clearance rule; per-piece retention (arch as a brake, redirect entry cap, per-level curves, straights 1.0, catch exit 0.17 m/s); finish rule delivering ≥ 90% of `length` | first marble ≥ 289/300 at default; 3 marbles at 100:10:12 above 15/20 on ≥ 40 seeds |
+| 3 (v9: A4) | Footprint-aware runway check replacing the flat-run step and `TooLong` | 500:42:14 and 300:30:8 pass ≥ 9 of 10 seeds; phase 2 rates hold |
+| 4 (A5) | Idle mechanisms sleep (physics change) | one golden hash on every platform; ticks/s at 150 per mille within 2x of the no-special rate (low-load window) |
+| 5 (A6) | `blk_pillar` h2/h4/h8 | 500-piece track under 2,000 placements; `perf-gate`, `web-editor-perf` pass; look signed off by Paul |
+| 6 (A7) | Segment entry point (start port, occupied set, goal) with per-segment validation; then P6-T4 router and branches/joins (A8, in P6-T4) | segment output byte-identical per seed; a 500-piece track accepted in the worker inside the budget |

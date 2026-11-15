@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 
 use parble_core::{PortClass, PortLevel};
 
-use crate::search::{FINISH_VALUE, MAX_FLAT_RUN};
+use crate::search::FINISH_VALUE;
 use crate::speed::{MIN_FLOW_V2, TRANSFER_MAX_V2, enters, exit_v2};
 use crate::template::{Shape, TemplateSet, end_value, rel_value};
 
@@ -63,11 +63,13 @@ type Key = (i32, i64, i32, u8, bool);
 pub(crate) struct Viability {
     steps: Vec<Step>,
     goals: Vec<Goal>,
+    /// Consecutive level pieces allowed ([`crate::search::max_flat_run`]).
+    max_flat: u8,
     memo: RefCell<BTreeMap<Key, bool>>,
 }
 
 impl Viability {
-    pub fn new(set: &TemplateSet) -> Self {
+    pub fn new(set: &TemplateSet, max_flat: u8) -> Self {
         let mut steps: Vec<Step> = set
             .chain
             .iter()
@@ -97,6 +99,7 @@ impl Viability {
         Self {
             steps,
             goals,
+            max_flat,
             memo: RefCell::new(BTreeMap::new()),
         }
     }
@@ -153,7 +156,7 @@ impl Viability {
                 value - 2 + s.delta
             };
             let d = value - ev;
-            if d < 0 || ev < FINISH_VALUE || !enters(shape, v2) || (d == 0 && flat >= MAX_FLAT_RUN)
+            if d < 0 || ev < FINISH_VALUE || !enters(shape, v2) || (d == 0 && flat >= self.max_flat)
             {
                 continue;
             }

@@ -30,6 +30,7 @@ pub mod mech_showcase;
 pub mod mechanism;
 pub mod nudge;
 pub mod playroom_run;
+pub mod procgen_job;
 pub mod rail_arc;
 pub mod rope;
 pub mod scene;

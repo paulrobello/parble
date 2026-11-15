@@ -25,8 +25,29 @@ pub const NODE_BUDGET: u32 = 200_000;
 /// backtracking cannot undo an early mistake from deep in a long track, a restart can.
 pub(crate) const ATTEMPT_NODES: u32 = 2_000;
 
-/// Consecutive level pieces allowed before the track must descend again.
+/// Consecutive level pieces allowed before the track must descend again, for tracks whose
+/// height leaves room to spare ([`max_flat_run`]).
 pub(crate) const MAX_FLAT_RUN: u8 = 3;
+
+/// The flat-run limit of a long track on a low hopper ([`max_flat_run`]).
+pub(crate) const LONGEST_FLAT_RUN: u8 = 8;
+
+/// Target pieces per layer of height above which a track gets [`LONGEST_FLAT_RUN`].
+pub(crate) const FLAT_RUN_PIECES_PER_LAYER: u32 = 7;
+
+/// The flat-run limit for `params`: [`MAX_FLAT_RUN`] up to [`FLAT_RUN_PIECES_PER_LAYER`] target
+/// pieces a layer of height, [`LONGEST_FLAT_RUN`] above. At the old limit of 3 a walk ran out of
+/// height above about seven pieces a layer (2026-11-15 `long_track_census`, 5 seeds a case: 90
+/// pieces from layer 10 and 160 from layer 16 failed every seed); at 8, 100 from layer 10 and 160
+/// from layer 16 pass all 5. The default params and every track under the ratio keep the limit
+/// of 3 and generate exactly as before.
+pub(crate) fn max_flat_run(params: &GenParams) -> u8 {
+    if params.length > FLAT_RUN_PIECES_PER_LAYER * params.height {
+        LONGEST_FLAT_RUN
+    } else {
+        MAX_FLAT_RUN
+    }
+}
 
 /// The lowest port value a track can still finish from: `L3` of layer 0.
 pub(crate) const FINISH_VALUE: i32 = 3;
@@ -116,6 +137,7 @@ pub(crate) struct Search<'a> {
     /// Cells no piece may take, but a support may: under a transfer's source.
     nopiece: BTreeSet<CellCoord>,
     ends: Vec<End>,
+    max_flat: u8,
 }
 
 impl<'a> Search<'a> {
@@ -136,6 +158,7 @@ impl<'a> Search<'a> {
             reserved: BTreeSet::new(),
             nopiece: BTreeSet::new(),
             ends: Vec::new(),
+            max_flat: max_flat_run(&params),
         }
     }
 
@@ -393,7 +416,7 @@ impl<'a> Search<'a> {
             let out = exit_v2(end.v2, t.shape, d);
             d >= 0
                 && v >= FINISH_VALUE
-                && (d > 0 || end.flat < MAX_FLAT_RUN)
+                && (d > 0 || end.flat < self.max_flat)
                 && out >= MIN_FLOW_V2
                 && self.via.viable(
                     v,

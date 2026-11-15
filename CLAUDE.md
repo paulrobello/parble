@@ -26,7 +26,7 @@ make pre-commit     # pre-commit run --all-files
 make dev            # trunk serve on 127.0.0.1:5310 (needs index.html, added in P0-T5)
 make dev-stop       # stop the 5310 listener: TERM, poll ≤ 2 s, then SIGKILL
 make build-web      # trunk build --release into target/web-dist (dist/ is make dev's)
-make web-size       # build-web + wasm ≤ 15 MB gzip budget
+make web-size       # build-web + wasm ≤ 15 MB gzip budget (generator worker wasm ≤ 2 MB)
 
 make run-shot       # native screenshot to target/shots/run-shot.png, then exits (non-zero unless lit)
 make run-diag       # native: run 3 s, print the state JSON, exit
@@ -42,7 +42,7 @@ make perf-gate      # P1-T8 gate: p95 at 1440p High, showcase + stress2000, GPU 
 - Agent switches (native flags, URL query on web, `window.__parble`): `docs/agent-operability.md`.
 
 - `checkall` legs run in fail-fast order. The web/ui legs (Biome, tsc, Vitest) run `npm ci` in `web/ui` only when its lockfile changes.
-- `web/ui` is the TS HUD overlay (Vite) and the Web Audio engine (`web/ui/src/audio`, with the music player and mixer). Trunk's `pre_build` hook runs `make ui-build`, which also stages the approved SFX picks and the music loops into `web/ui/dist/audio` (`scripts/web/stage-audio.mjs`). The wasm `Bridge` (`crates/parble-app/src/bridge.rs`) and `web/ui/src/bridge.ts` are kept in sync by hand; `web/ui/src/bridge-fixtures.json` is checked by both the Rust tests and Vitest.
+- `web/ui` is the TS HUD overlay (Vite), the Web Audio engine (`web/ui/src/audio`, with the music player and mixer) and the generator worker (`web/ui/src/gen`, a second Vite build on `parble-sim-wasm`, staged by `scripts/web/gen-wasm.sh`). Trunk's `pre_build` hook runs `make ui-build`, which also stages the approved SFX picks and the music loops into `web/ui/dist/audio` (`scripts/web/stage-audio.mjs`). The wasm `Bridge` (`crates/parble-app/src/bridge.rs`) and `web/ui/src/bridge.ts` are kept in sync by hand; `web/ui/src/bridge-fixtures.json` is checked by both the Rust tests and Vitest.
 - `checkall-ci` grows as Phase 0 lands: P0-T4 added `determinism-wasm`, P0-T5 `web-size`, P0-T8 `actionlint` (first leg). Keep it a superset of what `.github/workflows/ci.yml` runs.
 - Capture real exit codes when running a gate: `make checkall > /tmp/x.log 2>&1; echo EXIT=$?`. Never trust a piped exit status.
 

@@ -88,7 +88,7 @@ parble-sim-wasm ──► parble-procgen, parble-sim   (wasm-bindgen worker buil
 - **parble-core** (no Bevy, no Rapier): grid math, the kit contract (cell size, port standard, channel classes), the track model and `.parble` serde schema with versioning, validation (open ports, broken links, reachability), seeded RNG (`rand_chacha`).
 - **parble-kit** (no Bevy, no Rapier): piece catalog and loading of the per-piece collision mesh and port sidecar exported by the Blender pipeline.
 - **parble-sim** (no Bevy): the Rapier world at a fixed 240 Hz with CCD, the chunk collider merge (one trimesh per chunk with `FIX_INTERNAL_EDGES`, built from kit meshes in a stable sorted order), marble types (radius, mass, friction, restitution, rolling resistance), kinematic mechanism state machines advanced by tick count, sensors, the hopper and finish collector, a trajectory hash, and the audio event stream. This crate is the determinism boundary.
-- **parble-procgen**: seed + slider generation, fill-between routing, infinite-descent segments, and validation by headless sim runs.
+- **parble-procgen**: seed + slider generation, fill-between routing and infinite-descent segments. Validation by headless sim runs lives in parble-sim (`procgen_job`), since it needs the sim.
 - **parble-sim-wasm**: a small wasm-bindgen build of sim + procgen for a Web Worker, so procgen validation never blocks the render thread.
 - **parble-render** (Bevy): instanced piece rendering per piece type with chunking, wood/marble/inlay materials, lighting rig, post stack and quality tiers, environment.
 - **parble-app** (Bevy): app wiring, editor systems, cameras (orbit editor camera and follow-marble director), the wasm↔TS bridge, agent-operability flags.
@@ -297,7 +297,7 @@ Scope:
 
 Acceptance:
 - [ ] 1,000 generated seeds all reach the finish in headless validation, with no failure shipped to the player.
-- [ ] Generation of a 500-piece track completes in under the time budget set in the plan, without dropping render frames.
+- [ ] Generation of a 500-piece track (500 track pieces, supports not counted) completes in under the time budget set in the plan, without dropping render frames.
 - [ ] Infinite descent runs for 30 minutes with bounded memory.
 
 ### P7 — Extended piece families
