@@ -229,15 +229,28 @@ describe("editor overlay", () => {
     const attach = [
       { piece: "rail_straight_l2", anchor: [1, 0, 0] as [number, number, number], yaw: 2, mirror: false },
       { piece: "blk_curve90_l3", anchor: [1, 0, 0] as [number, number, number], yaw: 1, mirror: true },
+      { piece: "blk_curve90_l3", anchor: [-1, 0, 0] as [number, number, number], yaw: 3, mirror: false, feedsIn: true },
     ];
     ui.update(diag({ selection: 1, attach }));
+    // One tile per way of attaching, the upstream ones marked.
     expect([...document.querySelectorAll<HTMLElement>("[data-piece]")].map((t) => t.dataset.piece)).toEqual([
       "rail_straight_l2",
       "blk_curve90_l3",
+      "blk_curve90_l3",
     ]);
-    click('[data-piece="blk_curve90_l3"]');
+    expect([...document.querySelectorAll(".pc .nm")].map((n) => n.textContent?.includes("feeds in"))).toEqual([
+      false,
+      false,
+      true,
+    ]);
+    click('[data-fit="1"]');
     expect(sent.slice(-2)).toEqual([
       { op: "brush", piece: "blk_curve90_l3", yaw: 1, mirror: true },
+      { op: "tool", tool: "place" },
+    ]);
+    click('[data-fit="2"]');
+    expect(sent.slice(-2)).toEqual([
+      { op: "brush", piece: "blk_curve90_l3", yaw: 3, mirror: false },
       { op: "tool", tool: "place" },
     ]);
     ui.update(diag({ selection: 1, attach: [] }));

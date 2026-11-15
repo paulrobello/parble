@@ -514,7 +514,7 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
   tiles.addEventListener("pointerdown", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>("[data-piece]");
     if (!b?.dataset.piece || e.button !== 0) return;
-    pick(b.dataset.piece);
+    pick(b.dataset.piece, b.dataset.fit);
     laying = "armed";
   });
   tiles.addEventListener("dragstart", (e) => e.preventDefault());
@@ -754,7 +754,7 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
       intervalS = Number(b.dataset.s);
       setMenu(false);
       run("interval");
-    } else if (b.dataset.piece) pick(b.dataset.piece);
+    } else if (b.dataset.piece) pick(b.dataset.piece, b.dataset.fit);
     else if (b.dataset.opt) {
       const [k, v] = b.dataset.opt.split(":");
       if (k && v !== undefined) act({ op: "mechConfig", key: k, value: Number(v) });
@@ -818,9 +818,13 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     act({ op: "remove" });
   };
 
-  const pick = (piece: string): void => {
-    // From Fits selection, the brush takes the turn (and mirror) that links to the selection.
-    const fit = fitsOnly ? d?.attach?.find((f) => f.piece === piece) : undefined;
+  const pick = (piece: string, fitIndex?: string): void => {
+    // From Fits selection, the brush takes the turn (and mirror) of the fit the tile stands for.
+    const fit = fitsOnly
+      ? fitIndex !== undefined
+        ? d?.attach?.[Number(fitIndex)]
+        : d?.attach?.find((f) => f.piece === piece)
+      : undefined;
     if (familyOf(piece) === "rails") heightPick.set(levelBase(piece), piece);
     const b = d?.brush;
     if (fit) act({ op: "brush", piece, yaw: fit.yaw, mirror: fit.mirror });
@@ -873,8 +877,10 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     return g.find((v) => v.endsWith("_l2")) ?? g[0] ?? "";
   };
   const renderTiles = (s: EditorDiag): void => {
-    const fits = fitsOnly ? (s.attach?.map((f) => f.piece) ?? null) : null;
-    const key = fitsOnly ? `fits|${fits?.join() ?? "-"}` : `${family}|${s.palette.length}`;
+    const fits = fitsOnly ? (s.attach ?? null) : null;
+    const key = fitsOnly
+      ? `fits|${fits?.map((f) => `${f.piece}:${f.anchor}:${f.yaw}:${f.mirror}:${f.feedsIn ?? ""}`).join() ?? "-"}`
+      : `${family}|${s.palette.length}`;
     if (key !== tileFor) {
       tileFor = key;
       const note = !fitsOnly
@@ -884,15 +890,19 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
           : fits.length === 0
             ? "Nothing attaches to its open ports."
             : null;
-      // Fits selection lists concrete variants; a family groups each multi-level rail into one
-      // tile whose height picker holds the variants (each chip picks and lays like a tile).
-      const groups = fits ? fits.map((p) => [p]) : drawerTiles(piecesOf(s.palette, family));
+      // Fits selection lists concrete variants, one tile per way of attaching; a family groups each
+      // multi-level rail into one tile whose height picker holds the variants (each chip picks and
+      // lays like a tile).
+      const groups = fits ? fits.map((f) => [f.piece]) : drawerTiles(piecesOf(s.palette, family));
       tiles.innerHTML = note
         ? `<p class="fit-note">${note}</p>`
         : groups
-            .map((g) => {
+            .map((g, gi) => {
               const p = shownVariant(g, s);
-              const name = g.length > 1 ? pieceName(levelBase(p)) : pieceName(p);
+              const fit = fits?.[gi];
+              const name =
+                (g.length > 1 ? pieceName(levelBase(p)) : pieceName(p)) + (fit?.feedsIn ? " · feeds in" : "");
+              const fitAttr = fit ? ` data-fit="${gi}"` : "";
               const picker =
                 g.length > 1
                   ? `<span class="hts" role="radiogroup" aria-label="${esc(name)} height">${g
@@ -902,7 +912,7 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
                       )
                       .join("")}</span>`
                   : "";
-              return `<div class="pc"${g.length > 1 ? ` data-g="${g.join(",")}"` : ""}><button class="tile" role="option" data-piece="${p}" aria-selected="false" title="${esc(pieceName(p))}">
+              return `<div class="pc"${g.length > 1 ? ` data-g="${g.join(",")}"` : ""}><button class="tile" role="option" data-piece="${p}"${fitAttr} aria-selected="false" title="${esc(name)}">
 <img alt="" src="${versioned(win, `${THUMB_DIR}${p}.png`)}" width="80" height="80" decoding="async" draggable="false"><b class="ct" data-ct="${g.join(",")}"></b></button>${picker}<span class="nm">${esc(name)}</span></div>`;
             })
             .join("");
@@ -952,7 +962,11 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     }
     let active: HTMLElement | null = null;
     for (const t of tiles.querySelectorAll<HTMLElement>(".tile[data-piece]")) {
-      const on = s.tool === "place" && t.dataset.piece === s.brush.piece;
+      const fit = t.dataset.fit !== undefined ? s.attach?.[Number(t.dataset.fit)] : undefined;
+      const on =
+        s.tool === "place" &&
+        t.dataset.piece === s.brush.piece &&
+        (!fit || (fit.yaw === s.brush.yaw && fit.mirror === s.brush.mirror));
       t.classList.toggle("on", on);
       t.setAttribute("aria-selected", String(on));
       if (on) active = t;

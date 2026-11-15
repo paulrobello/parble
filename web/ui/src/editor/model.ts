@@ -182,12 +182,14 @@ export interface EditorDiag {
   attach?: AttachFit[] | null;
 }
 
-/** A piece that attaches to the selected piece, and the first placement (anchor, turn, mirror) that links. */
+/** One way a piece attaches to the selected piece: a placement (anchor, turn, mirror) that links. */
 export interface AttachFit {
   piece: string;
   anchor: Vec3i;
   yaw: number;
   mirror: boolean;
+  /** Marbles roll from the new piece into the selected one, so it climbs away from it; absent from builds before it. */
+  feedsIn?: boolean;
 }
 
 /** One nudge zone as `editor.nudges` lists it: its track fields in camelCase and where it is on screen. */
