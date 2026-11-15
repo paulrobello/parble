@@ -29,6 +29,7 @@ import {
   familyText,
   focusOrbit,
   ghostText,
+  heightVariants,
   INTERVALS,
   issueText,
   levelBase,
@@ -54,6 +55,7 @@ import {
   type Send,
   sliceDown,
   START_LEVEL,
+  stepHeight,
   strokeText,
   TICK_HZ,
   type Vec3i,
@@ -825,10 +827,11 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
         ? d?.attach?.[Number(fitIndex)]
         : d?.attach?.find((f) => f.piece === piece)
       : undefined;
-    if (familyOf(piece) === "rails") heightPick.set(levelBase(piece), piece);
+    heightPick.set(levelBase(piece), piece);
     const b = d?.brush;
+    // Another height of the shape in the brush keeps its turn and mirror.
     if (fit) act({ op: "brush", piece, yaw: fit.yaw, mirror: fit.mirror });
-    else if (b && b.piece !== piece && familyOf(piece) === "rails" && levelBase(b.piece) === levelBase(piece))
+    else if (b && b.piece !== piece && levelBase(b.piece) === levelBase(piece))
       act({ op: "brush", piece, yaw: b.yaw, mirror: b.mirror });
     else act({ op: "brush", piece, yaw: d?.brush.piece === piece ? d.brush.yaw : 0, mirror: false });
     act({ op: "tool", tool: "place" });
@@ -1084,6 +1087,18 @@ ${nzRow("Push", [
         .join("") + (n.count > n.zones.length ? `<p class="note">and ${n.count - n.zones.length} more</p>` : "");
   };
 
+  /** The brush's height variants as a segmented control (empty when its shape comes at one height). */
+  const heightRow = (s: EditorDiag): string => {
+    const v = heightVariants(s.palette, s.brush.piece);
+    if (v.length < 2) return "";
+    return `<span class="sc">Height</span><div class="seg opt" role="radiogroup" aria-label="Height">${v
+      .map((p) => {
+        const on = p === s.brush.piece;
+        return `<button role="radio" data-piece="${p}" aria-checked="${on}" title="${esc(pieceName(p))}"${on ? ' class="on"' : ""}>${on ? '<i class="pin"></i>' : ""}L${esc(/_l(\d)$/.exec(p)?.[1] ?? "")}</button>`;
+      })
+      .join("")}</div>`;
+  };
+
   let selKey = "";
   const renderSelection = (s: EditorDiag): void => {
     const zone = selectedZone(s);
@@ -1120,8 +1135,8 @@ ${nzRow("Push", [
       selSec.innerHTML =
         s.tool === "place"
           ? `<h2><span class="sc">Placing:</span>${esc(pieceName(b.piece))}</h2>
-<div class="kv"><span class="sc">Turn</span><span>${b.yaw * 90}°${b.mirror ? " · mirrored" : ""}</span>
-<span class="sc">Keys</span><span><kbd>R</kbd> turn · <kbd>M</kbd> mirror · <kbd>Esc</kbd> stop placing</span></div>`
+<div class="kv"><span class="sc">Turn</span><span>${b.yaw * 90}°${b.mirror ? " · mirrored" : ""}</span>${heightRow(s)}
+<span class="sc">Keys</span><span><kbd>R</kbd> turn · <kbd>M</kbd> mirror${heightVariants(s.palette, b.piece).length > 1 ? " · <kbd>-</kbd> <kbd>=</kbd> height" : ""} · <kbd>Esc</kbd> stop placing</span></div>`
           : `<h2><span class="sc">Selection</span></h2><p class="note">Nothing selected. With Select <kbd>1</kbd>, click a piece, Shift-click to add, or Shift-drag a box.</p>`;
       return;
     }
@@ -1549,6 +1564,14 @@ ${groupActs}
       case "columns":
         toggleColumns();
         break;
+      case "heightDown":
+      case "heightUp": {
+        // Another height of the shape in the brush, keeping its turn and mirror.
+        const next =
+          d.tool === "place" ? stepHeight(d.palette, d.brush.piece, r.command === "heightUp" ? 1 : -1) : null;
+        if (next) pick(next);
+        break;
+      }
       case "drawer":
         commands.drawer?.();
         break;

@@ -292,6 +292,55 @@ describe("editor overlay", () => {
     expect($('.tile[data-piece="rail_straight_l1"]').getAttribute("aria-selected")).toBe("false");
   });
 
+  it("- and = step the brush through its shape's heights, keeping its turn, and the panel lists them", () => {
+    const palette = [
+      ...PALETTE,
+      "blk_slope_gentle_l3",
+      "blk_slope_gentle_l2",
+      "blk_slope_gentle_l1",
+      "blk_slope_gentle_l0",
+    ].sort();
+    const at = (piece: string, tool: "place" | "select" = "place") =>
+      ui.update(diag({ palette, tool, brush: { piece, yaw: 1, mirror: false } }));
+    at("blk_slope_gentle_l2");
+    // The panel's Height control holds every variant, the brush's pinned.
+    const chips = () =>
+      [...document.querySelectorAll<HTMLElement>('[aria-label="Height"] button')].map((c) => [
+        c.textContent,
+        c.getAttribute("aria-checked"),
+      ]);
+    expect(chips()).toEqual([
+      ["L0", "false"],
+      ["L1", "false"],
+      ["L2", "true"],
+      ["L3", "false"],
+    ]);
+    expect(press("Equal")).toBe(true);
+    expect(sent.slice(-2)).toEqual([
+      { op: "brush", piece: "blk_slope_gentle_l3", yaw: 1, mirror: false },
+      { op: "tool", tool: "place" },
+    ]);
+    // Past the top it wraps to the lowest; `-` goes the other way.
+    at("blk_slope_gentle_l3");
+    press("Equal");
+    expect(sent.at(-2)).toEqual({ op: "brush", piece: "blk_slope_gentle_l0", yaw: 1, mirror: false });
+    at("blk_slope_gentle_l0");
+    press("Minus");
+    expect(sent.at(-2)).toEqual({ op: "brush", piece: "blk_slope_gentle_l3", yaw: 1, mirror: false });
+    // A chip in the panel picks that height too.
+    at("blk_slope_gentle_l2");
+    click('[aria-label="Height"] [data-piece="blk_slope_gentle_l1"]');
+    expect(sent.at(-2)).toEqual({ op: "brush", piece: "blk_slope_gentle_l1", yaw: 1, mirror: false });
+    // A one-height piece and the Select tool have nothing to step, and no Height control.
+    const n = sent.length;
+    at("blk_pillar");
+    expect(document.querySelector('[aria-label="Height"]')).toBeNull();
+    press("Equal");
+    at("blk_slope_gentle_l2", "select");
+    press("Minus");
+    expect(sent.length).toBe(n);
+  });
+
   it("a mouse click on a tile or tool hands the keys back to the canvas; keyboard activation does not", () => {
     ui.update(diag());
     const cv = $("#parble");

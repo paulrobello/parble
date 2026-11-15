@@ -29,7 +29,7 @@ All chrome is inset 12 px from the canvas edges and sits on walnut at 90% opacit
    - Selection, which shows piece properties, the group actions, or Start here when the track is empty.
    - Validation, which lists the issues.
    The panel collapses to a 28 px spine with a toggle (`\`) for builders who want the whole scene.
-3. **Bottom drawer, 174 px.** It holds family tabs (Blocks, Rails, Mechanisms, Supports), a Fits selection tab (a tile for every way a piece attaches to the one selected piece, downstream ones first and upstream ones marked "feeds in", each picked already turned to fit), 96 px tiles and a hint column. A rail that comes at several levels (straight, curve, S-bend) is one tile with a height picker at its bottom-left (3 above 2 above 1). Each height picks and drag-lays like a tile, a new height keeps the brush's turn and mirror, and the tile shows the brush's height, else the last one picked, else 2. The drawer collapses to its 36 px tab row with `Tab`.
+3. **Bottom drawer, 174 px.** It holds family tabs (Blocks, Rails, Mechanisms, Supports), a Fits selection tab (a tile for every way a piece attaches to the one selected piece, downstream ones first and upstream ones marked "feeds in", each picked already turned to fit), 96 px tiles and a hint column. A piece that comes at several heights (a rail or a block straight, curve, slope, end, drop, redirect, joiner or tower block) is one tile with a height picker at its bottom-left (3 above 2 above 1, with 0 at the foot for the slopes that reach it). While the Place tool holds such a piece the panel lists its heights as a Height control, and `-` and `=` step the brush down and up through them, wrapping round, so a height changes without going back to the drawer. Each height picks and drag-lays like a tile, a new height keeps the brush's turn and mirror, and the tile shows the brush's height, else the last one picked, else 2. The drawer collapses to its 36 px tab row with `Tab`.
 4. **Compass**, a 66 px dial above the drawer at the left. Its top is the view's heading. N (brass), E, S and W sit where those directions are, north being −Z and east +X, so the ports line and validation's west and east match the scene.
 5. **Sound** sits above the drawer at the right. It is the existing mixer, restyled into the walnut set.
 
@@ -107,6 +107,7 @@ Every action has a visible button. Keys only shorten them.
 | `M` | Mirror |
 | `⌘Z` / `⇧⌘Z` | Undo / Redo |
 | `[` `]` | Build level down / up |
+| `-` `=` | Brush height variant down / up (wraps; Place tool) |
 | `<` `>` / `X` | Slice down / up / toggle |
 | `H` | Ground columns on / off (on at start) |
 | Arrows, `PgUp` `PgDn` | Nudge the selection |

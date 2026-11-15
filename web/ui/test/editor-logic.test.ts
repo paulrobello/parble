@@ -11,6 +11,7 @@ import {
   checkText,
   countBadge,
   drawerTiles,
+  heightVariants,
   dialPoint,
   faceWord,
   viewBearingDeg,
@@ -32,6 +33,7 @@ import {
   portsText,
   runTime,
   sliceDown,
+  stepHeight,
   strokeText,
   zoneOf,
 } from "../src/editor/model";
@@ -61,11 +63,34 @@ describe("editor model", () => {
       "mech_finish",
       "mech_arch_rope_l1",
     ]);
-    // Rails at several levels share a tile; blocks and the single-level joint stand alone.
+    // A shape at several levels shares a tile; a single-level piece (the joint) stands alone.
     expect(
       drawerTiles(["rail_curve90_r90_l1", "rail_curve90_r90_l2", "rail_joint_l1", "rail_s_1x3_l3", "rail_s_1x3_l1"]),
     ).toEqual([["rail_curve90_r90_l1", "rail_curve90_r90_l2"], ["rail_joint_l1"], ["rail_s_1x3_l1", "rail_s_1x3_l3"]]);
-    expect(drawerTiles(["blk_straight_l1", "blk_straight_l2"])).toEqual([["blk_straight_l1"], ["blk_straight_l2"]]);
+    expect(drawerTiles(["blk_straight_l2", "blk_straight_l1", "blk_slope_gentle_l0", "blk_pillar"])).toEqual([
+      ["blk_straight_l1", "blk_straight_l2"],
+      ["blk_slope_gentle_l0"],
+      ["blk_pillar"],
+    ]);
+    // The brush steps through its shape's heights, wrapping round; a one-height piece does not move.
+    const pal = [
+      "blk_slope_gentle_l3",
+      "blk_slope_gentle_l0",
+      "blk_slope_gentle_l2",
+      "blk_slope_gentle_l1",
+      "blk_pillar",
+    ];
+    expect(heightVariants(pal, "blk_slope_gentle_l2")).toEqual([
+      "blk_slope_gentle_l0",
+      "blk_slope_gentle_l1",
+      "blk_slope_gentle_l2",
+      "blk_slope_gentle_l3",
+    ]);
+    expect(stepHeight(pal, "blk_slope_gentle_l2", 1)).toBe("blk_slope_gentle_l3");
+    expect(stepHeight(pal, "blk_slope_gentle_l3", 1)).toBe("blk_slope_gentle_l0");
+    expect(stepHeight(pal, "blk_slope_gentle_l0", -1)).toBe("blk_slope_gentle_l3");
+    expect(stepHeight(pal, "blk_pillar", 1)).toBeNull();
+    expect(heightVariants(pal, "blk_pillar")).toEqual(["blk_pillar"]);
     // Rail slopes: the gentle slope's two entry heights share a tile, the steep one stands alone.
     expect(drawerTiles(["rail_slope_gentle_l2", "rail_slope_gentle_l3", "rail_slope_steep_l3"])).toEqual([
       ["rail_slope_gentle_l2", "rail_slope_gentle_l3"],
@@ -246,6 +271,8 @@ describe("editor keyboard map", () => {
       actions: [{ op: "redo" }],
     });
     // `[` `]` step the build level and never the slice; `<` `>` (Shift , .) step the slice.
+    expect(keyResult(key("Minus"))).toEqual({ kind: "ui", command: "heightDown" });
+    expect(keyResult(key("Equal"))).toEqual({ kind: "ui", command: "heightUp" });
     expect(keyResult(key("BracketLeft"))).toEqual({ kind: "actions", actions: [{ op: "buildStep", by: -1 }] });
     expect(keyResult(key("BracketRight"))).toEqual({ kind: "actions", actions: [{ op: "buildStep", by: 1 }] });
     expect(keyResult(key("Comma", { shiftKey: true }))).toEqual({

@@ -327,13 +327,31 @@ export function piecesOf(palette: readonly string[], family: Family): string[] {
 /** The piece id without its level suffix: `rail_s_1x3_l2` → `rail_s_1x3`. */
 export const levelBase = (piece: string): string => piece.replace(/_l\d$/, "");
 
-/** Drawer tiles for `pieces`: each rail shape that comes at several levels is one tile listing its
+/** The height variants of `piece` in level order (the palette's pieces that share its shape), or
+ * just `[piece]` when it comes at one height only. */
+export function heightVariants(palette: readonly string[], piece: string): string[] {
+  if (!/_l\d$/.test(piece)) return [piece];
+  const base = levelBase(piece);
+  const same = palette.filter((p) => /_l\d$/.test(p) && levelBase(p) === base);
+  return same.length > 1 ? [...same].sort() : [piece];
+}
+
+/** The next (`by` 1) or previous (`by` -1) height variant of `piece`, wrapping round, or `null`
+ * when it comes at one height only. */
+export function stepHeight(palette: readonly string[], piece: string, by: number): string | null {
+  const v = heightVariants(palette, piece);
+  const i = v.indexOf(piece);
+  if (v.length < 2 || i < 0) return null;
+  return v[(i + by + v.length) % v.length] ?? null;
+}
+
+/** Drawer tiles for `pieces`: each shape that comes at several levels is one tile listing its
  * variants in level order (one height picker), every other piece a tile of its own. */
 export function drawerTiles(pieces: readonly string[]): string[][] {
   const out: string[][] = [];
   const at = new Map<string, string[]>();
   for (const p of pieces) {
-    const base = familyOf(p) === "rails" ? levelBase(p) : p;
+    const base = levelBase(p);
     const group = at.get(base);
     if (group) group.push(p);
     else {

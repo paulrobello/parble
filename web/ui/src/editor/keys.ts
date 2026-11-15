@@ -21,6 +21,8 @@ export type KeyResult = { kind: "actions"; actions: Action[] } | { kind: "ui"; c
 
 export type UiCommand =
   | "drawer"
+  | "heightDown"
+  | "heightUp"
   | "panel"
   | "run"
   | "space"
@@ -59,6 +61,13 @@ export function keyResult(e: KeyLike): KeyResult {
       return acts({ op: "rotate", by: e.shiftKey ? 3 : 1 });
     case "KeyM":
       return acts({ op: "mirror" });
+    // The brush's height variants (docs/design/editor/README.md): lower and raise, wrapping round.
+    case "Minus":
+    case "NumpadSubtract":
+      return ui("heightDown");
+    case "Equal":
+    case "NumpadAdd":
+      return ui("heightUp");
     case "KeyP":
       return acts({ op: "pause" });
     case "KeyC":
