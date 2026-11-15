@@ -207,8 +207,8 @@
     {
       "who": "Paul",
       "gate": "piece look",
-      "status": "pending",
-      "notes": "mechanism at another height; review sheet blender/kit/review/mech-heights.png"
+      "status": "approved",
+      "notes": "Paul approved the mechanism height look 2026-11-15 (blender/kit/review/mech-heights.png)"
     }
   ]
 }

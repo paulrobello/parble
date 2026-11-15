@@ -549,13 +549,15 @@ async function provenance(runtime, source, ids, checks) {
         : id.startsWith("mech_stepper_")
           ? { who: "Paul", gate: "piece look", status: "pending", notes: "P2 stepper elevator; review sheet blender/kit/review/p2-stepper-elevator.png" }
         : MECH_HEIGHTS.has(id)
-          ? { who: "Paul", gate: "piece look", status: "pending", notes: "mechanism at another height; review sheet blender/kit/review/mech-heights.png" }
+          ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the mechanism height look 2026-11-15 (blender/kit/review/mech-heights.png)" }
         : id.startsWith("mech_")
           ? { who: "Paul", gate: "piece look", status: "pending", notes: "P2-T3 mechanism piece; review sheet blender/kit/review/p2t3-mechanisms.png" }
+          : id === "rail_joint_l2" || id === "rail_joint_l3"
+            ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the rail joint height look 2026-11-15 (blender/kit/review/rail-joint-heights.png)" }
           : RAIL_LEVELS.has(id)
             ? { who: "Paul", gate: "piece look", status: "pending", notes: "rail at another level; review sheet blender/kit/review/rail-levels.png" }
           : BLOCK_HEIGHTS.has(id)
-            ? { who: "Paul", gate: "piece look", status: "pending", notes: "block at another height; review sheet blender/kit/review/block-heights.png" }
+            ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the block height look 2026-11-15 (blender/kit/review/block-heights.png)" }
           : RAIL_SLOPES.has(id)
             ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the rail slope look 2026-11-13 (blender/kit/review/rail-slopes.png)" }
           : id.startsWith("rail_")

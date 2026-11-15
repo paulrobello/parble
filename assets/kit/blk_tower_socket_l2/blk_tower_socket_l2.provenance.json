@@ -199,8 +199,8 @@
     {
       "who": "Paul",
       "gate": "piece look",
-      "status": "pending",
-      "notes": "block at another height; review sheet blender/kit/review/block-heights.png"
+      "status": "approved",
+      "notes": "Paul approved the block height look 2026-11-15 (blender/kit/review/block-heights.png)"
     }
   ]
 }
