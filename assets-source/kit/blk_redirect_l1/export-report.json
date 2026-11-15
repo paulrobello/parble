@@ -1,0 +1,90 @@
+{
+  "blender": "5.2.2 LTS",
+  "colliderTris": 770,
+  "generator": {
+    "path": "blender/kit/generate.py",
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
+  },
+  "generatorDeps": [
+    {
+      "path": "blender/kit/kitgeom.py",
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
+    },
+    {
+      "path": "blender/kit/kitblocks.py",
+      "sha256": "fcc733b99828b0c9511f5a3c818bc3140dc1a0f263eb6000a55227fd97563c0d"
+    }
+  ],
+  "lodParams": {
+    "lod0": {
+      "bevel_segs": 3,
+      "n_fillet": 6,
+      "n_round": 32,
+      "path": {
+        "curve90": 20,
+        "end": 16,
+        "slope_gentle": 16,
+        "straight": 1
+      }
+    },
+    "lod1": {
+      "bevel_segs": 1,
+      "n_fillet": 2,
+      "n_round": 12,
+      "path": {
+        "curve90": 8,
+        "end": 8,
+        "slope_gentle": 6,
+        "straight": 1
+      }
+    },
+    "lod2": {
+      "bevel_segs": 0,
+      "n_fillet": 1,
+      "n_round": 6,
+      "path": {
+        "curve90": 4,
+        "end": 4,
+        "slope_gentle": 3,
+        "straight": 1
+      }
+    }
+  },
+  "lodTris": {
+    "blk_redirect_l1_lod0": 2407,
+    "blk_redirect_l1_lod1": 579,
+    "blk_redirect_l1_lod2": 253
+  },
+  "mapSize": {
+    "lod0": 1024,
+    "lod1": 512,
+    "lod2": 256
+  },
+  "nodes": [
+    "blk_redirect_l1",
+    "blk_redirect_l1_collider",
+    "blk_redirect_l1_lod0",
+    "blk_redirect_l1_lod1",
+    "blk_redirect_l1_lod2",
+    "port_0",
+    "port_1"
+  ],
+  "pieceId": "blk_redirect_l1",
+  "texelDensityPxPerM": {
+    "lod0": {
+      "max": 4253.5,
+      "median": 4086.4,
+      "min": 3321.5
+    },
+    "lod1": {
+      "max": 2115.5,
+      "median": 1889.8,
+      "min": 1364.1
+    },
+    "lod2": {
+      "max": 1034.7,
+      "median": 1017.5,
+      "min": 854.9
+    }
+  }
+}

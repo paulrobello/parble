@@ -1,8 +1,8 @@
 {
   "generator": "blender/kit/thumbnails.py",
   "blender": "Blender 5.2.2 LTS",
-  "git_head": "6edb649ac8b8c8a3a490cd202b33e4f633dc6273",
-  "date": "2026-11-13",
+  "git_head": "a772798dac29647fb2e68a36f5915e75584a034e",
+  "date": "2026-11-14",
   "render": {
     "engine": "BLENDER_EEVEE",
     "samples": 64,
@@ -26,6 +26,14 @@
       "bytes": 2638
     },
     {
+      "id": "blk_curve90_l1",
+      "source_glb": "assets/kit/blk_curve90_l1/blk_curve90_l1.glb",
+      "source_glb_sha256": "da8ddf17f74beb2bb1ef614e5d8983cf4defce095fd96c75a25263f86b3ea2ac",
+      "png": "blk_curve90_l1.png",
+      "png_sha256": "860d3da3ffb63362eda3b1c493f640437e18ebe10276ab1e81d821af6030b603",
+      "bytes": 2827
+    },
+    {
       "id": "blk_curve90_l2",
       "source_glb": "assets/kit/blk_curve90_l2/blk_curve90_l2.glb",
       "source_glb_sha256": "1ca1da564a76cc3c300357127aac7458388e52475ef581952001b0e3c4aadc1f",
@@ -40,6 +48,14 @@
       "png": "blk_curve90_l3.png",
       "png_sha256": "f724281f531b80f8abe57a425c5efae152eaf060425974eb308c8e2d880bf69d",
       "bytes": 3014
+    },
+    {
+      "id": "blk_drop_l1",
+      "source_glb": "assets/kit/blk_drop_l1/blk_drop_l1.glb",
+      "source_glb_sha256": "02239a0295ed68767565d62ae46ee79eb5370101d180c2ee578896198e857c60",
+      "png": "blk_drop_l1.png",
+      "png_sha256": "d93873b333a590b550d9fdc272e183fda603a5a932c3aa4ad8c47542d8faa022",
+      "bytes": 2827
     },
     {
       "id": "blk_drop_l2",
@@ -58,6 +74,22 @@
       "bytes": 2911
     },
     {
+      "id": "blk_end_l1",
+      "source_glb": "assets/kit/blk_end_l1/blk_end_l1.glb",
+      "source_glb_sha256": "1745c59d8959eae40c47609db94ea30cbedeaccdb859dbbee7606d9403d1dda9",
+      "png": "blk_end_l1.png",
+      "png_sha256": "f2f8dd2fd35722f13cf606e25c31e83a91bdfc20d60ec5b10d0751ecca6b37f6",
+      "bytes": 2733
+    },
+    {
+      "id": "blk_end_l2",
+      "source_glb": "assets/kit/blk_end_l2/blk_end_l2.glb",
+      "source_glb_sha256": "a7dfb1deb84bbe9a3ac664905c85027d98a8e2528f13010b6f4f4c884b6e6034",
+      "png": "blk_end_l2.png",
+      "png_sha256": "7a5a9110262bc9efb9b3232d3545f088b770c9cb2686b54a04c50df3d6898c5a",
+      "bytes": 2833
+    },
+    {
       "id": "blk_end_l3",
       "source_glb": "assets/kit/blk_end_l3/blk_end_l3.glb",
       "source_glb_sha256": "8ec2bc130bddb0e4827f5e58936905eda871245cd6a3dcf08c79d5fc4262b0c3",
@@ -72,6 +104,14 @@
       "png": "blk_funnel_3x3_l2.png",
       "png_sha256": "3d103300e732f4fb3c0bee68ad0d8e05c9c4d2b8dcf4c2a859227076da723a3e",
       "bytes": 3085
+    },
+    {
+      "id": "blk_join_l1",
+      "source_glb": "assets/kit/blk_join_l1/blk_join_l1.glb",
+      "source_glb_sha256": "1f5296d093a041519f03d2cccf5536db3391453af02943cb62bc123db1ff23fb",
+      "png": "blk_join_l1.png",
+      "png_sha256": "c6eeeca73467e10ba9f300f115eae9f0f516887c578674cfb5cec218438de448",
+      "bytes": 3349
     },
     {
       "id": "blk_join_l2",
@@ -98,6 +138,14 @@
       "bytes": 2665
     },
     {
+      "id": "blk_redirect_l1",
+      "source_glb": "assets/kit/blk_redirect_l1/blk_redirect_l1.glb",
+      "source_glb_sha256": "e6c5787265e1ebadf9348f2e16f41a9fc0c2274bf31c8d0f0f77878d5a0e392e",
+      "png": "blk_redirect_l1.png",
+      "png_sha256": "eac5a33b1d63994fd2a58600a33d279466a526617695565174ed96ac10a22465",
+      "bytes": 2584
+    },
+    {
       "id": "blk_redirect_l2",
       "source_glb": "assets/kit/blk_redirect_l2/blk_redirect_l2.glb",
       "source_glb_sha256": "3fbb492874fe69fe3daf768f6ab41511cbb32ffde7926b6c6728d3f18c1e628f",
@@ -114,6 +162,22 @@
       "bytes": 2601
     },
     {
+      "id": "blk_slope_gentle_l0",
+      "source_glb": "assets/kit/blk_slope_gentle_l0/blk_slope_gentle_l0.glb",
+      "source_glb_sha256": "c6e22a0ff91d23441ed05e7f7dcb60cbdbe2a371c7793e78378e6eacd4a107cc",
+      "png": "blk_slope_gentle_l0.png",
+      "png_sha256": "4be61b38339ad722e15fe8b57fed8078374881a013e5cd22850c43f687000e36",
+      "bytes": 2533
+    },
+    {
+      "id": "blk_slope_gentle_l1",
+      "source_glb": "assets/kit/blk_slope_gentle_l1/blk_slope_gentle_l1.glb",
+      "source_glb_sha256": "03cd7e379e246d2b83620a0e38cf0141f67678edc45428e317517d4bc502690c",
+      "png": "blk_slope_gentle_l1.png",
+      "png_sha256": "a7142f7d995afd08b0f22e1393b1f2e14993920f83609bad99a19a39e5a70a47",
+      "bytes": 2560
+    },
+    {
       "id": "blk_slope_gentle_l2",
       "source_glb": "assets/kit/blk_slope_gentle_l2/blk_slope_gentle_l2.glb",
       "source_glb_sha256": "53dff368fb0a4f4f9b17d1cd5f84d8ef1eb20b4696072876c2416bf38766059d",
@@ -128,6 +192,30 @@
       "png": "blk_slope_gentle_l3.png",
       "png_sha256": "f3a64cc18b91692eee274127671a60dcc9269761324b5fb0c0f3170d862eca95",
       "bytes": 3250
+    },
+    {
+      "id": "blk_slope_steep_l0",
+      "source_glb": "assets/kit/blk_slope_steep_l0/blk_slope_steep_l0.glb",
+      "source_glb_sha256": "7e98f95a6f93fc313facdb2fe8dece3f803eca98ea92be8ff905a067603d1e3c",
+      "png": "blk_slope_steep_l0.png",
+      "png_sha256": "bb366f541952ac553abfaa2e8ab667ee8bce946455366cd8787087a1623da2cd",
+      "bytes": 2559
+    },
+    {
+      "id": "blk_slope_steep_l1",
+      "source_glb": "assets/kit/blk_slope_steep_l1/blk_slope_steep_l1.glb",
+      "source_glb_sha256": "4aea1f31a27291493b42369ae666b53a178172c54ceef82654946bdb328153b2",
+      "png": "blk_slope_steep_l1.png",
+      "png_sha256": "7d518a7ae2412c0c86c19c06335e1692dbfe187394d7cbd5bc2d21c533172160",
+      "bytes": 2540
+    },
+    {
+      "id": "blk_slope_steep_l2",
+      "source_glb": "assets/kit/blk_slope_steep_l2/blk_slope_steep_l2.glb",
+      "source_glb_sha256": "c14777be3fd4f7de4c74d81e3d6b266918eec4b5118d8f99669c606af90558b9",
+      "png": "blk_slope_steep_l2.png",
+      "png_sha256": "091440b143111eb4588d92ac8454b0d004bf6de2e789776f83055c684c7b2b89",
+      "bytes": 2620
     },
     {
       "id": "blk_slope_steep_l3",
@@ -168,6 +256,22 @@
       "png": "blk_tower_socket_l1.png",
       "png_sha256": "9d848cf27984270fb033eb8a5d811a9ca43c6dc98a48c971abaea621c046e3f0",
       "bytes": 2974
+    },
+    {
+      "id": "blk_tower_socket_l2",
+      "source_glb": "assets/kit/blk_tower_socket_l2/blk_tower_socket_l2.glb",
+      "source_glb_sha256": "e0935be39b35b2749109ab21b8eda73cb6c47a39bc7dfdc58fc848f1e6fd7d18",
+      "png": "blk_tower_socket_l2.png",
+      "png_sha256": "f4fecd65cad749e3455d52506ad2c7596a720efc88139d8d87a7aeab8eea7d2a",
+      "bytes": 2919
+    },
+    {
+      "id": "blk_tower_socket_l3",
+      "source_glb": "assets/kit/blk_tower_socket_l3/blk_tower_socket_l3.glb",
+      "source_glb_sha256": "bd4c18c82d175e0b70cc84e20b7aacd19b47d1e248ff43b29a7cb287711368f7",
+      "png": "blk_tower_socket_l3.png",
+      "png_sha256": "1eca6d7f11b67117ef1f106c7795e8a49204e8e70eb3c9e6e25d19e29b4a8b08",
+      "bytes": 2890
     },
     {
       "id": "mech_arch_rope_l1",

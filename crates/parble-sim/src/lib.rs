@@ -43,6 +43,8 @@ mod fork_contact_test;
 #[cfg(test)]
 mod funnel_test;
 #[cfg(test)]
+mod height_test;
+#[cfg(test)]
 mod kit_pieces_test;
 #[cfg(test)]
 mod rail_test;

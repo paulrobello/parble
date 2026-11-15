@@ -117,7 +117,17 @@ fn flows_out(f: PortFlow) -> bool {
 /// Pieces the generator leaves out because the sim measured marbles failing on them, however
 /// slowly or quickly they arrive (first marble of 100 to 300 seeds: `blk_drop_l3` 2 of 7 tracks,
 /// `rail_s_1x3_l1` 5 of 59, `rail_curve90_r90_l1` 6 of 181 once the other failures were gone).
-const UNRELIABLE: [&str; 3] = ["blk_drop_l3", "rail_s_1x3_l1", "rail_curve90_r90_l1"];
+/// With the height variants of 2026-11-14 in the catalogue (300 seeds, first marble, 294 finish
+/// with none of them): 267 with all, 285 without `blk_redirect_l1` (7 of its seeds lost the marble
+/// right after it), 290 without it and `blk_slope_gentle_l0` (4 more lost its exit onto the layer
+/// below at 0.9 to 1.1 m/s). A speed cap in the search was worse, 226 to 237.
+const UNRELIABLE: [&str; 5] = [
+    "blk_drop_l3",
+    "rail_s_1x3_l1",
+    "rail_curve90_r90_l1",
+    "blk_redirect_l1",
+    "blk_slope_gentle_l0",
+];
 
 /// Orientations of `def` in the order the search enumerates them, with the entry port index of
 /// every template. `max_exits` caps the outflow ports a chained piece may open.

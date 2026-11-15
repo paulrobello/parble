@@ -20,7 +20,7 @@ const SEAM_SPIKE_MM_S: f32 = 2.0;
 const KICK_MARGIN_MM_S: f32 = 5.0;
 const TICKS: u32 = 1_100;
 
-fn place(piece: &str, x: i32, y: i32, z: i32) -> Placement {
+pub(crate) fn place(piece: &str, x: i32, y: i32, z: i32) -> Placement {
     Placement::new(
         PieceId::new(piece).unwrap(),
         CellCoord::new(x, y, z),
@@ -29,7 +29,7 @@ fn place(piece: &str, x: i32, y: i32, z: i32) -> Placement {
     )
 }
 
-fn launch(sim: &mut Sim, at: Vector, dir: Vector, speed: f32) {
+pub(crate) fn launch(sim: &mut Sim, at: Vector, dir: Vector, speed: f32) {
     launch_with(sim, &CATS_EYE, at, dir, speed);
 }
 
@@ -46,7 +46,7 @@ fn launch_with(sim: &mut Sim, spec: &MarbleSpec, at: Vector, dir: Vector, speed:
     sim.marbles.push(h);
 }
 
-fn trace(sim: &mut Sim, ticks: u32) -> Vec<MarbleState> {
+pub(crate) fn trace(sim: &mut Sim, ticks: u32) -> Vec<MarbleState> {
     (0..ticks)
         .map(|_| {
             sim.tick(1);
@@ -55,7 +55,7 @@ fn trace(sim: &mut Sim, ticks: u32) -> Vec<MarbleState> {
         .collect()
 }
 
-fn track_sim(layout: &[Placement]) -> Sim {
+pub(crate) fn track_sim(layout: &[Placement]) -> Sim {
     let kit = parble_kit::builtin();
     let mut sim = Sim::empty();
     for p in layout {

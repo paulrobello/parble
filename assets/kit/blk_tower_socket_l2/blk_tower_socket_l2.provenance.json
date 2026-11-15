@@ -1,0 +1,206 @@
+{
+  "schema": "parble-kit-provenance/1",
+  "pieceId": "blk_tower_socket_l2",
+  "pieceVersion": 1,
+  "route": "scripted",
+  "card": "block heights (owner request 2026-11-14)",
+  "contract": {
+    "path": "docs/kit-contract.md",
+    "version": 1,
+    "sha256": "c887c429fd03456bd936584e1ecf292b901ef051b646280de78afcdd68f18557",
+    "approved": "Paul, 2026-11-07 (contract status line)"
+  },
+  "generator": {
+    "path": "blender/kit/generate.py",
+    "sha256": "da2138aceec42d764d7b57fc05e325c3319f9fc530b7f80baaf76e7bb0d4c683"
+  },
+  "generatorDeps": [
+    {
+      "path": "blender/kit/kitgeom.py",
+      "sha256": "f6730c889feab6886ec97b9e78093a83f1ef12421905a953bc23e01bc0df6505"
+    },
+    {
+      "path": "blender/kit/kitblocks.py",
+      "sha256": "480ed75caeaa0c59246cda3efe91f333c8765dc7d4558dc75db28aa989fd6d58"
+    }
+  ],
+  "authoringAgent": {
+    "harness": "claude-code",
+    "model": "claude-opus-5-5"
+  },
+  "blender": "5.2.2 LTS",
+  "toolVersions": {
+    "gltfTransform": "4.3.0",
+    "meshoptimizer": "0.25.0",
+    "gltfValidator": "2.0.0-dev.3.10",
+    "node": "v24.18.0"
+  },
+  "material": "placeholder (wood_placeholder, no maps, no emission); final tileable wood comes from P1-T1",
+  "bake": {
+    "device": "GPU",
+    "samples": 16,
+    "cageExtrusionM": 0.0005,
+    "maxRayDistanceM": 0.002,
+    "marginPx": 8,
+    "aoDistanceM": 0.02,
+    "channels": {
+      "blk_tower_socket_l2_lod0_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "4e0160b331b326e437302c4513b2c3f6d4c9934ce268ab6c0ed1392a0fc3ae75",
+        "size": 512
+      },
+      "blk_tower_socket_l2_lod0_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "d2b5e94d20be02ebf7dc6e811aa2a6717ed0465d81b5dcf9b5f87499c6e3f4a3",
+        "size": 512
+      },
+      "blk_tower_socket_l2_lod1_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "78ded2c4d82c15e2a845a3361f95c98bd306d8e757bb2aba546feda1d4e92aac",
+        "size": 256
+      },
+      "blk_tower_socket_l2_lod1_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "c4cf74090c80d87f8d9708d5c1d579da27f020b1ed66643ebf14571ecb08a1ec",
+        "size": 256
+      },
+      "blk_tower_socket_l2_lod2_ao": {
+        "colorspace": "Non-Color",
+        "sha256": "63fa4700c4303f23ef3807f24d6a7d0d08f45f8bc07a825926d419ea762d3848",
+        "size": 128
+      },
+      "blk_tower_socket_l2_lod2_normal": {
+        "colorspace": "Non-Color",
+        "sha256": "aa571021831be4f78432d821aab9c6f6b77ff48e79a36f2062fbe8613ecb8993",
+        "size": 128
+      }
+    }
+  },
+  "lods": [
+    {
+      "lod": "blk_tower_socket_l2_lod0",
+      "tris": 2022
+    },
+    {
+      "lod": "blk_tower_socket_l2_lod1",
+      "tris": 516
+    },
+    {
+      "lod": "blk_tower_socket_l2_lod2",
+      "tris": 164
+    }
+  ],
+  "collider": {
+    "node": "blk_tower_socket_l2_collider",
+    "tris": 291
+  },
+  "sockets": "port_<index> nodes at the port floor point on the cell face; extras carry index, face, level, class, flow, kind",
+  "texelDensityPxPerM": {
+    "lod0": {
+      "max": 2825.2,
+      "median": 2770.5,
+      "min": 2344.9
+    },
+    "lod1": {
+      "max": 1419.7,
+      "median": 1402.9,
+      "min": 1078.8
+    },
+    "lod2": {
+      "max": 761.8,
+      "median": 720.8,
+      "min": 619.8
+    }
+  },
+  "compression": {
+    "meshopt": "EXT_meshopt_compression, QUANTIZE method, FLOAT attributes (no KHR_mesh_quantization)",
+    "glbBytes": 76428,
+    "ktx2": "not produced in P1-T2 (maps ship as PNG)"
+  },
+  "derivedFiles": [
+    {
+      "path": "assets/kit/blk_tower_socket_l2/blk_tower_socket_l2.glb",
+      "sha256": "e0935be39b35b2749109ab21b8eda73cb6c47a39bc7dfdc58fc848f1e6fd7d18",
+      "bytes": 76428
+    },
+    {
+      "path": "assets/kit/blk_tower_socket_l2/blk_tower_socket_l2.kit.json",
+      "sha256": "58f99345ae2751536292ae10080e474509757a3e085955f9cf5692e6eb6858bf",
+      "bytes": 18631
+    },
+    {
+      "path": "assets/kit/blk_tower_socket_l2/blk_tower_socket_l2_lod0_ao.png",
+      "sha256": "4e0160b331b326e437302c4513b2c3f6d4c9934ce268ab6c0ed1392a0fc3ae75",
+      "bytes": 57689
+    },
+    {
+      "path": "assets/kit/blk_tower_socket_l2/blk_tower_socket_l2_lod0_normal.png",
+      "sha256": "d2b5e94d20be02ebf7dc6e811aa2a6717ed0465d81b5dcf9b5f87499c6e3f4a3",
+      "bytes": 34831
+    },
+    {
+      "path": "assets/kit/blk_tower_socket_l2/blk_tower_socket_l2_lod1_ao.png",
+      "sha256": "78ded2c4d82c15e2a845a3361f95c98bd306d8e757bb2aba546feda1d4e92aac",
+      "bytes": 18907
+    },
+    {
+      "path": "assets/kit/blk_tower_socket_l2/blk_tower_socket_l2_lod1_normal.png",
+      "sha256": "c4cf74090c80d87f8d9708d5c1d579da27f020b1ed66643ebf14571ecb08a1ec",
+      "bytes": 17109
+    },
+    {
+      "path": "assets/kit/blk_tower_socket_l2/blk_tower_socket_l2_lod2_ao.png",
+      "sha256": "63fa4700c4303f23ef3807f24d6a7d0d08f45f8bc07a825926d419ea762d3848",
+      "bytes": 6392
+    },
+    {
+      "path": "assets/kit/blk_tower_socket_l2/blk_tower_socket_l2_lod2_normal.png",
+      "sha256": "aa571021831be4f78432d821aab9c6f6b77ff48e79a36f2062fbe8613ecb8993",
+      "bytes": 7888
+    },
+    {
+      "path": "assets-source/kit/blk_tower_socket_l2/blk_tower_socket_l2_high.blend",
+      "sha256": "23491a3bf2c33aa71d4c73a623979652d6bbb62adaa27a5fd9c7b86d2bd74b36",
+      "bytes": 273815
+    },
+    {
+      "path": "assets-source/kit/blk_tower_socket_l2/blk_tower_socket_l2_low.blend",
+      "sha256": "ae07577afa951b575f3a10625324f30583cc39c9ad8ad9f889b45e88e535f4d3",
+      "bytes": 165118
+    }
+  ],
+  "references": [
+    {
+      "path": "docs/reference/ref-02.webp",
+      "sha256": "4c4ed7650fef0b588fbbc58c293f948a3120733b62329af051e4c6d2c0ff3d27",
+      "role": "look reference (owner-supplied)"
+    },
+    {
+      "path": "docs/reference/ref-01.webp",
+      "sha256": "bce26129ad47abea4cb7d1b9915801c52fc79ef80f2d34daa189030f00498115",
+      "role": "look reference (owner-supplied)"
+    },
+    {
+      "path": "docs/reference/ref-06-rail-into-block-tower.png",
+      "sha256": "8d0bf3fb25233bceae74705473dd867a8a24358500ef1fa58219791bcb7360c0",
+      "role": "look reference (owner-supplied)"
+    }
+  ],
+  "license": "MIT (repository licence); geometry is generated by the repository's own generator",
+  "validation": {
+    "pass": true,
+    "checks": [
+      "kit-check contract 14.1-14.10",
+      "gltf-validator reimport (meshopt GLB)",
+      "blender reimport (meshopt GLB)"
+    ]
+  },
+  "approvals": [
+    {
+      "who": "Paul",
+      "gate": "piece look",
+      "status": "pending",
+      "notes": "block at another height; review sheet blender/kit/review/block-heights.png"
+    }
+  ]
+}

@@ -836,9 +836,11 @@ pub struct ChannelSlope {
 }
 
 impl ChannelSlope {
-    /// The slope of a 1-cell piece whose two channel ports sit on opposite side faces at
+    /// The slope of a piece whose two channel ports sit on opposite side faces of one plan cell at
     /// different levels. A rail slope from `L3` adds the cell layer above to its footprint for
-    /// its lip (contract §5.3), so a rail qualifies when both ports are on its anchor cell.
+    /// its lip (contract §5.3), and a block slope that reaches `L0` or the layer below stands on a
+    /// solid cell under it (contract §7), so the ports need not be on a one-cell footprint: only
+    /// on one plan cell, their floors found from each port's own cell layer.
     fn of(piece: &KitPiece, p: &Placement) -> Option<Self> {
         let def = &piece.def;
         let [a, b] = def.ports.as_slice() else {
@@ -852,7 +854,11 @@ impl ChannelSlope {
         let one_cell = def.footprint.len() == 1
             || (piece.family == "rail"
                 && a.cell == CellCoord::new(0, 0, 0)
-                && b.cell == CellCoord::new(0, 0, 0));
+                && b.cell == CellCoord::new(0, 0, 0))
+            || (piece.family == "blk"
+                && a.cell.x == b.cell.x
+                && a.cell.z == b.cell.z
+                && def.footprint.len() == 2);
         if !one_cell
             || a.class != PortClass::Channel
             || b.class != PortClass::Channel
@@ -864,10 +870,17 @@ impl ChannelSlope {
         {
             return None;
         }
-        let ((hi, nh), (lo, nl)) = if la.floor_um() > lb.floor_um() {
-            ((la, na), (lb, nb))
+        let (fa, fb) = (
+            la.absolute_floor_um(a.cell.y),
+            lb.absolute_floor_um(b.cell.y),
+        );
+        if fa == fb {
+            return None;
+        }
+        let ((hi, nh), (lo, nl)) = if fa > fb {
+            ((fa, na), (fb, nb))
         } else {
-            ((lb, nb), (la, na))
+            ((fb, nb), (fa, na))
         };
         let half = HALF_CELL_UM;
         let port = |n: CellCoord, floor: i32| {
@@ -877,7 +890,7 @@ impl ChannelSlope {
                 [n.x * half, floor + CHANNEL_RADIUS_UM, n.z * half],
             )
         };
-        let (e, x) = (port(nh, hi.floor_um()), port(nl, lo.floor_um()));
+        let (e, x) = (port(nh, hi), port(nl, lo));
         let cell = i64::from(CELL_UM);
         Some(Self {
             entry_um: [e[0], e[2]],
@@ -2923,6 +2936,40 @@ mod tests {
             (f64::from(CREASE_SINK_COMPENSATION_M) - want).abs() < 1.0e-9,
             "{CREASE_SINK_COMPENSATION_M} against {want}"
         );
+    }
+
+    /// The slopes that reach `L0` or the layer below stand on a second cell (contract section 7):
+    /// each still gets its exact slope, from the entry port's absolute floor down by the
+    /// piece's drop, and every channel floor vertex of the sidecar lies on it.
+    #[test]
+    fn two_tall_slopes_get_their_exact_slope_from_the_ports_absolute_floors() {
+        let kit = parble_kit::builtin();
+        for (piece, entry_floor, drop) in [
+            ("blk_slope_gentle_l1", 15_000, 15_000),
+            ("blk_slope_gentle_l0", 0, 15_000),
+            ("blk_slope_steep_l2", 30_000, 30_000),
+            ("blk_slope_steep_l1", 15_000, 30_000),
+            ("blk_slope_steep_l0", 0, 30_000),
+        ] {
+            for (yaw, mirror) in [(0, false), (1, true), (3, false)] {
+                let p = place(piece, 2, 3, -1, yaw, mirror);
+                let kp = kit.piece(&p.piece).unwrap();
+                let s = ChannelSlope::of(kp, &p).unwrap_or_else(|| panic!("{piece}: no slope"));
+                assert_eq!(s.drop_um, drop, "{piece}");
+                assert_eq!(
+                    s.axis_y_um,
+                    i64::from(CELL_UM) * 3 + entry_floor + i64::from(CHANNEL_RADIUS_UM),
+                    "{piece}"
+                );
+                let held = placed_triangles(kp, &p)
+                    .into_iter()
+                    .flatten()
+                    .filter(|&v| s.holds(v))
+                    .count();
+                eprintln!("{piece} yaw {yaw}: {held} channel vertices held");
+                assert!(held >= 17 * 8, "{piece}: only {held} vertices on the slope");
+            }
+        }
     }
 
     /// Every channel triangle of the forks (below the cell top), placed turned and mirrored, lies

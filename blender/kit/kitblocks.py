@@ -38,14 +38,22 @@ def piece_version(piece_id):
 
 # kitgeom shapes at other levels: the L2 set follows blk_slope_gentle_l3's L2 exit, and
 # blk_straight_l1 follows the L1 exits of blk_slope_gentle_l2 and blk_slope_steep_l3.
-KITGEOM_VARIANTS = ("blk_straight_l2", "blk_curve90_l2", "blk_slope_gentle_l2", "blk_straight_l1")
-NEW_SHAPES = ("blk_slope_steep_l3", "blk_drop_l3", "blk_drop_l2", "blk_redirect_l3", "blk_redirect_l2",
-              "blk_join_l3", "blk_join_l2", "blk_pillar", "blk_tower_socket_l1")
+KITGEOM_VARIANTS = ("blk_straight_l2", "blk_curve90_l2", "blk_slope_gentle_l2", "blk_straight_l1",
+                    "blk_curve90_l1", "blk_end_l2", "blk_end_l1")
+SLOPE_SHAPES = ("blk_slope_steep_l2", "blk_slope_steep_l1", "blk_slope_steep_l0",
+                "blk_slope_gentle_l1", "blk_slope_gentle_l0")
+NEW_SHAPES = SLOPE_SHAPES + ("blk_tower_socket_l2", "blk_tower_socket_l3") + ("blk_slope_steep_l3", "blk_drop_l3", "blk_drop_l2", "blk_redirect_l3", "blk_redirect_l2",
+              "blk_join_l3", "blk_join_l2", "blk_pillar", "blk_tower_socket_l1",
+              "blk_drop_l1", "blk_redirect_l1", "blk_join_l1")
 P2_BUILD = KITGEOM_VARIANTS + NEW_SHAPES
 BUILD = K.BUILD + P2_BUILD
 
-SHAPE_RE = re.compile(r"^blk_(slope_steep|drop|redirect|join|tower_socket)_l([0-3])$")
-LEGAL = {"slope_steep": (3,), "drop": (1, 2, 3), "redirect": (1, 2, 3), "join": (1, 2, 3), "tower_socket": (1,)}
+SHAPE_RE = re.compile(r"^blk_(slope_steep|slope_gentle|drop|redirect|join|tower_socket)_l([0-3])$")
+# slope_gentle at L2 and L3 is kitgeom's (one cell, exit in the same cell); here only the two that
+# reach L0 or the layer below, which need the 2-tall footprint of contract section 7.
+LEGAL = {"slope_steep": (0, 1, 2, 3), "slope_gentle": (0, 1), "drop": (1, 2, 3), "redirect": (1, 2, 3),
+         "join": (1, 2, 3), "tower_socket": (1, 2, 3)}
+SLOPE_DROP = {"slope_gentle": 1, "slope_steep": 2}   # port levels lost across the cell (section 7)
 
 TOP = K.CELL               # top of the anchor cell (every piece here carves from the anchor's top)
 BOWL_R = 18.0              # §4: 36 mm bowl around the drop hole
@@ -66,7 +74,10 @@ COLLISION_PATH = 8         # path segments for collision arcs and slopes (kitgeo
 
 
 def handles(piece_id):
-    return piece_id == "blk_pillar" or bool(SHAPE_RE.match(piece_id))
+    if piece_id == "blk_pillar":
+        return True
+    m = SHAPE_RE.match(piece_id)
+    return bool(m) and int(m.group(2)) in LEGAL[m.group(1)]
 
 
 def _side(i, cell, face, level, flow, cls="channel", inset=0):
@@ -96,8 +107,14 @@ def spec(piece_id):
     o, below = (0, 0, 0), (0, -1, 0)
     fp = [[0, 0, 0]]
     chiral = False
-    if shape == "slope_steep":
-        ports = [_side(0, o, "-x", level, "in"), _side(1, o, "+x", level - 2, "out")]
+    if shape in SLOPE_DROP:
+        # Carry rule (section 3): an exit below L0 is the layer below's L3 or lower. The channel
+        # carves from the anchor's top, so an exit at or under L0 puts a solid cell below it.
+        total = level - SLOPE_DROP[shape]
+        layer, out_level = (-1, total + 4) if total < 0 else (0, total)
+        ports = [_side(0, o, "-x", level, "in"), _side(1, (0, layer, 0), "+x", out_level, "out")]
+        if total <= 0:
+            fp = [[0, -1, 0], [0, 0, 0]]
     elif shape == "drop":
         ports = [_side(0, o, "-x", level, "in"), _drop(1, o, "bottom", "out")]
     elif shape == "redirect":  # §9 rule 7, §16 Q8: one cell layer lower, same level
@@ -249,6 +266,18 @@ def tunnel_profile(collision, q):
     return prof
 
 
+def slot_profile(f0, n):
+    """Open U-slot section of the socket at L2 and L3 (section 5.5): the 40 mm bore's lower half,
+    its bottom 6 mm under the floor, then straight walls up through the top face. `n` segments."""
+    yc = f0 + K.R
+    pts = [(-SOCKET_R, TOP + K.CUT_ABOVE)]
+    for i in range(n + 1):
+        th = math.radians(-90.0 + 180.0 * i / n)
+        pts.append((SOCKET_R * math.sin(th), yc - SOCKET_R * math.cos(th)))
+    pts.append((SOCKET_R, TOP + K.CUT_ABOVE))
+    return pts
+
+
 def sweep(bm, sts, prof):
     """Closed solid: `prof(floor)` swept through the stations, both ends capped."""
     rings = []
@@ -308,8 +337,8 @@ def cutters(piece_id, q, collision):
         out.append(lambda bm: lathe(bm, [(BOWL_R, TOP + K.CUT_ABOVE), (BOWL_R, f0)], circ))
         out.append(lambda bm: lathe(bm, [(HOLE_R, f0 + 1.0), (HOLE_R, bottom)], circ))
 
-    if shape == "slope_steep":
-        drop = 2 * K.LEVEL_STEP
+    if shape in SLOPE_DROP:
+        drop = SLOPE_DROP[shape] * K.LEVEL_STEP
         fl = lambda x: f0 - drop * smoother((x + 30.0) / 60.0)
         sts = straight_x(-30.0, 30.0, fl, path_n, extra_x=inset_x)
         out.append(lambda bm: sweep(bm, extend(sts, True, True), oprof))
@@ -338,22 +367,33 @@ def cutters(piece_id, q, collision):
         x0 = -30.0 + SOCKET_INSET
         x_pad = -TOWER_PAD
         fl, rise = tower_floor(f0, x_end, x_pad, x0)
+        # L1 lands in a closed tunnel under a round bore; a tunnel's crown would pass the top face
+        # from L2 up (section 5.1), so there the landing is an open channel and the socket a U slot.
+        closed = level == 1
+        land = tprof if closed else oprof
         if collision:  # 4 path segments: the 34-vertex tunnel ring at 5 would pass 600 tris (§12)
             sts_t = straight_x(x0, x_pad, fl, 3, extra_x=(x_end,))
-            out.append(lambda bm: sweep(bm, extend(sts_t, True, False), tprof))
+            out.append(lambda bm: sweep(bm, extend(sts_t, True, False), land))
         else:  # the pad is one path segment
             sts_t = straight_x(x0, x_pad, fl, max(2, path_n - 1), extra_x=(x_end,))
             sts_t = [(x0 - 1.5,) + sts_t[0][1:]] + sts_t   # runs 1.5 mm into the socket bore
-            out.append(lambda bm: sweep(bm, sts_t, tprof))
+            out.append(lambda bm: sweep(bm, sts_t, land))
             yc = f0 + K.R
-            out.append(lambda bm: lathe(bm, [(SOCKET_R, -30.0 - K.EXT), (SOCKET_R, -30.0 + SOCKET_DEPTH)],
-                                        max(24, 2 * q["n_round"]) if q["n_round"] > 6 else 8,
-                                        axis="x", centre=(yc, 0.0)))
-        # funnel mouth 36 mm narrowing to the 32 mm shaft (§4), down into the tunnel
+            n_bore = max(24, 2 * q["n_round"]) if q["n_round"] > 6 else 8
+            if closed:
+                out.append(lambda bm: lathe(bm, [(SOCKET_R, -30.0 - K.EXT), (SOCKET_R, -30.0 + SOCKET_DEPTH)],
+                                            n_bore, axis="x", centre=(yc, 0.0)))
+            else:
+                slot = slot_profile(f0, n_bore // 2)
+                out.append(lambda bm: sweep(
+                    bm, [(-30.0 - K.EXT, 0.0, 0.0, 1.0, f0), (-30.0 + SOCKET_DEPTH, 0.0, 0.0, 1.0, f0)],
+                    lambda _fl: slot))
+        # funnel mouth 36 mm narrowing to the 32 mm shaft (§4), down into the tunnel or channel
+        shaft_bottom = f0 + rise + 10.0
         mouth = [(BOWL_R, TOP + K.CUT_ABOVE), (BOWL_R, TOP - 4.0), (HOLE_R, TOP - 8.0)]
-        if not collision and q["n_round"] <= 6:  # LOD2 budget: plain bore, no mouth
-            mouth = [(HOLE_R, TOP + K.CUT_ABOVE)]
-        out.append(lambda bm: lathe(bm, mouth + [(HOLE_R, f0 + rise + 10.0)], circ))
+        if (not collision and q["n_round"] <= 6) or shaft_bottom > TOP - 8.0:
+            mouth = [(HOLE_R, TOP + K.CUT_ABOVE)]    # LOD2 budget, or no room under the top for a mouth
+        out.append(lambda bm: lathe(bm, mouth + [(HOLE_R, shaft_bottom)], circ))
     elif shape == "pillar":
         out.append(lambda bm: lathe(bm, [(HOLE_R, TOP + K.CUT_ABOVE), (HOLE_R, -K.EXT)], circ))
     return out
@@ -424,8 +464,22 @@ def _boolean_mesh(piece_id, q, name, collection, collision):
     bm = bmesh.new()
     bm.from_mesh(result)
     bmesh.ops.dissolve_degenerate(bm, edges=bm.edges, dist=1e-4)
+    if collision and sp_shape(piece_id) in SLOPE_DROP:
+        # The two stacked cubes meet at y = 0, and each port face is one polygon across both. Cut
+        # the mesh there: an exit in the cell below carves through to the anchor's top, so its
+        # ring's wall tops (the lower cell's top, section 5.4) are not vertices of the boolean,
+        # and a face triangle spanning both cells would survive _open_port_faces with an edge on
+        # the port ring (a convex 90 degree edge facing the marble, which kicked it 132 mm/s at
+        # the entry of the first 2-tall slope).
+        # Only the port faces are cut: a cut across the channel would add vertices on the faceted
+        # floor between its path stations, off the exact slope surface the sim's contact model
+        # tags triangles by (ChannelSlope::holds), and the untagged strip kicks the marble.
+        side = [f for f in bm.faces if all(abs(abs(v.co.x) - K.CELL / 2) < 1e-6 for v in f.verts)]
+        geom = list(side) + list({e for f in side for e in f.edges}) + list({v for f in side for v in f.verts})
+        bmesh.ops.bisect_plane(bm, geom=geom, plane_co=(0.0, 0.0, 0.0), plane_no=(0.0, 1.0, 0.0), dist=1e-6)
     bmesh.ops.triangulate(bm, faces=bm.faces, quad_method="FIXED", ngon_method="EAR_CLIP")
-    if not collision and sp_shape(piece_id) == "redirect":
+    if not collision and (sp_shape(piece_id) == "redirect"
+                          or (sp_shape(piece_id) == "tower_socket" and spec(piece_id)["level"] >= 2)):
         # The smootherstep landing leaves sliver triangles where the tunnel meets the shaft (zero
         # UV area, so no tangent, a glTF validator error). Dropping them leaves no visible gap.
         slivers = [f for f in bm.faces if f.calc_area() < SLIVER_MM2]
