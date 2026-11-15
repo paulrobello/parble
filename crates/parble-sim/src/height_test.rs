@@ -16,9 +16,8 @@ use parble_core::{CellCoord, PieceId, Placement, Yaw4};
 use rapier3d::prelude::*;
 
 const SPEED: f32 = 0.3;
-/// The layer the runs start in. A run that crosses the layer 0 to -1 boundary also crosses a chunk
-/// boundary, where a slope's exact contact does not reach the straights in the next chunk and the
-/// exit bumps as it does every eight cells along x; the layers here are all in chunk y = 0.
+/// The layer the runs start in (all in chunk y = 0; `a_slope_leaves_its_marble_clean_onto_the_next_chunk`
+/// covers the layer 0 | -1 and cell 7 | 8 chunk boundaries).
 const BASE: i32 = 4;
 const TICKS: u32 = 900;
 /// Straights after the last slope, so the marble settles before the run ends.
@@ -327,5 +326,98 @@ fn the_open_slot_tower_sockets_land_a_dropped_marble_at_l2_and_l3() {
                 .any(|m| m.position[0] < 0.095 && (m.position[1] - floor).abs() < 0.012),
             "blk_tower_socket_l{level}: marble must roll on to the socket"
         );
+    }
+}
+
+/// Rest height of a centred marble on `level` of absolute cell layer `layer` (no [`BASE`]).
+fn rest_abs(layer: i32, level: i32) -> f32 {
+    layer as f32 * 0.060 + level as f32 * 0.015 + 0.008
+}
+
+#[test]
+fn a_slope_leaves_its_marble_clean_onto_the_next_chunk() {
+    // A slope's exact contact is built per chunk, so a straight in the next chunk could have kept its
+    // raw mesh contact at the exit. It does not: across the layer 0 | -1 boundary and along x
+    // (cells 7 | 8) the exits are as clean as inside a chunk (measured 2026-11-15: identical
+    // upward speed and kick at 0.5, 0.7 and 0.9 m/s, so the fast-exit bump is the slope's own).
+    // (name, slope, entry level, run along +x from x = 5, slope cell x, layer, exit layer, exit level)
+    let runs: [(&str, &str, i32, i32, i32, i32, i32); 4] = [
+        (
+            "steep L1 into the layer below",
+            "blk_slope_steep_l1",
+            1,
+            5,
+            0,
+            -1,
+            3,
+        ),
+        (
+            "gentle L0 into the layer below",
+            "blk_slope_gentle_l0",
+            0,
+            5,
+            0,
+            -1,
+            3,
+        ),
+        (
+            "steep L3 across x 7 | 8",
+            "blk_slope_steep_l3",
+            3,
+            7,
+            4,
+            4,
+            1,
+        ),
+        (
+            "gentle L2 across x 7 | 8",
+            "blk_slope_gentle_l2",
+            2,
+            7,
+            4,
+            4,
+            1,
+        ),
+    ];
+    for (name, slope, entry, x, layer, exit_layer, exit_level) in runs {
+        for v in [0.3_f32, 0.5] {
+            let mut layout = vec![];
+            if entry > 0 {
+                layout.push(place(&format!("blk_straight_l{entry}"), x - 1, layer, 0));
+            }
+            layout.push(place(slope, x, layer, 0));
+            for k in 1..6 {
+                layout.push(place(
+                    &format!("blk_straight_l{exit_level}"),
+                    x + k,
+                    exit_layer,
+                    0,
+                ));
+            }
+            let mut sim = track_sim(&layout);
+            let x0 = if entry > 0 {
+                (x - 1) as f32 * 0.06
+            } else {
+                x as f32 * 0.06 - 0.025
+            };
+            launch(
+                &mut sim,
+                Vector::new(x0, rest_abs(layer, entry), 0.0),
+                Vector::X,
+                v,
+            );
+            let tr = trace(&mut sim, 500);
+            let end = (x + 5) as f32 * 0.06;
+            let w = |m: &MarbleState| (x as f32 * 0.06..end).contains(&m.position[0]);
+            let (up, k) = (upward(&tr, w), kick(&tr, w));
+            eprintln!("{name} at {v} m/s: upward {up:.2} mm/s, kick {k:.2} mm/s");
+            assert!(up <= UPWARD_MM_S, "{name} at {v} m/s: upward {up:.2} mm/s");
+            assert!(k <= KICK_MM_S, "{name} at {v} m/s: kick {k:.2} mm/s");
+            assert!(
+                tr.iter().any(|m| m.position[0] > end - 0.06
+                    && (m.position[1] - rest_abs(exit_layer, exit_level)).abs() < 0.003),
+                "{name} at {v} m/s: marble must leave on the exit straights"
+            );
+        }
     }
 }
