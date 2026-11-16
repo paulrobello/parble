@@ -396,7 +396,10 @@ fn finish_time_census() {
 /// Sim tick rate on generated tracks: each seed from `PROCGEN_SEED` (default 0), `PROCGEN_SEEDS`
 /// of them (default 1), runs until every marble finishes, one is lost or `PROCGEN_TICKS` pass,
 /// and the line reports ticks per second of wall time for the run alone (not generation or the
-/// collider build). A timing, so run it alone on a quiet host. Params as above.
+/// collider build). With `PROCGEN_VALIDATION=1` each run stops where the validation job's verdict
+/// would ([`parble_sim::procgen_job`]: a marble off the track, every marble still for
+/// `STALL_HOLD_TICKS`, or the track's `limit_ticks`), so the rate is that of the ticks a
+/// generate-and-validate job runs. A timing, so run it alone on a quiet host. Params as above.
 #[test]
 #[ignore = "diagnostic: tick rate"]
 fn tick_rate() {
@@ -408,6 +411,7 @@ fn tick_rate() {
     let seeds = env("PROCGEN_SEEDS", 1);
     let ticks = env("PROCGEN_TICKS", 240 * 600) as u32;
     let params = params_from_env();
+    let validation = env("PROCGEN_VALIDATION", 0) != 0;
     let (mut total, mut secs) = (0u64, 0.0f64);
     for seed in first..first + seeds {
         let Ok(track) = generate(&defs, seed, &params) else {
@@ -416,24 +420,51 @@ fn tick_rate() {
         };
         let mut run = TrackRun::new(&track).expect("runs");
         let mechanisms = run.mechanisms().len();
+        let marbles = params.marbles as usize;
+        let (ticks, step) = if validation {
+            (parble_sim::procgen_job::limit_ticks(&track), 1)
+        } else {
+            (ticks, 24)
+        };
         let start = std::time::Instant::now();
         let mut t = 0;
+        let mut quiet = 0;
         let mut finished = false;
+        let mut stop = "limit";
         while t < ticks && !finished {
-            run.tick(24);
-            t += 24;
+            run.tick(step);
+            t += step;
             let m = run.motion();
             if m.iter().any(|s| matches!(s, MarbleMotion::Lost)) {
+                stop = "lost";
                 break;
             }
-            finished = m.len() == params.marbles as usize
-                && m.iter().all(|s| matches!(s, MarbleMotion::Finished));
+            finished = m.len() == marbles && m.iter().all(|s| matches!(s, MarbleMotion::Finished));
+            if !validation || finished {
+                continue;
+            }
+            if m.iter().any(|s| matches!(s, MarbleMotion::OffTrack)) {
+                stop = "off track";
+                break;
+            }
+            if m.len() == marbles && !m.iter().any(|s| s.is_moving()) {
+                quiet += 1;
+                if quiet >= parble_sim::procgen_job::STALL_HOLD_TICKS {
+                    stop = "stalled";
+                    break;
+                }
+            } else {
+                quiet = 0;
+            }
+        }
+        if finished {
+            stop = "finished";
         }
         let s = start.elapsed().as_secs_f64();
         total += u64::from(t);
         secs += s;
         println!(
-            "seed {seed}: {} placements, {mechanisms} mechanisms, {t} ticks in {s:.2} s, {:.0} ticks/s, finished {finished}",
+            "seed {seed}: {} placements, {mechanisms} mechanisms, {t} ticks in {s:.2} s, {:.0} ticks/s, {stop}",
             track.placements.len(),
             f64::from(t) / s
         );
