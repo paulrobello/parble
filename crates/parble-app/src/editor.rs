@@ -724,6 +724,8 @@ fn attach_fits(st: &EditState) -> Option<Vec<AttachFit>> {
         })
         .filter(|wp| !st.occupancy.contains_key(&(wp.cell + wp.face.normal())))
         .collect();
+    // One occupancy for every candidate: rebuilding it per check is a whole-track pass each.
+    let occupied = st.editor.occupancy_map(st.kit).ok()?;
     let mut fits = Vec::new();
     for id in palette() {
         let Some(piece) = piece_index(id).map(pid) else {
@@ -774,7 +776,7 @@ fn attach_fits(st: &EditState) -> Option<Vec<AttachFit>> {
                         Yaw4::new(yaw),
                         mirror_of(mirror),
                     );
-                    if st.editor.check(st.kit, EditCommand::Place(place)).is_ok() {
+                    if st.editor.check_place_in(st.kit, &occupied, &place).is_ok() {
                         seen.push(placed);
                         // Marbles can roll on from the selected piece into the new one.
                         let downstream = matches!(wp.flow, PortFlow::Out | PortFlow::Both)

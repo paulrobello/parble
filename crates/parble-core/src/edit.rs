@@ -338,6 +338,32 @@ impl Editor {
         self.plan(catalog, cmd).map(|_| ())
     }
 
+    /// Cell → placement index for the whole track, for [`Editor::check_place_in`] when many
+    /// placements are checked against one track.
+    pub fn occupancy_map<C: PieceCatalog + ?Sized>(
+        &self,
+        catalog: &C,
+    ) -> Result<BTreeMap<CellCoord, u32>, EditError> {
+        self.occupancy(catalog, &Selection::new())
+    }
+
+    /// [`Editor::check`]'s verdict for `EditCommand::Place(p)`, against `occupied` from
+    /// [`Editor::occupancy_map`] of the current track.
+    pub fn check_place_in<C: PieceCatalog + ?Sized>(
+        &self,
+        catalog: &C,
+        occupied: &BTreeMap<CellCoord, u32>,
+        p: &Placement,
+    ) -> Result<(), EditError> {
+        let cells = checked_cells(catalog, p)?;
+        for (k, c) in cells.iter().enumerate() {
+            if occupied.contains_key(c) || cells[..k].contains(c) {
+                return Err(EditError::Collision(*c));
+            }
+        }
+        Ok(())
+    }
+
     /// Reverts the most recent command. Returns `false` when there is nothing to undo.
     pub fn undo(&mut self) -> bool {
         let Some(changes) = self.undo.pop() else {

@@ -783,3 +783,33 @@ fn check_matches_apply_and_changes_nothing() {
     );
     assert!(ed.can_undo() && !ed.can_redo());
 }
+
+#[test]
+fn check_place_in_gives_checks_verdict() {
+    let (ed, cat) = editor_with(vec![
+        place(CURVE, c(0, 0, 0), 0, Mirror::Off),
+        place(S_RAIL, c(4, 0, 0), 1, Mirror::Off),
+    ]);
+    let occupied = ed.occupancy_map(&cat).unwrap();
+    for piece in [STRAIGHT, CURVE, S_RAIL, SLOPE, "blk_missing_l0"] {
+        for x in -2..7 {
+            for z in -2..4 {
+                for yaw in 0..4 {
+                    for mirror in [Mirror::Off, Mirror::On] {
+                        let p = Placement::new(
+                            PieceId::new(piece).unwrap(),
+                            c(x, 0, z),
+                            Yaw4::new(yaw),
+                            mirror,
+                        );
+                        assert_eq!(
+                            ed.check_place_in(&cat, &occupied, &p),
+                            ed.check(&cat, EditCommand::Place(p.clone())),
+                            "{p:?}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
