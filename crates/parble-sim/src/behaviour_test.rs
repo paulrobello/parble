@@ -2105,3 +2105,24 @@ fn the_rope_arch_halves_a_marbles_speed_at_l2_and_l3() {
         assert!(r < 0.6, "L{level}: the curtain left {r:.3} of the speed");
     }
 }
+
+#[test]
+fn a_rope_arch_visits_the_state_it_saves() {
+    let mut arch = RopeArch {
+        passes: 3,
+        swings: 2,
+        ..RopeArch::default()
+    };
+    arch.heading.seen.insert(1, (0, 40));
+    arch.heading.seen.insert(12, (1, 96));
+    arch.ropes[5].angle[2] = 0.25;
+    arch.ropes[7].rate[5] = -0.01;
+    let mut visited = MechConfig::new();
+    let mut count = 0;
+    arch.visit_state(&mut |k, v| {
+        count += 1;
+        visited.insert(k.to_owned(), v);
+    });
+    assert_eq!(visited, arch.save());
+    assert_eq!(count, visited.len(), "each key once");
+}

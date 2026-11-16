@@ -726,6 +726,19 @@ impl Heading {
         }
     }
 
+    fn visit(&self, f: &mut dyn FnMut(&str, i64)) {
+        let mut key = String::new();
+        for (m, (si, t)) in &self.seen {
+            use std::fmt::Write;
+            key.clear();
+            let _ = write!(key, "first/{m}");
+            f(&key, *si as i64);
+            key.clear();
+            let _ = write!(key, "seen/{m}");
+            f(&key, *t);
+        }
+    }
+
     fn restore(&mut self, state: &MechConfig) {
         self.seen.clear();
         for (k, &v) in state {
@@ -1172,6 +1185,28 @@ impl Mechanism for RopeArch {
             }
         }
         s
+    }
+
+    fn visit_state(&self, f: &mut dyn FnMut(&str, i64)) {
+        static KEYS: std::sync::OnceLock<Vec<[String; 2]>> = std::sync::OnceLock::new();
+        let keys = KEYS.get_or_init(|| {
+            (0..ROPES * crate::rope::SEGMENTS)
+                .map(|i| {
+                    let (k, j) = (i / crate::rope::SEGMENTS, i % crate::rope::SEGMENTS);
+                    [format!("rope/{k}/{j}/a"), format!("rope/{k}/{j}/w")]
+                })
+                .collect()
+        });
+        f("passes", self.passes);
+        f("swings", self.swings);
+        self.heading.visit(f);
+        for (k, rope) in self.ropes.iter().enumerate() {
+            for j in 0..crate::rope::SEGMENTS {
+                let [a, w] = &keys[k * crate::rope::SEGMENTS + j];
+                f(a, i64::from(rope.angle[j].to_bits()));
+                f(w, i64::from(rope.rate[j].to_bits()));
+            }
+        }
     }
 
     fn restore(&mut self, state: &MechConfig) {

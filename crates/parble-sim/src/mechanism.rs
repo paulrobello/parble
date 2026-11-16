@@ -82,6 +82,13 @@ pub trait Mechanism: Send + Sync {
     /// Behaviour state as integers. Saved as [`MechanismState::state`] next to the framework's own
     /// `rng/` and `part/` keys, so it must not use those prefixes.
     fn save(&self) -> MechConfig;
+    /// Every `(key, value)` of [`Mechanism::save`], in any order, without building the map: the
+    /// mechanism hash reads it every sample. Override where `save` is large.
+    fn visit_state(&self, f: &mut dyn FnMut(&str, i64)) {
+        for (k, v) in self.save() {
+            f(&k, v);
+        }
+    }
     /// Restore from a map [`Mechanism::save`] produced (unknown keys are ignored).
     fn restore(&mut self, state: &MechConfig);
     /// `Some` for a part simulated as a hinged dynamic body ([`PartPhysics`]) instead of a
@@ -770,6 +777,9 @@ pub struct Mechanisms {
     /// Flush door part colliders ([`Mechanism::part_flush_door`]) → their seam.
     doors: BTreeMap<(u32, u32), crate::door_seam::DoorSeam>,
     hasher: Fnv1a64,
+    /// [`Mechanisms::sample`]'s scratch: key bytes, and `(key start, key end, value)` entries.
+    sample_keys: Vec<u8>,
+    sample_entries: Vec<(usize, usize, i64)>,
 }
 
 fn um_m(v: [i64; 3]) -> Vector {
@@ -1172,8 +1182,34 @@ impl Mechanisms {
                 self.hasher.write_i64(c.into());
             }
             self.hasher.write(inst.behaviour.kind().as_bytes());
-            for (k, v) in inst.save(tick) {
-                self.hasher.write(k.as_bytes());
+            // The bytes `inst.save(tick)` would give, in its key order, without building the map.
+            let (keys, entries) = (&mut self.sample_keys, &mut self.sample_entries);
+            keys.clear();
+            entries.clear();
+            let mut push = |parts: &[&str], v: i64| {
+                let start = keys.len();
+                for p in parts {
+                    keys.extend_from_slice(p.as_bytes());
+                }
+                entries.push((start, keys.len(), v));
+            };
+            inst.behaviour.visit_state(&mut |k, v| push(&[k], v));
+            for (name, r) in &inst.rng {
+                push(&[RNG_STATE_PREFIX, name], r.draws as i64);
+            }
+            for p in &inst.parts {
+                push(&[PART_STATE_PREFIX, &p.name], i64::from(p.angle_at(tick)));
+            }
+            // Stable, so of two equal keys the later one is kept, as a map insert would.
+            entries.sort_by(|a, b| keys[a.0..a.1].cmp(&keys[b.0..b.1]));
+            for (i, &(a, b, v)) in entries.iter().enumerate() {
+                if entries
+                    .get(i + 1)
+                    .is_some_and(|n| keys[n.0..n.1] == keys[a..b])
+                {
+                    continue;
+                }
+                self.hasher.write(&keys[a..b]);
                 self.hasher.write_i64(v);
             }
         }
