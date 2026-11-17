@@ -549,24 +549,24 @@ async function provenance(runtime, source, ids, checks) {
         : TALL_PILLARS.has(id)
           ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the tall pillar look 2026-11-15 (blender/kit/review/pillar-heights.png)" }
         : FUNNEL.has(id)
-          ? { who: "Paul", gate: "piece look", status: "pending", notes: "funnel catcher and its drop catch; review sheet blender/kit/review/funnel.png" }
+          ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the funnel catcher and drop catch look 2026-11-16 (blender/kit/review/funnel.png)" }
         : id.startsWith("mech_stepper_")
-          ? { who: "Paul", gate: "piece look", status: "pending", notes: "P2 stepper elevator; review sheet blender/kit/review/p2-stepper-elevator.png" }
+          ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the stepper elevator look 2026-11-16 (blender/kit/review/p2-stepper-elevator.png)" }
         : MECH_HEIGHTS.has(id)
           ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the mechanism height look 2026-11-15 (blender/kit/review/mech-heights.png)" }
         : id.startsWith("mech_")
-          ? { who: "Paul", gate: "piece look", status: "pending", notes: "P2-T3 mechanism piece; review sheet blender/kit/review/p2t3-mechanisms.png" }
+          ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the P2-T3 mechanism look 2026-11-16 (blender/kit/review/p2t3-mechanisms.png)" }
           : id === "rail_joint_l2" || id === "rail_joint_l3"
             ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the rail joint height look 2026-11-15 (blender/kit/review/rail-joint-heights.png)" }
           : RAIL_LEVELS.has(id)
-            ? { who: "Paul", gate: "piece look", status: "pending", notes: "rail at another level; review sheet blender/kit/review/rail-levels.png" }
+            ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the rail level look 2026-11-16 (blender/kit/review/rail-levels.png)" }
           : BLOCK_HEIGHTS.has(id)
             ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the block height look 2026-11-15 (blender/kit/review/block-heights.png)" }
           : RAIL_SLOPES.has(id)
             ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the rail slope look 2026-11-13 (blender/kit/review/rail-slopes.png)" }
           : id.startsWith("rail_")
-            ? { who: "Paul", gate: "piece look", status: "pending", notes: "P2-T4 rail piece; review sheet blender/kit/review/p2t4-rails.png" }
-          : { who: "Paul", gate: "piece look", status: "pending", notes: "P2-T2 piece; review sheet blender/kit/review/p2t2-pieces.png" }],
+            ? { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the P2-T4 rail look 2026-11-16 (blender/kit/review/p2t4-rails.png)" }
+          : { who: "Paul", gate: "piece look", status: "approved", notes: "Paul approved the P2-T2 piece look 2026-11-16 (blender/kit/review/p2t2-pieces.png)" }],
     };
     fs.writeFileSync(path.join(dir, `${id}.provenance.json`), JSON.stringify(pv, null, 2) + "\n");
     console.log(`provenance ${id}`);
