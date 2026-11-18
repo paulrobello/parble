@@ -325,6 +325,10 @@ pub const FLY_SPEED_M_S: f32 = 0.3;
 pub const FLY_FAR_FOCUS_M: f32 = 3.0;
 /// Fly's focus eases to a new distance with this time constant (seconds).
 const FLY_FOCUS_EASE_S: f32 = 0.15;
+/// The editor orbit keeps the tier's depth of field from this focus distance out (metres). Nearer,
+/// the aperture narrows with the square of the distance, so the depth in focus stays the same
+/// and a piece the wheel zooms up to stays sharp across its depth.
+const EDITOR_DOF_REF_M: f32 = 0.5;
 pub const FLY_SPEED_RANGE: (f32, f32) = (0.02, 5.0);
 const FLY_WHEEL_STEP: f32 = 1.25;
 /// Look sensitivity, radians per pixel of drag.
@@ -469,12 +473,13 @@ fn orbit_frame(yaw: f32, pitch: f32) -> (Vec3, Vec3, Vec3) {
 /// editor tools: right drag orbits about `pivot` (the editor sets it when the drag starts: the
 /// selection, else the point under the cursor), middle drag or Shift + right drag pans along the
 /// ground, W/A/S/D pan too, and the wheel zooms. `set` replaces the orbit once (the agent's
-/// `camera` action).
+/// `camera` action). `no_dof` turns depth of field off while the editor is active (`B`).
 #[derive(Resource, Debug, Default, Clone, Copy)]
 pub struct EditorCamera {
     pub active: bool,
     pub set: Option<Orbit>,
     pub pivot: Option<Vec3>,
+    pub no_dof: bool,
 }
 
 /// Editor W/A/S/D pan speed, in orbit radii per second.
@@ -503,6 +508,8 @@ struct DirectorState {
     /// This frame's view-centre mesh hit in fly: distance (metres) and what it hit,
     /// from [`fly_focus_ray`].
     fly_hit: Option<(f32, String)>,
+    /// The tier's aperture, read from the camera the first frame it has depth of field.
+    base_aperture: Option<f32>,
 }
 
 /// The camera's state for the state JSON (`camera`).
@@ -819,7 +826,7 @@ fn orbit_input(
     }
 }
 
-/// In fly, casts the view-centre ray against the visible meshes (track, marbles, playroom) and keeps
+/// In fly and orbit, casts the view-centre ray against the visible meshes (track, marbles, playroom) and keeps
 /// the nearest hit's distance for [`direct`]'s focus. The mesh transforms are last frame's, which a
 /// focus that eases over [`FLY_FOCUS_EASE_S`] cannot show.
 fn fly_focus_ray(
@@ -834,12 +841,18 @@ fn fly_focus_ray(
     marbles: Query<(), With<crate::MarbleVisual>>,
     columns: Query<(), With<crate::kit::edit::GroundColumn>>,
 ) {
-    if *mode != CameraMode::Fly {
-        st.fly_hit = None;
-        return;
-    }
-    let eye = st.fly.eye;
-    let Ok(dir) = Dir3::new(st.fly.rotation() * Vec3::NEG_Z) else {
+    let (eye, forward) = match *mode {
+        CameraMode::Fly => (st.fly.eye, st.fly.rotation() * Vec3::NEG_Z),
+        CameraMode::Orbit => {
+            let eye = st.orbit.eye();
+            (eye, st.orbit.target - eye)
+        }
+        CameraMode::Director => {
+            st.fly_hit = None;
+            return;
+        }
+    };
+    let Ok(dir) = Dir3::new(forward) else {
         st.fly_hit = None;
         return;
     };
@@ -863,6 +876,8 @@ fn fly_focus_ray(
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
 fn direct(
+    mut commands: Commands,
+    editor: Res<EditorCamera>,
     mode: Res<CameraMode>,
     fly_only: Res<FlyOnly>,
     cues: Res<Cues>,
@@ -874,8 +889,11 @@ fn direct(
     frame: Res<MarbleFrame>,
     mut st: ResMut<DirectorState>,
     mut diag: ResMut<CameraDiag>,
+    // The camera's depth of field while `EditorCamera::no_dof` has it off.
+    mut stashed_dof: Local<Option<DepthOfField>>,
     mut cams: Query<
         (
+            Entity,
             &Camera,
             &mut Transform,
             &mut Projection,
@@ -891,7 +909,8 @@ fn direct(
         With<MainCamera>,
     >,
 ) {
-    let Ok((camera, mut tf, mut proj, dof, mut taa, (msaa, ssao, bloom, tm))) = cams.single_mut()
+    let Ok((entity, camera, mut tf, mut proj, dof, mut taa, (msaa, ssao, bloom, tm))) =
+        cams.single_mut()
     else {
         return;
     };
@@ -993,18 +1012,49 @@ fn direct(
             });
             st.fly_focus
         }
-        // Orbit focuses on the marble, or on its pivot without one.
-        CameraMode::Orbit => {
-            let p = followed.map_or(st.orbit.target, |m| m.p);
-            (p - pose.eye).dot(forward).max(0.01)
-        }
+        // Orbit focuses on the marble. Without one (the editor) it focuses on what the view
+        // centre looks at, so a piece nearer than the pivot stays sharp as the wheel zooms in.
+        CameraMode::Orbit => match followed {
+            Some(m) => (m.p - pose.eye).dot(forward).max(0.01),
+            None => {
+                let target = st.fly_hit.as_ref().map_or_else(
+                    || (st.orbit.target - pose.eye).dot(forward).max(0.01),
+                    |h| h.0,
+                );
+                st.fly_focus = if st.fly_focus > 0.0 {
+                    let k = 1.0 - (-clock.dt.max(0.0) / FLY_FOCUS_EASE_S).exp();
+                    st.fly_focus + (target - st.fly_focus) * k
+                } else {
+                    target
+                };
+                st.fly_focus
+            }
+        },
     };
-    if *mode != CameraMode::Fly {
+    if *mode == CameraMode::Director || (*mode == CameraMode::Orbit && followed.is_some()) {
         st.fly_focus = 0.0;
     }
+    let editing = *mode == CameraMode::Orbit && followed.is_none();
     let mut dof = dof;
-    if let Some(d) = dof.as_deref_mut() {
+    let aim = |d: &mut DepthOfField, base: &mut Option<f32>| {
         d.focal_distance = depth;
+        let base = *base.get_or_insert(d.aperture_f_stops);
+        d.aperture_f_stops = if editing {
+            base * (EDITOR_DOF_REF_M / depth).powi(2).max(1.0)
+        } else {
+            base
+        };
+    };
+    if editor.active && editor.no_dof {
+        if let Some(d) = dof.as_deref() {
+            *stashed_dof = Some(*d);
+            commands.entity(entity).remove::<DepthOfField>();
+        }
+    } else if let Some(d) = dof.as_deref_mut() {
+        aim(d, &mut st.base_aperture);
+    } else if let Some(mut d) = stashed_dof.take() {
+        aim(&mut d, &mut st.base_aperture);
+        commands.entity(entity).insert(d);
     }
 
     // Screen-space marble for the ghost check (the transform is final for this frame).

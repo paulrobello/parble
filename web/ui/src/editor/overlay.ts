@@ -197,6 +197,7 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
  <button data-k="up" aria-label="Build one level higher (])" title="Build one level higher (])">${icon("chr")}<kbd>]</kbd></button>
  <button class="v vw" data-k="sliceToggle" title="Shown levels: X toggles the slice and all levels, &lt; and &gt; step the slice">${icon("eye")}<span data-k="sliceVal"></span></button>
  <button class="cl on" data-k="columns" aria-label="Ground columns" aria-keyshortcuts="H" aria-pressed="true" title="Ground columns: project the hovered and selected pieces down to the floor (H)">${icon("col")}<kbd>H</kbd></button>
+ <button class="cl on" data-k="dof" aria-label="Depth of field" aria-keyshortcuts="B" aria-pressed="true" title="Depth of field: blur what is nearer or farther than the view centre (B)">${icon("dof")}<kbd>B</kbd></button>
 </div>
 <span class="sp"></span>
 <div class="grp" data-g="run">
@@ -258,6 +259,10 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
   const columnsBtn = q<HTMLButtonElement>(top, '[data-k="columns"]');
   const toggleColumns = (): void => {
     if (d) act({ op: "columns", on: !(d.columns?.on ?? true) });
+  };
+  const dofBtn = q<HTMLButtonElement>(top, '[data-k="dof"]');
+  const toggleDof = (): void => {
+    if (d) act({ op: "dof", on: !(d.dof ?? true) });
   };
   const setMenu = (open: boolean): void => {
     menu.classList.toggle("open", open);
@@ -697,6 +702,7 @@ export function mountEditor(deps: EditorDeps): EditorOverlay {
     up: () => act({ op: "buildStep", by: 1 }),
     sliceToggle: toggleSlice,
     columns: toggleColumns,
+    dof: toggleDof,
     fits: () => toggleFits(),
     one: () => run("one"),
     all: () => run("all"),
@@ -1264,7 +1270,8 @@ ${groupActs}
   const renderTop = (s: EditorDiag): void => {
     const r = s.run;
     const columnsOn = s.columns?.on ?? true;
-    const key = `${s.tool}|${s.canUndo}|${s.canRedo}|${s.slice}|${s.buildLevel}|${s.maxLevel}|${columnsOn}|${s.name}|${r.active}|${r.paused}|${r.follow}|${r.queue}|${r.release}|${s.hoppers}|${intervalS}`;
+    const dofOn = s.dof ?? true;
+    const key = `${s.tool}|${s.canUndo}|${s.canRedo}|${s.slice}|${s.buildLevel}|${s.maxLevel}|${columnsOn}|${dofOn}|${s.name}|${r.active}|${r.paused}|${r.follow}|${r.queue}|${r.release}|${s.hoppers}|${intervalS}`;
     if (key === topKey) return;
     topKey = key;
     if (trackBtn.textContent !== s.name) trackBtn.textContent = s.name;
@@ -1283,6 +1290,8 @@ ${groupActs}
     sliceBtn.setAttribute("aria-label", s.slice === null ? "All levels shown" : `Levels up to ${s.slice} shown`);
     columnsBtn.classList.toggle("on", columnsOn);
     columnsBtn.setAttribute("aria-pressed", String(columnsOn));
+    dofBtn.classList.toggle("on", dofOn);
+    dofBtn.setAttribute("aria-pressed", String(dofOn));
     const noHopper = s.hoppers === 0;
     for (const k of ["one", "all", "interval"]) {
       const b = q<HTMLButtonElement>(top, `[data-k="${k}"]`);
@@ -1566,6 +1575,9 @@ ${groupActs}
         break;
       case "columns":
         toggleColumns();
+        break;
+      case "dof":
+        toggleDof();
         break;
       case "heightDown":
       case "heightUp": {

@@ -178,6 +178,8 @@ export interface EditorDiag {
   nudges?: NudgeDiag;
   /** Ground columns under the hovered piece and the selection (cell columns drawn); absent from builds before them. */
   columns?: { on: boolean; hover: number; selected: number };
+  /** Depth of field on while editing (B); absent from builds before it. */
+  dof?: boolean;
   /** What attaches to the one selected piece; null unless exactly one is selected, absent from builds before it. */
   attach?: AttachFit[] | null;
 }
@@ -236,6 +238,7 @@ export type Action =
   | { op: "camera"; target: [number, number, number]; yaw: number; pitch: number; radius: number }
   | { op: "keys"; enabled: boolean }
   | { op: "columns"; on: boolean }
+  | { op: "dof"; on: boolean }
   | { op: "marbles"; count: number }
   | { op: "run"; release: Release; intervalTicks?: number }
   | { op: "stop" }

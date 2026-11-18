@@ -30,6 +30,7 @@ export type UiCommand =
   | "remove"
   | "sliceToggle"
   | "columns"
+  | "dof"
   | "follow"
   | "fly";
 
@@ -87,6 +88,8 @@ export function keyResult(e: KeyLike): KeyResult {
       return ui("sliceToggle");
     case "KeyH":
       return ui("columns");
+    case "KeyB":
+      return ui("dof");
     case "ArrowLeft":
       return acts({ op: "move", offset: [-1, 0, 0] });
     case "ArrowRight":

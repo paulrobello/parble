@@ -233,6 +233,10 @@ pub enum Action {
     Columns {
         on: bool,
     },
+    /// Depth of field on or off while editing (on at start).
+    Dof {
+        on: bool,
+    },
     /// Queue `count` standard marbles in the hopper (one undoable command).
     Marbles {
         count: u32,
@@ -684,6 +688,8 @@ pub struct EditorDiag {
     /// Nudge zones ([`nudge`]): the count, the selected one and each one projected, every frame.
     pub nudges: NudgeDiag,
     pub columns: ColumnsDiag,
+    /// Depth of field on while editing (`B`, the `dof` action).
+    pub dof: bool,
     /// What attaches to the one selected piece ([`attach_fits`]); `null` unless exactly one piece
     /// is selected. Computed when the selection or the track changes.
     pub attach: Option<Vec<AttachFit>>,
@@ -1060,6 +1066,7 @@ struct EditState {
     /// Ground columns are drawn (`columns`).
     columns: bool,
     columns_key: Option<ColumnsKey>,
+    dof: bool,
     /// The marble runs release: this type, every queued marble at this size. `None`: the queued
     /// sizes as legacy marbles.
     marble: Option<(MarbleKind, SimMarbleSize)>,
@@ -1156,6 +1163,7 @@ impl EditState {
             keys: true,
             columns: true,
             columns_key: None,
+            dof: true,
             marble: None,
             name: UNTITLED.to_owned(),
             run: RunState {
@@ -1521,6 +1529,7 @@ fn op_name(a: &Action) -> &'static str {
         Action::Clear {} => "clear",
         Action::Keys { .. } => "keys",
         Action::Columns { .. } => "columns",
+        Action::Dof { .. } => "dof",
         Action::Marbles { .. } => "marbles",
         Action::Run { .. } => "run",
         Action::Stop {} => "stop",
@@ -2180,6 +2189,10 @@ fn apply_action(st: &mut EditState, ctx: &mut Ctx, action: Action) -> Result<Las
         }
         Action::Keys { enabled } => st.keys = enabled,
         Action::Columns { on } => st.columns = on,
+        Action::Dof { on } => {
+            st.dof = on;
+            ctx.editor_cam.no_dof = !on;
+        }
         Action::Marbles { count } => {
             let hopper = marbles_hopper(st.editor.track(), count)?;
             run_command(st, ctx, "marbles", EditCommand::SetHopper(hopper))?;
@@ -2565,6 +2578,7 @@ impl Plugin for EditorPlugin {
                     radius: 2.6,
                 }),
                 pivot: None,
+                no_dof: false,
             })
             .add_systems(
                 Update,
@@ -2728,6 +2742,7 @@ fn key_actions(st: &EditState, k: &ButtonInput<KeyCode>, shift: bool) -> Vec<Act
             KeyCode::Period if shift => out.push(Action::SliceStep { by: 1 }),
             KeyCode::KeyX => out.push(Action::Slice { level: None }),
             KeyCode::KeyH => out.push(Action::Columns { on: !st.columns }),
+            KeyCode::KeyB => out.push(Action::Dof { on: !st.dof }),
             KeyCode::Escape => out.push(Action::ClearSelection {}),
             KeyCode::Tab => {
                 let next = (st.brush.piece + 1) % kit::PIECES.len();
@@ -2852,6 +2867,7 @@ fn apply_actions(
     d.can_redo = st.editor.can_redo();
     d.keys = st.keys;
     d.columns.on = st.columns;
+    d.dof = st.dof;
     d.name.clone_from(&st.name);
     d.run = RunDiag {
         active: st.run.active,
@@ -3478,6 +3494,21 @@ mod tests {
         assert!(
             cols.iter()
                 .all(|&(c, t)| c.y == 5 && t == ColumnTint::Hover)
+        );
+    }
+
+    #[test]
+    fn b_toggles_depth_of_field() {
+        let mut st = EditState::new();
+        assert!(st.dof, "depth of field starts on");
+        let mut k = ButtonInput::<KeyCode>::default();
+        k.press(KeyCode::KeyB);
+        assert_eq!(key_actions(&st, &k, false), [Action::Dof { on: false }]);
+        st.dof = false;
+        assert_eq!(key_actions(&st, &k, false), [Action::Dof { on: true }]);
+        assert_eq!(
+            parse(r#"{"op":"dof","on":false}"#),
+            Action::Dof { on: false }
         );
     }
 
