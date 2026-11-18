@@ -1,4 +1,4 @@
-.PHONY: build test lint lint-native lint-wasm fmt fmt-check typecheck ui-static ui-test ui-build checkall checkall-ci \
+.PHONY: all build clean run check test lint lint-native lint-wasm fmt fmt-check typecheck ui-static ui-test ui-build checkall checkall-ci \
 	wasm-build-check secrets-scan pre-commit pre-commit-update dev dev-start dev-restart dev-stop build-web web-size \
 	audio-process audition
 
@@ -6,10 +6,21 @@ DEV_PORT := 5310
 AUDITION_PORT := 5312
 WASM := wasm32-unknown-unknown
 UI := web/ui
+ARGS ?=
+
+all: build
 
 build:
 	cargo build --workspace
 	cargo build --workspace --target $(WASM)
+
+clean:
+	$(RM) -r -- target dist web/ui/dist
+
+run:
+	cargo run -p parble-app -- $(ARGS)
+
+check: fmt-check lint
 
 test:
 	cargo test --workspace
